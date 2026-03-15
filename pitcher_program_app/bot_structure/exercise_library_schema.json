@@ -1,0 +1,67 @@
+{
+  "$schema": "exercise_library",
+  "$description": "Each exercise the system knows about. Tagged for contextual retrieval by the bot.",
+  "exercises": [
+    {
+      "id": "ex_001",
+      "name": "Trap Bar Deadlift",
+      "aliases": ["hex bar deadlift", "trap bar pull"],
+      "category": "posterior_chain",
+      "subcategory": "hip_dominant",
+      "muscles_primary": ["glutes", "hamstrings", "erector spinae"],
+      "muscles_secondary": ["quads", "grip", "traps"],
+      "pitching_relevance": "Hip extension force production directly correlates with stride power and velocity. Trap bar variant reduces spinal shear vs. conventional, safer for in-season loading.",
+      "prescription": {
+        "strength": { "sets": "3-4", "reps": "3-5", "intensity": "80-90% 1RM", "rest_min": 3 },
+        "hypertrophy": { "sets": "3-4", "reps": "8-12", "intensity": "65-75% 1RM", "rest_min": 2 },
+        "power": { "sets": "3-5", "reps": "2-3", "intensity": "60-70% 1RM", "rest_min": 3, "note": "Maximal bar speed intent" }
+      },
+      "rotation_day_usage": {
+        "recommended": ["day_3", "day_4"],
+        "acceptable": ["day_2", "day_5"],
+        "avoid": ["day_0", "day_1", "day_6"]
+      },
+      "tags": ["compound", "lower_body", "power", "velocity_development", "force_production"],
+      "contraindications": ["acute_low_back", "hip_impingement"],
+      "modification_flags": {
+        "ucl_history": "no_modification_needed",
+        "shoulder_impingement": "no_modification_needed",
+        "low_back_history": "reduce_volume_or_substitute_rdl",
+        "poor_hip_mobility": "elevate_handles_or_substitute"
+      },
+      "youtube_url": "",
+      "evidence_level": "strong",
+      "source_notes": "Suchomel et al. 2018 — trap bar DL produces similar force output with lower spinal load"
+    },
+    {
+      "id": "ex_002",
+      "name": "Pronator Teres Isolation — Pronation with Dumbbell",
+      "aliases": ["forearm pronation", "pronator work"],
+      "category": "forearm_fpm",
+      "subcategory": "ucl_protection",
+      "muscles_primary": ["pronator teres", "pronator quadratus"],
+      "muscles_secondary": ["FCR", "FDS"],
+      "pitching_relevance": "Pronator teres is a primary dynamic stabilizer of the UCL during the acceleration phase. Strengthening reduces valgus stress on the ligament. Critical for UCL injury prevention.",
+      "prescription": {
+        "strength": { "sets": "3", "reps": "10-15", "intensity": "light_to_moderate", "rest_min": 1 },
+        "endurance": { "sets": "2-3", "reps": "15-25", "intensity": "light", "rest_min": 0.75 }
+      },
+      "rotation_day_usage": {
+        "recommended": ["day_1", "day_2", "day_3", "day_4", "day_5"],
+        "acceptable": ["day_0", "day_6"],
+        "avoid": []
+      },
+      "tags": ["isolation", "arm_care", "ucl_protection", "fpm", "injury_prevention"],
+      "contraindications": ["acute_medial_elbow_pain"],
+      "modification_flags": {
+        "ucl_history": "increase_frequency_and_volume",
+        "shoulder_impingement": "no_modification_needed",
+        "low_back_history": "no_modification_needed",
+        "poor_hip_mobility": "no_modification_needed"
+      },
+      "youtube_url": "",
+      "evidence_level": "strong",
+      "source_notes": "Lin et al. 2018, Anz et al. 2010 — FPM strength inversely correlated with UCL injury risk"
+    }
+  ]
+}
