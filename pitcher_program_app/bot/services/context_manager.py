@@ -123,7 +123,7 @@ def get_pitcher_id_by_telegram(telegram_id: int, username: str = None) -> str | 
                     return profile["pitcher_id"]
                 # Check username fallback
                 if (username and not username_match
-                        and profile.get("telegram_username") == username
+                        and profile.get("telegram_username", "").lower() == username.lower()
                         and not profile.get("telegram_id")):
                     username_match = profile
             except (json.JSONDecodeError, KeyError):

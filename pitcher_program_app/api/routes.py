@@ -40,12 +40,17 @@ def _require_pitcher_auth(request: Request, pitcher_id: str) -> None:
 @router.get("/auth/resolve")
 async def auth_resolve(initData: str = Query(default="")):
     """Resolve Telegram initData to pitcher_id."""
+    import logging
+    _log = logging.getLogger(__name__)
+
     user = validate_init_data(initData)
     if not user:
         raise HTTPException(status_code=401, detail="Invalid initData")
 
+    _log.info(f"Auth resolve: telegram_id={user.get('id')}, username={user.get('username')}")
     pitcher_id = resolve_pitcher(user["id"], user.get("username"))
     if not pitcher_id:
+        _log.warning(f"No pitcher match for user: {user}")
         raise HTTPException(status_code=404, detail="No pitcher profile linked")
 
     return {"pitcher_id": pitcher_id}
