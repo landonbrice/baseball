@@ -5,21 +5,23 @@
 
 ## WHAT THIS IS
 
-An individualized arm care, recovery, and training intelligence system for the University of Chicago baseball pitching staff. Deployed as a Telegram bot with an in-app Mini App dashboard. Each pitcher gets personalized daily protocols, evidence-based Q&A, and longitudinal tracking — all supplementing the existing team S&C program (which the bot does NOT replace).
+A complete individualized training intelligence system for the University of Chicago baseball pitching staff. Deployed as a Telegram bot with an in-app Mini App dashboard. Each pitcher gets personalized daily lifting programs, arm care protocols, throwing program guidance, recovery programming, evidence-based Q&A, and longitudinal tracking.
 
 ## WHAT THE BOT OWNS vs. DOESN'T OWN
 
 ### Bot OWNS:
+- Individualized lifting programs (off-season and in-season, periodized by rotation day)
 - Individualized arm care protocols (FPM work, scapular stability, shoulder health)
-- Recovery programming around team lifts and pitching schedule
+- Throwing warm-up and recovery routines (J-bands, wrist weights, plyo ball drills)
+- Recovery programming coordinated with lifting and pitching schedule
 - Daily readiness triage (arm feel, sleep, soreness → Green/Yellow/Red)
 - Post-outing recovery protocols
 - Evidence-based Q&A (pitcher asks a question → bot answers from research base or searches web)
 - Longitudinal tracking (arm feel trends, progression, pattern detection)
 - Individual modifications based on injury history and recovery data
+- Lifting + arm care coordination (programs work in conjunction, not in isolation)
 
 ### Bot DOES NOT OWN:
-- The main lifting program (team S&C coach handles this)
 - Mechanical/pitching instruction
 - Medical diagnosis or treatment
 - Supplement/medication recommendations

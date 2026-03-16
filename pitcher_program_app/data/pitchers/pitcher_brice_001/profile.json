@@ -1,0 +1,78 @@
+{
+  "pitcher_id": "pitcher_brice_001",
+  "telegram_id": null,
+  "telegram_username": "landonbrice",
+  "name": "Landon Brice",
+  "role": "starter",
+  "rotation_length": 7,
+  "throws": "right",
+  "physical_profile": {
+    "height_in": 72,
+    "weight_lbs": 185,
+    "body_comp_goal": "maintain",
+    "known_mobility_limitations": [],
+    "movement_screen_notes": ""
+  },
+  "injury_history": [
+    {
+      "date": "unknown",
+      "area": "medial_elbow",
+      "description": "Medial elbow/UCL soreness \u2014 requires elevated FPM volume as preventive measure",
+      "severity": "unknown",
+      "resolution": "unknown",
+      "ongoing_considerations": "",
+      "flag_level": "yellow"
+    }
+  ],
+  "current_training": {
+    "lifting_experience": "advanced",
+    "current_maxes": {
+      "trap_bar_dl": 350,
+      "front_squat": 250,
+      "db_bench": 90,
+      "pullup": "BW+45"
+    },
+    "preferred_exercises": [],
+    "disliked_or_avoided": [],
+    "current_split": "upper_lower_2x"
+  },
+  "pitching_profile": {
+    "avg_velocity_fb": 88,
+    "pitch_arsenal": [
+      "4-seam",
+      "slider",
+      "changeup"
+    ],
+    "typical_pitch_count": 80,
+    "avg_outing_innings": 0,
+    "mechanical_focus_areas": [],
+    "mechanical_notes": ""
+  },
+  "biometric_integration": {
+    "whoop_connected": false,
+    "baseline_hrv": null,
+    "baseline_rhr": null,
+    "avg_sleep_hours": null
+  },
+  "goals": {
+    "primary": "Stay healthy through the season",
+    "secondary": "Add velocity",
+    "tertiary": ""
+  },
+  "preferences": {
+    "notification_time": "08:00",
+    "log_style": "conversational",
+    "detail_level": "moderate",
+    "wants_youtube_links": true
+  },
+  "active_flags": {
+    "current_arm_feel": 4,
+    "current_flag_level": "green",
+    "last_outing_date": null,
+    "last_outing_pitches": null,
+    "days_since_outing": 99,
+    "active_modifications": [
+      "elevated_fpm_volume"
+    ]
+  }
+}
