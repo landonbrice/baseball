@@ -28,8 +28,8 @@ def validate_init_data(init_data: str) -> dict | None:
         pairs.append(f"{key}={val}")
     check_string = "\n".join(pairs)
 
-    # HMAC: secret_key = HMAC-SHA256("WebAppData", bot_token)
-    secret = hmac.new(b"WebAppData", TELEGRAM_BOT_TOKEN.encode(), hashlib.sha256).digest()
+    # HMAC: secret_key = HMAC-SHA256(bot_token, "WebAppData")
+    secret = hmac.new(TELEGRAM_BOT_TOKEN.encode(), b"WebAppData", hashlib.sha256).digest()
     computed = hmac.new(secret, check_string.encode(), hashlib.sha256).hexdigest()
 
     if not hmac.compare_digest(computed, received_hash):

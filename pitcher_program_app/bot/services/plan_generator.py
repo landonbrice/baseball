@@ -3,7 +3,7 @@
 import json
 import os
 import logging
-from bot.config import TEMPLATES_DIR, KNOWLEDGE_DIR
+from bot.config import TEMPLATES_DIR, KNOWLEDGE_DIR, CONTEXT_WINDOW_CHARS
 from bot.services.llm import call_llm, load_prompt
 from bot.services.context_manager import load_profile, load_context, get_recent_entries
 
@@ -164,7 +164,7 @@ def _build_pitcher_context(profile: dict, context_md: str) -> str:
 
     # Recent context (last 500 chars)
     if context_md:
-        recent = context_md[-500:]
+        recent = context_md[-CONTEXT_WINDOW_CHARS:]
         parts.append(f"\nRecent interactions:\n{recent}")
 
     return "\n".join(parts)

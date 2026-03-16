@@ -25,7 +25,8 @@ from bot.services.context_manager import (
     get_recent_entries,
     update_active_flags,
 )
-from bot.config import TEMPLATES_DIR
+from bot.config import TEMPLATES_DIR, CONTEXT_WINDOW_CHARS
+from bot.utils import build_rating_keyboard
 
 logger = logging.getLogger(__name__)
 
@@ -60,17 +61,7 @@ async def pitch_count_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     context.user_data["pitch_count"] = count
 
-    # Arm feel keyboard (1-5)
-    keyboard = [
-        [
-            InlineKeyboardButton("1 💀", callback_data="outing_feel_1"),
-            InlineKeyboardButton("2", callback_data="outing_feel_2"),
-            InlineKeyboardButton("3", callback_data="outing_feel_3"),
-            InlineKeyboardButton("4", callback_data="outing_feel_4"),
-            InlineKeyboardButton("5 💪", callback_data="outing_feel_5"),
-        ]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
+    reply_markup = build_rating_keyboard("outing_feel")
 
     await update.message.reply_text(
         f"Got it — {count} pitches. How's the arm feel right now? (1-5)",
@@ -246,7 +237,7 @@ def _build_outing_context(profile: dict, pitcher_id: str) -> str:
         parts.append(f"Active modifications: {', '.join(active_mods)}")
 
     if context_md:
-        parts.append(f"\nRecent context:\n{context_md[-300:]}")
+        parts.append(f"\nRecent context:\n{context_md[-CONTEXT_WINDOW_CHARS:]}")
 
     return "\n".join(parts)
 

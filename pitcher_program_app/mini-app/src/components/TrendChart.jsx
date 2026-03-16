@@ -3,18 +3,14 @@
  * No charting library — keeps bundle small for Telegram Mini App.
  */
 
+import { FLAG_COLORS, getArmFeelLevel } from '../constants';
+
 const CHART_W = 320;
 const CHART_H = 120;
 const PAD_X = 30;
 const PAD_Y = 15;
 const PLOT_W = CHART_W - PAD_X * 2;
 const PLOT_H = CHART_H - PAD_Y * 2;
-
-function armFeelStrokeColor(avg) {
-  if (avg >= 4) return '#4ade80';
-  if (avg >= 3) return '#facc15';
-  return '#ef4444';
-}
 
 export default function TrendChart({ entries = [], days = 28 }) {
   // Filter entries with arm feel data, take last N days
@@ -44,7 +40,7 @@ export default function TrendChart({ entries = [], days = 28 }) {
   });
 
   const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
-  const strokeColor = armFeelStrokeColor(avg);
+  const strokeColor = FLAG_COLORS[getArmFeelLevel(Math.round(avg))].stroke;
 
   // Outing markers
   const outingPoints = points.filter((_, i) => withFeel[i].outing);

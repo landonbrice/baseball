@@ -1,16 +1,6 @@
+import { FLAG_COLORS, getArmFeelLevel } from '../constants';
+
 const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-
-function armFeelColor(feel) {
-  if (feel >= 4) return 'bg-flag-green';
-  if (feel === 3) return 'bg-flag-yellow';
-  return 'bg-flag-red';
-}
-
-function armFeelBg(feel) {
-  if (feel >= 4) return 'bg-[#064e3b]';
-  if (feel === 3) return 'bg-[#713f12]';
-  return 'bg-[#7f1d1d]';
-}
 
 /**
  * 7-day color-coded rotation strip showing arm feel by day.
@@ -42,25 +32,30 @@ export default function WeekStrip({ entries = [], todayRotationDay = 0 }) {
 
   return (
     <div className="flex justify-between gap-1">
-      {days.map((day, i) => (
-        <div
-          key={i}
-          className={`flex flex-col items-center flex-1 py-2 rounded-lg ${
-            day.isToday ? 'ring-2 ring-accent-blue' : ''
-          } ${day.armFeel != null ? armFeelBg(day.armFeel) : 'bg-bg-secondary'}`}
-        >
-          <span className="text-[10px] text-text-muted">{day.label}</span>
-          <span className={`text-sm font-semibold mt-0.5 ${
-            day.armFeel != null ? '' : 'text-text-muted'
-          }`}>
-            {day.armFeel != null ? day.armFeel : '—'}
-          </span>
-          <span className="text-[10px] text-text-muted mt-0.5">{day.date}</span>
-          {day.hasOuting && (
-            <div className="w-1.5 h-1.5 rounded-full bg-accent-blue mt-0.5" />
-          )}
-        </div>
-      ))}
+      {days.map((day, i) => {
+        const level = day.armFeel != null ? getArmFeelLevel(day.armFeel) : null;
+        const bgClass = level ? FLAG_COLORS[level].bg : 'bg-bg-secondary';
+
+        return (
+          <div
+            key={i}
+            className={`flex flex-col items-center flex-1 py-2 rounded-lg ${
+              day.isToday ? 'ring-2 ring-accent-blue' : ''
+            } ${bgClass}`}
+          >
+            <span className="text-[10px] text-text-muted">{day.label}</span>
+            <span className={`text-sm font-semibold mt-0.5 ${
+              day.armFeel != null ? '' : 'text-text-muted'
+            }`}>
+              {day.armFeel != null ? day.armFeel : '—'}
+            </span>
+            <span className="text-[10px] text-text-muted mt-0.5">{day.date}</span>
+            {day.hasOuting && (
+              <div className="w-1.5 h-1.5 rounded-full bg-accent-blue mt-0.5" />
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

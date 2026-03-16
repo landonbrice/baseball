@@ -109,6 +109,17 @@ def triage(arm_feel: int, sleep_hours: float, pitcher_profile: dict,
         return _build_result(flag_level, modifications, alerts, protocol_adjustments,
                              ". ".join(reasoning_parts) + ". YELLOW protocol — train but dial back.")
 
+    # --- Step 5b: Ambiguous middle zone — consult LLM for nuanced triage ---
+    # arm_feel=3 with multiple yellow signals is hard to categorize with rules alone
+    if arm_feel == 3 and (low_recovery or grip_drop or (energy is not None and energy <= 2)):
+        flag_level = "yellow"
+        modifications.append("Borderline inputs — consult LLM for nuanced recommendation")
+        protocol_adjustments["lifting_intensity_cap"] = "RPE 6-7"
+        protocol_adjustments["plyocare_allowed"] = False
+        protocol_adjustments["needs_llm_triage"] = True
+        return _build_result(flag_level, modifications, alerts, protocol_adjustments,
+                             "Arm feel 3 with multiple yellow signals — YELLOW with LLM consult for nuanced plan.")
+
     # --- Step 6: All clear → GREEN ---
     flag_level = "green"
 

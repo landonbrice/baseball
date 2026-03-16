@@ -1,9 +1,9 @@
 """Daily check-in flow using ConversationHandler.
 
 Morning check-in: arm feel → sleep → triage → plan generation → send protocol.
+Includes reliever branching and 8+ day outing detection.
 """
 
-import json
 import logging
 from datetime import datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -16,19 +16,25 @@ from telegram.ext import (
     filters,
 )
 from bot.services.triage import triage
+from bot.services.triage_llm import llm_triage_refinement
 from bot.services.plan_generator import generate_plan
 from bot.services.progression import analyze_progression
 from bot.services.context_manager import (
     load_profile,
+    load_log,
+    save_log,
     append_context,
     append_log_entry,
     get_pitcher_id_by_telegram,
+    increment_days_since_outing,
+    update_active_flags,
 )
+from bot.utils import build_rating_keyboard, build_completion_keyboard
 
 logger = logging.getLogger(__name__)
 
 # Conversation states
-ARM_FEEL, SLEEP_HOURS, ENERGY = range(3)
+ARM_FEEL, SLEEP_HOURS, ENERGY, RELIEVER_THREW = range(4)
 
 
 async def start_checkin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -42,20 +48,63 @@ async def start_checkin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 
     context.user_data["pitcher_id"] = pitcher_id
 
-    # Arm feel keyboard (1-5)
-    keyboard = [
-        [
-            InlineKeyboardButton("1 💀", callback_data="arm_feel_1"),
-            InlineKeyboardButton("2", callback_data="arm_feel_2"),
-            InlineKeyboardButton("3", callback_data="arm_feel_3"),
-            InlineKeyboardButton("4", callback_data="arm_feel_4"),
-            InlineKeyboardButton("5 💪", callback_data="arm_feel_5"),
-        ]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
+    # Fix 1: Increment rotation day each check-in
+    increment_days_since_outing(pitcher_id)
 
+    profile = load_profile(pitcher_id)
+    flags = profile.get("active_flags", {})
+    days_since = flags.get("days_since_outing", 0)
+    role = profile.get("role", "starter")
+
+    # Fix 7: 8+ days without outing for starters
+    if role == "starter" and days_since > 8:
+        await update.message.reply_text(
+            f"It's been {days_since} days since your last logged outing. "
+            "Did you pitch recently? If so, use /outing to log it."
+        )
+
+    # Fix 6: Reliever "Did you throw?" branch
+    if role == "reliever":
+        keyboard = InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton("Yes", callback_data="reliever_threw_yes"),
+                InlineKeyboardButton("No", callback_data="reliever_threw_no"),
+            ]
+        ])
+        await update.message.reply_text(
+            "Did you throw in a game yesterday?",
+            reply_markup=keyboard,
+        )
+        return RELIEVER_THREW
+
+    # Standard flow: arm feel prompt
+    reply_markup = build_rating_keyboard("arm_feel")
     await update.message.reply_text(
         "Morning check-in. How's the arm feel today? (1-5)",
+        reply_markup=reply_markup,
+    )
+    return ARM_FEEL
+
+
+async def reliever_threw_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle reliever 'Did you throw?' response."""
+    query = update.callback_query
+    await query.answer()
+
+    threw = query.data == "reliever_threw_yes"
+
+    if threw:
+        await query.edit_message_text(
+            "Got it — use /outing to log your appearance, "
+            "then come back and /checkin for today's plan."
+        )
+        return ConversationHandler.END
+
+    await query.edit_message_text("No game appearance yesterday. Let's do your check-in.")
+
+    reply_markup = build_rating_keyboard("arm_feel")
+    await query.message.reply_text(
+        "How's the arm feel today? (1-5)",
         reply_markup=reply_markup,
     )
     return ARM_FEEL
@@ -86,18 +135,7 @@ async def sleep_hours_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     context.user_data["sleep_hours"] = sleep
 
-    # Energy keyboard (1-5)
-    keyboard = [
-        [
-            InlineKeyboardButton("1 😴", callback_data="energy_1"),
-            InlineKeyboardButton("2", callback_data="energy_2"),
-            InlineKeyboardButton("3", callback_data="energy_3"),
-            InlineKeyboardButton("4", callback_data="energy_4"),
-            InlineKeyboardButton("5 ⚡", callback_data="energy_5"),
-        ]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-
+    reply_markup = build_rating_keyboard("energy", emoji_low="😴", emoji_high="⚡")
     await update.message.reply_text(
         f"Sleep: {sleep}h. Overall energy level?",
         reply_markup=reply_markup,
@@ -129,6 +167,25 @@ async def energy_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             energy=energy,
         )
 
+        # Phase 4b: LLM-driven triage refinement for ambiguous cases
+        if triage_result.get("protocol_adjustments", {}).get("needs_llm_triage"):
+            try:
+                llm_refinement = await llm_triage_refinement(
+                    arm_feel, sleep_hours, energy, profile, pitcher_id
+                )
+                if llm_refinement:
+                    # Merge LLM recommendations into triage result
+                    triage_result["modifications"].extend(llm_refinement.get("modifications", []))
+                    triage_result["reasoning"] += f" LLM note: {llm_refinement.get('reasoning', '')}"
+            except Exception as e:
+                logger.warning(f"LLM triage refinement failed, using rule-based result: {e}")
+
+        # Fix 2: Persist flag_level and arm_feel after triage
+        update_active_flags(pitcher_id, {
+            "current_flag_level": triage_result["flag_level"],
+            "current_arm_feel": arm_feel,
+        })
+
         # Run progression analysis
         progression = analyze_progression(pitcher_id)
 
@@ -149,7 +206,10 @@ async def energy_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
         # Generate plan
         plan = await generate_plan(pitcher_id, triage_result)
-        await query.message.reply_text(plan)
+
+        # Fix 3: Send plan with completion keyboard
+        reply_markup = build_completion_keyboard()
+        await query.message.reply_text(plan, reply_markup=reply_markup)
 
         # Send weekly summary on Sundays
         if progression.get("weekly_summary"):
@@ -173,6 +233,82 @@ async def energy_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         )
 
     return ConversationHandler.END
+
+
+async def plan_completion_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle plan completion button presses (outside ConversationHandler)."""
+    query = update.callback_query
+    await query.answer()
+
+    pitcher_id = context.user_data.get("pitcher_id")
+    action = query.data
+
+    if action == "plan_dashboard":
+        from bot.config import MINI_APP_URL
+        if MINI_APP_URL:
+            from telegram import WebAppInfo
+            keyboard = InlineKeyboardMarkup([
+                [InlineKeyboardButton(
+                    "Open Dashboard",
+                    web_app=WebAppInfo(url=MINI_APP_URL),
+                )]
+            ])
+            await query.message.reply_text("Tap to open:", reply_markup=keyboard)
+        else:
+            await query.message.reply_text("Dashboard not configured yet.")
+        await query.edit_message_reply_markup(reply_markup=None)
+        return
+
+    # Update today's log entry with completion status
+    if pitcher_id:
+        _update_log_completion(pitcher_id, action)
+
+    await query.edit_message_reply_markup(reply_markup=None)
+
+    if action == "plan_done":
+        await query.message.reply_text("Logged as completed. Nice work.")
+    elif action == "plan_skipped":
+        # Ask what was skipped for better tracking
+        context.user_data["awaiting_skip_details"] = True
+        await query.message.reply_text(
+            "Logged as partially completed. What did you skip or modify?\n\n"
+            "Just a quick note — e.g., 'skipped plyocare, cut lifting short'"
+        )
+
+
+async def skip_details_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle free-text response about what was skipped after 'Skipped some'."""
+    if not context.user_data.get("awaiting_skip_details"):
+        return  # Not awaiting skip details — pass through to Q&A
+    context.user_data["awaiting_skip_details"] = False
+
+    pitcher_id = context.user_data.get("pitcher_id")
+    details = update.message.text.strip()
+
+    if pitcher_id and details:
+        # Update today's log entry with skip details
+        log = load_log(pitcher_id)
+        today = datetime.now().strftime("%Y-%m-%d")
+        for entry in reversed(log.get("entries", [])):
+            if entry.get("date") == today:
+                entry["skip_notes"] = details
+                break
+        save_log(pitcher_id, log)
+        append_context(pitcher_id, "feedback", f"Skipped: {details[:100]}")
+
+    await update.message.reply_text("Got it — noted for your log.")
+
+
+def _update_log_completion(pitcher_id: str, action: str) -> None:
+    """Update the most recent log entry with completion status."""
+    log = load_log(pitcher_id)
+    entries = log.get("entries", [])
+    today = datetime.now().strftime("%Y-%m-%d")
+    for entry in reversed(entries):
+        if entry.get("date") == today:
+            entry["actual_logged"] = "all_done" if action == "plan_done" else "skipped_some"
+            break
+    save_log(pitcher_id, log)
 
 
 async def cancel_checkin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -208,6 +344,9 @@ def get_checkin_handler() -> ConversationHandler:
     return ConversationHandler(
         entry_points=[CommandHandler("checkin", start_checkin)],
         states={
+            RELIEVER_THREW: [CallbackQueryHandler(
+                reliever_threw_callback, pattern=r"^reliever_threw_(yes|no)$"
+            )],
             ARM_FEEL: [CallbackQueryHandler(arm_feel_callback, pattern=r"^arm_feel_\d$")],
             SLEEP_HOURS: [MessageHandler(filters.TEXT & ~filters.COMMAND, sleep_hours_handler)],
             ENERGY: [CallbackQueryHandler(energy_callback, pattern=r"^energy_\d$")],

@@ -1,0 +1,115 @@
+{
+  "name": "Post-Outing Recovery Protocols",
+  "description": "Structured recovery protocols for the first 48 hours after an outing",
+  "protocols": {
+    "immediate": {
+      "label": "Immediate Post-Outing (0-2 hours)",
+      "sequence": [
+        {
+          "block_name": "Cooldown",
+          "exercises": [
+            {"name": "Light jog / walk", "prescription": "5 min easy"},
+            {"name": "Post-throw stretch routine", "prescription": "Full sequence"},
+            {"name": "Foam roll lats/pecs/thoracic", "prescription": "60s per area"}
+          ]
+        },
+        {
+          "block_name": "Arm Care - Recovery",
+          "exercises": [
+            {"name": "Band external rotation", "prescription": "2x15 light"},
+            {"name": "Prone Y/T/W", "prescription": "2x10"},
+            {"name": "Wrist flexion/extension", "prescription": "2x15"}
+          ]
+        },
+        {
+          "block_name": "Recovery",
+          "exercises": [
+            {"name": "Hydration", "prescription": "16-24oz water + electrolytes"},
+            {"name": "Nutrition", "prescription": "Protein + carb meal within 1 hour"},
+            {"name": "Ice (optional)", "prescription": "10 min on elbow if sore, NOT shoulder"}
+          ]
+        }
+      ]
+    },
+    "day_1": {
+      "label": "Day 1 Post-Outing",
+      "sequence": [
+        {
+          "block_name": "Movement",
+          "exercises": [
+            {"name": "Dynamic warmup", "prescription": "Standard sequence"},
+            {"name": "Light flat ground", "prescription": "20-25 throws, 50-60% intent, IF arm feel >= 3"}
+          ]
+        },
+        {
+          "block_name": "Arm Care - Light",
+          "exercises": [
+            {"name": "Full arm care light routine", "prescription": "As prescribed"},
+            {"name": "Nerve glides", "prescription": "2x10 each pattern"},
+            {"name": "Pronator work", "prescription": "3x12 light band"}
+          ]
+        },
+        {
+          "block_name": "Lifting - Blood Flow",
+          "exercises": [
+            {"name": "Light upper body", "prescription": "RPE 5-6, blood flow focus"},
+            {"name": "Band pull aparts", "prescription": "3x15"},
+            {"name": "Face pulls", "prescription": "3x12"}
+          ]
+        }
+      ],
+      "arm_feel_override": {
+        "if_arm_feel_lte_2": "Skip throwing. Arm care only. Flag for trainer.",
+        "if_arm_feel_3": "Reduce flat ground to 15 throws. Monitor closely."
+      }
+    },
+    "day_2": {
+      "label": "Day 2 Post-Outing",
+      "sequence": [
+        {
+          "block_name": "Throwing",
+          "exercises": [
+            {"name": "Dynamic warmup", "prescription": "Standard sequence"},
+            {"name": "Long toss or flat ground", "prescription": "30-40 throws, 70% intent"}
+          ]
+        },
+        {
+          "block_name": "Arm Care",
+          "exercises": [
+            {"name": "Arm care routine", "prescription": "Heavy or light based on arm feel"},
+            {"name": "Plyocare", "prescription": "Recovery-level if arm feel >= 4"}
+          ]
+        },
+        {
+          "block_name": "Lifting",
+          "exercises": [
+            {"name": "Full lower body session", "prescription": "RPE 7-8"},
+            {"name": "Core work", "prescription": "Standard"}
+          ]
+        }
+      ],
+      "arm_feel_override": {
+        "if_arm_feel_lte_2": "No throwing. Recovery arm care only. Trainer evaluation recommended.",
+        "if_arm_feel_3": "Light flat ground only (20 throws). Reduce lifting to RPE 5-6."
+      }
+    }
+  },
+  "high_pitch_count_modifier": {
+    "threshold_above_typical": 15,
+    "adjustments": [
+      "Extend recovery by 1 day (skip Day 1 throwing)",
+      "Extra soft tissue work on forearm and shoulder",
+      "Reduce Day 2 throwing volume by 30%",
+      "Monitor arm feel closely — flag if not improving by Day 2"
+    ]
+  },
+  "low_arm_feel_modifier": {
+    "threshold": 2,
+    "adjustments": [
+      "No throwing until arm feel >= 3",
+      "Trainer evaluation before next throwing session",
+      "Light arm care and mobility only",
+      "Extra recovery protocols (sleep, nutrition, hydration emphasis)"
+    ]
+  }
+}

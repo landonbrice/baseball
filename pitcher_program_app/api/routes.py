@@ -4,7 +4,7 @@ import json
 import os
 from functools import lru_cache
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 
 from bot.config import KNOWLEDGE_DIR
 from bot.services.context_manager import load_profile, load_log
@@ -12,6 +12,26 @@ from bot.services.progression import analyze_progression
 from api.auth import validate_init_data, resolve_pitcher
 
 router = APIRouter(prefix="/api")
+
+
+def _require_pitcher_auth(request: Request, pitcher_id: str) -> None:
+    """Validate that the request is authenticated and authorized for this pitcher.
+
+    Checks X-Telegram-Init-Data header, validates via HMAC, resolves the
+    telegram user to a pitcher_id, and verifies it matches the requested resource.
+    Raises HTTPException(401/403) on failure.
+    """
+    init_data = request.headers.get("X-Telegram-Init-Data", "")
+    if not init_data:
+        raise HTTPException(status_code=401, detail="Missing authentication")
+
+    user = validate_init_data(init_data)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid authentication")
+
+    resolved_id = resolve_pitcher(user["id"])
+    if not resolved_id or resolved_id != pitcher_id:
+        raise HTTPException(status_code=403, detail="Not authorized for this pitcher")
 
 
 @router.get("/auth/resolve")
@@ -29,8 +49,9 @@ async def auth_resolve(initData: str = Query(default="")):
 
 
 @router.get("/pitcher/{pitcher_id}/profile")
-async def get_profile(pitcher_id: str):
+async def get_profile(pitcher_id: str, request: Request):
     """Return pitcher profile."""
+    _require_pitcher_auth(request, pitcher_id)
     try:
         return load_profile(pitcher_id)
     except FileNotFoundError:
@@ -38,14 +59,16 @@ async def get_profile(pitcher_id: str):
 
 
 @router.get("/pitcher/{pitcher_id}/log")
-async def get_log(pitcher_id: str):
+async def get_log(pitcher_id: str, request: Request):
     """Return pitcher daily log."""
+    _require_pitcher_auth(request, pitcher_id)
     return load_log(pitcher_id)
 
 
 @router.get("/pitcher/{pitcher_id}/progression")
-async def get_progression(pitcher_id: str):
+async def get_progression(pitcher_id: str, request: Request):
     """Return progression analysis."""
+    _require_pitcher_auth(request, pitcher_id)
     try:
         return analyze_progression(pitcher_id)
     except FileNotFoundError:

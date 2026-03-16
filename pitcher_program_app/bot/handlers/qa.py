@@ -1,6 +1,7 @@
 """Q&A handler. Routes free-text questions to the LLM with context."""
 
 import logging
+import re
 from telegram import Update
 from telegram.ext import ContextTypes
 from bot.services.llm import call_llm, load_prompt
@@ -9,11 +10,18 @@ from bot.services.context_manager import (
     load_context,
     get_pitcher_id_by_telegram,
     append_context,
+    update_active_flags,
 )
+from bot.config import CONTEXT_WINDOW_CHARS
 from bot.services.knowledge_retrieval import retrieve_knowledge
 from bot.services.web_research import web_search_fallback
 
 logger = logging.getLogger(__name__)
+
+# Pattern to detect "I'm on day X" or "I am on day X"
+_ROTATION_DAY_PATTERN = re.compile(
+    r"(?:i'?m|i\s+am)\s+on\s+day\s+(\d+)", re.IGNORECASE
+)
 
 
 async def handle_question(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -28,6 +36,19 @@ async def handle_question(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     question = update.message.text
     if not question or len(question.strip()) < 3:
         return
+
+    # Phase 3c: Detect natural language rotation day updates
+    day_match = _ROTATION_DAY_PATTERN.search(question)
+    if day_match:
+        day = int(day_match.group(1))
+        update_active_flags(pitcher_id, {"days_since_outing": day})
+        await update.message.reply_text(f"Got it — updated your rotation day to Day {day}.")
+        append_context(pitcher_id, "status", f"Rotation day manually set to {day} via chat")
+        # If there's more to the message beyond the day statement, continue to Q&A
+        stripped = _ROTATION_DAY_PATTERN.sub("", question).strip(" .,;-")
+        if len(stripped) < 3:
+            return
+        question = stripped
 
     try:
         profile = load_profile(pitcher_id)
@@ -72,6 +93,6 @@ def _build_qa_context(profile: dict, pitcher_id: str) -> str:
     ]
 
     if context_md:
-        parts.append(f"\nRecent context:\n{context_md[-300:]}")
+        parts.append(f"\nRecent context:\n{context_md[-CONTEXT_WINDOW_CHARS:]}")
 
     return "\n".join(parts)

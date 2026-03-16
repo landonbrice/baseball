@@ -6,7 +6,7 @@ If the FPM is strained or fatigued, it can no longer effectively dissipate the 6
 
 * **Isometric Superiority for Pain:** For athletes in-season with tendon or muscle-unit pain, research indicates that **heavy loaded isometrics** provide significantly greater immediate pain relief (analgesia) compared to isotonic (movement-based) contractions.
 * **The Fatigue Link:** Medial elbow width increases significantly following FPM fatigue, which is evidenced by a decrease in wrist flexion strength.
-* **Differential Diagnosis:** Practitioners use the **"Thinker Test"** to confirm FPM involvement. If pressing the index and middle fingers into the side of the forehead (resisted flexion and pronation) triggers pain at the medial elbow, the FPM is the primary driver.
+* **Differential Diagnosis:** Practitioners use the **"Thinker Test"** to confirm FPM involvement. If pressing the index and middle     fingers into the side of the forehead (resisted flexion and pronation) triggers pain at the medial elbow, the FPM is the primary driver.
 
 ---
 
