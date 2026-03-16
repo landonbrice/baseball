@@ -58,7 +58,7 @@ async def status(update: Update, context) -> None:
     """Handle /status command — show current flags and rotation day."""
     from bot.services.context_manager import load_profile, get_pitcher_id_by_telegram
 
-    pitcher_id = get_pitcher_id_by_telegram(update.effective_user.id)
+    pitcher_id = get_pitcher_id_by_telegram(update.effective_user.id, update.effective_user.username)
     if not pitcher_id:
         await update.message.reply_text(
             "I don't have a profile for you yet. Ask your coach to set you up."
