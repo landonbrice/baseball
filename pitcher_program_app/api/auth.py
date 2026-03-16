@@ -3,7 +3,7 @@
 import hashlib
 import hmac
 import json
-from urllib.parse import parse_qs, unquote
+from urllib.parse import unquote
 
 from bot.config import TELEGRAM_BOT_TOKEN
 
@@ -16,27 +16,31 @@ def validate_init_data(init_data: str) -> dict | None:
     if not init_data or not TELEGRAM_BOT_TOKEN:
         return None
 
-    parsed = parse_qs(init_data)
-    received_hash = parsed.pop("hash", [None])[0]
+    # Parse initData as url-encoded key=value pairs
+    # Use raw values (not decoded) for HMAC check string per Telegram spec
+    raw_pairs = {}
+    for part in init_data.split("&"):
+        if "=" not in part:
+            continue
+        k, v = part.split("=", 1)
+        raw_pairs[k] = v
+
+    received_hash = raw_pairs.pop("hash", None)
     if not received_hash:
         return None
 
     # Build check string: sorted key=value pairs joined by newline
-    pairs = []
-    for key in sorted(parsed.keys()):
-        val = unquote(parsed[key][0])
-        pairs.append(f"{key}={val}")
-    check_string = "\n".join(pairs)
+    check_string = "\n".join(f"{k}={unquote(v)}" for k, v in sorted(raw_pairs.items()))
 
-    # HMAC: secret_key = HMAC-SHA256(bot_token, "WebAppData")
-    secret = hmac.new(TELEGRAM_BOT_TOKEN.encode(), b"WebAppData", hashlib.sha256).digest()
+    # HMAC: secret_key = HMAC-SHA256("WebAppData", bot_token)
+    secret = hmac.new(b"WebAppData", TELEGRAM_BOT_TOKEN.encode(), hashlib.sha256).digest()
     computed = hmac.new(secret, check_string.encode(), hashlib.sha256).hexdigest()
 
     if not hmac.compare_digest(computed, received_hash):
         return None
 
     # Extract user info
-    user_raw = parsed.get("user", [None])[0]
+    user_raw = raw_pairs.get("user")
     if user_raw:
         return json.loads(unquote(user_raw))
     return None
