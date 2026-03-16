@@ -15,6 +15,7 @@ export default function App() {
   const { pitcherId: devPitcherId, initData, loading: telegramLoading } = useTelegram();
   const [pitcherId, setPitcherId] = useState(devPitcherId);
   const [authLoading, setAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState(null);
 
   useEffect(() => {
     if (devPitcherId) {
@@ -25,7 +26,10 @@ export default function App() {
       setAuthLoading(true);
       resolveAuth(initData)
         .then(setPitcherId)
-        .catch(() => setPitcherId(null))
+        .catch((err) => {
+          setAuthError(err.message);
+          setPitcherId(null);
+        })
         .finally(() => setAuthLoading(false));
     }
   }, [devPitcherId, initData]);
@@ -44,6 +48,12 @@ export default function App() {
         <div className="text-center">
           <p className="text-text-secondary text-lg mb-2">No pitcher profile found</p>
           <p className="text-text-muted text-sm">Open this app through the Telegram bot to get started.</p>
+          {authError && (
+            <p className="text-red-400 text-xs mt-4 font-mono">Debug: {authError}</p>
+          )}
+          <p className="text-text-muted text-xs mt-2 font-mono">
+            initData: {initData ? 'present' : 'missing'}
+          </p>
         </div>
       </div>
     );
