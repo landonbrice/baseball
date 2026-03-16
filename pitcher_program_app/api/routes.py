@@ -33,6 +33,21 @@ async def debug_filesystem():
     return result
 
 
+@router.get("/debug/lookup")
+async def debug_lookup(telegram_id: int = 0, username: str = ""):
+    """Simulate pitcher lookup with given telegram_id and username."""
+    from bot.services.context_manager import get_pitcher_id_by_telegram
+    pitcher_id = get_pitcher_id_by_telegram(telegram_id, username or None)
+    return {"telegram_id": telegram_id, "username": username, "result": pitcher_id}
+
+
+@router.get("/debug/hmac")
+async def debug_hmac(initData: str = Query(default="")):
+    """Test HMAC validation and show extracted user."""
+    user = validate_init_data(initData)
+    return {"valid": user is not None, "user": user}
+
+
 def _require_pitcher_auth(request: Request, pitcher_id: str) -> None:
     """Validate that the request is authenticated and authorized for this pitcher.
 
