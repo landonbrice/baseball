@@ -20,6 +20,7 @@ app = FastAPI(title="Pitcher Dashboard API", version="0.1.0")
 ALLOWED_ORIGINS = [
     "http://localhost:5173",   # Vite dev
     "http://localhost:4173",   # Vite preview
+    "https://uchi-baseball-app.vercel.app",
 ]
 
 # Add production URL if set
