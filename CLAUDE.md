@@ -4,7 +4,7 @@
 
 Telegram bot + FastAPI data API + React mini-app for managing daily pitcher training (lifting, arm care, plyocare, recovery). Built for Landon Brice, UChicago baseball starter.
 
-**Stack:** Python 3.11 / python-telegram-bot v20+ / FastAPI / Anthropic Claude API / React + Vite + Tailwind (mini-app)
+**Stack:** Python 3.11 / python-telegram-bot v20+ / FastAPI / DeepSeek API / React + Vite + Tailwind (mini-app)
 **Deployment:** Bot + API on Railway, Mini-app on Vercel
 **Spec:** `pitcher_program_app/MASTER_PROJECT.md`
 
@@ -25,7 +25,7 @@ pitcher_program_app/
       triage.py           # Rule-based readiness triage (green/yellow/red)
       plan_generator.py   # LLM-powered daily plan from templates + triage
       progression.py      # Arm feel trends, sleep patterns, recovery curves
-      llm.py              # Anthropic API wrapper
+      llm.py              # DeepSeek API wrapper (OpenAI-compatible)
       knowledge_retrieval.py  # Exercise library + knowledge search
       web_research.py     # Stub for web search fallback
     prompts/              # LLM prompt templates (.md)
@@ -105,7 +105,7 @@ All 17 audit fixes have been implemented but **not yet pushed or tested live**:
 cd pitcher_program_app
 pip install -r requirements.txt
 
-# Bot (needs TELEGRAM_BOT_TOKEN + ANTHROPIC_API_KEY in .env)
+# Bot (needs TELEGRAM_BOT_TOKEN + DEEPSEEK_API_KEY in .env)
 python -m bot.main
 
 # API (separate process)
@@ -120,8 +120,8 @@ cd mini-app && npm install && npm run dev
 | Variable | Required | Description |
 |----------|----------|-------------|
 | TELEGRAM_BOT_TOKEN | yes | Bot token from @BotFather |
-| ANTHROPIC_API_KEY | yes | Claude API key |
+| DEEPSEEK_API_KEY | yes | DeepSeek API key |
 | MINI_APP_URL | no | Deployed mini-app URL (Vercel) |
-| LLM_MODEL | no | Default: claude-haiku-4-5-20251001 |
+| LLM_MODEL | no | Default: deepseek-chat |
 | TAVILY_API_KEY | no | Tavily search API key for web research fallback |
 | PORT | no | API port, default 8000 |

@@ -1,8 +1,8 @@
-"""Unified LLM call function. Wraps the configured provider (Anthropic by default)."""
+"""Unified LLM call function. Wraps the configured provider (DeepSeek by default)."""
 
 import os
 import logging
-from bot.config import LLM_CONFIG, ANTHROPIC_API_KEY
+from bot.config import LLM_CONFIG, DEEPSEEK_API_KEY
 
 logger = logging.getLogger(__name__)
 
@@ -31,29 +31,34 @@ async def call_llm(system_prompt: str, user_message: str, max_tokens: int = None
     tokens = max_tokens or LLM_CONFIG["max_tokens"]
     temperature = LLM_CONFIG["temperature"]
 
-    if provider == "anthropic":
-        return await _call_anthropic(system_prompt, user_message, model, tokens, temperature)
+    if provider == "deepseek":
+        return await _call_deepseek(system_prompt, user_message, model, tokens, temperature)
     else:
         raise ValueError(f"Unsupported LLM provider: {provider}")
 
 
-async def _call_anthropic(
+async def _call_deepseek(
     system_prompt: str, user_message: str, model: str, max_tokens: int, temperature: float
 ) -> str:
-    """Call Anthropic's Messages API."""
-    import anthropic
+    """Call DeepSeek's OpenAI-compatible API."""
+    from openai import AsyncOpenAI, APIError
 
-    client = anthropic.AsyncAnthropic(api_key=ANTHROPIC_API_KEY)
+    client = AsyncOpenAI(
+        api_key=DEEPSEEK_API_KEY,
+        base_url="https://api.deepseek.com",
+    )
 
     try:
-        response = await client.messages.create(
+        response = await client.chat.completions.create(
             model=model,
             max_tokens=max_tokens,
             temperature=temperature,
-            system=system_prompt,
-            messages=[{"role": "user", "content": user_message}],
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_message},
+            ],
         )
-        return response.content[0].text
-    except anthropic.APIError as e:
-        logger.error(f"Anthropic API error: {e}")
+        return response.choices[0].message.content
+    except APIError as e:
+        logger.error(f"DeepSeek API error: {e}")
         raise

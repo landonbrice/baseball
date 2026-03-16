@@ -4,11 +4,11 @@ from dotenv import load_dotenv
 load_dotenv()
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
+DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
 
 LLM_CONFIG = {
-    "provider": os.getenv("LLM_PROVIDER", "anthropic"),
-    "model": os.getenv("LLM_MODEL", "claude-haiku-4-5-20251001"),
+    "provider": os.getenv("LLM_PROVIDER", "deepseek"),
+    "model": os.getenv("LLM_MODEL", "deepseek-chat"),
     "max_tokens": 1000,
     "temperature": 0.3,
 }
@@ -21,3 +21,5 @@ TEMPLATES_DIR = os.path.join(DATA_DIR, "templates")
 KNOWLEDGE_DIR = os.path.join(DATA_DIR, "knowledge")
 
 CONTEXT_WINDOW_CHARS = 500
+
+DISABLE_AUTH = os.getenv("DISABLE_AUTH", "").lower() == "true"

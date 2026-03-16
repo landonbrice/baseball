@@ -100,7 +100,10 @@ def get_pitcher_id_by_telegram(telegram_id: int, username: str = None) -> str | 
     If no match by telegram_id and username is provided, falls back to
     matching telegram_username and backfills the telegram_id.
     """
+    logger.info(f"Looking up telegram_id={telegram_id}, username={username}")
+
     if not os.path.exists(PITCHERS_DIR):
+        logger.warning(f"Pitchers directory does not exist: {PITCHERS_DIR}")
         return None
 
     username_match = None
@@ -111,7 +114,12 @@ def get_pitcher_id_by_telegram(telegram_id: int, username: str = None) -> str | 
             try:
                 with open(profile_path, "r") as f:
                     profile = json.load(f)
+                logger.debug(
+                    f"Scanning {entry}: telegram_id={profile.get('telegram_id')}, "
+                    f"telegram_username={profile.get('telegram_username')}"
+                )
                 if profile.get("telegram_id") == telegram_id:
+                    logger.info(f"Matched {profile['pitcher_id']} via telegram_id={telegram_id}")
                     return profile["pitcher_id"]
                 # Check username fallback
                 if (username and not username_match
@@ -126,7 +134,8 @@ def get_pitcher_id_by_telegram(telegram_id: int, username: str = None) -> str | 
         pitcher_id = username_match["pitcher_id"]
         username_match["telegram_id"] = telegram_id
         save_profile(pitcher_id, username_match)
-        logger.info(f"Linked telegram_id {telegram_id} to {pitcher_id} via username '{username}'")
+        logger.info(f"Matched {pitcher_id} via username fallback '{username}', backfilled telegram_id={telegram_id}")
         return pitcher_id
 
+    logger.warning(f"No pitcher match for telegram_id={telegram_id}, username={username}")
     return None

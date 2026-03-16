@@ -42,7 +42,7 @@ def validate_init_data(init_data: str) -> dict | None:
     return None
 
 
-def resolve_pitcher(telegram_id: int) -> str | None:
+def resolve_pitcher(telegram_id: int, username: str = None) -> str | None:
     """Resolve telegram_id to pitcher_id."""
     from bot.services.context_manager import get_pitcher_id_by_telegram
-    return get_pitcher_id_by_telegram(telegram_id)
+    return get_pitcher_id_by_telegram(telegram_id, username)

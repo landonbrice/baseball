@@ -1,5 +1,5 @@
 {
-  "pitcher_id": "pitcher_brice_001",
+  "pitcher_id": "landon_brice",
   "telegram_id": null,
   "telegram_username": "landonbrice",
   "name": "Landon Brice",
@@ -21,7 +21,11 @@
       "severity": "moderate",
       "resolution": "Dry needling, mechanical soft tissue work, pronator strengthening, gradual return to throwing",
       "ongoing_considerations": "Pronator maintenance is non-negotiable. Forearm tightness is primary warning sign. UCL-area sensation on elbow extension means arm is under stress. Uses Rocksauce pre-throwing.",
-      "red_flags": ["UCL-area tightening on elbow extension", "Forearm locked or difficult to pronate", "Medial elbow soreness after throwing"],
+      "red_flags": [
+        "UCL-area tightening on elbow extension",
+        "Forearm locked or difficult to pronate",
+        "Medial elbow soreness after throwing"
+      ],
       "treatment_notes": "Dry needling highly effective. Nerve glides for medial elbow. Soft tissue work before all arm care sessions.",
       "flag_level": "yellow"
     }

@@ -6,7 +6,7 @@ from functools import lru_cache
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
-from bot.config import KNOWLEDGE_DIR
+from bot.config import KNOWLEDGE_DIR, DISABLE_AUTH
 from bot.services.context_manager import load_profile, load_log
 from bot.services.progression import analyze_progression
 from api.auth import validate_init_data, resolve_pitcher
@@ -21,6 +21,9 @@ def _require_pitcher_auth(request: Request, pitcher_id: str) -> None:
     telegram user to a pitcher_id, and verifies it matches the requested resource.
     Raises HTTPException(401/403) on failure.
     """
+    if DISABLE_AUTH:
+        return
+
     init_data = request.headers.get("X-Telegram-Init-Data", "")
     if not init_data:
         raise HTTPException(status_code=401, detail="Missing authentication")
@@ -29,7 +32,7 @@ def _require_pitcher_auth(request: Request, pitcher_id: str) -> None:
     if not user:
         raise HTTPException(status_code=401, detail="Invalid authentication")
 
-    resolved_id = resolve_pitcher(user["id"])
+    resolved_id = resolve_pitcher(user["id"], user.get("username"))
     if not resolved_id or resolved_id != pitcher_id:
         raise HTTPException(status_code=403, detail="Not authorized for this pitcher")
 
@@ -41,7 +44,7 @@ async def auth_resolve(initData: str = Query(default="")):
     if not user:
         raise HTTPException(status_code=401, detail="Invalid initData")
 
-    pitcher_id = resolve_pitcher(user["id"])
+    pitcher_id = resolve_pitcher(user["id"], user.get("username"))
     if not pitcher_id:
         raise HTTPException(status_code=404, detail="No pitcher profile linked")
 

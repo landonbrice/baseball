@@ -37,6 +37,19 @@ app.add_middleware(
 
 app.include_router(router)
 
+import logging
+from bot.config import PITCHERS_DIR
+
+_logger = logging.getLogger(__name__)
+
+@app.on_event("startup")
+async def _log_pitcher_dirs():
+    if os.path.exists(PITCHERS_DIR):
+        contents = os.listdir(PITCHERS_DIR)
+        _logger.info(f"Pitchers dir contents: {contents}")
+    else:
+        _logger.warning(f"Pitchers dir not found: {PITCHERS_DIR}")
+
 
 @app.get("/health")
 async def health():

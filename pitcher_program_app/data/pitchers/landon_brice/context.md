@@ -1,4 +1,4 @@
-w# Pitcher Context: Landon Brice (pitcher_brice_001)
+# Pitcher Context: Landon Brice (landon_brice)
 
 ## Profile Summary
 - Role: Starter, 7-day rotation
