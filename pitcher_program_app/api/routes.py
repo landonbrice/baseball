@@ -6,12 +6,31 @@ from functools import lru_cache
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
-from bot.config import KNOWLEDGE_DIR, DISABLE_AUTH
+from bot.config import KNOWLEDGE_DIR, PITCHERS_DIR, DISABLE_AUTH
 from bot.services.context_manager import load_profile, load_log
 from bot.services.progression import analyze_progression
 from api.auth import validate_init_data, resolve_pitcher
 
 router = APIRouter(prefix="/api")
+
+
+@router.get("/debug/fs")
+async def debug_filesystem():
+    """Temporary debug endpoint — shows pitcher directory state."""
+    result = {"pitchers_dir": PITCHERS_DIR, "exists": os.path.exists(PITCHERS_DIR)}
+    if result["exists"]:
+        entries = os.listdir(PITCHERS_DIR)
+        result["entries"] = entries
+        for entry in entries:
+            profile_path = os.path.join(PITCHERS_DIR, entry, "profile.json")
+            if os.path.exists(profile_path):
+                with open(profile_path) as f:
+                    p = json.load(f)
+                result[entry] = {
+                    "telegram_id": p.get("telegram_id"),
+                    "telegram_username": p.get("telegram_username"),
+                }
+    return result
 
 
 def _require_pitcher_auth(request: Request, pitcher_id: str) -> None:
