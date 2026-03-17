@@ -21,14 +21,16 @@ function getRotationLabel(profile) {
 
 export default function Home() {
   const { pitcherId, initData } = useAuth();
-  const { profile, log, progression, loading, error } = usePitcher(pitcherId, initData);
-  const exercises = useApi('/api/exercises', initData);
-  const slugs = useApi('/api/exercises/slugs', initData);
-  const upcoming = useApi(pitcherId ? `/api/pitcher/${pitcherId}/upcoming` : null, initData);
-
   // Refresh counter to force re-fetches after actions
   const [refreshKey, setRefreshKey] = useState(0);
   const handleRefresh = useCallback(() => setRefreshKey(k => k + 1), []);
+
+  // Append refreshKey as cache-bust param to dynamic data paths
+  const suffix = refreshKey ? `?_r=${refreshKey}` : '';
+  const { profile, log, progression, loading, error } = usePitcher(pitcherId, initData, suffix);
+  const exercises = useApi('/api/exercises', initData);
+  const slugs = useApi('/api/exercises/slugs', initData);
+  const upcoming = useApi(pitcherId ? `/api/pitcher/${pitcherId}/upcoming${suffix}` : null, initData);
 
   // Build exercise lookup maps
   const exerciseMap = useMemo(() => {

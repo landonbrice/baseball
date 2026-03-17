@@ -101,12 +101,15 @@ export default function ActionBar({ todayEntry, profile, onRefresh, placeholder 
     );
   }
 
-  // ── Checked in state ──
-  if (hasCheckedIn && mode === 'default') {
+  // ── Done state (just checked in) or already checked in ──
+  if (mode === 'done' || (hasCheckedIn && mode === 'default')) {
+    const armFeelDisplay = todayEntry?.pre_training?.arm_feel;
     return (
       <Bar>
         <p className="text-xs text-text-secondary">
-          Checked in · Arm feel {todayEntry.pre_training.arm_feel}/5
+          {armFeelDisplay
+            ? `Checked in · Arm feel ${armFeelDisplay}/5`
+            : 'Check-in submitted. Refresh to see your plan.'}
         </p>
         <div className="flex gap-2 mt-2">
           <ActionBtn onClick={() => setMode('ask')}>Ask a question</ActionBtn>
@@ -115,22 +118,16 @@ export default function ActionBar({ todayEntry, profile, onRefresh, placeholder 
     );
   }
 
-  // ── Done state (just checked in) ──
-  if (mode === 'done') {
-    return (
-      <Bar>
-        <p className="text-xs text-text-secondary">Check-in submitted. Your plan is loading.</p>
-      </Bar>
-    );
-  }
-
   // ── Sleep follow-up ──
   if (mode === 'sleep') {
     return (
       <Bar>
-        <p className="text-xs text-text-secondary mb-2">
-          Arm feel: {armFeel}/5. How many hours of sleep?
-        </p>
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-xs text-text-secondary">
+            Arm feel: {armFeel}/5. How many hours of sleep?
+          </p>
+          <button onClick={reset} className="text-[10px] text-text-muted">Cancel</button>
+        </div>
         <div className="flex gap-2">
           {SLEEP_OPTIONS.map(opt => (
             <button

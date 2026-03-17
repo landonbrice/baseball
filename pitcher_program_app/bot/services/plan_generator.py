@@ -18,12 +18,17 @@ def load_template(filename: str) -> dict:
 
 
 def load_exercise_library() -> dict:
-    """Load the exercise library, indexed by exercise_id."""
+    """Load the exercise library, indexed by both id and slug for dual lookup."""
     path = os.path.join(KNOWLEDGE_DIR, "exercise_library.json")
     with open(path, "r") as f:
         data = json.load(f)
     exercises = data.get("exercises", data) if isinstance(data, dict) else data
-    return {ex["id"]: ex for ex in exercises}
+    index = {}
+    for ex in exercises:
+        index[ex["id"]] = ex
+        if "slug" in ex:
+            index[ex["slug"]] = ex
+    return index
 
 
 def get_rotation_day(pitcher_profile: dict) -> int:
