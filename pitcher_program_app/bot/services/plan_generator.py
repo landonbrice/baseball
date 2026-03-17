@@ -285,28 +285,46 @@ def _build_throwing_plan(today_template: dict) -> dict | None:
 
 
 def get_upcoming_days(pitcher_id: str, current_rotation_day: int, n: int = 3) -> list:
-    """Return preview data for the next n rotation days."""
+    """Return full exercise data for the next n rotation days."""
     template = load_template("starter_7day.json")
+    exercise_lib = load_exercise_library()
     upcoming = []
     for i in range(1, n + 1):
         day_num = (current_rotation_day + i) % 7
         day_key = f"day_{day_num}"
         day_data = template["days"].get(day_key, {})
 
-        # Build exercise summary from template blocks
-        exercise_names = []
+        # Build full blocks with resolved exercise info
+        blocks = []
         lifting = day_data.get("lifting")
+        exercise_preview_names = []
         if lifting and lifting.get("blocks"):
             for block in lifting["blocks"]:
-                for ex in block.get("exercises", [])[:2]:
-                    exercise_names.append(ex.get("exercise_id", ""))
+                resolved_exercises = []
+                for ex in block.get("exercises", []):
+                    ex_id = ex.get("exercise_id", "")
+                    lib_entry = exercise_lib.get(ex_id, {})
+                    resolved_exercises.append({
+                        "exercise_id": ex_id,
+                        "name": lib_entry.get("name", ex_id),
+                        "prescribed": ex.get("prescription_mode", ""),
+                        "youtube_url": lib_entry.get("youtube_url", ""),
+                        "muscles_primary": lib_entry.get("muscles_primary", []),
+                    })
+                    if len(exercise_preview_names) < 4:
+                        exercise_preview_names.append(lib_entry.get("name", ex_id))
+                blocks.append({
+                    "block_name": block.get("block_name", ""),
+                    "exercises": resolved_exercises,
+                })
 
         upcoming.append({
             "rotation_day": day_num,
             "label": day_data.get("label", f"Day {day_num}"),
             "training_intent": day_data.get("training_intent", "none"),
-            "exercise_preview": ", ".join(exercise_names[:4]),
+            "exercise_preview": ", ".join(exercise_preview_names),
             "duration_min": lifting.get("duration_min") if lifting else None,
             "throwing": day_data.get("throwing", ""),
+            "blocks": blocks,
         })
     return upcoming

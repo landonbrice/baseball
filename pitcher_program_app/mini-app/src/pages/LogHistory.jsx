@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { useAuth } from '../App';
 import { usePitcher } from '../hooks/usePitcher';
 import FlagBadge from '../components/FlagBadge';
+import ActionBar from '../components/ActionBar';
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
@@ -39,7 +40,7 @@ export default function LogHistory() {
   }
 
   return (
-    <div className="p-4 space-y-4">
+    <div className="p-4 space-y-4 pb-28">
       <h1 className="text-lg font-bold text-text-primary">Log History</h1>
 
       {months.length === 0 && (
@@ -65,6 +66,8 @@ export default function LogHistory() {
       {selectedEntry && (
         <DayDetail entry={selectedEntry} onClose={() => setSelectedEntry(null)} />
       )}
+
+      <ActionBar placeholder="Ask about your trends..." askOnly />
     </div>
   );
 }

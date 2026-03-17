@@ -40,17 +40,45 @@ export async function fetchUpcoming(pitcherId, initData) {
  * Toggle exercise completion (optimistic UI — call after local state update).
  */
 export async function toggleExercise(pitcherId, date, exerciseId, completed, initData) {
+  return postApi(`/api/pitcher/${pitcherId}/complete-exercise`, { date, exercise_id: exerciseId, completed }, initData);
+}
+
+/**
+ * POST to the data API with optional auth header.
+ */
+export async function postApi(path, body, initData = null) {
   const headers = { 'Content-Type': 'application/json' };
   if (initData) headers['X-Telegram-Init-Data'] = initData;
 
-  const res = await fetch(`${API_BASE}/api/pitcher/${pitcherId}/complete-exercise`, {
+  const res = await fetch(`${API_BASE}${path}`, {
     method: 'POST',
     headers,
-    body: JSON.stringify({ date, exercise_id: exerciseId, completed }),
+    body: JSON.stringify(body),
   });
 
   if (!res.ok) {
     throw new Error(`API ${res.status}: ${res.statusText}`);
   }
   return res.json();
+}
+
+/**
+ * Submit a daily check-in.
+ */
+export async function submitCheckin(pitcherId, armFeel, sleepHours, initData) {
+  return postApi(`/api/pitcher/${pitcherId}/checkin`, { arm_feel: armFeel, sleep_hours: sleepHours }, initData);
+}
+
+/**
+ * Submit a post-outing report.
+ */
+export async function submitOuting(pitcherId, pitchCount, postArmFeel, notes, initData) {
+  return postApi(`/api/pitcher/${pitcherId}/outing`, { pitch_count: pitchCount, post_arm_feel: postArmFeel, notes }, initData);
+}
+
+/**
+ * Ask a free-text question.
+ */
+export async function submitAsk(pitcherId, question, history, initData) {
+  return postApi(`/api/pitcher/${pitcherId}/ask`, { question, history }, initData);
 }

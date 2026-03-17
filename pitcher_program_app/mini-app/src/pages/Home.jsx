@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useCallback, useState } from 'react';
 import { useAuth } from '../App';
 import { usePitcher } from '../hooks/usePitcher';
 import { useApi } from '../hooks/useApi';
@@ -8,6 +8,16 @@ import DailyCard from '../components/DailyCard';
 import TrendChart from '../components/TrendChart';
 import UpcomingDays from '../components/UpcomingDays';
 import InsightsCard from '../components/InsightsCard';
+import ActionBar from '../components/ActionBar';
+
+function getRotationLabel(profile) {
+  const days = profile?.active_flags?.days_since_outing;
+  const rotation = profile?.rotation_length || 7;
+
+  if (days == null || days >= 99) return 'No recent outing logged';
+  if (days > rotation) return `Day ${days} (extended rest)`;
+  return `Day ${days}`;
+}
 
 export default function Home() {
   const { pitcherId, initData } = useAuth();
@@ -15,6 +25,10 @@ export default function Home() {
   const exercises = useApi('/api/exercises', initData);
   const slugs = useApi('/api/exercises/slugs', initData);
   const upcoming = useApi(pitcherId ? `/api/pitcher/${pitcherId}/upcoming` : null, initData);
+
+  // Refresh counter to force re-fetches after actions
+  const [refreshKey, setRefreshKey] = useState(0);
+  const handleRefresh = useCallback(() => setRefreshKey(k => k + 1), []);
 
   // Build exercise lookup maps
   const exerciseMap = useMemo(() => {
@@ -44,9 +58,10 @@ export default function Home() {
   const todayStr = new Date().toISOString().split('T')[0];
   const todayEntry = entries.find(e => e.date === todayStr) || entries[entries.length - 1];
   const flagLevel = profile?.active_flags?.current_flag_level || 'green';
+  const isNewPitcher = !entries.length && !profile?.active_flags?.last_outing_date;
 
   return (
-    <div className="p-4 space-y-3">
+    <div className="p-4 space-y-3 pb-36">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -54,36 +69,57 @@ export default function Home() {
             {profile?.name || 'Dashboard'}
           </h1>
           <p className="text-text-muted text-xs">
-            Day {profile?.active_flags?.days_since_outing ?? '—'} ·{' '}
+            {getRotationLabel(profile)} ·{' '}
             {profile?.role} · {profile?.rotation_length}-day rotation
           </p>
         </div>
         <FlagBadge level={flagLevel} />
       </div>
 
-      {/* Week strip with training intents */}
-      <WeekStrip
-        entries={entries}
-        todayRotationDay={todayEntry?.rotation_day || profile?.active_flags?.days_since_outing || 0}
-      />
+      {/* Welcome state for new pitchers */}
+      {isNewPitcher ? (
+        <div className="bg-bg-secondary rounded-xl p-4 text-center">
+          <p className="text-sm text-text-primary mb-1">You're set up.</p>
+          <p className="text-xs text-text-muted">
+            To get your first personalized plan, use the action bar below
+            to log an outing or do a check-in.
+          </p>
+        </div>
+      ) : (
+        <>
+          {/* Week strip with training intents */}
+          <WeekStrip
+            entries={entries}
+            todayRotationDay={todayEntry?.rotation_day || profile?.active_flags?.days_since_outing || 0}
+          />
 
-      {/* Today's plan — the big card */}
-      <DailyCard
-        entry={todayEntry}
-        exerciseMap={exerciseMap}
-        slugMap={slugMap}
-        pitcherId={pitcherId}
-        initData={initData}
-      />
+          {/* Today's plan — the big card */}
+          <DailyCard
+            entry={todayEntry}
+            exerciseMap={exerciseMap}
+            slugMap={slugMap}
+            pitcherId={pitcherId}
+            initData={initData}
+          />
+        </>
+      )}
 
       {/* Coming up — next 3 days */}
-      <UpcomingDays upcoming={upcoming.data?.upcoming} />
+      <UpcomingDays upcoming={upcoming.data?.upcoming} exerciseMap={exerciseMap} />
 
       {/* Arm feel trend */}
-      <TrendChart entries={entries} />
+      {entries.length > 0 && <TrendChart entries={entries} />}
 
       {/* Insights */}
       <InsightsCard observations={progression?.observations} />
+
+      {/* Action bar */}
+      <ActionBar
+        todayEntry={todayEntry?.date === todayStr ? todayEntry : null}
+        profile={profile}
+        onRefresh={handleRefresh}
+        placeholder="Ask about today's plan..."
+      />
     </div>
   );
 }

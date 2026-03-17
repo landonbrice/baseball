@@ -1,6 +1,7 @@
 import { useAuth } from '../App';
 import { usePitcher } from '../hooks/usePitcher';
 import FlagBadge from '../components/FlagBadge';
+import ActionBar from '../components/ActionBar';
 
 export default function Profile() {
   const { pitcherId, initData } = useAuth();
@@ -21,7 +22,7 @@ export default function Profile() {
   const flags = profile.active_flags || {};
 
   return (
-    <div className="p-4 space-y-4">
+    <div className="p-4 space-y-4 pb-28">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -93,6 +94,8 @@ export default function Profile() {
           ))}
         </Section>
       )}
+
+      <ActionBar placeholder="Ask about your program..." askOnly />
     </div>
   );
 }

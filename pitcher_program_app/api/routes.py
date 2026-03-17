@@ -1,16 +1,26 @@
-"""API routes — all GET, read-only MVP."""
+"""API routes — read + action endpoints for the pitcher dashboard."""
 
 import json
+import logging
 import os
 from functools import lru_cache
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
-from bot.config import KNOWLEDGE_DIR, DISABLE_AUTH
-from bot.services.context_manager import load_profile, load_log, update_exercise_completion
+from bot.config import KNOWLEDGE_DIR, CONTEXT_WINDOW_CHARS, DISABLE_AUTH
+from bot.services.context_manager import (
+    load_profile, load_log, load_context, update_exercise_completion,
+    append_context, increment_days_since_outing,
+)
 from bot.services.progression import analyze_progression
 from bot.services.plan_generator import get_upcoming_days
+from bot.services.checkin_service import process_checkin
+from bot.services.outing_service import process_outing
+from bot.services.llm import call_llm, load_prompt
+from bot.services.knowledge_retrieval import retrieve_knowledge
 from api.auth import validate_init_data, resolve_pitcher
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api")
 
@@ -108,6 +118,111 @@ async def complete_exercise(pitcher_id: str, request: Request):
         raise HTTPException(status_code=400, detail="date and exercise_id required")
     update_exercise_completion(pitcher_id, date, exercise_id, completed)
     return {"status": "ok"}
+
+
+@router.post("/pitcher/{pitcher_id}/checkin")
+async def post_checkin(pitcher_id: str, request: Request):
+    """Process a daily check-in: triage + plan generation."""
+    _require_pitcher_auth(request, pitcher_id)
+    body = await request.json()
+    arm_feel = body.get("arm_feel")
+    sleep_hours = body.get("sleep_hours")
+    if arm_feel is None or sleep_hours is None:
+        raise HTTPException(status_code=400, detail="arm_feel and sleep_hours required")
+
+    # Increment rotation day (same as Telegram's start_checkin)
+    increment_days_since_outing(pitcher_id)
+
+    try:
+        result = await process_checkin(
+            pitcher_id,
+            int(arm_feel),
+            float(sleep_hours),
+            int(body.get("energy", 3)),
+        )
+        return {"status": "ok", **result}
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Pitcher not found")
+    except Exception as e:
+        logger.error(f"Checkin error for {pitcher_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Check-in processing failed")
+
+
+@router.post("/pitcher/{pitcher_id}/outing")
+async def post_outing(pitcher_id: str, request: Request):
+    """Process a post-outing report: reset rotation, generate recovery."""
+    _require_pitcher_auth(request, pitcher_id)
+    body = await request.json()
+    pitch_count = body.get("pitch_count")
+    post_arm_feel = body.get("post_arm_feel")
+    if pitch_count is None or post_arm_feel is None:
+        raise HTTPException(status_code=400, detail="pitch_count and post_arm_feel required")
+
+    try:
+        result = await process_outing(
+            pitcher_id,
+            int(pitch_count),
+            int(post_arm_feel),
+            str(body.get("notes", "")),
+        )
+        return {"status": "ok", **result}
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Pitcher not found")
+    except Exception as e:
+        logger.error(f"Outing error for {pitcher_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Outing processing failed")
+
+
+@router.post("/pitcher/{pitcher_id}/ask")
+async def post_ask(pitcher_id: str, request: Request):
+    """Answer a free-text question with LLM + pitcher context."""
+    _require_pitcher_auth(request, pitcher_id)
+    body = await request.json()
+    question = (body.get("question") or "").strip()
+    if not question:
+        raise HTTPException(status_code=400, detail="question required")
+
+    try:
+        profile = load_profile(pitcher_id)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Pitcher not found")
+
+    # Build context
+    context_md = load_context(pitcher_id)
+    flags = profile.get("active_flags", {})
+    pitcher_context = "\n".join([
+        f"Name: {profile.get('name', 'Unknown')}",
+        f"Role: {profile.get('role', 'starter')}",
+        f"Arm feel: {flags.get('current_arm_feel', 'N/A')}/5",
+        f"Days since outing: {flags.get('days_since_outing', 'N/A')}",
+    ])
+    if context_md:
+        pitcher_context += f"\n\nRecent context:\n{context_md[-CONTEXT_WINDOW_CHARS:]}"
+
+    # Build conversation history for multi-turn
+    history = body.get("history", [])
+    history_text = ""
+    for msg in history[-4:]:  # max 4 prior exchanges
+        role = msg.get("role", "user")
+        history_text += f"\n{role.upper()}: {msg.get('content', '')}"
+
+    try:
+        system_prompt = load_prompt("system_prompt.md")
+        qa_prompt = load_prompt("qa_prompt.md")
+        knowledge = retrieve_knowledge(question)
+
+        user_prompt = qa_prompt.replace("{pitcher_context}", pitcher_context)
+        user_prompt = user_prompt.replace("{question}", question)
+        user_prompt = user_prompt.replace("{knowledge_context}", knowledge)
+        if history_text:
+            user_prompt += f"\n\nConversation so far:{history_text}\n\nLatest question: {question}"
+
+        answer = await call_llm(system_prompt, user_prompt)
+        append_context(pitcher_id, "interaction", f"Q: {question[:100]}")
+        return {"answer": answer}
+    except Exception as e:
+        logger.error(f"Ask error for {pitcher_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to generate answer")
 
 
 @lru_cache(maxsize=1)

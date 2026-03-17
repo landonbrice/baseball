@@ -1,6 +1,8 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '../App';
 import { useApi } from '../hooks/useApi';
+import { submitAsk } from '../api';
+import ActionBar from '../components/ActionBar';
 
 const CATEGORIES = [
   { key: 'all', label: 'All' },
@@ -15,8 +17,13 @@ const CATEGORIES = [
   { key: 'mobility', label: 'Mobility' },
 ];
 
+function formatDayList(days) {
+  if (!days?.length) return null;
+  return days.map(d => d.replace('day_', 'Day ')).join(', ');
+}
+
 export default function ExerciseLibrary() {
-  const { initData } = useAuth();
+  const { pitcherId, initData } = useAuth();
   const { data, loading, error } = useApi('/api/exercises', initData);
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('all');
@@ -62,7 +69,7 @@ export default function ExerciseLibrary() {
   }
 
   return (
-    <div className="p-4 space-y-3">
+    <div className="p-4 space-y-3 pb-28">
       <h1 className="text-lg font-bold text-text-primary">Exercise Library</h1>
 
       {/* Search */}
@@ -101,6 +108,8 @@ export default function ExerciseLibrary() {
             exercise={ex}
             expanded={expandedId === ex.id}
             onToggle={() => setExpandedId(expandedId === ex.id ? null : ex.id)}
+            pitcherId={pitcherId}
+            initData={initData}
           />
         ))}
       </div>
@@ -108,11 +117,37 @@ export default function ExerciseLibrary() {
       {error && !exercises.length && (
         <p className="text-flag-red text-sm">Failed to load exercises.</p>
       )}
+
+      <ActionBar placeholder="Ask about any exercise..." askOnly />
     </div>
   );
 }
 
-function ExerciseCard({ exercise, expanded, onToggle }) {
+function ExerciseCard({ exercise, expanded, onToggle, pitcherId, initData }) {
+  const [whyAnswer, setWhyAnswer] = useState(null);
+  const [whyLoading, setWhyLoading] = useState(false);
+
+  const handleWhy = async () => {
+    if (whyAnswer || whyLoading) return;
+    setWhyLoading(true);
+    try {
+      const res = await submitAsk(
+        pitcherId,
+        `Why is "${exercise.name}" in my program? Given my profile and training history, explain why this specific exercise matters for me.`,
+        [],
+        initData
+      );
+      setWhyAnswer(res.answer);
+    } catch {
+      setWhyAnswer('Could not load explanation right now.');
+    } finally {
+      setWhyLoading(false);
+    }
+  };
+
+  const recommended = formatDayList(exercise.rotation_day_usage?.recommended);
+  const avoid = formatDayList(exercise.rotation_day_usage?.avoid);
+
   return (
     <div className="bg-bg-secondary rounded-xl overflow-hidden">
       <button
@@ -120,9 +155,22 @@ function ExerciseCard({ exercise, expanded, onToggle }) {
         className="w-full text-left px-4 py-3 flex items-center justify-between"
       >
         <div className="min-w-0">
-          <p className="text-sm font-medium text-text-primary truncate">{exercise.name}</p>
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-medium text-text-primary truncate">{exercise.name}</p>
+            {exercise.youtube_url && (
+              <a
+                href={exercise.youtube_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={e => e.stopPropagation()}
+                className="text-[11px] text-accent-blue flex-shrink-0"
+              >
+                ▶ vid
+              </a>
+            )}
+          </div>
           <p className="text-xs text-text-muted truncate">
-            {exercise.muscles_primary?.join(', ')}
+            {exercise.muscles_primary?.join(' · ')}
           </p>
         </div>
         <span className={`text-text-muted text-xs ml-2 transition-transform ${expanded ? 'rotate-180' : ''}`}>
@@ -131,12 +179,19 @@ function ExerciseCard({ exercise, expanded, onToggle }) {
       </button>
 
       {expanded && (
-        <div className="px-4 pb-3 space-y-2 border-t border-bg-tertiary pt-2">
-          <p className="text-xs text-text-secondary">{exercise.pitching_relevance}</p>
+        <div className="px-4 pb-3 space-y-2.5 border-t border-bg-tertiary pt-2">
+          {/* Pitching relevance card */}
+          {exercise.pitching_relevance && (
+            <div className="bg-accent-blue/5 border border-accent-blue/20 rounded-lg p-3">
+              <p className="text-[10px] text-accent-blue font-medium mb-1">Why this matters</p>
+              <p className="text-xs text-text-secondary">{exercise.pitching_relevance}</p>
+            </div>
+          )}
 
+          {/* Prescriptions */}
           {exercise.prescription && (
             <div className="space-y-1">
-              <p className="text-[10px] text-text-muted uppercase font-medium">Prescriptions</p>
+              <p className="text-[10px] text-text-muted uppercase font-medium">Protocol</p>
               {Object.entries(exercise.prescription).map(([mode, rx]) => (
                 <div key={mode} className="flex items-center gap-2">
                   <span className="text-[10px] bg-bg-tertiary text-text-muted px-1.5 py-0.5 rounded">{mode}</span>
@@ -148,6 +203,42 @@ function ExerciseCard({ exercise, expanded, onToggle }) {
             </div>
           )}
 
+          {/* Muscle tags */}
+          {exercise.muscles_primary?.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {exercise.muscles_primary.map(m => (
+                <span key={m} className="text-[10px] bg-accent-blue/10 text-accent-blue px-1.5 py-0.5 rounded">
+                  {m}
+                </span>
+              ))}
+              {exercise.muscles_secondary?.map(m => (
+                <span key={m} className="text-[10px] bg-bg-tertiary text-text-muted px-1.5 py-0.5 rounded">
+                  {m}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* Rotation timing */}
+          {(recommended || avoid) && (
+            <div className="space-y-0.5">
+              {recommended && (
+                <p className="text-xs text-text-secondary">Use on: {recommended}</p>
+              )}
+              {avoid && (
+                <p className="text-xs text-text-muted">Avoid: {avoid}</p>
+              )}
+            </div>
+          )}
+
+          {/* Contraindications */}
+          {exercise.contraindications?.length > 0 && (
+            <p className="text-xs text-flag-yellow">
+              Stop if: {exercise.contraindications.map(c => c.replace(/_/g, ' ')).join(', ')}
+            </p>
+          )}
+
+          {/* Tags */}
           {exercise.tags && (
             <div className="flex flex-wrap gap-1">
               {exercise.tags.map(tag => (
@@ -158,15 +249,23 @@ function ExerciseCard({ exercise, expanded, onToggle }) {
             </div>
           )}
 
-          {exercise.youtube_url && (
-            <a
-              href={exercise.youtube_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-block text-xs text-accent-blue mt-1"
-            >
-              Watch video →
-            </a>
+          {/* "Why is this in my program?" */}
+          {pitcherId && (
+            <div className="pt-1">
+              {whyAnswer ? (
+                <div className="bg-bg-tertiary rounded-lg p-3">
+                  <p className="text-xs text-text-secondary whitespace-pre-wrap">{whyAnswer}</p>
+                </div>
+              ) : (
+                <button
+                  onClick={handleWhy}
+                  disabled={whyLoading}
+                  className="text-xs text-accent-blue disabled:opacity-50"
+                >
+                  {whyLoading ? 'Loading...' : 'Why is this in my program?'}
+                </button>
+              )}
+            </div>
           )}
         </div>
       )}
