@@ -74,22 +74,31 @@ def _require_pitcher_auth(request: Request, pitcher_id: str) -> None:
 @router.get("/auth/resolve")
 async def auth_resolve(initData: str = Query(default="")):
     """Resolve Telegram initData to pitcher_id."""
-    import logging
-    _log = logging.getLogger(__name__)
+    print(f"[ROUTE] /auth/resolve called, initData length={len(initData)}", flush=True)
 
     try:
         user = validate_init_data(initData)
     except Exception as e:
+        print(f"[ROUTE] HMAC exception: {type(e).__name__}: {e}", flush=True)
         raise HTTPException(status_code=401, detail=f"HMAC error: {e}")
 
     if not user:
+        print("[ROUTE] HMAC returned None — invalid initData", flush=True)
         raise HTTPException(status_code=401, detail="Invalid initData")
 
     tid = user.get("id")
     uname = user.get("username")
-    pitcher_id = resolve_pitcher(tid, uname)
+    print(f"[ROUTE] User extracted: id={tid}, username={uname}", flush=True)
+
+    try:
+        pitcher_id = resolve_pitcher(tid, uname)
+    except Exception as e:
+        print(f"[ROUTE] resolve_pitcher exception: {type(e).__name__}: {e}", flush=True)
+        return {"error": "exception", "detail": str(e), "pitcher_id": None}
+
+    print(f"[ROUTE] resolve_pitcher returned: {pitcher_id}", flush=True)
+
     if not pitcher_id:
-        # Temporary: return debug info instead of bare 404
         return {
             "error": "no_match",
             "extracted_user": {"id": tid, "id_type": type(tid).__name__, "username": uname},
