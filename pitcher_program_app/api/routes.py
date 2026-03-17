@@ -77,15 +77,24 @@ async def auth_resolve(initData: str = Query(default="")):
     import logging
     _log = logging.getLogger(__name__)
 
-    user = validate_init_data(initData)
+    try:
+        user = validate_init_data(initData)
+    except Exception as e:
+        raise HTTPException(status_code=401, detail=f"HMAC error: {e}")
+
     if not user:
         raise HTTPException(status_code=401, detail="Invalid initData")
 
-    _log.info(f"Auth resolve: telegram_id={user.get('id')}, username={user.get('username')}")
-    pitcher_id = resolve_pitcher(user["id"], user.get("username"))
+    tid = user.get("id")
+    uname = user.get("username")
+    pitcher_id = resolve_pitcher(tid, uname)
     if not pitcher_id:
-        _log.warning(f"No pitcher match for user: {user}")
-        raise HTTPException(status_code=404, detail="No pitcher profile linked")
+        # Temporary: return debug info instead of bare 404
+        return {
+            "error": "no_match",
+            "extracted_user": {"id": tid, "id_type": type(tid).__name__, "username": uname},
+            "pitcher_id": None,
+        }
 
     return {"pitcher_id": pitcher_id}
 

@@ -26,5 +26,8 @@ export async function fetchApi(path, initData = null) {
  */
 export async function resolveAuth(initData) {
   const data = await fetchApi(`/api/auth/resolve?initData=${encodeURIComponent(initData)}`);
+  if (data.error) {
+    throw new Error(JSON.stringify(data.extracted_user));
+  }
   return data.pitcher_id;
 }
