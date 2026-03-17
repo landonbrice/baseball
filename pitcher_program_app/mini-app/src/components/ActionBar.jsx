@@ -28,8 +28,10 @@ export default function ActionBar({ todayEntry, profile, onRefresh, placeholder 
   const [askLoading, setAskLoading] = useState(false);
 
   const hasCheckedIn = !!todayEntry?.pre_training?.arm_feel;
-  const isGameDay = (profile?.active_flags?.days_since_outing ?? 99) >=
-    (profile?.rotation_length ?? 7) - 1;
+  const daysSince = profile?.active_flags?.days_since_outing;
+  const rotation = profile?.rotation_length ?? 7;
+  // Game day = exactly at the end of rotation (not overdue / no-outing state)
+  const isGameDay = daysSince != null && daysSince >= rotation - 1 && daysSince <= rotation;
 
   const reset = () => {
     setMode('default');

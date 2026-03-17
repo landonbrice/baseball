@@ -1,2 +1,1 @@
-bot: python -m bot.main
-api: uvicorn api.main:app --host 0.0.0.0 --port $PORT
+web: cd pitcher_program_app && python -m bot.run

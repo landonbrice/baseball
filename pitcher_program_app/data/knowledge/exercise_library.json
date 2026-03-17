@@ -5419,6 +5419,38 @@
       "youtube_url": "https://youtube.com/shorts/PliA5DUgpoY",
       "evidence_level": "low",
       "source_notes": "Dugout Routines from The Program xlsx."
+    },
+    {
+      "id": "ex_095",
+      "name": "Banded Hip Circle",
+      "slug": "ex_hip_circle",
+      "aliases": ["hip circle", "monster walk", "banded lateral walk"],
+      "category": "lower_body_compound",
+      "subcategory": "glute_activation",
+      "muscles_primary": ["glute medius", "glute minimus"],
+      "muscles_secondary": ["hip external rotators", "TFL"],
+      "pitching_relevance": "Hip stabilizer activation improves single-leg balance through the delivery and reduces energy leak at foot strike.",
+      "prescription": {
+        "warmup": {
+          "sets": "2",
+          "reps": "10 each direction",
+          "intensity": "light band",
+          "rest_min": 0
+        }
+      },
+      "rotation_day_usage": {
+        "recommended": ["day_1", "day_2", "day_4"],
+        "acceptable": ["day_3", "day_5"],
+        "avoid": []
+      },
+      "tags": ["warmup", "glute_activation", "hip_stability", "lower_body"],
+      "contraindications": ["acute_hip_labral"],
+      "modification_flags": {
+        "hip_impingement": "reduce_range_of_motion"
+      },
+      "youtube_url": "",
+      "evidence_level": "moderate",
+      "source_notes": "Common warmup exercise in pitcher training programs."
     }
   ]
 }
