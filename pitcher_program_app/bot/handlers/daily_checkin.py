@@ -15,19 +15,14 @@ from telegram.ext import (
     MessageHandler,
     filters,
 )
-from bot.services.triage import triage
-from bot.services.triage_llm import llm_triage_refinement
-from bot.services.plan_generator import generate_plan
-from bot.services.progression import analyze_progression
+from bot.services.checkin_service import process_checkin
 from bot.services.context_manager import (
     load_profile,
     load_log,
     save_log,
     append_context,
-    append_log_entry,
     get_pitcher_id_by_telegram,
     increment_days_since_outing,
-    update_active_flags,
 )
 from bot.utils import build_rating_keyboard, build_completion_keyboard
 
@@ -158,73 +153,27 @@ async def energy_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     await query.edit_message_text("Running triage and building your plan...")
 
     try:
-        # Load profile and run triage
-        profile = load_profile(pitcher_id)
-        triage_result = triage(
-            arm_feel=arm_feel,
-            sleep_hours=sleep_hours,
-            pitcher_profile=profile,
-            energy=energy,
-        )
+        result = await process_checkin(pitcher_id, arm_feel, sleep_hours, energy)
 
-        # Phase 4b: LLM-driven triage refinement for ambiguous cases
-        if triage_result.get("protocol_adjustments", {}).get("needs_llm_triage"):
-            try:
-                llm_refinement = await llm_triage_refinement(
-                    arm_feel, sleep_hours, energy, profile, pitcher_id
-                )
-                if llm_refinement:
-                    # Merge LLM recommendations into triage result
-                    triage_result["modifications"].extend(llm_refinement.get("modifications", []))
-                    triage_result["reasoning"] += f" LLM note: {llm_refinement.get('reasoning', '')}"
-            except Exception as e:
-                logger.warning(f"LLM triage refinement failed, using rule-based result: {e}")
-
-        # Fix 2: Persist flag_level and arm_feel after triage
-        update_active_flags(pitcher_id, {
-            "current_flag_level": triage_result["flag_level"],
-            "current_arm_feel": arm_feel,
-        })
-
-        # Run progression analysis
-        progression = analyze_progression(pitcher_id)
-
-        # Add progression flags to triage result for plan generator
-        if progression["flags"]:
-            triage_result.setdefault("progression_flags", []).extend(progression["flags"])
-
-        flag = triage_result["flag_level"].upper()
-        await query.message.reply_text(f"Triage: {flag}\n{triage_result['reasoning']}")
+        # Send triage result
+        flag = result["flag_level"].upper()
+        await query.message.reply_text(f"Triage: {flag}\n{result['triage_reasoning']}")
 
         # Send alerts if any
-        for alert in triage_result.get("alerts", []):
+        for alert in result["alerts"]:
             await query.message.reply_text(f"⚠️ {alert}")
 
         # Send progression observations
-        for obs in progression.get("observations", []):
+        for obs in result["observations"]:
             await query.message.reply_text(f"Pattern note: {obs}")
 
-        # Generate plan (returns dict with narrative + structured data)
-        plan_result = await generate_plan(pitcher_id, triage_result)
-
-        # Fix 3: Send narrative plan with completion keyboard
+        # Send narrative plan with completion keyboard
         reply_markup = build_completion_keyboard()
-        await query.message.reply_text(plan_result["narrative"], reply_markup=reply_markup)
+        await query.message.reply_text(result["plan_narrative"], reply_markup=reply_markup)
 
         # Send weekly summary on Sundays
-        if progression.get("weekly_summary"):
-            await query.message.reply_text(progression["weekly_summary"])
-
-        # Log the check-in with structured plan data
-        bot_observations = progression.get("observations") or None
-        _log_checkin(pitcher_id, arm_feel, sleep_hours, energy, triage_result,
-                     bot_observations, plan_result)
-
-        # Update context
-        append_context(
-            pitcher_id, "status",
-            f"Check-in: arm_feel={arm_feel}, sleep={sleep_hours}h, energy={energy}, flag={flag}"
-        )
+        if result["weekly_summary"]:
+            await query.message.reply_text(result["weekly_summary"])
 
     except Exception as e:
         logger.error(f"Error in check-in flow: {e}", exc_info=True)
@@ -317,37 +266,6 @@ async def cancel_checkin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     await update.message.reply_text("Check-in cancelled.")
     return ConversationHandler.END
 
-
-def _log_checkin(pitcher_id: str, arm_feel: int, sleep_hours: float,
-                 energy: int, triage_result: dict,
-                 bot_observations: list[str] = None,
-                 plan_result: dict = None) -> None:
-    """Write the check-in to the daily log."""
-    profile = load_profile(pitcher_id)
-    rotation_day = profile.get("active_flags", {}).get("days_since_outing", 0)
-
-    entry = {
-        "date": datetime.now().strftime("%Y-%m-%d"),
-        "rotation_day": rotation_day,
-        "pre_training": {
-            "arm_feel": arm_feel,
-            "overall_energy": energy,
-            "sleep_hours": sleep_hours,
-            "flag_level": triage_result["flag_level"],
-        },
-        "plan_narrative": plan_result["narrative"] if plan_result else None,
-        "plan_generated": {
-            "template_day": plan_result.get("template_day") if plan_result else None,
-            "exercise_blocks": plan_result.get("exercise_blocks", []) if plan_result else [],
-            "throwing_plan": plan_result.get("throwing_plan") if plan_result else None,
-            "modifications_applied": plan_result.get("modifications_applied", []) if plan_result else triage_result.get("modifications", []),
-            "estimated_duration_min": plan_result.get("estimated_duration_min") if plan_result else None,
-        },
-        "actual_logged": None,
-        "completed_exercises": {},
-        "bot_observations": bot_observations,
-    }
-    append_log_entry(pitcher_id, entry)
 
 
 def get_checkin_handler() -> ConversationHandler:
