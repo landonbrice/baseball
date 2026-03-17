@@ -13,7 +13,7 @@ LLM_CONFIG = {
     "temperature": 0.3,
 }
 
-MINI_APP_URL = os.getenv("MINI_APP_URL", "")
+MINI_APP_URL = os.getenv("MINI_APP_URL", "").rstrip("/")
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
 PITCHERS_DIR = os.path.join(DATA_DIR, "pitchers")

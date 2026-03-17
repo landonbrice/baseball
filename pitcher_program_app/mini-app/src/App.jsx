@@ -49,11 +49,8 @@ export default function App() {
           <p className="text-text-secondary text-lg mb-2">No pitcher profile found</p>
           <p className="text-text-muted text-sm">Open this app through the Telegram bot to get started.</p>
           {authError && (
-            <p className="text-red-400 text-xs mt-4 font-mono">Debug: {authError}</p>
+            <p className="text-red-400 text-xs mt-4 font-mono">{authError}</p>
           )}
-          <p className="text-text-muted text-xs mt-2 font-mono">
-            initData: {initData ? 'present' : 'missing'}
-          </p>
         </div>
       </div>
     );

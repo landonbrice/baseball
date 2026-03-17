@@ -24,7 +24,7 @@ ALLOWED_ORIGINS = [
 ]
 
 # Add production URL if set
-mini_app_url = os.getenv("MINI_APP_URL")
+mini_app_url = os.getenv("MINI_APP_URL", "").rstrip("/")
 if mini_app_url:
     ALLOWED_ORIGINS.append(mini_app_url)
 
@@ -38,23 +38,27 @@ app.add_middleware(
 
 app.include_router(router)
 
-import logging
-from bot.config import PITCHERS_DIR
-
-_logger = logging.getLogger(__name__)
-
-@app.on_event("startup")
-async def _log_pitcher_dirs():
-    if os.path.exists(PITCHERS_DIR):
-        contents = os.listdir(PITCHERS_DIR)
-        _logger.info(f"Pitchers dir contents: {contents}")
-    else:
-        _logger.warning(f"Pitchers dir not found: {PITCHERS_DIR}")
+from bot.config import PITCHERS_DIR, TELEGRAM_BOT_TOKEN, DEEPSEEK_API_KEY, MINI_APP_URL, DISABLE_AUTH
 
 
 @app.get("/health")
 async def health():
-    return {"status": "ok"}
+    pitcher_count = 0
+    pitchers_dir_exists = os.path.exists(PITCHERS_DIR)
+    if pitchers_dir_exists:
+        pitcher_count = sum(
+            1 for e in os.listdir(PITCHERS_DIR)
+            if os.path.isdir(os.path.join(PITCHERS_DIR, e))
+        )
+    return {
+        "status": "ok",
+        "mini_app_url_set": bool(MINI_APP_URL),
+        "disable_auth": DISABLE_AUTH,
+        "pitchers_dir_exists": pitchers_dir_exists,
+        "pitcher_count": pitcher_count,
+        "bot_token_set": bool(TELEGRAM_BOT_TOKEN),
+        "deepseek_key_set": bool(DEEPSEEK_API_KEY),
+    }
 
 
 if __name__ == "__main__":

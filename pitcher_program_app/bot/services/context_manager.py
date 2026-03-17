@@ -98,57 +98,36 @@ def get_pitcher_id_by_telegram(telegram_id: int, username: str = None) -> str | 
 
     Scans pitcher profiles for a matching telegram_id field.
     If no match by telegram_id and username is provided, falls back to
-    matching telegram_username and backfills the telegram_id.
+    matching telegram_username (case-insensitive) and backfills the telegram_id.
     """
-    print(f"[LOOKUP] Called: telegram_id={telegram_id} (type={type(telegram_id).__name__}), username={username}", flush=True)
-    print(f"[LOOKUP] PITCHERS_DIR={PITCHERS_DIR}, exists={os.path.exists(PITCHERS_DIR)}", flush=True)
-
     if not os.path.exists(PITCHERS_DIR):
-        print(f"[LOOKUP] Pitchers directory does not exist!", flush=True)
+        logger.warning(f"Pitchers directory does not exist: {PITCHERS_DIR}")
         return None
 
     username_match = None
-    entries = os.listdir(PITCHERS_DIR)
-    print(f"[LOOKUP] Directory entries: {entries}", flush=True)
 
-    for entry in entries:
+    for entry in os.listdir(PITCHERS_DIR):
         profile_path = os.path.join(PITCHERS_DIR, entry, "profile.json")
         if os.path.exists(profile_path):
             try:
                 with open(profile_path, "r") as f:
                     profile = json.load(f)
-                p_tid = profile.get("telegram_id")
-                p_uname = profile.get("telegram_username")
-                print(f"[LOOKUP] Scanning {entry}: telegram_id={p_tid} (type={type(p_tid).__name__}), telegram_username={p_uname}", flush=True)
-
-                # Check telegram_id match
-                if p_tid == telegram_id:
-                    print(f"[LOOKUP] MATCHED {profile['pitcher_id']} via telegram_id", flush=True)
+                if profile.get("telegram_id") == telegram_id:
                     return profile["pitcher_id"]
-                else:
-                    print(f"[LOOKUP]   telegram_id no match: {p_tid!r} == {telegram_id!r} -> {p_tid == telegram_id}", flush=True)
-
-                # Check username fallback
-                if username and not username_match and not p_tid:
-                    uname_match = (p_uname or "").lower() == username.lower()
-                    print(f"[LOOKUP]   username check: '{(p_uname or '').lower()}' == '{username.lower()}' -> {uname_match}", flush=True)
-                    if uname_match:
-                        username_match = profile
-            except Exception as e:
-                print(f"[LOOKUP] Exception scanning {entry}: {type(e).__name__}: {e}", flush=True)
+                # Username fallback
+                if (username and not username_match
+                        and profile.get("telegram_username", "").lower() == username.lower()
+                        and not profile.get("telegram_id")):
+                    username_match = profile
+            except (json.JSONDecodeError, KeyError):
                 continue
 
     # Username fallback: backfill telegram_id on first match
     if username_match:
         pitcher_id = username_match["pitcher_id"]
-        print(f"[LOOKUP] Username fallback matched: {pitcher_id}, backfilling telegram_id={telegram_id}", flush=True)
         username_match["telegram_id"] = telegram_id
-        try:
-            save_profile(pitcher_id, username_match)
-            print(f"[LOOKUP] Backfill saved successfully", flush=True)
-        except Exception as e:
-            print(f"[LOOKUP] Backfill save FAILED: {type(e).__name__}: {e}", flush=True)
+        save_profile(pitcher_id, username_match)
+        logger.info(f"Matched {pitcher_id} via username '{username}', backfilled telegram_id={telegram_id}")
         return pitcher_id
 
-    print(f"[LOOKUP] NO MATCH found for telegram_id={telegram_id}, username={username}", flush=True)
     return None

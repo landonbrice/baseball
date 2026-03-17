@@ -6,46 +6,12 @@ from functools import lru_cache
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
-from bot.config import KNOWLEDGE_DIR, PITCHERS_DIR, DISABLE_AUTH
+from bot.config import KNOWLEDGE_DIR, DISABLE_AUTH
 from bot.services.context_manager import load_profile, load_log
 from bot.services.progression import analyze_progression
 from api.auth import validate_init_data, resolve_pitcher
 
 router = APIRouter(prefix="/api")
-
-
-@router.get("/debug/fs")
-async def debug_filesystem():
-    """Temporary debug endpoint — shows pitcher directory state."""
-    result = {"pitchers_dir": PITCHERS_DIR, "exists": os.path.exists(PITCHERS_DIR)}
-    if result["exists"]:
-        entries = os.listdir(PITCHERS_DIR)
-        result["entries"] = entries
-        for entry in entries:
-            profile_path = os.path.join(PITCHERS_DIR, entry, "profile.json")
-            if os.path.exists(profile_path):
-                with open(profile_path) as f:
-                    p = json.load(f)
-                result[entry] = {
-                    "telegram_id": p.get("telegram_id"),
-                    "telegram_username": p.get("telegram_username"),
-                }
-    return result
-
-
-@router.get("/debug/lookup")
-async def debug_lookup(telegram_id: int = 0, username: str = ""):
-    """Simulate pitcher lookup with given telegram_id and username."""
-    from bot.services.context_manager import get_pitcher_id_by_telegram
-    pitcher_id = get_pitcher_id_by_telegram(telegram_id, username or None)
-    return {"telegram_id": telegram_id, "username": username, "result": pitcher_id}
-
-
-@router.get("/debug/hmac")
-async def debug_hmac(initData: str = Query(default="")):
-    """Test HMAC validation and show extracted user."""
-    user = validate_init_data(initData)
-    return {"valid": user is not None, "user": user}
 
 
 def _require_pitcher_auth(request: Request, pitcher_id: str) -> None:
@@ -74,36 +40,17 @@ def _require_pitcher_auth(request: Request, pitcher_id: str) -> None:
 @router.get("/auth/resolve")
 async def auth_resolve(initData: str = Query(default="")):
     """Resolve Telegram initData to pitcher_id."""
-    print(f"[ROUTE] /auth/resolve called, initData length={len(initData)}", flush=True)
-
     try:
         user = validate_init_data(initData)
     except Exception as e:
-        print(f"[ROUTE] HMAC exception: {type(e).__name__}: {e}", flush=True)
         raise HTTPException(status_code=401, detail=f"HMAC error: {e}")
 
     if not user:
-        print("[ROUTE] HMAC returned None — invalid initData", flush=True)
         raise HTTPException(status_code=401, detail="Invalid initData")
 
-    tid = user.get("id")
-    uname = user.get("username")
-    print(f"[ROUTE] User extracted: id={tid}, username={uname}", flush=True)
-
-    try:
-        pitcher_id = resolve_pitcher(tid, uname)
-    except Exception as e:
-        print(f"[ROUTE] resolve_pitcher exception: {type(e).__name__}: {e}", flush=True)
-        return {"error": "exception", "detail": str(e), "pitcher_id": None}
-
-    print(f"[ROUTE] resolve_pitcher returned: {pitcher_id}", flush=True)
-
+    pitcher_id = resolve_pitcher(user["id"], user.get("username"))
     if not pitcher_id:
-        return {
-            "error": "no_match",
-            "extracted_user": {"id": tid, "id_type": type(tid).__name__, "username": uname},
-            "pitcher_id": None,
-        }
+        raise HTTPException(status_code=404, detail="No pitcher profile linked")
 
     return {"pitcher_id": pitcher_id}
 
@@ -154,9 +101,7 @@ async def get_slug_map():
     library = _load_exercise_library()
     slug_map = {}
     for ex in library["exercises"]:
-        # Numeric ID always maps to itself
         slug_map[ex["id"]] = ex["id"]
-        # Slug maps to numeric ID
         if "slug" in ex:
             slug_map[ex["slug"]] = ex["id"]
     return slug_map
