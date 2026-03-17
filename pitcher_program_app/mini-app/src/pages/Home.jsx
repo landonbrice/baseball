@@ -6,12 +6,15 @@ import FlagBadge from '../components/FlagBadge';
 import WeekStrip from '../components/WeekStrip';
 import DailyCard from '../components/DailyCard';
 import TrendChart from '../components/TrendChart';
+import UpcomingDays from '../components/UpcomingDays';
+import InsightsCard from '../components/InsightsCard';
 
 export default function Home() {
   const { pitcherId, initData } = useAuth();
   const { profile, log, progression, loading, error } = usePitcher(pitcherId, initData);
   const exercises = useApi('/api/exercises', initData);
   const slugs = useApi('/api/exercises/slugs', initData);
+  const upcoming = useApi(pitcherId ? `/api/pitcher/${pitcherId}/upcoming` : null, initData);
 
   // Build exercise lookup maps
   const exerciseMap = useMemo(() => {
@@ -43,7 +46,7 @@ export default function Home() {
   const flagLevel = profile?.active_flags?.current_flag_level || 'green';
 
   return (
-    <div className="p-4 space-y-4">
+    <div className="p-4 space-y-3">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -51,37 +54,36 @@ export default function Home() {
             {profile?.name || 'Dashboard'}
           </h1>
           <p className="text-text-muted text-xs">
-            Day {profile?.active_flags?.days_since_outing ?? '—'} since last outing
+            Day {profile?.active_flags?.days_since_outing ?? '—'} ·{' '}
+            {profile?.role} · {profile?.rotation_length}-day rotation
           </p>
         </div>
         <FlagBadge level={flagLevel} />
       </div>
 
-      {/* Week strip */}
+      {/* Week strip with training intents */}
       <WeekStrip
         entries={entries}
-        todayRotationDay={todayEntry?.rotation_day || 0}
+        todayRotationDay={todayEntry?.rotation_day || profile?.active_flags?.days_since_outing || 0}
       />
 
-      {/* Today's plan */}
+      {/* Today's plan — the big card */}
       <DailyCard
         entry={todayEntry}
         exerciseMap={exerciseMap}
         slugMap={slugMap}
+        pitcherId={pitcherId}
+        initData={initData}
       />
 
-      {/* Trend chart */}
+      {/* Coming up — next 3 days */}
+      <UpcomingDays upcoming={upcoming.data?.upcoming} />
+
+      {/* Arm feel trend */}
       <TrendChart entries={entries} />
 
-      {/* Progression observations */}
-      {progression?.observations?.length > 0 && (
-        <div className="bg-bg-secondary rounded-xl p-4">
-          <h3 className="text-sm font-semibold text-text-primary mb-2">Observations</h3>
-          {progression.observations.map((obs, i) => (
-            <p key={i} className="text-xs text-text-secondary mb-1">{obs}</p>
-          ))}
-        </div>
-      )}
+      {/* Insights */}
+      <InsightsCard observations={progression?.observations} />
     </div>
   );
 }
@@ -96,6 +98,7 @@ function PageSkeleton() {
         ))}
       </div>
       <div className="h-40 bg-bg-secondary rounded-xl" />
+      <div className="h-24 bg-bg-secondary rounded-xl" />
       <div className="h-36 bg-bg-secondary rounded-xl" />
     </div>
   );

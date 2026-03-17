@@ -7,8 +7,9 @@ from functools import lru_cache
 from fastapi import APIRouter, HTTPException, Query, Request
 
 from bot.config import KNOWLEDGE_DIR, DISABLE_AUTH
-from bot.services.context_manager import load_profile, load_log
+from bot.services.context_manager import load_profile, load_log, update_exercise_completion
 from bot.services.progression import analyze_progression
+from bot.services.plan_generator import get_upcoming_days
 from api.auth import validate_init_data, resolve_pitcher
 
 router = APIRouter(prefix="/api")
@@ -80,6 +81,33 @@ async def get_progression(pitcher_id: str, request: Request):
         return analyze_progression(pitcher_id)
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Pitcher not found")
+
+
+@router.get("/pitcher/{pitcher_id}/upcoming")
+async def get_upcoming(pitcher_id: str, request: Request):
+    """Return preview of next 3 rotation days."""
+    _require_pitcher_auth(request, pitcher_id)
+    try:
+        profile = load_profile(pitcher_id)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Pitcher not found")
+    current_day = profile.get("active_flags", {}).get("days_since_outing", 0)
+    upcoming = get_upcoming_days(pitcher_id, current_day)
+    return {"upcoming": upcoming}
+
+
+@router.post("/pitcher/{pitcher_id}/complete-exercise")
+async def complete_exercise(pitcher_id: str, request: Request):
+    """Toggle exercise completion from dashboard."""
+    _require_pitcher_auth(request, pitcher_id)
+    body = await request.json()
+    date = body.get("date")
+    exercise_id = body.get("exercise_id")
+    completed = body.get("completed", True)
+    if not date or not exercise_id:
+        raise HTTPException(status_code=400, detail="date and exercise_id required")
+    update_exercise_completion(pitcher_id, date, exercise_id, completed)
+    return {"status": "ok"}
 
 
 @lru_cache(maxsize=1)

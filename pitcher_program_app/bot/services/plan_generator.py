@@ -31,7 +31,7 @@ def get_rotation_day(pitcher_profile: dict) -> int:
     return pitcher_profile.get("active_flags", {}).get("days_since_outing", 0)
 
 
-async def generate_plan(pitcher_id: str, triage_result: dict) -> str:
+async def generate_plan(pitcher_id: str, triage_result: dict) -> dict:
     """Generate today's training protocol for a pitcher.
 
     Args:
@@ -39,7 +39,9 @@ async def generate_plan(pitcher_id: str, triage_result: dict) -> str:
         triage_result: Output from triage()
 
     Returns:
-        Formatted protocol message string
+        Dict with keys: narrative (str), exercise_blocks (list),
+        throwing_plan (dict|None), estimated_duration_min (int|None),
+        modifications_applied (list), template_day (str)
     """
     profile = load_profile(pitcher_id)
     context = load_context(pitcher_id)
@@ -65,6 +67,17 @@ async def generate_plan(pitcher_id: str, triage_result: dict) -> str:
         except FileNotFoundError:
             logger.warning("Plyocare routines template not found")
 
+    # Build structured exercise blocks from template data
+    exercise_blocks = _build_exercise_blocks(today_template, arm_care, plyocare)
+
+    # Build throwing plan from template
+    throwing_plan = _build_throwing_plan(today_template)
+
+    # Estimated duration
+    estimated_duration_min = None
+    if today_template.get("lifting"):
+        estimated_duration_min = today_template["lifting"].get("duration_min")
+
     # Build context for LLM
     templates_context = _format_templates(today_template, arm_care, plyocare)
 
@@ -81,8 +94,16 @@ async def generate_plan(pitcher_id: str, triage_result: dict) -> str:
     user_prompt = user_prompt.replace("{templates}", templates_context)
     user_prompt = user_prompt.replace("{recent_logs}", json.dumps(recent_logs, indent=2))
 
-    response = await call_llm(system_prompt, user_prompt, max_tokens=1500)
-    return response
+    narrative = await call_llm(system_prompt, user_prompt, max_tokens=1500)
+
+    return {
+        "narrative": narrative,
+        "exercise_blocks": exercise_blocks,
+        "throwing_plan": throwing_plan,
+        "estimated_duration_min": estimated_duration_min,
+        "modifications_applied": triage_result.get("modifications", []),
+        "template_day": day_key,
+    }
 
 
 def _select_plyocare(routines: dict, rotation_day: int, flag_level: str) -> dict | None:
@@ -168,3 +189,124 @@ def _build_pitcher_context(profile: dict, context_md: str) -> str:
         parts.append(f"\nRecent interactions:\n{recent}")
 
     return "\n".join(parts)
+
+
+# --- Prescription mode → human-readable defaults ---
+_PRESCRIPTION_DEFAULTS = {
+    "power": "3×5 explosive",
+    "strength": "3×5",
+    "hypertrophy": "3×8-12",
+    "endurance": "3×15-20 light",
+    "warmup": "2×10",
+}
+
+
+def _build_exercise_blocks(today_template: dict, arm_care: dict, plyocare: dict | None) -> list:
+    """Build structured exercise_blocks from template data for the daily log."""
+    blocks = []
+
+    # Lifting blocks from rotation template
+    lifting = today_template.get("lifting")
+    if lifting and lifting.get("blocks"):
+        for block in lifting["blocks"]:
+            exercises = []
+            for ex in block.get("exercises", []):
+                prescribed = _PRESCRIPTION_DEFAULTS.get(ex.get("prescription_mode", ""), "")
+                if ex.get("notes"):
+                    prescribed = ex["notes"] if not prescribed else f"{prescribed} — {ex['notes']}"
+                override = ex.get("override")
+                if override:
+                    parts = []
+                    if "sets" in override:
+                        parts.append(f"{override['sets']}×")
+                    if "reps" in override:
+                        parts[-1] = parts[-1] + str(override["reps"]) if parts else str(override["reps"])
+                    if "intensity" in override:
+                        parts.append(override["intensity"])
+                    if parts:
+                        prescribed = " ".join(parts)
+                exercises.append({
+                    "exercise_id": ex["exercise_id"],
+                    "prescribed": prescribed,
+                })
+            blocks.append({
+                "block_name": block["block_name"],
+                "exercises": exercises,
+            })
+
+    # Arm care block
+    arm_care_seq = arm_care.get("sequence", [])
+    if arm_care_seq:
+        exercises = []
+        for ex in arm_care_seq:
+            exercises.append({
+                "exercise_id": ex.get("exercise_id", ex.get("id", "")),
+                "prescribed": ex.get("prescription", ex.get("sets_reps", "")),
+            })
+        blocks.append({
+            "block_name": f"Arm Care ({arm_care.get('name', 'Standard')})",
+            "exercises": exercises,
+        })
+
+    # Plyocare block
+    if plyocare:
+        exercises = []
+        for ex in plyocare.get("exercises", []):
+            exercises.append({
+                "exercise_id": ex.get("exercise_id", ex.get("id", "")),
+                "prescribed": ex.get("prescription", ex.get("sets_reps", "")),
+            })
+        if exercises:
+            blocks.append({
+                "block_name": f"Plyocare ({plyocare.get('routine_name', 'Standard')})",
+                "exercises": exercises,
+            })
+
+    return blocks
+
+
+def _build_throwing_plan(today_template: dict) -> dict | None:
+    """Extract throwing plan from the rotation day template."""
+    throwing = today_template.get("throwing")
+    if not throwing or throwing == "none":
+        return None
+    # Template stores throwing as a string key
+    type_map = {
+        "game_outing": ("game", "Game outing"),
+        "none_or_light_catch": ("light_catch", "Light catch play only"),
+        "light_long_toss_or_flat_ground": ("long_toss", "Light long toss or flat ground work"),
+        "bullpen_or_long_toss": ("bullpen", "Bullpen or long toss session"),
+        "flat_ground_or_light_catch": ("flat_ground", "Flat ground work or light catch"),
+        "bullpen_day_or_sim": ("bullpen", "Bullpen day or simulated game"),
+        "light_catch_only": ("light_catch", "Light catch play only"),
+    }
+    mapped = type_map.get(throwing, ("other", str(throwing)))
+    return {"type": mapped[0], "details": mapped[1]}
+
+
+def get_upcoming_days(pitcher_id: str, current_rotation_day: int, n: int = 3) -> list:
+    """Return preview data for the next n rotation days."""
+    template = load_template("starter_7day.json")
+    upcoming = []
+    for i in range(1, n + 1):
+        day_num = (current_rotation_day + i) % 7
+        day_key = f"day_{day_num}"
+        day_data = template["days"].get(day_key, {})
+
+        # Build exercise summary from template blocks
+        exercise_names = []
+        lifting = day_data.get("lifting")
+        if lifting and lifting.get("blocks"):
+            for block in lifting["blocks"]:
+                for ex in block.get("exercises", [])[:2]:
+                    exercise_names.append(ex.get("exercise_id", ""))
+
+        upcoming.append({
+            "rotation_day": day_num,
+            "label": day_data.get("label", f"Day {day_num}"),
+            "training_intent": day_data.get("training_intent", "none"),
+            "exercise_preview": ", ".join(exercise_names[:4]),
+            "duration_min": lifting.get("duration_min") if lifting else None,
+            "throwing": day_data.get("throwing", ""),
+        })
+    return upcoming

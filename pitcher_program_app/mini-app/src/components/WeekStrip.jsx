@@ -2,13 +2,22 @@ import { FLAG_COLORS, getArmFeelLevel } from '../constants';
 
 const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
+// Rotation day → short training intent label
+const INTENT_LABELS = {
+  none: 'Rest',
+  recovery_flush: 'Recovery',
+  power_development: 'Power',
+  strength_maintenance: 'Pull',
+  strength_development: 'Strength',
+  activation_maintenance: 'Mobility',
+};
+
 /**
- * 7-day color-coded rotation strip showing arm feel by day.
+ * 7-day color-coded rotation strip showing arm feel and training intent.
  * @param {Array} entries - Last 7 daily log entries
  * @param {number} todayRotationDay - Current rotation day (0-6)
  */
 export default function WeekStrip({ entries = [], todayRotationDay = 0 }) {
-  // Build 7-day view from entries
   const days = [];
   const now = new Date();
 
@@ -19,6 +28,10 @@ export default function WeekStrip({ entries = [], todayRotationDay = 0 }) {
     const entry = entries.find(e => e.date === dateStr);
     const dayOfWeek = date.getDay();
     const isToday = i === 0;
+    const isFuture = i < 0; // won't happen in current loop but kept for clarity
+
+    // Derive rotation day for future days relative to today
+    const rotationDay = entry?.rotation_day ?? (isToday ? todayRotationDay : null);
 
     days.push({
       label: DAY_LABELS[dayOfWeek],
@@ -26,7 +39,11 @@ export default function WeekStrip({ entries = [], todayRotationDay = 0 }) {
       armFeel: entry?.pre_training?.arm_feel,
       hasOuting: !!entry?.outing,
       isToday,
-      rotationDay: entry?.rotation_day,
+      isFuture: !entry && !isToday,
+      rotationDay,
+      trainingIntent: entry?.plan_generated?.template_day
+        ? _intentForDay(rotationDay)
+        : (isToday ? _intentForDay(todayRotationDay) : null),
     });
   }
 
@@ -41,21 +58,31 @@ export default function WeekStrip({ entries = [], todayRotationDay = 0 }) {
             key={i}
             className={`flex flex-col items-center flex-1 py-2 rounded-lg ${
               day.isToday ? 'ring-2 ring-accent-blue' : ''
-            } ${bgClass}`}
+            } ${bgClass} ${day.isFuture ? 'opacity-50' : ''}`}
           >
             <span className="text-[10px] text-text-muted">{day.label}</span>
             <span className={`text-sm font-semibold mt-0.5 ${
               day.armFeel != null ? '' : 'text-text-muted'
             }`}>
-              {day.armFeel != null ? day.armFeel : '—'}
+              {day.hasOuting ? '🔴' : (day.armFeel != null ? day.armFeel : '—')}
             </span>
             <span className="text-[10px] text-text-muted mt-0.5">{day.date}</span>
-            {day.hasOuting && (
-              <div className="w-1.5 h-1.5 rounded-full bg-accent-blue mt-0.5" />
+            {day.trainingIntent && (
+              <span className="text-[8px] text-text-secondary mt-0.5 truncate max-w-full px-0.5">
+                {day.trainingIntent}
+              </span>
             )}
           </div>
         );
       })}
     </div>
   );
+}
+
+// Map rotation day number to intent label
+const _DAY_INTENTS = ['none', 'recovery_flush', 'power_development', 'strength_maintenance', 'strength_development', 'activation_maintenance', 'none'];
+function _intentForDay(rotationDay) {
+  if (rotationDay == null) return null;
+  const intent = _DAY_INTENTS[rotationDay % 7];
+  return INTENT_LABELS[intent] || null;
 }

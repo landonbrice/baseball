@@ -93,6 +93,18 @@ def increment_days_since_outing(pitcher_id: str) -> None:
     save_profile(pitcher_id, profile)
 
 
+def update_exercise_completion(pitcher_id: str, date: str, exercise_id: str, completed: bool) -> None:
+    """Mark an exercise as completed or uncompleted in a specific day's log entry."""
+    log = load_log(pitcher_id)
+    for entry in log["entries"]:
+        if entry["date"] == date:
+            if "completed_exercises" not in entry:
+                entry["completed_exercises"] = {}
+            entry["completed_exercises"][exercise_id] = completed
+            break
+    save_log(pitcher_id, log)
+
+
 def get_pitcher_id_by_telegram(telegram_id: int, username: str = None) -> str | None:
     """Look up pitcher_id from a Telegram user ID.
 

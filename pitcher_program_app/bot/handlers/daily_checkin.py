@@ -204,20 +204,21 @@ async def energy_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         for obs in progression.get("observations", []):
             await query.message.reply_text(f"Pattern note: {obs}")
 
-        # Generate plan
-        plan = await generate_plan(pitcher_id, triage_result)
+        # Generate plan (returns dict with narrative + structured data)
+        plan_result = await generate_plan(pitcher_id, triage_result)
 
-        # Fix 3: Send plan with completion keyboard
+        # Fix 3: Send narrative plan with completion keyboard
         reply_markup = build_completion_keyboard()
-        await query.message.reply_text(plan, reply_markup=reply_markup)
+        await query.message.reply_text(plan_result["narrative"], reply_markup=reply_markup)
 
         # Send weekly summary on Sundays
         if progression.get("weekly_summary"):
             await query.message.reply_text(progression["weekly_summary"])
 
-        # Log the check-in
+        # Log the check-in with structured plan data
         bot_observations = progression.get("observations") or None
-        _log_checkin(pitcher_id, arm_feel, sleep_hours, energy, triage_result, bot_observations)
+        _log_checkin(pitcher_id, arm_feel, sleep_hours, energy, triage_result,
+                     bot_observations, plan_result)
 
         # Update context
         append_context(
@@ -319,21 +320,31 @@ async def cancel_checkin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 def _log_checkin(pitcher_id: str, arm_feel: int, sleep_hours: float,
                  energy: int, triage_result: dict,
-                 bot_observations: list[str] = None) -> None:
+                 bot_observations: list[str] = None,
+                 plan_result: dict = None) -> None:
     """Write the check-in to the daily log."""
+    profile = load_profile(pitcher_id)
+    rotation_day = profile.get("active_flags", {}).get("days_since_outing", 0)
+
     entry = {
         "date": datetime.now().strftime("%Y-%m-%d"),
+        "rotation_day": rotation_day,
         "pre_training": {
             "arm_feel": arm_feel,
             "overall_energy": energy,
             "sleep_hours": sleep_hours,
             "flag_level": triage_result["flag_level"],
         },
+        "plan_narrative": plan_result["narrative"] if plan_result else None,
         "plan_generated": {
-            "triage_result": triage_result,
-            "modifications_applied": triage_result.get("modifications", []),
+            "template_day": plan_result.get("template_day") if plan_result else None,
+            "exercise_blocks": plan_result.get("exercise_blocks", []) if plan_result else [],
+            "throwing_plan": plan_result.get("throwing_plan") if plan_result else None,
+            "modifications_applied": plan_result.get("modifications_applied", []) if plan_result else triage_result.get("modifications", []),
+            "estimated_duration_min": plan_result.get("estimated_duration_min") if plan_result else None,
         },
         "actual_logged": None,
+        "completed_exercises": {},
         "bot_observations": bot_observations,
     }
     append_log_entry(pitcher_id, entry)

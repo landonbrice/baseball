@@ -28,3 +28,29 @@ export async function resolveAuth(initData) {
   const data = await fetchApi(`/api/auth/resolve?initData=${encodeURIComponent(initData)}`);
   return data.pitcher_id;
 }
+
+/**
+ * Fetch upcoming rotation days preview.
+ */
+export async function fetchUpcoming(pitcherId, initData) {
+  return fetchApi(`/api/pitcher/${pitcherId}/upcoming`, initData);
+}
+
+/**
+ * Toggle exercise completion (optimistic UI — call after local state update).
+ */
+export async function toggleExercise(pitcherId, date, exerciseId, completed, initData) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (initData) headers['X-Telegram-Init-Data'] = initData;
+
+  const res = await fetch(`${API_BASE}/api/pitcher/${pitcherId}/complete-exercise`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ date, exercise_id: exerciseId, completed }),
+  });
+
+  if (!res.ok) {
+    throw new Error(`API ${res.status}: ${res.statusText}`);
+  }
+  return res.json();
+}
