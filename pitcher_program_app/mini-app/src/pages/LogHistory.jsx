@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useAuth } from '../App';
 import { usePitcher } from '../hooks/usePitcher';
 import FlagBadge from '../components/FlagBadge';
-import ActionBar from '../components/ActionBar';
+import ChatBar from '../components/ChatBar';
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
@@ -67,7 +67,7 @@ export default function LogHistory() {
         <DayDetail entry={selectedEntry} onClose={() => setSelectedEntry(null)} />
       )}
 
-      <ActionBar placeholder="Ask about your trends..." askOnly />
+      <ChatBar />
     </div>
   );
 }

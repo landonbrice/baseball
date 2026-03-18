@@ -82,3 +82,11 @@ export async function submitOuting(pitcherId, pitchCount, postArmFeel, notes, in
 export async function submitAsk(pitcherId, question, history, initData) {
   return postApi(`/api/pitcher/${pitcherId}/ask`, { question, history }, initData);
 }
+
+/**
+ * Send a chat message (unified endpoint for check-in, outing, text).
+ * Returns { messages: [{ type, content, buttons? }] }
+ */
+export async function sendChat(pitcherId, message, type = 'text', initData = null) {
+  return postApi(`/api/pitcher/${pitcherId}/chat`, { message, type }, initData);
+}

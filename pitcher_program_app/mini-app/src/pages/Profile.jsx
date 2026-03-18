@@ -1,7 +1,7 @@
 import { useAuth } from '../App';
 import { usePitcher } from '../hooks/usePitcher';
 import FlagBadge from '../components/FlagBadge';
-import ActionBar from '../components/ActionBar';
+import ChatBar from '../components/ChatBar';
 
 export default function Profile() {
   const { pitcherId, initData } = useAuth();
@@ -95,7 +95,7 @@ export default function Profile() {
         </Section>
       )}
 
-      <ActionBar placeholder="Ask about your program..." askOnly />
+      <ChatBar />
     </div>
   );
 }

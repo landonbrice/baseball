@@ -8,7 +8,7 @@ import DailyCard from '../components/DailyCard';
 import TrendChart from '../components/TrendChart';
 import UpcomingDays from '../components/UpcomingDays';
 import InsightsCard from '../components/InsightsCard';
-import ActionBar from '../components/ActionBar';
+import ChatBar from '../components/ChatBar';
 
 function getRotationLabel(profile) {
   const days = profile?.active_flags?.days_since_outing;
@@ -116,11 +116,10 @@ export default function Home() {
       <InsightsCard observations={progression?.observations} />
 
       {/* Action bar */}
-      <ActionBar
+      <ChatBar
         todayEntry={todayEntry?.date === todayStr ? todayEntry : null}
         profile={profile}
         onRefresh={handleRefresh}
-        placeholder="Ask about today's plan..."
       />
     </div>
   );

@@ -225,6 +225,105 @@ async def post_ask(pitcher_id: str, request: Request):
         raise HTTPException(status_code=500, detail="Failed to generate answer")
 
 
+@router.post("/pitcher/{pitcher_id}/chat")
+async def post_chat(pitcher_id: str, request: Request):
+    """Unified chat endpoint. Handles structured check-ins, outings, and free-text Q&A.
+
+    Body: { message: str|dict, type: "text"|"checkin"|"outing"|"soreness" }
+    Returns: { messages: [{ type: "text"|"buttons"|"status", content: str, buttons?: [...] }] }
+    """
+    _require_pitcher_auth(request, pitcher_id)
+    body = await request.json()
+    msg = body.get("message", "")
+    msg_type = body.get("type", "text")
+
+    try:
+        if msg_type == "checkin":
+            # msg is { arm_feel, sleep_hours, soreness? }
+            data = msg if isinstance(msg, dict) else {}
+            arm_feel = data.get("arm_feel")
+            sleep_hours = data.get("sleep_hours")
+            if arm_feel is None or sleep_hours is None:
+                return {"messages": [{"type": "text", "content": "I need your arm feel and sleep hours to check in."}]}
+
+            increment_days_since_outing(pitcher_id)
+            result = await process_checkin(pitcher_id, int(arm_feel), float(sleep_hours))
+
+            messages = []
+            flag = result["flag_level"].upper()
+            messages.append({"type": "text", "content": f"{flag} flag. {result.get('triage_reasoning', '')}"})
+
+            for alert in result.get("alerts", []):
+                messages.append({"type": "text", "content": f"⚠️ {alert}"})
+
+            brief = result.get("morning_brief") or result.get("plan_narrative", "")
+            if brief:
+                messages.append({"type": "text", "content": brief})
+
+            if result.get("soreness_response"):
+                messages.append({"type": "text", "content": result["soreness_response"]})
+
+            messages.append({"type": "status", "content": "plan_loaded"})
+
+            if result.get("notes"):
+                messages.append({"type": "text", "content": "Anything else you want to know about today's plan?"})
+
+            return {"messages": messages}
+
+        elif msg_type == "outing":
+            # msg is { pitch_count, post_arm_feel, notes? }
+            data = msg if isinstance(msg, dict) else {}
+            pitch_count = data.get("pitch_count")
+            post_arm_feel = data.get("post_arm_feel")
+            if pitch_count is None or post_arm_feel is None:
+                return {"messages": [{"type": "text", "content": "I need your pitch count and arm feel to log the outing."}]}
+
+            result = await process_outing(pitcher_id, int(pitch_count), int(post_arm_feel), str(data.get("notes", "")))
+
+            messages = []
+            messages.append({"type": "text", "content": result.get("recovery_plan", "Outing logged.")})
+            for alert in result.get("alerts", []):
+                messages.append({"type": "text", "content": f"⚠️ {alert}"})
+            messages.append({"type": "status", "content": "rotation_reset"})
+            return {"messages": messages}
+
+        else:
+            # Free-text Q&A
+            question = msg if isinstance(msg, str) else str(msg)
+            if not question.strip():
+                return {"messages": [{"type": "text", "content": "What's on your mind?"}]}
+
+            profile = load_profile(pitcher_id)
+            context_md = load_context(pitcher_id)
+            flags = profile.get("active_flags", {})
+            pitcher_context = "\n".join([
+                f"Name: {profile.get('name', 'Unknown')}",
+                f"Role: {profile.get('role', 'starter')}",
+                f"Arm feel: {flags.get('current_arm_feel', 'N/A')}/5",
+                f"Days since outing: {flags.get('days_since_outing', 'N/A')}",
+            ])
+            if context_md:
+                pitcher_context += f"\n\nRecent context:\n{context_md[-CONTEXT_WINDOW_CHARS:]}"
+
+            system_prompt = load_prompt("system_prompt.md")
+            qa_prompt = load_prompt("qa_prompt.md")
+            knowledge = retrieve_knowledge(question)
+
+            user_prompt = qa_prompt.replace("{pitcher_context}", pitcher_context)
+            user_prompt = user_prompt.replace("{question}", question)
+            user_prompt = user_prompt.replace("{knowledge_context}", knowledge)
+
+            answer = await call_llm(system_prompt, user_prompt)
+            append_context(pitcher_id, "interaction", f"Q: {question[:100]}")
+            return {"messages": [{"type": "text", "content": answer}]}
+
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Pitcher not found")
+    except Exception as e:
+        logger.error(f"Chat error for {pitcher_id}: {e}", exc_info=True)
+        return {"messages": [{"type": "text", "content": "Something went wrong. Try again or rephrase your question."}]}
+
+
 @lru_cache(maxsize=1)
 def _load_exercise_library() -> dict:
     path = os.path.join(KNOWLEDGE_DIR, "exercise_library.json")
