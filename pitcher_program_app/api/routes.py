@@ -225,6 +225,36 @@ async def post_ask(pitcher_id: str, request: Request):
         raise HTTPException(status_code=500, detail="Failed to generate answer")
 
 
+@router.post("/pitcher/{pitcher_id}/set-next-outing")
+async def set_next_outing(pitcher_id: str, request: Request):
+    """Set when the pitcher expects to pitch next. Recalculates rotation position.
+
+    Body: { days_until_outing: int }  (0 = today, 1 = tomorrow, etc.)
+    The system sets days_since_outing = rotation_length - days_until_outing
+    so the plan generator produces the correct day's programming.
+    """
+    _require_pitcher_auth(request, pitcher_id)
+    body = await request.json()
+    days_until = body.get("days_until_outing")
+    if days_until is None:
+        raise HTTPException(status_code=400, detail="days_until_outing required")
+
+    try:
+        from bot.services.context_manager import load_profile, update_active_flags
+        profile = load_profile(pitcher_id)
+        rotation = profile.get("rotation_length", 7)
+        # days_since_outing is the inverse: if outing is in 3 days and rotation is 7,
+        # we're on day 4 (rotation_length - days_until)
+        new_day = max(0, rotation - int(days_until))
+        update_active_flags(pitcher_id, {
+            "days_since_outing": new_day,
+            "next_outing_days": int(days_until),
+        })
+        return {"status": "ok", "days_since_outing": new_day, "next_outing_days": int(days_until)}
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Pitcher not found")
+
+
 @router.post("/pitcher/{pitcher_id}/chat")
 async def post_chat(pitcher_id: str, request: Request):
     """Unified chat endpoint. Handles structured check-ins, outings, and free-text Q&A.

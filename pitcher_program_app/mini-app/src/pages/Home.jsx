@@ -9,6 +9,7 @@ import TrendChart from '../components/TrendChart';
 import UpcomingDays from '../components/UpcomingDays';
 import InsightsCard from '../components/InsightsCard';
 import ChatBar from '../components/ChatBar';
+import NextOutingPicker from '../components/NextOutingPicker';
 
 function getRotationLabel(profile) {
   const days = profile?.active_flags?.days_since_outing;
@@ -75,7 +76,10 @@ export default function Home() {
             {profile?.role} · {profile?.rotation_length}-day rotation
           </p>
         </div>
-        <FlagBadge level={flagLevel} />
+        <div className="flex flex-col items-end gap-1">
+          <FlagBadge level={flagLevel} />
+          <NextOutingPicker profile={profile} onRefresh={handleRefresh} />
+        </div>
       </div>
 
       {/* Welcome state for new pitchers */}

@@ -90,3 +90,11 @@ export async function submitAsk(pitcherId, question, history, initData) {
 export async function sendChat(pitcherId, message, type = 'text', initData = null) {
   return postApi(`/api/pitcher/${pitcherId}/chat`, { message, type }, initData);
 }
+
+/**
+ * Set when the pitcher expects to pitch next.
+ * days_until_outing: 0 = today, 1 = tomorrow, etc.
+ */
+export async function setNextOuting(pitcherId, daysUntil, initData = null) {
+  return postApi(`/api/pitcher/${pitcherId}/set-next-outing`, { days_until_outing: daysUntil }, initData);
+}
