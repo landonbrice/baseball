@@ -77,6 +77,12 @@ async def process_checkin(pitcher_id: str, arm_feel: int, sleep_hours: float, en
             "flag_level": triage_result["flag_level"],
         },
         "plan_narrative": plan_result["narrative"] if plan_result else None,
+        "morning_brief": plan_result.get("morning_brief") if plan_result else None,
+        "arm_care": plan_result.get("arm_care") if plan_result else None,
+        "lifting": plan_result.get("lifting") if plan_result else None,
+        "throwing": plan_result.get("throwing") if plan_result else None,
+        "notes": plan_result.get("notes", []) if plan_result else [],
+        "soreness_response": plan_result.get("soreness_response") if plan_result else None,
         "plan_generated": {
             "template_day": plan_result.get("template_day") if plan_result else None,
             "exercise_blocks": plan_result.get("exercise_blocks", []) if plan_result else [],
