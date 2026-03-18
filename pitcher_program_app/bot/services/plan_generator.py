@@ -39,14 +39,14 @@ def get_rotation_day(pitcher_profile: dict) -> int:
 async def generate_plan(pitcher_id: str, triage_result: dict) -> dict:
     """Generate today's training protocol for a pitcher.
 
-    Args:
-        pitcher_id: The pitcher's ID
-        triage_result: Output from triage()
+    The LLM returns structured JSON with arm_care, lifting, throwing,
+    notes, and superset_group fields.  Falls back to template-derived
+    exercise blocks if the LLM response can't be parsed.
 
-    Returns:
-        Dict with keys: narrative (str), exercise_blocks (list),
-        throwing_plan (dict|None), estimated_duration_min (int|None),
-        modifications_applied (list), template_day (str)
+    Returns dict with keys:
+        narrative, morning_brief, arm_care, lifting, throwing, notes,
+        soreness_response, exercise_blocks, throwing_plan,
+        estimated_duration_min, modifications_applied, template_day
     """
     profile = load_profile(pitcher_id)
     context = load_context(pitcher_id)
@@ -72,25 +72,19 @@ async def generate_plan(pitcher_id: str, triage_result: dict) -> dict:
         except FileNotFoundError:
             logger.warning("Plyocare routines template not found")
 
-    # Build structured exercise blocks from template data
-    exercise_blocks = _build_exercise_blocks(today_template, arm_care, plyocare)
-
-    # Build throwing plan from template
-    throwing_plan = _build_throwing_plan(today_template)
-
-    # Estimated duration
+    # Build template-derived fallback data
+    fallback_exercise_blocks = _build_exercise_blocks(today_template, arm_care, plyocare)
+    fallback_throwing_plan = _build_throwing_plan(today_template)
     estimated_duration_min = None
     if today_template.get("lifting"):
         estimated_duration_min = today_template["lifting"].get("duration_min")
 
     # Build context for LLM
     templates_context = _format_templates(today_template, arm_care, plyocare)
-
-    # Build the pitcher context summary (keep under ~2000 tokens)
     pitcher_context = _build_pitcher_context(profile, context)
 
-    # Load and fill the plan generation prompt
-    prompt_template = load_prompt("plan_generation.md")
+    # Load structured prompt and call LLM
+    prompt_template = load_prompt("plan_generation_structured.md")
     system_prompt = load_prompt("system_prompt.md")
 
     user_prompt = prompt_template.replace("{pitcher_context}", pitcher_context)
@@ -99,21 +93,129 @@ async def generate_plan(pitcher_id: str, triage_result: dict) -> dict:
     user_prompt = user_prompt.replace("{templates}", templates_context)
     user_prompt = user_prompt.replace("{recent_logs}", json.dumps(recent_logs, indent=2))
 
-    narrative = await call_llm(system_prompt, user_prompt, max_tokens=1500)
+    raw = await call_llm(system_prompt, user_prompt, max_tokens=2000)
 
-    return {
-        "narrative": narrative,
-        "exercise_blocks": exercise_blocks,
-        "throwing_plan": throwing_plan,
-        "estimated_duration_min": estimated_duration_min,
-        "modifications_applied": triage_result.get("modifications", []),
-        "template_day": day_key,
-    }
+    # Parse structured JSON from LLM response
+    plan = _parse_plan_json(raw)
+
+    if plan:
+        # Structured plan parsed successfully
+        morning_brief = plan.get("morning_brief", "")
+        arm_care_data = plan.get("arm_care", {})
+        lifting_data = plan.get("lifting", {})
+        throwing_data = plan.get("throwing", {})
+        notes = plan.get("notes", [])
+        soreness_response = plan.get("soreness_response")
+
+        # Build narrative from structured data for backward compat
+        narrative = morning_brief
+
+        # Build exercise_blocks from structured data for backward compat
+        exercise_blocks = []
+        if arm_care_data.get("exercises"):
+            exercise_blocks.append({
+                "block_name": f"Arm Care ({arm_care_data.get('timing', 'pre-lift')})",
+                "exercises": [
+                    {"exercise_id": ex.get("exercise_id", ""), "prescribed": ex.get("rx", "")}
+                    for ex in arm_care_data["exercises"]
+                ],
+            })
+        if lifting_data.get("exercises"):
+            exercise_blocks.append({
+                "block_name": f"Lifting — {lifting_data.get('intent', '')}",
+                "exercises": [
+                    {"exercise_id": ex.get("exercise_id", ""), "prescribed": ex.get("rx", "")}
+                    for ex in lifting_data["exercises"]
+                ],
+            })
+
+        return {
+            "narrative": narrative,
+            "morning_brief": morning_brief,
+            "arm_care": arm_care_data,
+            "lifting": lifting_data,
+            "throwing": throwing_data,
+            "notes": notes,
+            "soreness_response": soreness_response,
+            "exercise_blocks": exercise_blocks,
+            "throwing_plan": throwing_data if throwing_data.get("type") != "none" else None,
+            "estimated_duration_min": lifting_data.get("estimated_duration_min", estimated_duration_min),
+            "modifications_applied": triage_result.get("modifications", []),
+            "template_day": day_key,
+        }
+    else:
+        # Fallback: LLM returned unparseable text — use it as narrative
+        logger.warning("LLM returned non-JSON plan, using as narrative with template blocks")
+        return {
+            "narrative": raw,
+            "morning_brief": None,
+            "arm_care": None,
+            "lifting": None,
+            "throwing": None,
+            "notes": [],
+            "soreness_response": None,
+            "exercise_blocks": fallback_exercise_blocks,
+            "throwing_plan": fallback_throwing_plan,
+            "estimated_duration_min": estimated_duration_min,
+            "modifications_applied": triage_result.get("modifications", []),
+            "template_day": day_key,
+        }
+
+
+def _parse_plan_json(raw: str) -> dict | None:
+    """Try to parse structured JSON from the LLM response.
+
+    Handles responses that may have markdown fences or extra text.
+    Returns the parsed dict or None if parsing fails.
+    """
+    import re
+
+    text = raw.strip()
+
+    # Strip markdown code fences if present
+    fence_match = re.search(r"```(?:json)?\s*\n?(.*?)```", text, re.DOTALL)
+    if fence_match:
+        text = fence_match.group(1).strip()
+
+    # Try direct parse
+    try:
+        plan = json.loads(text)
+        if isinstance(plan, dict) and "morning_brief" in plan:
+            return plan
+    except json.JSONDecodeError:
+        pass
+
+    # Try to find JSON object in the text
+    brace_start = text.find("{")
+    if brace_start >= 0:
+        # Find the matching closing brace
+        depth = 0
+        for i in range(brace_start, len(text)):
+            if text[i] == "{":
+                depth += 1
+            elif text[i] == "}":
+                depth -= 1
+                if depth == 0:
+                    try:
+                        plan = json.loads(text[brace_start:i + 1])
+                        if isinstance(plan, dict) and "morning_brief" in plan:
+                            return plan
+                    except json.JSONDecodeError:
+                        pass
+                    break
+
+    logger.warning(f"Could not parse plan JSON from LLM response (first 200 chars): {raw[:200]}")
+    return None
 
 
 def _select_plyocare(routines: dict, rotation_day: int, flag_level: str) -> dict | None:
     """Select the appropriate plyocare routine for the rotation day."""
-    routines_list = routines.get("routines", [])
+    routines_data = routines.get("routines", {})
+    # Handle both dict and list format
+    if isinstance(routines_data, dict):
+        routines_list = [{"routine_id": k, **v} for k, v in routines_data.items()]
+    else:
+        routines_list = routines_data
     if not routines_list:
         return None
 
@@ -184,9 +286,18 @@ def _build_pitcher_context(profile: dict, context_md: str) -> str:
     for injury in profile.get("injury_history", []):
         parts.append(f"Injury history: {injury.get('area', '')} ({injury.get('date', '')}) — {injury.get('description', '')}")
 
-    # Training level
+    # Training level and maxes
     training = profile.get("current_training", {})
     parts.append(f"Lifting experience: {training.get('lifting_experience', 'unknown')}")
+    maxes = training.get("current_maxes", {})
+    if maxes:
+        maxes_str = ", ".join(f"{k}: {v}" for k, v in maxes.items())
+        parts.append(f"Current maxes: {maxes_str}")
+
+    # Physical profile for hydration/nutrition notes
+    physical = profile.get("physical_profile", {})
+    if physical.get("weight_lbs"):
+        parts.append(f"Weight: {physical['weight_lbs']} lbs")
 
     # Recent context (last 500 chars)
     if context_md:
