@@ -155,21 +155,30 @@ async def energy_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     try:
         result = await process_checkin(pitcher_id, arm_feel, sleep_hours, energy)
 
-        # Send triage result
+        # Send triage + brief summary
         flag = result["flag_level"].upper()
-        await query.message.reply_text(f"Triage: {flag}\n{result['triage_reasoning']}")
+        brief = result.get("morning_brief") or result.get("triage_reasoning", "")
+        await query.message.reply_text(f"{flag} flag. {brief}")
 
         # Send alerts if any
         for alert in result["alerts"]:
             await query.message.reply_text(f"⚠️ {alert}")
 
-        # Send progression observations
-        for obs in result["observations"]:
-            await query.message.reply_text(f"Pattern note: {obs}")
-
-        # Send narrative plan with completion keyboard
-        reply_markup = build_completion_keyboard()
-        await query.message.reply_text(result["plan_narrative"], reply_markup=reply_markup)
+        # Send link to dashboard for full plan details
+        from bot.config import MINI_APP_URL
+        if MINI_APP_URL:
+            from telegram import WebAppInfo
+            keyboard = InlineKeyboardMarkup([
+                [InlineKeyboardButton("Open full plan", web_app=WebAppInfo(url=MINI_APP_URL))]
+            ])
+            await query.message.reply_text(
+                "Your plan is ready. Tap below for the full breakdown.",
+                reply_markup=keyboard,
+            )
+        else:
+            # Fallback: send narrative if no Mini App URL
+            reply_markup = build_completion_keyboard()
+            await query.message.reply_text(result["plan_narrative"], reply_markup=reply_markup)
 
         # Send weekly summary on Sundays
         if result["weekly_summary"]:

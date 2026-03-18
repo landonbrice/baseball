@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../App';
-import { sendChat } from '../api';
+import { sendChat, setNextOuting } from '../api';
 
 /**
  * ChatBar — persistent chat interface at bottom of every page.
@@ -18,9 +18,24 @@ export default function ChatBar({ onRefresh, todayEntry, profile }) {
   const [loading, setLoading] = useState(false);
   const [checkinFlow, setCheckinFlow] = useState(null); // { step, arm_feel?, sleep_hours? }
   const [outingFlow, setOutingFlow] = useState(null); // { step, pitch_count?, post_arm_feel? }
+  const [nextOutingFlow, setNextOutingFlow] = useState(false);
   const scrollRef = useRef(null);
 
   const hasCheckedIn = !!todayEntry?.pre_training?.arm_feel;
+  const isNewPitcher = profile && !profile.active_flags?.last_outing_date && !todayEntry;
+  const [welcomeSent, setWelcomeSent] = useState(false);
+
+  // Auto-open with welcome for new pitchers
+  useEffect(() => {
+    if (isNewPitcher && !welcomeSent && messages.length === 0) {
+      setExpanded(true);
+      setMessages([{
+        role: 'bot', type: 'text',
+        content: `Hey ${profile?.name?.split(' ')[0] || 'there'}, I'm set up with your profile. Before I can build your first plan, I need to know — when do you next expect to pitch?`,
+      }]);
+      setWelcomeSent(true);
+    }
+  }, [isNewPitcher, welcomeSent, messages.length, profile?.name]);
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -133,6 +148,28 @@ export default function ChatBar({ onRefresh, todayEntry, profile }) {
     }
   };
 
+  // ── Next outing flow ──
+  const startNextOuting = () => {
+    setExpanded(true);
+    setNextOutingFlow(true);
+    setMessages(prev => [...prev, { role: 'bot', type: 'text', content: 'When do you next expect to pitch?' }]);
+  };
+
+  const handleNextOutingSelect = async (days, label) => {
+    setMessages(prev => [...prev, { role: 'user', type: 'text', content: label }]);
+    setNextOutingFlow(false);
+    setLoading(true);
+    try {
+      await setNextOuting(pitcherId, days, initData);
+      setMessages(prev => [...prev, { role: 'bot', type: 'text', content: `Got it — outing in ${days === 0 ? 'today' : days === 1 ? 'tomorrow' : `${days} days`}. Your plan has been updated.` }]);
+      onRefresh?.();
+    } catch {
+      setMessages(prev => [...prev, { role: 'bot', type: 'text', content: 'Failed to update. Try again.' }]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // ── Quick action pills (contextual) ──
   const quickActions = [];
   if (!hasCheckedIn && !checkinFlow) {
@@ -140,6 +177,9 @@ export default function ChatBar({ onRefresh, todayEntry, profile }) {
   }
   if (!outingFlow) {
     quickActions.push({ label: 'Log outing', action: startOuting });
+  }
+  if (!nextOutingFlow) {
+    quickActions.push({ label: 'Next outing', action: startNextOuting });
   }
   if (hasCheckedIn) {
     quickActions.push({ label: "Today's plan", action: () => {
@@ -181,6 +221,24 @@ export default function ChatBar({ onRefresh, todayEntry, profile }) {
             <button key={n} onClick={() => handleOutingArmFeel(n)}
               className="flex-1 py-2 text-sm font-medium bg-bg-tertiary text-text-primary rounded-lg hover:bg-accent-blue/20 transition-colors">
               {n}
+            </button>
+          ))}
+        </div>
+      );
+    }
+    if (nextOutingFlow) {
+      return (
+        <div className="flex gap-1.5 px-3 pb-2 flex-wrap">
+          {[
+            { l: 'Tomorrow', d: 1 }, { l: '2 days', d: 2 }, { l: '3 days', d: 3 },
+            { l: '4 days', d: 4 }, { l: '5+ days', d: 5 }, { l: 'I just pitched', d: -1 },
+          ].map(o => (
+            <button key={o.d} onClick={() => {
+              if (o.d === -1) { setNextOutingFlow(false); startOuting(); }
+              else handleNextOutingSelect(o.d, o.l);
+            }}
+              className="px-3 py-1.5 text-xs font-medium bg-bg-tertiary text-text-primary rounded-lg hover:bg-accent-blue/20 transition-colors">
+              {o.l}
             </button>
           ))}
         </div>
@@ -291,10 +349,10 @@ export default function ChatBar({ onRefresh, todayEntry, profile }) {
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && inputSubmit()}
-          disabled={!!checkinFlow}
+          disabled={!!checkinFlow || nextOutingFlow}
           className="flex-1 bg-bg-secondary text-text-primary text-sm rounded-full px-4 py-2 border border-bg-tertiary focus:border-accent-blue focus:outline-none disabled:opacity-50"
         />
-        <button onClick={inputSubmit} disabled={!input.trim() || loading || !!checkinFlow}
+        <button onClick={inputSubmit} disabled={!input.trim() || loading || !!checkinFlow || nextOutingFlow}
           className="px-3 py-2 text-xs font-medium bg-accent-blue text-white rounded-full disabled:opacity-40 transition-colors">
           →
         </button>

@@ -127,6 +127,12 @@ function CalendarGrid({ year, month, entries, onSelect, selectedDate }) {
 }
 
 function DayDetail({ entry, onClose }) {
+  const armCareCount = entry.arm_care?.exercises?.length || 0;
+  const liftingCount = entry.lifting?.exercises?.length || 0;
+  const completedCount = Object.values(entry.completed_exercises || {}).filter(Boolean).length;
+  const totalExercises = armCareCount + liftingCount ||
+    entry.plan_generated?.exercise_blocks?.reduce((sum, b) => sum + (b.exercises?.length || 0), 0) || 0;
+
   return (
     <div className="fixed inset-x-0 bottom-0 bg-bg-secondary rounded-t-2xl p-4 pb-24 border-t border-bg-tertiary shadow-lg max-h-[60vh] overflow-y-auto z-50">
       <div className="flex items-center justify-between mb-3">
@@ -134,22 +140,60 @@ function DayDetail({ entry, onClose }) {
         <button onClick={onClose} className="text-text-muted text-lg px-2">×</button>
       </div>
 
-      <div className="space-y-2">
-        <div className="flex items-center gap-3">
+      <div className="space-y-3">
+        {/* Status row */}
+        <div className="flex items-center gap-2 flex-wrap">
           <FlagBadge level={entry.pre_training?.flag_level || 'green'} />
-          <span className="text-xs text-text-secondary">
-            Arm feel: {entry.pre_training?.arm_feel}/5
-          </span>
-          <span className="text-xs text-text-secondary">
-            Sleep: {entry.pre_training?.sleep_hours}h
-          </span>
+          {entry.pre_training?.arm_feel != null && (
+            <span className="text-[10px] bg-bg-tertiary text-text-muted px-2 py-0.5 rounded-full">
+              Arm {entry.pre_training.arm_feel}/5
+            </span>
+          )}
+          {entry.pre_training?.sleep_hours != null && (
+            <span className="text-[10px] bg-bg-tertiary text-text-muted px-2 py-0.5 rounded-full">
+              Sleep {entry.pre_training.sleep_hours}h
+            </span>
+          )}
+          {entry.rotation_day != null && (
+            <span className="text-[10px] bg-bg-tertiary text-text-muted px-2 py-0.5 rounded-full">
+              Day {entry.rotation_day}
+            </span>
+          )}
         </div>
 
+        {/* Morning brief */}
+        {(entry.morning_brief || entry.plan_narrative) && (
+          <p className="text-xs text-text-secondary">
+            {entry.morning_brief || entry.plan_narrative?.split('\n')[0]?.slice(0, 120)}
+          </p>
+        )}
+
+        {/* Training intent */}
+        {entry.lifting?.intent && (
+          <p className="text-[10px] text-text-muted uppercase">{entry.lifting.intent}</p>
+        )}
+
+        {/* Exercise completion */}
+        {totalExercises > 0 && (
+          <div className="flex items-center gap-2">
+            <div className="flex-1 h-1.5 bg-bg-tertiary rounded-full overflow-hidden">
+              <div
+                className="h-full bg-accent-blue rounded-full transition-all"
+                style={{ width: `${totalExercises ? (completedCount / totalExercises * 100) : 0}%` }}
+              />
+            </div>
+            <span className="text-[10px] text-text-muted flex-shrink-0">
+              {completedCount}/{totalExercises}
+            </span>
+          </div>
+        )}
+
+        {/* Outing */}
         {entry.outing && (
           <div className="bg-bg-tertiary rounded-lg p-3">
             <p className="text-xs text-accent-blue font-medium">Outing</p>
             <p className="text-sm text-text-primary">
-              {entry.outing.pitch_count} pitches · Post feel: {entry.outing.post_arm_feel}/5
+              {entry.outing.pitch_count} pitches · Post feel: {entry.outing.arm_feel ?? entry.outing.post_arm_feel}/5
             </p>
             {entry.outing.notes && (
               <p className="text-xs text-text-muted mt-1">{entry.outing.notes}</p>
@@ -157,27 +201,31 @@ function DayDetail({ entry, onClose }) {
           </div>
         )}
 
-        {entry.plan_generated && (
-          <div>
-            <p className="text-[10px] text-text-muted uppercase font-medium mb-1">Plan</p>
-            <p className="text-xs text-text-secondary">
-              Template: {entry.plan_generated.template_day}
-            </p>
-            {entry.plan_generated.exercises_prescribed?.map((ex, i) => (
-              <p key={i} className="text-xs text-text-muted">
-                {ex.exercise_id} — {ex.prescribed}
-              </p>
-            ))}
+        {/* Soreness */}
+        {entry.soreness_response && (
+          <div className="bg-flag-yellow/10 rounded-lg p-3">
+            <p className="text-[10px] text-flag-yellow font-medium mb-1">Soreness note</p>
+            <p className="text-xs text-text-secondary">{entry.soreness_response}</p>
           </div>
         )}
 
+        {/* Bot observations */}
         {entry.bot_observations && (
           <div>
-            <p className="text-[10px] text-text-muted uppercase font-medium mb-1">Bot Notes</p>
-            <p className="text-xs text-text-secondary">{entry.bot_observations.progression_notes}</p>
-            {entry.bot_observations.pattern_notes && (
-              <p className="text-xs text-text-muted">{entry.bot_observations.pattern_notes}</p>
-            )}
+            <p className="text-[10px] text-text-muted uppercase font-medium mb-1">Patterns</p>
+            {Array.isArray(entry.bot_observations)
+              ? entry.bot_observations.map((obs, i) => (
+                  <p key={i} className="text-xs text-text-secondary">{obs}</p>
+                ))
+              : <>
+                  {entry.bot_observations.progression_notes && (
+                    <p className="text-xs text-text-secondary">{entry.bot_observations.progression_notes}</p>
+                  )}
+                  {entry.bot_observations.pattern_notes && (
+                    <p className="text-xs text-text-muted">{entry.bot_observations.pattern_notes}</p>
+                  )}
+                </>
+            }
           </div>
         )}
       </div>
