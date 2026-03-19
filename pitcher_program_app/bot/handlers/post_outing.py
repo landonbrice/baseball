@@ -33,6 +33,7 @@ async def start_outing(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         return ConversationHandler.END
 
     context.user_data["pitcher_id"] = pitcher_id
+    context.user_data["conversation_history"] = []  # reset on structured flow
     await update.message.reply_text("Post-outing report. How many pitches did you throw?")
     return PITCH_COUNT
 
@@ -95,6 +96,15 @@ async def notes_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 
         for alert in result["alerts"]:
             await update.message.reply_text(f"⚠️ {alert}")
+
+        # Seed conversation history so follow-up Q&A has outing context
+        context.user_data["conversation_history"] = [
+            {"role": "assistant", "content": result["recovery_plan"]}
+        ]
+
+        await update.message.reply_text(
+            "Questions about tomorrow's plan, or want me to save this recovery protocol?"
+        )
 
     except Exception as e:
         logger.error(f"Error processing outing: {e}", exc_info=True)

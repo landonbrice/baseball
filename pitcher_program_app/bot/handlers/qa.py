@@ -11,6 +11,7 @@ from bot.services.context_manager import (
     get_pitcher_id_by_telegram,
     append_context,
     update_active_flags,
+    load_saved_plans,
 )
 from bot.config import CONTEXT_WINDOW_CHARS
 from bot.services.knowledge_retrieval import retrieve_knowledge
@@ -68,8 +69,16 @@ async def handle_question(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         user_prompt = user_prompt.replace("{question}", question)
         user_prompt = user_prompt.replace("{knowledge_context}", knowledge)
 
-        response = await call_llm(system_prompt, user_prompt)
+        # Multi-turn conversation history from Telegram user_data
+        history = context.user_data.get("conversation_history", [])
+
+        response = await call_llm(system_prompt, user_prompt, history=history)
         await update.message.reply_text(response)
+
+        # Update conversation history
+        history.append({"role": "user", "content": question})
+        history.append({"role": "assistant", "content": response})
+        context.user_data["conversation_history"] = history[-6:]
 
         append_context(pitcher_id, "interaction", f"Q: {question[:100]}")
 
@@ -93,6 +102,19 @@ def _build_qa_context(profile: dict, pitcher_id: str) -> str:
     ]
 
     if context_md:
-        parts.append(f"\nRecent context:\n{context_md[-CONTEXT_WINDOW_CHARS:]}")
+        parts.append(f"""
+## Conversation history & known context
+The following is a log of this pitcher's recent interactions and persistent facts about their situation. Use it to:
+- Avoid repeating information or plans you've already given
+- Reference prior conversations naturally ("when we talked about your hotel lift...")
+- Apply persistent modifications and injury history proactively
+
+{context_md[-CONTEXT_WINDOW_CHARS:]}""")
+
+    # Include active saved plans (parity with /chat API endpoint)
+    active_plans = [p for p in load_saved_plans(pitcher_id) if p.get("active")]
+    if active_plans:
+        plans_text = "\n".join(f"- {p['title']}: {p.get('summary', '')}" for p in active_plans)
+        parts.append(f"\nActive saved plans:\n{plans_text}")
 
     return "\n".join(parts)

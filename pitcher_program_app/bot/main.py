@@ -32,34 +32,40 @@ logger = logging.getLogger(__name__)
 
 async def start(update: Update, context) -> None:
     """Handle /start command."""
+    from bot.services.context_manager import get_pitcher_id_by_telegram, load_profile
+
+    name = "there"
+    pitcher_id = get_pitcher_id_by_telegram(update.effective_user.id, update.effective_user.username)
+    if pitcher_id:
+        try:
+            profile = load_profile(pitcher_id)
+            name = profile.get("name", "").split()[0] or "there"
+        except Exception:
+            pass
+
     await update.message.reply_text(
-        "Hey — I'm your training bot. I manage your lifting, arm care, "
-        "plyocare, and recovery programming.\n\n"
-        "Commands:\n"
-        "/checkin — Morning check-in (arm feel, sleep, energy → today's plan)\n"
-        "/outing — Log a post-outing report\n"
-        "/gamestart — Game starting? I'll remind you to log in 2hrs\n"
-        "/status — See your current flags and rotation day\n"
-        "/setday — Manually set rotation day\n"
-        "/help — What I can do\n\n"
-        "Or just ask me a question about your program."
+        f"Hey {name} — I'm your training bot. I handle your lifting, arm care, "
+        "plyocare, and recovery programming so you don't have to think about it.\n\n"
+        "/checkin — Morning check-in → today's plan\n"
+        "/outing — Log post-outing\n"
+        "/gamestart — I'll remind you to log in 2hrs\n"
+        "/status — Current flags and rotation day\n"
+        "/setday — Fix rotation day\n\n"
+        "Or just ask me anything about your program."
     )
 
 
 async def help_command(update: Update, context) -> None:
     """Handle /help command."""
     await update.message.reply_text(
-        "Here's what I do:\n\n"
-        "Daily check-in (/checkin): I'll ask how your arm feels, sleep, "
-        "and energy. Then I run triage and build your training plan for the day.\n\n"
-        "Post-outing (/outing): Log your pitch count, arm feel, and notes "
-        "after you throw.\n\n"
-        "Set rotation day (/setday <N>): Manually correct your rotation day. "
-        "Example: /setday 3\n\n"
-        "Q&A: Ask me anything about your program — why you're doing an exercise, "
-        "whether you can swap something, what to do on an off day, etc.\n\n"
-        "I flag concerns but I don't diagnose. If something feels off, "
-        "talk to your trainer."
+        "/checkin — I ask arm feel, sleep, energy, then run triage and "
+        "build your daily plan (lifting + arm care + plyo).\n\n"
+        "/outing — Log pitch count, arm feel, and notes after you throw. "
+        "I'll generate your recovery protocol.\n\n"
+        "/setday <N> — Fix your rotation day if it drifted. Example: /setday 3\n\n"
+        "You can also just ask me stuff — why a certain exercise is in your program, "
+        "what to do in a hotel gym, whether you can swap movements, etc.\n\n"
+        "I flag concerns, I don't diagnose. If something feels off, see your trainer."
     )
 
 

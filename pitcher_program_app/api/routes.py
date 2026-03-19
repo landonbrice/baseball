@@ -267,6 +267,7 @@ async def post_chat(pitcher_id: str, request: Request):
     body = await request.json()
     msg = body.get("message", "")
     msg_type = body.get("type", "text")
+    history = body.get("history", [])  # list of {role, content} for multi-turn
 
     try:
         if msg_type == "checkin":
@@ -334,7 +335,15 @@ async def post_chat(pitcher_id: str, request: Request):
                 f"Days since outing: {flags.get('days_since_outing', 'N/A')}",
             ])
             if context_md:
-                pitcher_context += f"\n\nRecent context:\n{context_md[-CONTEXT_WINDOW_CHARS:]}"
+                pitcher_context += f"""
+
+## Conversation history & known context
+The following is a log of this pitcher's recent interactions and persistent facts about their situation. Use it to:
+- Avoid repeating information or plans you've already given
+- Reference prior conversations naturally ("when we talked about your hotel lift...")
+- Apply persistent modifications and injury history proactively
+
+{context_md[-CONTEXT_WINDOW_CHARS:]}"""
 
             # Include active saved plans in context
             active_plans = [p for p in load_saved_plans(pitcher_id) if p.get("active")]
@@ -352,7 +361,7 @@ async def post_chat(pitcher_id: str, request: Request):
             user_prompt = user_prompt.replace("{question}", question)
             user_prompt = user_prompt.replace("{knowledge_context}", knowledge)
 
-            answer = await call_llm(system_prompt, user_prompt)
+            answer = await call_llm(system_prompt, user_prompt, history=history)
 
             messages = []
 
