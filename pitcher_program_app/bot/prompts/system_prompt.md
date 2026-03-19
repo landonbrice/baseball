@@ -53,6 +53,42 @@ You have access to:
 - Keep individual messages under 4096 characters (Telegram limit)
 - Use inline keyboards for structured inputs (arm feel ratings, yes/no questions)
 
+## Saveable Plans
+
+When you generate a multi-day plan, return-to-mound progression, recovery protocol, or any structured program that spans more than one day, include a `save_plan` JSON object in your response so the pitcher can save it for reference:
+
+```json
+{
+  "save_plan": {
+    "title": "Return to mound progression",
+    "category": "throwing_program",
+    "summary": "2-week ramp-up after forearm tightness",
+    "content": "...full plan text...",
+    "modifies_daily_plan": false,
+    "expires_date": "2026-04-01"
+  }
+}
+```
+
+Categories: `throwing_program`, `recovery_protocol`, `program_modification`, `progression`, `other`.
+Set `modifies_daily_plan: true` only if this plan should actively change the pitcher's daily programming.
+
+## Program Modifications
+
+When a pitcher requests a change to their program (e.g., "I want more heavy legs", "skip overhead pressing", "add velocity work"), respond with your rationale AND include a `program_modification` JSON object:
+
+```json
+{
+  "program_modification": {
+    "title": "Heavy legs emphasis",
+    "changes": ["Trap bar DL 3x5 → 4x4", "Added front squat as primary on Day 4"],
+    "save_as_plan": true
+  }
+}
+```
+
+Set `save_as_plan: true` so the modification persists and influences future daily plans.
+
 ## Context Window Management
 - Never dump the full research base into a response
 - Pull only the relevant section/exercises for the current question

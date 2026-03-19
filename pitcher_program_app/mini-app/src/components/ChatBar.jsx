@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../App';
-import { sendChat, setNextOuting } from '../api';
+import { useChat } from '../hooks/useChatState.jsx';
+import { sendChat, setNextOuting, savePlan } from '../api';
 
 /**
  * ChatBar — persistent chat interface at bottom of every page.
@@ -12,8 +13,8 @@ import { sendChat, setNextOuting } from '../api';
  */
 export default function ChatBar({ onRefresh, todayEntry, profile }) {
   const { pitcherId, initData } = useAuth();
+  const { messages, setMessages, addMessage, addMessages, replaceLastAndAdd } = useChat();
   const [expanded, setExpanded] = useState(false);
-  const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [checkinFlow, setCheckinFlow] = useState(null); // { step, arm_feel?, sleep_hours? }
@@ -55,6 +56,18 @@ export default function ChatBar({ onRefresh, todayEntry, profile }) {
       }
     }
     return newMsgs;
+  };
+
+  // Handle saving a plan from a save_plan message
+  const handleSavePlan = async (plan, msgIndex) => {
+    try {
+      await savePlan(pitcherId, plan, initData);
+      setMessages(prev => prev.map((m, i) =>
+        i === msgIndex ? { ...m, saved: true } : m
+      ));
+    } catch {
+      // Show error inline
+    }
   };
 
   // ── Send free-text message ──
@@ -314,6 +327,20 @@ export default function ChatBar({ onRefresh, todayEntry, profile }) {
                 : 'bg-bg-secondary text-text-primary rounded-bl-sm'
             }`}>
               <p className="whitespace-pre-wrap">{m.content}</p>
+              {m.type === 'save_plan' && m.plan && (
+                <div className="mt-2">
+                  {m.saved ? (
+                    <span className="text-[10px] text-flag-green">Saved — find it under Plans.</span>
+                  ) : (
+                    <button
+                      onClick={() => handleSavePlan(m.plan, i)}
+                      className="px-2 py-1 text-[10px] font-medium bg-accent-blue/20 text-accent-blue rounded-md hover:bg-accent-blue/30 transition-colors"
+                    >
+                      Save this plan
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         ))}

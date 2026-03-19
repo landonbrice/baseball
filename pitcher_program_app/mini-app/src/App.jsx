@@ -2,11 +2,13 @@ import { useState, useEffect, createContext, useContext } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { useTelegram } from './hooks/useTelegram';
 import { resolveAuth } from './api';
+import { ChatProvider } from './hooks/useChatState.jsx';
 import Layout from './Layout';
 import Home from './pages/Home';
 import ExerciseLibrary from './pages/ExerciseLibrary';
 import LogHistory from './pages/LogHistory';
 import Profile from './pages/Profile';
+import Plans from './pages/Plans';
 
 const AuthContext = createContext(null);
 export const useAuth = () => useContext(AuthContext);
@@ -58,16 +60,19 @@ export default function App() {
 
   return (
     <AuthContext.Provider value={{ pitcherId, initData }}>
-      <BrowserRouter>
-        <Routes>
-          <Route element={<Layout />}>
-            <Route index element={<Home />} />
-            <Route path="exercises" element={<ExerciseLibrary />} />
-            <Route path="log" element={<LogHistory />} />
-            <Route path="profile" element={<Profile />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
+      <ChatProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route element={<Layout />}>
+              <Route index element={<Home />} />
+              <Route path="exercises" element={<ExerciseLibrary />} />
+              <Route path="log" element={<LogHistory />} />
+              <Route path="plans" element={<Plans />} />
+              <Route path="profile" element={<Profile />} />
+            </Route>
+          </Routes>
+        </BrowserRouter>
+      </ChatProvider>
     </AuthContext.Provider>
   );
 }

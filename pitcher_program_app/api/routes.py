@@ -3,6 +3,7 @@
 import json
 import logging
 import os
+import re
 from functools import lru_cache
 
 from fastapi import APIRouter, HTTPException, Query, Request
@@ -10,7 +11,8 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from bot.config import KNOWLEDGE_DIR, CONTEXT_WINDOW_CHARS, DISABLE_AUTH
 from bot.services.context_manager import (
     load_profile, load_log, load_context, update_exercise_completion,
-    append_context, increment_days_since_outing,
+    append_context, increment_days_since_outing, load_saved_plans,
+    save_plan, deactivate_plan, update_active_flags,
 )
 from bot.services.progression import analyze_progression
 from bot.services.plan_generator import get_upcoming_days
@@ -240,7 +242,6 @@ async def set_next_outing(pitcher_id: str, request: Request):
         raise HTTPException(status_code=400, detail="days_until_outing required")
 
     try:
-        from bot.services.context_manager import load_profile, update_active_flags
         profile = load_profile(pitcher_id)
         rotation = profile.get("rotation_length", 7)
         # days_since_outing is the inverse: if outing is in 3 days and rotation is 7,
@@ -335,6 +336,14 @@ async def post_chat(pitcher_id: str, request: Request):
             if context_md:
                 pitcher_context += f"\n\nRecent context:\n{context_md[-CONTEXT_WINDOW_CHARS:]}"
 
+            # Include active saved plans in context
+            active_plans = [p for p in load_saved_plans(pitcher_id) if p.get("active")]
+            if active_plans:
+                plans_summary = "\n".join(
+                    f"- {p['title']}: {p.get('summary', '')}" for p in active_plans
+                )
+                pitcher_context += f"\n\nActive saved plans:\n{plans_summary}"
+
             system_prompt = load_prompt("system_prompt.md")
             qa_prompt = load_prompt("qa_prompt.md")
             knowledge = retrieve_knowledge(question)
@@ -344,14 +353,97 @@ async def post_chat(pitcher_id: str, request: Request):
             user_prompt = user_prompt.replace("{knowledge_context}", knowledge)
 
             answer = await call_llm(system_prompt, user_prompt)
-            append_context(pitcher_id, "interaction", f"Q: {question[:100]}")
-            return {"messages": [{"type": "text", "content": answer}]}
+
+            messages = []
+
+            # Try to parse save_plan or program_modification from LLM response
+            clean_answer = answer
+            plan_data = _extract_json_block(answer, "save_plan")
+            mod_data = _extract_json_block(answer, "program_modification")
+
+            if plan_data:
+                # Strip the JSON block from the displayed answer
+                clean_answer = _strip_json_block(answer, "save_plan")
+                messages.append({"type": "text", "content": clean_answer.strip()})
+                messages.append({
+                    "type": "save_plan",
+                    "content": plan_data.get("title", "Suggested plan"),
+                    "plan": plan_data,
+                })
+            elif mod_data:
+                clean_answer = _strip_json_block(answer, "program_modification")
+                messages.append({"type": "text", "content": clean_answer.strip()})
+
+                # Auto-save as plan if requested
+                if mod_data.get("save_as_plan"):
+                    plan = save_plan(pitcher_id, {
+                        "title": mod_data.get("title", "Program modification"),
+                        "category": "program_modification",
+                        "summary": ", ".join(mod_data.get("changes", [])),
+                        "content": "\n".join(mod_data.get("changes", [])),
+                        "modifies_daily_plan": True,
+                        "active": True,
+                    })
+                    messages.append({
+                        "type": "text",
+                        "content": f"Saved as active plan: {plan['title']}. This will influence your daily programming.",
+                    })
+
+                # Update active_modifications in profile
+                mod_title = mod_data.get("title", "")
+                if mod_title:
+                    current_mods = flags.get("active_modifications", [])
+                    if mod_title not in current_mods:
+                        current_mods.append(mod_title)
+                        update_active_flags(pitcher_id, {"active_modifications": current_mods})
+
+                messages.append({"type": "status", "content": "profile_updated"})
+            else:
+                messages.append({"type": "text", "content": answer})
+
+            # Append context summary for substantial exchanges
+            summary = f"Q: {question[:80]}"
+            if len(answer) > 300:
+                # Include a brief summary of the answer too
+                summary += f" | A: {clean_answer[:100]}"
+            append_context(pitcher_id, "interaction", summary)
+
+            return {"messages": messages}
 
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Pitcher not found")
     except Exception as e:
         logger.error(f"Chat error for {pitcher_id}: {e}", exc_info=True)
         return {"messages": [{"type": "text", "content": "Something went wrong. Try again or rephrase your question."}]}
+
+
+@router.get("/pitcher/{pitcher_id}/plans")
+async def get_plans(pitcher_id: str, request: Request):
+    """Return saved plans for a pitcher."""
+    _require_pitcher_auth(request, pitcher_id)
+    plans = load_saved_plans(pitcher_id)
+    return {"plans": plans}
+
+
+@router.post("/pitcher/{pitcher_id}/plans")
+async def post_plan(pitcher_id: str, request: Request):
+    """Save a new plan."""
+    _require_pitcher_auth(request, pitcher_id)
+    body = await request.json()
+    if not body.get("title"):
+        raise HTTPException(status_code=400, detail="title required")
+    plan = save_plan(pitcher_id, body)
+    return {"status": "ok", "plan": plan}
+
+
+@router.post("/pitcher/{pitcher_id}/plans/{plan_id}/deactivate")
+async def post_deactivate_plan(pitcher_id: str, plan_id: str, request: Request):
+    """Deactivate a saved plan."""
+    _require_pitcher_auth(request, pitcher_id)
+    found = deactivate_plan(pitcher_id, plan_id)
+    if not found:
+        raise HTTPException(status_code=404, detail="Plan not found")
+    return {"status": "ok"}
 
 
 @lru_cache(maxsize=1)
@@ -365,6 +457,56 @@ def _load_exercise_library() -> dict:
 async def get_exercises():
     """Return full exercise library."""
     return _load_exercise_library()
+
+
+def _extract_json_block(text: str, key: str) -> dict | None:
+    """Try to extract a JSON object containing `key` from LLM response text."""
+    # Look for ```json blocks first
+    for match in re.finditer(r"```(?:json)?\s*\n?(.*?)```", text, re.DOTALL):
+        try:
+            data = json.loads(match.group(1).strip())
+            if isinstance(data, dict) and key in data:
+                return data[key] if isinstance(data[key], dict) else data
+        except json.JSONDecodeError:
+            continue
+
+    # Look for inline { "key": ... } pattern
+    pattern = rf'"{key}"\s*:\s*\{{'
+    match = re.search(pattern, text)
+    if match:
+        # Find the enclosing object
+        start = text.rfind("{", 0, match.start())
+        if start < 0:
+            start = match.start() + len(f'"{key}":')
+            # Find opening brace of the value
+            start = text.index("{", start)
+        depth = 0
+        for i in range(start, len(text)):
+            if text[i] == "{":
+                depth += 1
+            elif text[i] == "}":
+                depth -= 1
+                if depth == 0:
+                    try:
+                        data = json.loads(text[start:i + 1])
+                        if isinstance(data, dict) and key in data:
+                            return data[key] if isinstance(data[key], dict) else data
+                    except json.JSONDecodeError:
+                        pass
+                    break
+    return None
+
+
+def _strip_json_block(text: str, key: str) -> str:
+    """Remove JSON blocks containing `key` from text."""
+    # Remove ```json blocks containing the key
+    result = re.sub(r"```(?:json)?\s*\n?.*?" + re.escape(key) + r".*?```", "", text, flags=re.DOTALL)
+
+    # Remove inline JSON objects containing the key
+    pattern = rf'\{{\s*"' + re.escape(key) + r'".*?\}\}'
+    result = re.sub(pattern, "", result, flags=re.DOTALL)
+
+    return result.strip()
 
 
 @router.get("/exercises/slugs")

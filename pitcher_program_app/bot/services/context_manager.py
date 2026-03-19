@@ -105,6 +105,45 @@ def update_exercise_completion(pitcher_id: str, date: str, exercise_id: str, com
     save_log(pitcher_id, log)
 
 
+def load_saved_plans(pitcher_id: str) -> list:
+    """Load saved plans for a pitcher."""
+    path = os.path.join(get_pitcher_dir(pitcher_id), "saved_plans.json")
+    if not os.path.exists(path):
+        return []
+    with open(path, "r") as f:
+        return json.load(f)
+
+
+def save_plan(pitcher_id: str, plan: dict) -> dict:
+    """Save a new plan for a pitcher. Returns the plan with generated id."""
+    plans = load_saved_plans(pitcher_id)
+    # Generate plan ID
+    plan_id = f"plan_{len(plans) + 1:03d}"
+    plan["id"] = plan_id
+    if "active" not in plan:
+        plan["active"] = True
+    if "created_date" not in plan:
+        plan["created_date"] = datetime.now().strftime("%Y-%m-%d")
+    plans.append(plan)
+    path = os.path.join(get_pitcher_dir(pitcher_id), "saved_plans.json")
+    with open(path, "w") as f:
+        json.dump(plans, f, indent=2)
+    return plan
+
+
+def deactivate_plan(pitcher_id: str, plan_id: str) -> bool:
+    """Mark a saved plan as inactive. Returns True if found."""
+    plans = load_saved_plans(pitcher_id)
+    for plan in plans:
+        if plan["id"] == plan_id:
+            plan["active"] = False
+            path = os.path.join(get_pitcher_dir(pitcher_id), "saved_plans.json")
+            with open(path, "w") as f:
+                json.dump(plans, f, indent=2)
+            return True
+    return False
+
+
 def get_pitcher_id_by_telegram(telegram_id: int, username: str = None) -> str | None:
     """Look up pitcher_id from a Telegram user ID.
 

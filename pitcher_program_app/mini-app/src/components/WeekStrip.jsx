@@ -17,7 +17,7 @@ const INTENT_LABELS = {
  * @param {Array} entries - Last 7 daily log entries
  * @param {number} todayRotationDay - Current rotation day (0-6)
  */
-export default function WeekStrip({ entries = [], todayRotationDay = 0 }) {
+export default function WeekStrip({ entries = [], todayRotationDay = 0, onDayClick, selectedDate }) {
   const days = [];
   const now = new Date();
 
@@ -28,7 +28,6 @@ export default function WeekStrip({ entries = [], todayRotationDay = 0 }) {
     const entry = entries.find(e => e.date === dateStr);
     const dayOfWeek = date.getDay();
     const isToday = i === 0;
-    const isFuture = i < 0; // won't happen in current loop but kept for clarity
 
     // Derive rotation day for future days relative to today
     const rotationDay = entry?.rotation_day ?? (isToday ? todayRotationDay : null);
@@ -36,8 +35,10 @@ export default function WeekStrip({ entries = [], todayRotationDay = 0 }) {
     days.push({
       label: DAY_LABELS[dayOfWeek],
       date: date.getDate(),
+      dateStr,
       armFeel: entry?.pre_training?.arm_feel,
       hasOuting: !!entry?.outing,
+      hasEntry: !!entry,
       isToday,
       isFuture: !entry && !isToday,
       rotationDay,
@@ -52,13 +53,17 @@ export default function WeekStrip({ entries = [], todayRotationDay = 0 }) {
       {days.map((day, i) => {
         const level = day.armFeel != null ? getArmFeelLevel(day.armFeel) : null;
         const bgClass = level ? FLAG_COLORS[level].bg : 'bg-bg-secondary';
+        const isSelected = selectedDate && selectedDate === day.dateStr;
+        const clickable = day.hasEntry || day.isToday;
 
         return (
-          <div
+          <button
             key={i}
-            className={`flex flex-col items-center flex-1 py-2 rounded-lg ${
-              day.isToday ? 'ring-2 ring-accent-blue' : ''
-            } ${bgClass} ${day.isFuture ? 'opacity-50' : ''}`}
+            disabled={!clickable}
+            onClick={() => clickable && onDayClick?.(day.dateStr)}
+            className={`flex flex-col items-center flex-1 py-2 rounded-lg transition-colors ${
+              isSelected ? 'ring-2 ring-text-primary' : day.isToday ? 'ring-2 ring-accent-blue' : ''
+            } ${bgClass} ${day.isFuture ? 'opacity-50' : ''} ${clickable ? 'cursor-pointer' : 'cursor-default'}`}
           >
             <span className="text-[10px] text-text-muted">{day.label}</span>
             <span className={`text-sm font-semibold mt-0.5 ${
@@ -72,7 +77,7 @@ export default function WeekStrip({ entries = [], todayRotationDay = 0 }) {
                 {day.trainingIntent}
               </span>
             )}
-          </div>
+          </button>
         );
       })}
     </div>

@@ -1,4 +1,4 @@
-import { useMemo, useCallback, useState } from 'react';
+import { useMemo, useCallback, useState, useEffect } from 'react';
 import { useAuth } from '../App';
 import { usePitcher } from '../hooks/usePitcher';
 import { useApi } from '../hooks/useApi';
@@ -63,6 +63,22 @@ export default function Home() {
   const flagLevel = profile?.active_flags?.current_flag_level || 'green';
   const isNewPitcher = !entries.length && !profile?.active_flags?.last_outing_date;
 
+  // Selected date for WeekStrip click navigation
+  const [selectedDate, setSelectedDate] = useState(null);
+
+  const handleDayClick = useCallback((dateStr) => {
+    // Toggle: click same day again → reset to today
+    setSelectedDate(prev => prev === dateStr ? null : dateStr);
+  }, []);
+
+  // The entry to display in DailyCard (selected day or today)
+  const displayEntry = useMemo(() => {
+    if (!selectedDate) return todayEntry;
+    return entries.find(e => e.date === selectedDate) || null;
+  }, [selectedDate, entries, todayEntry]);
+
+  const isViewingPast = selectedDate && selectedDate !== todayStr;
+
   return (
     <div className="p-4 space-y-3 pb-36">
       {/* Header */}
@@ -97,15 +113,28 @@ export default function Home() {
           <WeekStrip
             entries={entries}
             todayRotationDay={todayEntry?.rotation_day || profile?.active_flags?.days_since_outing || 0}
+            onDayClick={handleDayClick}
+            selectedDate={selectedDate}
           />
 
-          {/* Today's plan — the big card */}
+          {/* Back to today pill */}
+          {isViewingPast && (
+            <button
+              onClick={() => setSelectedDate(null)}
+              className="mx-auto block px-3 py-1 text-xs font-medium bg-accent-blue/10 text-accent-blue rounded-full"
+            >
+              Back to today
+            </button>
+          )}
+
+          {/* Daily plan card — selected day or today */}
           <DailyCard
-            entry={todayEntry}
+            entry={displayEntry}
             exerciseMap={exerciseMap}
             slugMap={slugMap}
             pitcherId={pitcherId}
             initData={initData}
+            readOnly={!!isViewingPast}
           />
         </>
       )}

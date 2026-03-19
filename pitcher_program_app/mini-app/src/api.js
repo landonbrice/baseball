@@ -98,3 +98,24 @@ export async function sendChat(pitcherId, message, type = 'text', initData = nul
 export async function setNextOuting(pitcherId, daysUntil, initData = null) {
   return postApi(`/api/pitcher/${pitcherId}/set-next-outing`, { days_until_outing: daysUntil }, initData);
 }
+
+/**
+ * Fetch saved plans for a pitcher.
+ */
+export async function fetchPlans(pitcherId, initData = null) {
+  return fetchApi(`/api/pitcher/${pitcherId}/plans`, initData);
+}
+
+/**
+ * Save a new plan.
+ */
+export async function savePlan(pitcherId, plan, initData = null) {
+  return postApi(`/api/pitcher/${pitcherId}/plans`, plan, initData);
+}
+
+/**
+ * Deactivate a saved plan.
+ */
+export async function deactivatePlan(pitcherId, planId, initData = null) {
+  return postApi(`/api/pitcher/${pitcherId}/plans/${planId}/deactivate`, {}, initData);
+}

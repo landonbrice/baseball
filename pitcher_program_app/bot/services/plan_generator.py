@@ -5,7 +5,7 @@ import os
 import logging
 from bot.config import TEMPLATES_DIR, KNOWLEDGE_DIR, CONTEXT_WINDOW_CHARS
 from bot.services.llm import call_llm, load_prompt
-from bot.services.context_manager import load_profile, load_context, get_recent_entries
+from bot.services.context_manager import load_profile, load_context, get_recent_entries, load_saved_plans
 
 logger = logging.getLogger(__name__)
 
@@ -298,6 +298,21 @@ def _build_pitcher_context(profile: dict, context_md: str) -> str:
     physical = profile.get("physical_profile", {})
     if physical.get("weight_lbs"):
         parts.append(f"Weight: {physical['weight_lbs']} lbs")
+
+    # Active saved plans that modify daily programming
+    try:
+        pitcher_id = profile.get("pitcher_id", "")
+        if pitcher_id:
+            active_plans = [
+                p for p in load_saved_plans(pitcher_id)
+                if p.get("active") and p.get("modifies_daily_plan")
+            ]
+            if active_plans:
+                parts.append("\nActive program modifications:")
+                for p in active_plans:
+                    parts.append(f"- {p['title']}: {p.get('summary', p.get('content', '')[:200])}")
+    except Exception:
+        pass  # Don't break plan generation if plans file missing
 
     # Recent context (last 500 chars)
     if context_md:

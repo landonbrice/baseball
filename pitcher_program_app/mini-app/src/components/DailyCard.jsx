@@ -11,15 +11,16 @@ function resolveExercise(exerciseId, exerciseMap, slugMap) {
   return null;
 }
 
-export default function DailyCard({ entry, exerciseMap = {}, slugMap = {}, pitcherId, initData }) {
+export default function DailyCard({ entry, exerciseMap = {}, slugMap = {}, pitcherId, initData, readOnly = false }) {
   const [tab, setTab] = useState(0);
   const [completed, setCompleted] = useState(entry?.completed_exercises || {});
 
   const handleToggle = useCallback((exerciseId, newState) => {
+    if (readOnly) return;
     setCompleted(prev => ({ ...prev, [exerciseId]: newState }));
     toggleExercise(pitcherId, entry?.date, exerciseId, newState, initData)
       .catch(() => setCompleted(prev => ({ ...prev, [exerciseId]: !newState })));
-  }, [pitcherId, entry?.date, initData]);
+  }, [pitcherId, entry?.date, initData, readOnly]);
 
   if (!entry) {
     return (
@@ -113,7 +114,7 @@ export default function DailyCard({ entry, exerciseMap = {}, slugMap = {}, pitch
             exerciseMap={exerciseMap}
             slugMap={slugMap}
             completed={completed}
-            onToggle={handleToggle}
+            onToggle={readOnly ? null : handleToggle}
           />
         )}
         {tab === 1 && (
@@ -124,7 +125,7 @@ export default function DailyCard({ entry, exerciseMap = {}, slugMap = {}, pitch
             exerciseMap={exerciseMap}
             slugMap={slugMap}
             completed={completed}
-            onToggle={handleToggle}
+            onToggle={readOnly ? null : handleToggle}
           />
         )}
         {tab === 2 && (
