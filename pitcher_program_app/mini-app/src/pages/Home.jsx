@@ -1,4 +1,4 @@
-import { useMemo, useCallback, useState, useEffect } from 'react';
+import { useMemo, useCallback, useState } from 'react';
 import { useAuth } from '../App';
 import { usePitcher } from '../hooks/usePitcher';
 import { useApi } from '../hooks/useApi';
@@ -45,6 +45,26 @@ export default function Home() {
 
   const slugMap = useMemo(() => slugs.data || {}, [slugs.data]);
 
+  // Selected date for WeekStrip click navigation — must be before early returns (Rules of Hooks)
+  const [selectedDate, setSelectedDate] = useState(null);
+
+  const handleDayClick = useCallback((dateStr) => {
+    // Toggle: click same day again → reset to today
+    setSelectedDate(prev => prev === dateStr ? null : dateStr);
+  }, []);
+
+  const entries = log?.entries || [];
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todayEntry = entries.find(e => e.date === todayStr) || entries[entries.length - 1];
+
+  // The entry to display in DailyCard (selected day or today)
+  const displayEntry = useMemo(() => {
+    if (!selectedDate) return todayEntry;
+    return entries.find(e => e.date === selectedDate) || null;
+  }, [selectedDate, entries, todayEntry]);
+
+  const isViewingPast = selectedDate && selectedDate !== todayStr;
+
   if (loading) {
     return <PageSkeleton />;
   }
@@ -57,27 +77,8 @@ export default function Home() {
     );
   }
 
-  const entries = log?.entries || [];
-  const todayStr = new Date().toISOString().split('T')[0];
-  const todayEntry = entries.find(e => e.date === todayStr) || entries[entries.length - 1];
   const flagLevel = profile?.active_flags?.current_flag_level || 'green';
   const isNewPitcher = !entries.length && !profile?.active_flags?.last_outing_date;
-
-  // Selected date for WeekStrip click navigation
-  const [selectedDate, setSelectedDate] = useState(null);
-
-  const handleDayClick = useCallback((dateStr) => {
-    // Toggle: click same day again → reset to today
-    setSelectedDate(prev => prev === dateStr ? null : dateStr);
-  }, []);
-
-  // The entry to display in DailyCard (selected day or today)
-  const displayEntry = useMemo(() => {
-    if (!selectedDate) return todayEntry;
-    return entries.find(e => e.date === selectedDate) || null;
-  }, [selectedDate, entries, todayEntry]);
-
-  const isViewingPast = selectedDate && selectedDate !== todayStr;
 
   return (
     <div className="p-4 space-y-3 pb-36">
