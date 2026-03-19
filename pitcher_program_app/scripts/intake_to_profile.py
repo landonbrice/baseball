@@ -3,7 +3,7 @@
 
 Usage:
     python scripts/intake_to_profile.py --csv intake.csv
-    python scripts/intake_to_profile.py --json single_response.json
+    python scripts/intake_to_profile.py --json data/intake_responses.json
 """
 
 import argparse
@@ -19,53 +19,64 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from bot.config import PITCHERS_DIR
 
 
-# Expected CSV/JSON column mappings (Google Form field → profile field)
-FIELD_MAP = {
-    "name": "name",
-    "full_name": "name",
-    "telegram_username": "telegram_username",
-    "telegram username": "telegram_username",
-    "role": "role",
-    "position": "role",
-    "starter_or_reliever": "role",
-    "throws": "throws",
-    "throwing_hand": "throws",
-    "height": "height_in",
-    "height_inches": "height_in",
-    "weight": "weight_lbs",
-    "weight_lbs": "weight_lbs",
-    "velocity": "avg_velocity_fb",
-    "avg_velo": "avg_velocity_fb",
-    "fastball_velo": "avg_velocity_fb",
-    "pitch_arsenal": "pitch_arsenal",
-    "pitches": "pitch_arsenal",
-    "typical_pitch_count": "typical_pitch_count",
-    "avg_pitch_count": "typical_pitch_count",
-    "injury_history": "injury_history_text",
-    "injuries": "injury_history_text",
-    "past_injuries": "injury_history_text",
-    "injury_checkboxes": "injury_checkboxes",
-    "injury_areas": "injury_checkboxes",
-    "lifting_experience": "lifting_experience",
-    "training_experience": "lifting_experience",
-    "trap_bar_dl": "trap_bar_dl",
-    "deadlift_max": "trap_bar_dl",
-    "front_squat": "front_squat",
-    "squat_max": "front_squat",
-    "preferred_exercises": "preferred_exercises",
-    "exercises_i_like": "preferred_exercises",
-    "avoided_exercises": "disliked_or_avoided",
-    "exercises_i_avoid": "disliked_or_avoided",
-    "goals": "goals",
-    "primary_goal": "primary_goal",
-    "secondary_goal": "secondary_goal",
-    "mobility_limitations": "mobility_limitations",
-    "movement_notes": "movement_screen_notes",
-}
+# Maps partial column name matches to normalized field names.
+# Order matters — first match wins.
+COLUMN_PATTERNS = [
+    ("Name", "name"),
+    ("Telegram username", "telegram_username"),
+    ("Year", "year"),
+    ("Throws", "throws"),
+    ("role", "role"),
+    ("how many days between starts", "rotation_length"),
+    ("How many pitches", "typical_pitch_count"),
+    ("What pitches do you throw", "pitch_arsenal"),
+    ("current or past arm/shoulder injuries", "has_injuries"),
+    ("If yes:", "injury_checkboxes"),
+    ("most significant injury", "injury_history_text"),
+    ("currently managing or keeping an eye on", "ongoing_considerations"),
+    ("Lifting experience", "lifting_experience"),
+    ("Trap bar", "trap_bar_dl"),
+    ("Front squat", "front_squat"),
+    ("DB bench", "db_bench"),
+    ("Pull-up", "pullup"),
+    ("When do you usually lift", "lift_timing"),
+    ("time constraints", "time_constraints"),
+    ("#1 thing you want", "primary_goal"),
+    ("information delivered", "detail_level"),
+    ("daily check-in notification", "notification_time"),
+    ("Average sleep", "avg_sleep_hours"),
+    ("whoop", "whoop_connected"),
+    ("mechanical focus", "mechanical_focus_areas"),
+    ("Anything else the bot", "additional_notes"),
+]
+
+
+def _match_column(col_name: str) -> str | None:
+    """Match a Google Form column header to a normalized field name."""
+    col_lower = col_name.lower().strip()
+    # "Name" must match exactly (not partial, to avoid matching "username")
+    if col_lower == "name":
+        return "name"
+    for pattern, field in COLUMN_PATTERNS:
+        if field == "name":
+            continue  # handled above
+        if pattern.lower() in col_lower:
+            return field
+    return None
+
+
+def normalize_row(row: dict) -> dict:
+    """Map raw Google Form column names to normalized field names."""
+    result = {}
+    for key, value in row.items():
+        field = _match_column(key)
+        if field:
+            result[field] = str(value).strip() if value else ""
+    return result
 
 
 def generate_pitcher_id(name: str) -> str:
-    """Generate a pitcher ID from a name. e.g. 'John Smith' → 'pitcher_smith_001'."""
+    """Generate a pitcher ID from a name. e.g. 'John Smith' -> 'pitcher_smith_001'."""
     parts = name.strip().lower().split()
     if not parts:
         return "pitcher_unknown_001"
@@ -85,55 +96,82 @@ def generate_pitcher_id(name: str) -> str:
         suffix += 1
 
 
-def parse_injury_history(text: str = "", checkboxes: str = "") -> list[dict]:
-    """Parse injury history from free text and/or checkbox selections."""
+def parse_injury_checkboxes(checkboxes: str) -> list[str]:
+    """Parse checkbox selections into normalized area names."""
+    if not checkboxes:
+        return []
+
+    area_map = {
+        "ucl": "medial_elbow",
+        "medial elbow": "medial_elbow",
+        "tommy john": "medial_elbow",
+        "shoulder impingement": "shoulder",
+        "shoulder": "shoulder",
+        "rotator cuff": "shoulder",
+        "biceps tendon": "biceps",
+        "bicep": "biceps",
+        "lat": "lat",
+        "oblique": "oblique",
+        "forearm tightness": "forearm",
+        "forearm": "forearm",
+        "wrist": "wrist",
+        "low back": "lower_back",
+        "lower back": "lower_back",
+        "hip": "hip",
+        "knee": "knee",
+    }
+
+    raw_areas = [a.strip().lstrip("- ").lower() for a in checkboxes.split(",") if a.strip()]
+    mapped = []
+    for area in raw_areas:
+        matched = None
+        for pattern, normalized in area_map.items():
+            if pattern in area:
+                matched = normalized
+                break
+        if matched and matched not in mapped:
+            mapped.append(matched)
+        elif not matched:
+            cleaned = area.replace(" ", "_")
+            if cleaned not in mapped:
+                mapped.append(cleaned)
+
+    return mapped
+
+
+def parse_injury_history(text: str, checkboxes: str, ongoing: str) -> list[dict]:
+    """Parse injury history from free text, checkbox selections, and ongoing considerations."""
+    areas = parse_injury_checkboxes(checkboxes)
+
+    if not areas and not text:
+        return []
+
     injuries = []
 
-    # Parse checkboxes (comma-separated areas)
-    if checkboxes:
-        areas = [a.strip().lower() for a in checkboxes.split(",") if a.strip()]
-        area_map = {
-            "ucl": "medial_elbow",
-            "elbow": "medial_elbow",
-            "medial elbow": "medial_elbow",
-            "shoulder": "shoulder",
-            "rotator cuff": "shoulder",
-            "lat": "lat",
-            "oblique": "oblique",
-            "forearm": "forearm",
-            "wrist": "wrist",
-            "back": "lower_back",
-            "lower back": "lower_back",
-            "hip": "hip",
-            "knee": "knee",
+    # Create one entry per area from checkboxes
+    for i, area in enumerate(areas):
+        injury = {
+            "date": "unknown",
+            "area": area,
+            "description": text if i == 0 else f"Reported via intake: {area}",
+            "severity": "unknown",
+            "resolution": "unknown",
+            "ongoing_considerations": ongoing if i == 0 else "",
+            "flag_level": "yellow",
         }
-        for area in areas:
-            mapped = area_map.get(area, area.replace(" ", "_"))
-            injuries.append({
-                "date": "unknown",
-                "area": mapped,
-                "description": f"Reported via intake form: {area}",
-                "severity": "unknown",
-                "resolution": "unknown",
-                "ongoing_considerations": "",
-                "flag_level": "yellow",
-            })
+        injuries.append(injury)
 
-    # Parse free text — look for area mentions
-    if text and text.strip().lower() not in ("none", "n/a", "no", ""):
-        # If we already have checkbox injuries, add text as description to the first one
-        if injuries:
-            injuries[0]["description"] = text
-        else:
-            injuries.append({
-                "date": "unknown",
-                "area": "unspecified",
-                "description": text,
-                "severity": "unknown",
-                "resolution": "unknown",
-                "ongoing_considerations": "Review with trainer",
-                "flag_level": "yellow",
-            })
+    # If we have text but no checkbox areas
+    if not injuries and text:
+        injuries.append({
+            "date": "unknown",
+            "area": "unspecified",
+            "description": text,
+            "severity": "unknown",
+            "resolution": "unknown",
+            "ongoing_considerations": ongoing,
+            "flag_level": "yellow",
+        })
 
     return injuries
 
@@ -149,107 +187,209 @@ def _default_modifications(injuries: list[dict]) -> list[str]:
     if "shoulder" in areas:
         mods.append("neutral_grip_pressing")
 
+    if "lower_back" in areas:
+        mods.append("reduced_axial_loading")
+
     return mods
 
 
 def _parse_list(value: str) -> list[str]:
-    """Parse a comma-separated string into a list."""
+    """Parse a comma-separated string into a cleaned list."""
     if not value:
         return []
-    return [item.strip() for item in value.split(",") if item.strip()]
+    items = []
+    for item in value.split(","):
+        cleaned = item.strip().lstrip("- ").strip()
+        if cleaned:
+            items.append(cleaned)
+    return items
 
 
 def _parse_int(value: str, default: int = 0) -> int:
-    """Parse a string to int with default."""
-    try:
-        return int(re.sub(r"[^\d]", "", str(value)))
-    except (ValueError, TypeError):
+    """Parse a string to int with default. Takes first number found."""
+    if not value:
         return default
+    match = re.search(r"\d+", str(value))
+    return int(match.group()) if match else default
+
+
+def _parse_role(value: str) -> str:
+    """Normalize role to 'starter' or 'reliever'."""
+    v = value.lower().strip()
+    if "start" in v:
+        return "starter"
+    return "reliever"
+
+
+def _parse_rotation_length(value: str, role: str) -> int:
+    """Parse rotation length from form value like '- 7 days'."""
+    if role == "reliever":
+        return 3
+    match = re.search(r"(\d+)", value)
+    if match:
+        return int(match.group(1))
+    return 7
+
+
+def _parse_notification_time(value: str) -> str:
+    """Parse notification time from '- 8:00 AM' -> '08:00'."""
+    match = re.search(r"(\d{1,2}):(\d{2})\s*(AM|PM)?", value, re.IGNORECASE)
+    if not match:
+        return "08:00"
+    hour = int(match.group(1))
+    minute = match.group(2)
+    ampm = (match.group(3) or "").upper()
+    if ampm == "PM" and hour < 12:
+        hour += 12
+    elif ampm == "AM" and hour == 12:
+        hour = 0
+    return f"{hour:02d}:{minute}"
+
+
+def _parse_detail_level(value: str) -> str:
+    """Parse detail level preference."""
+    v = value.lower()
+    if "just tell me" in v or "short" in v or "bullet" in v:
+        return "concise"
+    elif "explain" in v or "reasoning" in v or "why" in v:
+        return "detailed"
+    return "moderate"
+
+
+def _parse_sleep_hours(value: str) -> float:
+    """Parse avg sleep from '- 6-7 hours' -> 6.5."""
+    match = re.search(r"(\d+)\s*[-–]\s*(\d+)", value)
+    if match:
+        return (int(match.group(1)) + int(match.group(2))) / 2
+    match = re.search(r"(\d+)", value)
+    if match:
+        return float(match.group(1))
+    return 7.0
+
+
+def _parse_lifting_experience(value: str) -> str:
+    """Parse lifting experience from '- Advanced (3+ years...)'."""
+    v = value.lower()
+    if "advanced" in v:
+        return "advanced"
+    elif "beginner" in v or "new" in v:
+        return "beginner"
+    return "intermediate"
+
+
+def _parse_throws(value: str) -> str:
+    """Parse throwing hand."""
+    v = value.lower().strip()
+    if v.startswith("l"):
+        return "left"
+    return "right"
+
+
+def _parse_whoop(value: str) -> bool:
+    """Parse whoop connection preference."""
+    return value.lower().strip() in ("yes", "- yes")
+
+
+def _parse_pitch_count(value: str) -> int:
+    """Parse pitch count, handling ranges like '15-30' by taking midpoint."""
+    match = re.search(r"(\d+)\s*[-–]\s*(\d+)", value)
+    if match:
+        return (int(match.group(1)) + int(match.group(2))) // 2
+    return _parse_int(value, 85)
 
 
 def row_to_profile(row: dict) -> dict:
     """Map a form response row to the pitcher profile schema."""
-    # Normalize keys
-    normalized = {}
-    for key, value in row.items():
-        norm_key = key.strip().lower().replace(" ", "_")
-        mapped = FIELD_MAP.get(norm_key, FIELD_MAP.get(key.strip().lower()))
-        if mapped:
-            normalized[mapped] = str(value).strip() if value else ""
+    n = normalize_row(row)
 
-    name = normalized.get("name", "Unknown")
+    name = n.get("name", "Unknown").strip()
     pitcher_id = generate_pitcher_id(name)
 
-    # Parse injury history
-    injuries = parse_injury_history(
-        text=normalized.get("injury_history_text", ""),
-        checkboxes=normalized.get("injury_checkboxes", ""),
-    )
+    # Core fields
+    role = _parse_role(n.get("role", "starter"))
+    rotation_length = _parse_rotation_length(n.get("rotation_length", ""), role)
+    throws = _parse_throws(n.get("throws", "right"))
 
-    # Auto modifications
+    # Telegram username — strip @ prefix
+    tg_username = n.get("telegram_username", "").lstrip("@").strip() or None
+
+    # Injuries
+    injuries = parse_injury_history(
+        text=n.get("injury_history_text", ""),
+        checkboxes=n.get("injury_checkboxes", ""),
+        ongoing=n.get("ongoing_considerations", ""),
+    )
     mods = _default_modifications(injuries)
 
-    # Parse pitch arsenal
-    arsenal = _parse_list(normalized.get("pitch_arsenal", "4-seam"))
+    # Pitch arsenal — clean up leading dashes
+    arsenal = _parse_list(n.get("pitch_arsenal", "4-seam"))
     if not arsenal:
         arsenal = ["4-seam"]
 
-    # Role normalization
-    role = normalized.get("role", "starter").lower()
-    if role in ("sp", "start", "starting"):
-        role = "starter"
-    elif role in ("rp", "relief", "bullpen", "reliever"):
-        role = "reliever"
+    # Maxes
+    trap_bar_dl = _parse_int(n.get("trap_bar_dl", ""))
+    front_squat = _parse_int(n.get("front_squat", ""))
+    db_bench = _parse_int(n.get("db_bench", ""))
+    pullup_raw = n.get("pullup", "")
+
+    # Mechanical focus
+    mech_focus_raw = n.get("mechanical_focus_areas", "")
+    mechanical_focus_areas = [mech_focus_raw] if mech_focus_raw else []
 
     profile = {
         "pitcher_id": pitcher_id,
         "telegram_id": None,
-        "telegram_username": normalized.get("telegram_username"),
+        "telegram_username": tg_username,
         "name": name,
         "role": role,
-        "rotation_length": 7 if role == "starter" else 3,
-        "throws": normalized.get("throws", "right").lower(),
+        "rotation_length": rotation_length,
+        "throws": throws,
+        "year": n.get("year", ""),
         "physical_profile": {
-            "height_in": _parse_int(normalized.get("height_in"), 72),
-            "weight_lbs": _parse_int(normalized.get("weight_lbs"), 185),
+            "height_in": 72,
+            "weight_lbs": 185,
             "body_comp_goal": "maintain",
-            "known_mobility_limitations": _parse_list(normalized.get("mobility_limitations", "")),
-            "movement_screen_notes": normalized.get("movement_screen_notes", ""),
+            "known_mobility_limitations": [],
+            "movement_screen_notes": "",
         },
         "injury_history": injuries,
         "current_training": {
-            "lifting_experience": normalized.get("lifting_experience", "intermediate").lower(),
+            "lifting_experience": _parse_lifting_experience(n.get("lifting_experience", "")),
             "current_maxes": {
-                "trap_bar_dl": _parse_int(normalized.get("trap_bar_dl")),
-                "front_squat": _parse_int(normalized.get("front_squat")),
+                "trap_bar_dl": trap_bar_dl,
+                "front_squat": front_squat,
+                "db_bench": db_bench,
+                "pullup": pullup_raw,
             },
-            "preferred_exercises": _parse_list(normalized.get("preferred_exercises", "")),
-            "disliked_or_avoided": _parse_list(normalized.get("disliked_or_avoided", "")),
+            "preferred_exercises": [],
+            "disliked_or_avoided": [],
             "current_split": "upper_lower_2x",
+            "lift_timing": n.get("lift_timing", "").lstrip("- ").strip(),
+            "time_constraints": n.get("time_constraints", ""),
         },
         "pitching_profile": {
-            "avg_velocity_fb": _parse_int(normalized.get("avg_velocity_fb")),
+            "avg_velocity_fb": 0,
             "pitch_arsenal": arsenal,
-            "typical_pitch_count": _parse_int(normalized.get("typical_pitch_count"), 85),
+            "typical_pitch_count": _parse_pitch_count(n.get("typical_pitch_count", "85")),
             "avg_outing_innings": 0,
-            "mechanical_focus_areas": [],
+            "mechanical_focus_areas": mechanical_focus_areas,
             "mechanical_notes": "",
         },
         "biometric_integration": {
-            "whoop_connected": False,
+            "whoop_connected": _parse_whoop(n.get("whoop_connected", "no")),
             "baseline_hrv": None,
             "baseline_rhr": None,
-            "avg_sleep_hours": None,
+            "avg_sleep_hours": _parse_sleep_hours(n.get("avg_sleep_hours", "7")),
         },
         "goals": {
-            "primary": normalized.get("primary_goal", normalized.get("goals", "Stay healthy")),
-            "secondary": normalized.get("secondary_goal", ""),
+            "primary": n.get("primary_goal", "Stay healthy"),
+            "secondary": "",
             "tertiary": "",
         },
         "preferences": {
-            "notification_time": "08:00",
+            "notification_time": _parse_notification_time(n.get("notification_time", "08:00")),
             "log_style": "conversational",
-            "detail_level": "moderate",
+            "detail_level": _parse_detail_level(n.get("detail_level", "moderate")),
             "wants_youtube_links": True,
         },
         "active_flags": {
@@ -265,7 +405,7 @@ def row_to_profile(row: dict) -> dict:
     return profile
 
 
-def create_pitcher_files(profile: dict) -> str:
+def create_pitcher_files(profile: dict, additional_notes: str = "") -> str:
     """Create pitcher directory with profile.json, context.md, and daily_log.json."""
     pitcher_id = profile["pitcher_id"]
     pitcher_dir = os.path.join(PITCHERS_DIR, pitcher_id)
@@ -289,13 +429,20 @@ def create_pitcher_files(profile: dict) -> str:
     if role == "starter":
         context += f", {profile.get('rotation_length', 7)}-day rotation"
     context += f"\n- Throws: {profile.get('throws', 'right').title()}\n"
+    context += f"- Year: {profile.get('year', 'Unknown')}\n"
 
     if injuries:
+        context += "\n## Injury History\n"
         for inj in injuries:
-            context += f"- Injury history: {inj.get('area', 'unspecified')} — {inj.get('description', '')}\n"
+            context += f"- {inj.get('area', 'unspecified')}: {inj.get('description', '')}\n"
+            if inj.get("ongoing_considerations"):
+                context += f"  - Currently managing: {inj['ongoing_considerations']}\n"
 
     if mods:
-        context += f"- Active modifications: {', '.join(mods)}\n"
+        context += f"\n## Active Modifications\n- {', '.join(mods)}\n"
+
+    if additional_notes:
+        context += f"\n## Additional Notes\n{additional_notes}\n"
 
     context += "\n## Interaction Log\n"
 
@@ -315,9 +462,10 @@ def process_csv(csv_path: str) -> None:
     with open(csv_path, "r") as f:
         reader = csv.DictReader(f)
         for row in reader:
+            n = normalize_row(row)
             profile = row_to_profile(row)
-            pitcher_dir = create_pitcher_files(profile)
-            print(f"Created: {profile['pitcher_id']} ({profile['name']}) → {pitcher_dir}")
+            pitcher_dir = create_pitcher_files(profile, additional_notes=n.get("additional_notes", ""))
+            print(f"Created: {profile['pitcher_id']} ({profile['name']}) -> {pitcher_dir}")
 
 
 def process_json(json_path: str) -> None:
@@ -329,9 +477,10 @@ def process_json(json_path: str) -> None:
     rows = data if isinstance(data, list) else [data]
 
     for row in rows:
+        n = normalize_row(row)
         profile = row_to_profile(row)
-        pitcher_dir = create_pitcher_files(profile)
-        print(f"Created: {profile['pitcher_id']} ({profile['name']}) → {pitcher_dir}")
+        pitcher_dir = create_pitcher_files(profile, additional_notes=n.get("additional_notes", ""))
+        print(f"Created: {profile['pitcher_id']} ({profile['name']}) -> {pitcher_dir}")
 
 
 def main():
@@ -348,7 +497,7 @@ def main():
     elif args.json:
         process_json(args.json)
 
-    print("\nDone. Telegram IDs left null — resolved on first bot message via username matching.")
+    print("\nDone. Telegram IDs left null -- resolved on first bot message via username matching.")
 
 
 if __name__ == "__main__":

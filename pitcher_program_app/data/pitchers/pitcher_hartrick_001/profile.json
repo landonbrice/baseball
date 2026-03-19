@@ -1,0 +1,90 @@
+{
+  "pitcher_id": "pitcher_hartrick_001",
+  "telegram_id": null,
+  "telegram_username": "wadehartrick2",
+  "name": "Wade Hartrick",
+  "role": "reliever",
+  "rotation_length": 3,
+  "throws": "right",
+  "year": "Freshman",
+  "physical_profile": {
+    "height_in": 72,
+    "weight_lbs": 185,
+    "body_comp_goal": "maintain",
+    "known_mobility_limitations": [],
+    "movement_screen_notes": ""
+  },
+  "injury_history": [
+    {
+      "date": "2024-08",
+      "area": "forearm",
+      "description": "Flexor/pronator strain end of summer 2024, shut down for the fall and it went away.",
+      "severity": "moderate",
+      "resolution": "Shut down fall 2024, fully resolved",
+      "ongoing_considerations": "Shoulder tightness/weakness after high workload days.",
+      "flag_level": "yellow"
+    },
+    {
+      "date": "unknown",
+      "area": "shoulder",
+      "description": "Shoulder impingement — tightness/weakness after high workload days",
+      "severity": "mild",
+      "resolution": "Ongoing management",
+      "ongoing_considerations": "Shoulder tightness/weakness after high workload days",
+      "flag_level": "yellow"
+    }
+  ],
+  "current_training": {
+    "lifting_experience": "advanced",
+    "current_maxes": {
+      "trap_bar_dl": 535,
+      "front_squat": 315,
+      "db_bench": 100,
+      "pullup": "+45lbs x 3"
+    },
+    "preferred_exercises": [],
+    "disliked_or_avoided": [],
+    "current_split": "upper_lower_2x",
+    "lift_timing": "Before practice",
+    "time_constraints": "Limited time for armcare after pens"
+  },
+  "pitching_profile": {
+    "avg_velocity_fb": 0,
+    "pitch_arsenal": [
+      "4-seam fastball",
+      "Slider"
+    ],
+    "typical_pitch_count": 22,
+    "avg_outing_innings": 0,
+    "mechanical_focus_areas": [],
+    "mechanical_notes": ""
+  },
+  "biometric_integration": {
+    "whoop_connected": false,
+    "baseline_hrv": null,
+    "baseline_rhr": null,
+    "avg_sleep_hours": 6.5
+  },
+  "goals": {
+    "primary": "Have my best stuff consistently on game days",
+    "secondary": "",
+    "tertiary": ""
+  },
+  "preferences": {
+    "notification_time": "08:00",
+    "log_style": "conversational",
+    "detail_level": "moderate",
+    "wants_youtube_links": true
+  },
+  "active_flags": {
+    "current_arm_feel": 4,
+    "current_flag_level": "green",
+    "last_outing_date": null,
+    "last_outing_pitches": null,
+    "days_since_outing": 99,
+    "active_modifications": [
+      "elevated_fpm_volume",
+      "neutral_grip_pressing"
+    ]
+  }
+}
