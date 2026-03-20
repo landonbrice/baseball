@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { useAuth } from '../App';
 import { useChat } from '../hooks/useChatState.jsx';
 import { sendChat, setNextOuting, savePlan } from '../api';
@@ -79,7 +80,11 @@ export default function ChatBar({ onRefresh, todayEntry, profile }) {
     setMessages(prev => [...prev, { role: 'user', type: 'text', content: text }]);
     setLoading(true);
     try {
-      const res = await sendChat(pitcherId, text, 'text', initData);
+      const history = messages
+        .filter(m => m.type === 'text')
+        .slice(-6)
+        .map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.content }));
+      const res = await sendChat(pitcherId, text, 'text', initData, history);
       setMessages(prev => [...prev, ...processResponse(res)]);
     } catch {
       setMessages(prev => [...prev, { role: 'bot', type: 'text', content: 'Something went wrong. Try again.' }]);
@@ -353,7 +358,13 @@ export default function ChatBar({ onRefresh, todayEntry, profile }) {
                 : { background: 'var(--color-cream-bg)', color: 'var(--color-ink-primary)', borderBottomLeftRadius: 4 }
               ),
             }}>
-              <p style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{m.content}</p>
+              {m.role === 'bot' ? (
+                <div className="chat-markdown">
+                  <ReactMarkdown>{m.content}</ReactMarkdown>
+                </div>
+              ) : (
+                <p style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{m.content}</p>
+              )}
               {m.type === 'save_plan' && m.plan && (
                 <div style={{ marginTop: 8 }}>
                   {m.saved ? (

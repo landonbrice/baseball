@@ -38,12 +38,70 @@ def load_context(pitcher_id: str) -> str:
 
 
 def append_context(pitcher_id: str, update_type: str, content: str) -> None:
-    """Append a timestamped entry to a pitcher's context.md."""
+    """Append a timestamped entry under ## Recent interactions, auto-migrate if needed, trim to 15 lines."""
     path = os.path.join(get_pitcher_dir(pitcher_id), "context.md")
+
+    # Auto-migrate: if file doesn't have section headers, rebuild it
+    existing = ""
+    if os.path.exists(path):
+        with open(path, "r") as f:
+            existing = f.read()
+
+    if "## Persistent facts" not in existing:
+        # Build persistent facts from profile
+        profile = load_profile(pitcher_id)
+        injury_history = profile.get("injury_history", [])
+        injury_str = "; ".join(
+            f"{i.get('location', '')} — {i.get('description', '')}"
+            for i in injury_history
+        ) if injury_history else "none"
+        mods = profile.get("active_flags", {}).get("active_modifications", [])
+        mods_str = ", ".join(mods) if mods else "none"
+        role = profile.get("role", "starter")
+        rotation = profile.get("rotation_length", 7)
+        throws = profile.get("throws", "R")
+
+        persistent = f"""## Persistent facts
+- Role: {role}, {rotation}-day rotation, throws {throws}
+- Injury history: {injury_str}
+- Active program modifications: {mods_str}
+
+## Recent interactions
+"""
+        # Preserve any existing interaction lines
+        if existing.strip():
+            old_lines = [l for l in existing.splitlines() if l.startswith("- [")]
+            persistent += "\n".join(old_lines) + "\n" if old_lines else ""
+
+        with open(path, "w") as f:
+            f.write(persistent)
+        existing = persistent
+
+    # Append new entry under Recent interactions
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
     entry = f"- [{timestamp}] ({update_type}) {content}\n"
     with open(path, "a") as f:
         f.write(entry)
+
+    # Trim: keep only last 15 interaction lines
+    _trim_recent_interactions(path)
+
+
+def _trim_recent_interactions(path: str) -> None:
+    """Keep only the last 15 lines under ## Recent interactions."""
+    with open(path, "r") as f:
+        content = f.read()
+
+    if "## Recent interactions" not in content:
+        return
+
+    parts = content.split("## Recent interactions")
+    header = parts[0] + "## Recent interactions\n"
+    interaction_lines = [l for l in parts[1].splitlines() if l.strip()]
+    trimmed = interaction_lines[-15:] if len(interaction_lines) > 15 else interaction_lines
+
+    with open(path, "w") as f:
+        f.write(header + "\n".join(trimmed) + "\n")
 
 
 def load_log(pitcher_id: str) -> dict:

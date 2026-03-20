@@ -21,6 +21,7 @@ from bot.config import TELEGRAM_BOT_TOKEN, MINI_APP_URL, PITCHERS_DIR
 from bot.handlers.daily_checkin import get_checkin_handler, plan_completion_callback, skip_details_handler
 from bot.handlers.post_outing import get_outing_handler
 from bot.handlers.qa import handle_question
+from bot.services.context_manager import load_profile, get_pitcher_id_by_telegram
 
 # Logging
 logging.basicConfig(
@@ -32,17 +33,22 @@ logger = logging.getLogger(__name__)
 
 async def start(update: Update, context) -> None:
     """Handle /start command."""
+    pitcher_id = get_pitcher_id_by_telegram(update.effective_user.id, update.effective_user.username)
+    first_name = update.effective_user.first_name or "there"
+    if pitcher_id:
+        try:
+            profile = load_profile(pitcher_id)
+            first_name = profile.get("name", first_name).split()[0]
+        except Exception:
+            pass
+
     await update.message.reply_text(
-        "Hey — I'm your training bot. I manage your lifting, arm care, "
-        "plyocare, and recovery programming.\n\n"
-        "Commands:\n"
-        "/checkin — Morning check-in (arm feel, sleep, energy → today's plan)\n"
-        "/outing — Log a post-outing report\n"
-        "/gamestart — Game starting? I'll remind you to log in 2hrs\n"
-        "/status — See your current flags and rotation day\n"
-        "/setday — Manually set rotation day\n"
-        "/help — What I can do\n\n"
-        "Or just ask me a question about your program."
+        f"Hey {first_name}. Here's what I've got:\n\n"
+        "/checkin — arm feel, sleep → today's plan\n"
+        "/outing — log a post-outing report\n"
+        "/status — current flags and rotation day\n"
+        "/gamestart — game today? I'll remind you after\n\n"
+        "Or just ask me anything."
     )
 
 

@@ -382,7 +382,12 @@ async def post_chat(pitcher_id: str, request: Request):
                 f"Days since outing: {flags.get('days_since_outing', 'N/A')}",
             ])
             if context_md:
-                pitcher_context += f"\n\nRecent context:\n{context_md[-CONTEXT_WINDOW_CHARS:]}"
+                pitcher_context += f"""
+
+## Conversation history & known context
+Use the following to avoid repeating plans already given, reference prior conversations naturally, and apply persistent modifications proactively.
+
+{context_md[-CONTEXT_WINDOW_CHARS:]}"""
 
             # Include active saved plans in context
             active_plans = [p for p in load_saved_plans(pitcher_id) if p.get("active")]
@@ -400,7 +405,8 @@ async def post_chat(pitcher_id: str, request: Request):
             user_prompt = user_prompt.replace("{question}", question)
             user_prompt = user_prompt.replace("{knowledge_context}", knowledge)
 
-            answer = await call_llm(system_prompt, user_prompt)
+            history = body.get("history", [])
+            answer = await call_llm(system_prompt, user_prompt, history=history)
 
             messages = []
 

@@ -49,3 +49,11 @@ body {
   background: var(--color-cream-subtle);
   border-radius: 2px;
 }
+
+.chat-markdown { font-size: 0.75rem; line-height: 1.6; }
+.chat-markdown p { margin: 0 0 6px 0; }
+.chat-markdown p:last-child { margin-bottom: 0; }
+.chat-markdown strong { font-weight: 600; }
+.chat-markdown h3 { font-size: 0.75rem; font-weight: 600; margin: 8px 0 4px; }
+.chat-markdown ul { padding-left: 14px; margin: 4px 0; }
+.chat-markdown li { margin-bottom: 2px; }

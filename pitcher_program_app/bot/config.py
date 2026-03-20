@@ -10,7 +10,7 @@ LLM_CONFIG = {
     "provider": os.getenv("LLM_PROVIDER", "deepseek"),
     "model": os.getenv("LLM_MODEL", "deepseek-chat"),
     "max_tokens": 1000,
-    "temperature": 0.3,
+    "temperature": 0.7,
 }
 
 MINI_APP_URL = os.getenv("MINI_APP_URL", "").rstrip("/")
