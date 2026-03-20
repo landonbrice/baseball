@@ -74,13 +74,17 @@ export default function LogHistory() {
         </div>
       ))}
 
-      {/* Day detail panel with full DailyCard */}
+      {/* Day detail panel with summary + full DailyCard */}
       {selectedEntry && (
         <div className="fixed inset-x-0 bottom-0 bg-bg-secondary rounded-t-2xl p-4 pb-24 border-t border-bg-tertiary shadow-lg max-h-[70vh] overflow-y-auto z-50">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-text-primary">{selectedEntry.date}</h3>
             <button onClick={() => setSelectedEntry(null)} className="text-text-muted text-lg px-2">x</button>
           </div>
+
+          {/* Quick summary */}
+          <DayDetailSummary entry={selectedEntry} exerciseMap={exerciseMap} slugMap={slugMap} />
+
           <DailyCard
             entry={selectedEntry}
             exerciseMap={exerciseMap}
@@ -93,6 +97,96 @@ export default function LogHistory() {
       )}
 
       <ChatBar />
+    </div>
+  );
+}
+
+function DayDetailSummary({ entry, exerciseMap, slugMap }) {
+  const pre = entry.pre_training;
+  const lifting = entry.lifting || entry.plan_generated?.lifting;
+  const armCare = entry.arm_care || entry.plan_generated?.arm_care;
+  const completed = entry.completed_exercises || {};
+  const soreness = pre?.soreness;
+  const morningBrief = entry.morning_brief || entry.plan_generated?.morning_brief;
+
+  // Count completions
+  const countExercises = (exercises) => {
+    if (!exercises?.length) return { total: 0, done: 0 };
+    const total = exercises.length;
+    const done = exercises.filter(ex => completed[ex.exercise_id] === true).length;
+    return { total, done };
+  };
+
+  const armCounts = countExercises(armCare?.exercises);
+  const liftCounts = countExercises(lifting?.exercises);
+
+  // Training intent from lifting or template
+  const intent = lifting?.intent || entry.plan_generated?.template_day;
+  const rotationDay = entry.rotation_day;
+
+  return (
+    <div className="mb-3 space-y-2">
+      {/* Status pills row */}
+      <div className="flex flex-wrap gap-1.5">
+        {pre?.flag_level && (
+          <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+            pre.flag_level === 'green' ? 'bg-flag-green/20 text-flag-green' :
+            pre.flag_level === 'yellow' ? 'bg-flag-yellow/20 text-flag-yellow' :
+            'bg-flag-red/20 text-flag-red'
+          }`}>{pre.flag_level.toUpperCase()}</span>
+        )}
+        {pre?.arm_feel != null && (
+          <span className="text-[10px] bg-bg-tertiary text-text-muted px-2 py-0.5 rounded-full">Arm {pre.arm_feel}/5</span>
+        )}
+        {pre?.sleep_hours != null && (
+          <span className="text-[10px] bg-bg-tertiary text-text-muted px-2 py-0.5 rounded-full">Sleep {pre.sleep_hours}h</span>
+        )}
+      </div>
+
+      {/* Training intent */}
+      {(rotationDay != null || intent) && (
+        <p className="text-xs text-text-secondary">
+          {rotationDay != null && `Day ${rotationDay}`}
+          {rotationDay != null && intent && ' — '}
+          {intent && <span className="capitalize">{intent}</span>}
+        </p>
+      )}
+
+      {/* Soreness */}
+      {soreness && soreness.area && (
+        <p className="text-xs text-flag-yellow">
+          Soreness: {soreness.area} ({soreness.severity || 'noted'})
+        </p>
+      )}
+
+      {/* Completion counts */}
+      {(armCounts.total > 0 || liftCounts.total > 0) && (
+        <div className="flex gap-3">
+          {armCounts.total > 0 && (
+            <span className="text-[10px] text-text-muted">
+              Arm care: {armCounts.done}/{armCounts.total}
+            </span>
+          )}
+          {liftCounts.total > 0 && (
+            <span className="text-[10px] text-text-muted">
+              Lifting: {liftCounts.done}/{liftCounts.total}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Morning brief excerpt */}
+      {morningBrief && (
+        <p className="text-xs text-text-muted italic truncate">{morningBrief}</p>
+      )}
+
+      {/* Outing data */}
+      {entry.outing && (
+        <div className="text-xs text-accent-blue">
+          Outing: {entry.outing.pitch_count} pitches · Post feel {entry.outing.arm_feel ?? entry.outing.post_arm_feel}/5
+          {entry.outing.notes && ` · ${entry.outing.notes}`}
+        </div>
+      )}
     </div>
   );
 }

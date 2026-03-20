@@ -17,10 +17,13 @@ from bot.services.context_manager import (
 logger = logging.getLogger(__name__)
 
 
-async def process_checkin(pitcher_id: str, arm_feel: int, sleep_hours: float, energy: int = 3) -> dict:
+async def process_checkin(pitcher_id: str, arm_feel: int, sleep_hours: float, energy: int = 3, soreness: dict = None) -> dict:
     """Run triage, generate plan, log entry, and return structured results.
 
     Does NOT increment days_since_outing — callers handle that separately.
+
+    Args:
+        soreness: Optional dict with {area: str, severity: str} from chat flow.
 
     Returns dict with: flag_level, triage_reasoning, alerts, observations,
     weekly_summary, plan_narrative, exercise_blocks, throwing_plan,
@@ -34,6 +37,10 @@ async def process_checkin(pitcher_id: str, arm_feel: int, sleep_hours: float, en
         pitcher_profile=profile,
         energy=energy,
     )
+
+    # Inject soreness into triage for plan generator
+    if soreness and isinstance(soreness, dict) and soreness.get("area"):
+        triage_result.setdefault("soreness", soreness)
 
     # LLM-driven triage refinement for ambiguous cases
     if triage_result.get("protocol_adjustments", {}).get("needs_llm_triage"):
@@ -75,6 +82,7 @@ async def process_checkin(pitcher_id: str, arm_feel: int, sleep_hours: float, en
             "overall_energy": energy,
             "sleep_hours": sleep_hours,
             "flag_level": triage_result["flag_level"],
+            "soreness": soreness,
         },
         "plan_narrative": plan_result["narrative"] if plan_result else None,
         "morning_brief": plan_result.get("morning_brief") if plan_result else None,
@@ -101,9 +109,12 @@ async def process_checkin(pitcher_id: str, arm_feel: int, sleep_hours: float, en
 
     # Update context
     flag = triage_result["flag_level"].upper()
+    soreness_note = ""
+    if soreness and soreness.get("area"):
+        soreness_note = f", soreness={soreness['area']}({soreness.get('severity', '')})"
     append_context(
         pitcher_id, "status",
-        f"Check-in: arm_feel={arm_feel}, sleep={sleep_hours}h, energy={energy}, flag={flag}"
+        f"Check-in: arm_feel={arm_feel}, sleep={sleep_hours}h, energy={energy}, flag={flag}{soreness_note}"
     )
 
     return {
