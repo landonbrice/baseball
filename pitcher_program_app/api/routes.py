@@ -278,9 +278,8 @@ async def post_chat(pitcher_id: str, request: Request):
             if arm_feel is None or sleep_hours is None:
                 return {"messages": [{"type": "text", "content": "I need your arm feel and sleep hours to check in."}]}
 
-            soreness = data.get("soreness")  # { area, severity } or null
             increment_days_since_outing(pitcher_id)
-            result = await process_checkin(pitcher_id, int(arm_feel), float(sleep_hours), soreness=soreness)
+            result = await process_checkin(pitcher_id, int(arm_feel), float(sleep_hours))
 
             messages = []
             flag = result["flag_level"].upper()

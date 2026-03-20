@@ -112,44 +112,18 @@ export default function ChatBar({ onRefresh, todayEntry, profile }) {
     setMessages(prev => [...prev, { role: 'bot', type: 'text', content: 'Sleep?' }]);
   };
 
-  const handleSleep = (hours, label) => {
+  const handleSleep = async (hours, label) => {
     setMessages(prev => [...prev, { role: 'user', type: 'text', content: label }]);
-    setCheckinFlow(prev => ({ ...prev, step: 'soreness', sleep_hours: hours }));
-    setMessages(prev => [...prev, { role: 'bot', type: 'text', content: 'Any soreness today?' }]);
-  };
-
-  const SORENESS_AREAS = ['Forearm', 'Shoulder', 'Elbow', 'Low back', 'Nothing'];
-  const SORENESS_SEVERITY = ['Mild', 'Moderate', 'Sharp'];
-
-  const handleSorenessArea = (area) => {
-    setMessages(prev => [...prev, { role: 'user', type: 'text', content: area }]);
-    if (area === 'Nothing') {
-      submitCheckin({ ...checkinFlow, soreness: null });
-    } else {
-      setCheckinFlow(prev => ({ ...prev, step: 'soreness_severity', soreness_area: area }));
-      setMessages(prev => [...prev, { role: 'bot', type: 'text', content: 'How bad?' }]);
-    }
-  };
-
-  const handleSorenessSeverity = (severity) => {
-    setMessages(prev => [...prev, { role: 'user', type: 'text', content: severity }]);
-    submitCheckin({
-      ...checkinFlow,
-      soreness: { area: checkinFlow.soreness_area, severity },
-    });
-  };
-
-  const submitCheckin = async (flowData) => {
     setCheckinFlow(null);
     setLoading(true);
     setMessages(prev => [...prev, { role: 'bot', type: 'text', content: 'Running triage and building your plan...' }]);
     try {
       const res = await sendChat(pitcherId, {
-        arm_feel: flowData.arm_feel,
-        sleep_hours: flowData.sleep_hours,
-        soreness: flowData.soreness || null,
+        arm_feel: checkinFlow.arm_feel,
+        sleep_hours: hours,
       }, 'checkin', initData);
       setMessages(prev => {
+        // Remove the "building plan" message
         const without = prev.slice(0, -1);
         return [...without, ...processResponse(res)];
       });
@@ -259,30 +233,6 @@ export default function ChatBar({ onRefresh, todayEntry, profile }) {
             <button key={o.v} onClick={() => handleSleep(o.v, o.l)}
               className="flex-1 py-2 text-xs font-medium bg-bg-tertiary text-text-primary rounded-lg hover:bg-accent-blue/20 transition-colors">
               {o.l}
-            </button>
-          ))}
-        </div>
-      );
-    }
-    if (checkinFlow?.step === 'soreness') {
-      return (
-        <div className="flex gap-1.5 px-3 pb-2 flex-wrap">
-          {SORENESS_AREAS.map(area => (
-            <button key={area} onClick={() => handleSorenessArea(area)}
-              className="px-3 py-1.5 text-xs font-medium bg-bg-tertiary text-text-primary rounded-lg hover:bg-accent-blue/20 transition-colors">
-              {area}
-            </button>
-          ))}
-        </div>
-      );
-    }
-    if (checkinFlow?.step === 'soreness_severity') {
-      return (
-        <div className="flex gap-1.5 px-3 pb-2">
-          {SORENESS_SEVERITY.map(sev => (
-            <button key={sev} onClick={() => handleSorenessSeverity(sev)}
-              className="flex-1 py-2 text-xs font-medium bg-bg-tertiary text-text-primary rounded-lg hover:bg-accent-blue/20 transition-colors">
-              {sev}
             </button>
           ))}
         </div>
