@@ -205,10 +205,10 @@ export default function ChatBar({ onRefresh, todayEntry, profile }) {
   const renderButtons = () => {
     if (checkinFlow?.step === 'arm_feel') {
       return (
-        <div className="flex gap-1.5 px-3 pb-2">
+        <div style={{ display: 'flex', gap: 6, padding: '0 12px 8px' }}>
           {[1, 2, 3, 4, 5].map(n => (
             <button key={n} onClick={() => handleArmFeel(n)}
-              className="flex-1 py-2 text-sm font-medium bg-bg-tertiary text-text-primary rounded-lg hover:bg-accent-blue/20 transition-colors">
+              style={{ flex: 1, padding: '8px 0', fontSize: 13, fontWeight: 600, background: 'var(--color-cream-bg)', color: 'var(--color-ink-primary)', borderRadius: 8, border: '0.5px solid var(--color-cream-border)', cursor: 'pointer' }}>
               {n}
             </button>
           ))}
@@ -217,10 +217,10 @@ export default function ChatBar({ onRefresh, todayEntry, profile }) {
     }
     if (checkinFlow?.step === 'sleep') {
       return (
-        <div className="flex gap-1.5 px-3 pb-2">
+        <div style={{ display: 'flex', gap: 6, padding: '0 12px 8px' }}>
           {[{ l: '<6h', v: 5.5 }, { l: '6-7h', v: 6.5 }, { l: '7-8h', v: 7.5 }, { l: '8+h', v: 8.5 }].map(o => (
             <button key={o.v} onClick={() => handleSleep(o.v, o.l)}
-              className="flex-1 py-2 text-xs font-medium bg-bg-tertiary text-text-primary rounded-lg hover:bg-accent-blue/20 transition-colors">
+              style={{ flex: 1, padding: '8px 0', fontSize: 11, fontWeight: 500, background: 'var(--color-cream-bg)', color: 'var(--color-ink-primary)', borderRadius: 8, border: '0.5px solid var(--color-cream-border)', cursor: 'pointer' }}>
               {o.l}
             </button>
           ))}
@@ -229,10 +229,10 @@ export default function ChatBar({ onRefresh, todayEntry, profile }) {
     }
     if (outingFlow?.step === 'arm_feel') {
       return (
-        <div className="flex gap-1.5 px-3 pb-2">
+        <div style={{ display: 'flex', gap: 6, padding: '0 12px 8px' }}>
           {[1, 2, 3, 4, 5].map(n => (
             <button key={n} onClick={() => handleOutingArmFeel(n)}
-              className="flex-1 py-2 text-sm font-medium bg-bg-tertiary text-text-primary rounded-lg hover:bg-accent-blue/20 transition-colors">
+              style={{ flex: 1, padding: '8px 0', fontSize: 13, fontWeight: 600, background: 'var(--color-cream-bg)', color: 'var(--color-ink-primary)', borderRadius: 8, border: '0.5px solid var(--color-cream-border)', cursor: 'pointer' }}>
               {n}
             </button>
           ))}
@@ -241,7 +241,7 @@ export default function ChatBar({ onRefresh, todayEntry, profile }) {
     }
     if (nextOutingFlow) {
       return (
-        <div className="flex gap-1.5 px-3 pb-2 flex-wrap">
+        <div style={{ display: 'flex', gap: 6, padding: '0 12px 8px', flexWrap: 'wrap' }}>
           {[
             { l: 'Tomorrow', d: 1 }, { l: '2 days', d: 2 }, { l: '3 days', d: 3 },
             { l: '4 days', d: 4 }, { l: '5+ days', d: 5 }, { l: 'I just pitched', d: -1 },
@@ -250,7 +250,7 @@ export default function ChatBar({ onRefresh, todayEntry, profile }) {
               if (o.d === -1) { setNextOutingFlow(false); startOuting(); }
               else handleNextOutingSelect(o.d, o.l);
             }}
-              className="px-3 py-1.5 text-xs font-medium bg-bg-tertiary text-text-primary rounded-lg hover:bg-accent-blue/20 transition-colors">
+              style={{ padding: '6px 12px', fontSize: 11, fontWeight: 500, background: 'var(--color-cream-bg)', color: 'var(--color-ink-primary)', borderRadius: 8, border: '0.5px solid var(--color-cream-border)', cursor: 'pointer' }}>
               {o.l}
             </button>
           ))}
@@ -264,38 +264,55 @@ export default function ChatBar({ onRefresh, todayEntry, profile }) {
   const inputSubmit = outingFlow?.step === 'pitch_count' ? handlePitchCount : handleSend;
   const inputPlaceholder = outingFlow?.step === 'pitch_count'
     ? 'Pitch count...'
-    : 'Message your bot...';
+    : 'Ask about today\'s plan...';
 
   // ── Collapsed bar ──
   if (!expanded) {
     return (
-      <div className="fixed bottom-16 left-0 right-0 bg-bg-primary border-t border-bg-tertiary z-40"
-           style={{ paddingBottom: 'env(safe-area-inset-bottom, 0)' }}>
+      <div style={{
+        position: 'fixed', bottom: 56, left: 0, right: 0, zIndex: 40,
+        background: 'var(--color-white)', borderTop: '0.5px solid var(--color-cream-border)',
+        paddingBottom: 'env(safe-area-inset-bottom, 0)',
+      }}>
         {/* Quick actions */}
         {quickActions.length > 0 && (
-          <div className="flex gap-1.5 px-3 pt-2 pb-1 overflow-x-auto scrollbar-none">
+          <div style={{ display: 'flex', gap: 6, padding: '8px 12px 4px', overflowX: 'auto' }}>
             {quickActions.map(qa => (
               <button key={qa.label} onClick={qa.action}
-                className="px-3 py-1 text-xs font-medium bg-bg-secondary text-text-primary rounded-full whitespace-nowrap hover:bg-bg-tertiary transition-colors">
+                style={{
+                  padding: '4px 12px', fontSize: 11, fontWeight: 500,
+                  background: 'var(--color-cream-bg)', color: 'var(--color-ink-secondary)',
+                  border: '0.5px solid var(--color-cream-border)', borderRadius: 14,
+                  cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
+                }}>
                 {qa.label}
               </button>
             ))}
           </div>
         )}
         {/* Input row */}
-        <div className="flex gap-2 px-3 py-2">
+        <div style={{ display: 'flex', gap: 8, padding: '6px 12px 8px' }}>
           <input
             type="text"
-            placeholder="Message your bot..."
+            placeholder="Ask about today's plan..."
             value={input}
             onChange={e => setInput(e.target.value)}
             onFocus={() => setExpanded(true)}
             onKeyDown={e => e.key === 'Enter' && handleSend()}
-            className="flex-1 bg-bg-secondary text-text-primary text-sm rounded-full px-4 py-2 border border-bg-tertiary focus:border-accent-blue focus:outline-none"
+            style={{
+              flex: 1, background: 'var(--color-cream-bg)', color: 'var(--color-ink-primary)',
+              fontSize: 13, borderRadius: 20, padding: '8px 16px',
+              border: '0.5px solid var(--color-cream-border)', outline: 'none',
+            }}
           />
           <button onClick={handleSend} disabled={!input.trim() || loading}
-            className="px-3 py-2 text-xs font-medium bg-accent-blue text-white rounded-full disabled:opacity-40 transition-colors">
-            →
+            style={{
+              width: 34, height: 34, borderRadius: '50%',
+              background: !input.trim() || loading ? 'var(--color-cream-subtle)' : 'var(--color-maroon)',
+              color: '#fff', border: 'none', cursor: 'pointer',
+              fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+            ↑
           </button>
         </div>
       </div>
@@ -304,37 +321,51 @@ export default function ChatBar({ onRefresh, todayEntry, profile }) {
 
   // ── Expanded chat ──
   return (
-    <div className="fixed bottom-16 left-0 right-0 bg-bg-primary border-t border-bg-tertiary z-40 flex flex-col"
-         style={{ height: '60vh', paddingBottom: 'env(safe-area-inset-bottom, 0)' }}>
+    <div style={{
+      position: 'fixed', bottom: 56, left: 0, right: 0, zIndex: 40,
+      background: 'var(--color-white)', borderTop: '0.5px solid var(--color-cream-border)',
+      display: 'flex', flexDirection: 'column', height: '60vh',
+      paddingBottom: 'env(safe-area-inset-bottom, 0)',
+    }}>
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-bg-tertiary flex-shrink-0">
-        <p className="text-xs font-medium text-text-primary">Training assistant</p>
-        <button onClick={() => setExpanded(false)} className="text-text-muted text-sm px-1">—</button>
+      <div style={{
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        padding: '8px 12px', borderBottom: '0.5px solid var(--color-cream-border)', flexShrink: 0,
+      }}>
+        <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-ink-primary)', margin: 0 }}>Training assistant</p>
+        <button onClick={() => setExpanded(false)}
+          style={{ color: 'var(--color-ink-muted)', fontSize: 14, cursor: 'pointer', background: 'none', border: 'none', padding: '0 4px' }}>—</button>
       </div>
 
       {/* Messages */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 py-2 space-y-2">
+      <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', padding: '8px 12px' }}>
         {messages.length === 0 && (
-          <p className="text-xs text-text-muted text-center py-4">
+          <p style={{ fontSize: 11, color: 'var(--color-ink-muted)', textAlign: 'center', padding: '16px 0' }}>
             Ask me anything about your training, or use the quick actions below.
           </p>
         )}
         {messages.map((m, i) => (
-          <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[85%] rounded-xl px-3 py-2 text-xs ${
-              m.role === 'user'
-                ? 'bg-accent-blue text-white rounded-br-sm'
-                : 'bg-bg-secondary text-text-primary rounded-bl-sm'
-            }`}>
-              <p className="whitespace-pre-wrap">{m.content}</p>
+          <div key={i} style={{ display: 'flex', justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start', marginBottom: 8 }}>
+            <div style={{
+              maxWidth: '85%', borderRadius: 14, padding: '8px 12px', fontSize: 12,
+              ...(m.role === 'user'
+                ? { background: 'var(--color-maroon)', color: '#fff', borderBottomRightRadius: 4 }
+                : { background: 'var(--color-cream-bg)', color: 'var(--color-ink-primary)', borderBottomLeftRadius: 4 }
+              ),
+            }}>
+              <p style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{m.content}</p>
               {m.type === 'save_plan' && m.plan && (
-                <div className="mt-2">
+                <div style={{ marginTop: 8 }}>
                   {m.saved ? (
-                    <span className="text-[10px] text-flag-green">Saved — find it under Plans.</span>
+                    <span style={{ fontSize: 10, color: 'var(--color-flag-green)' }}>Saved — find it under Plans.</span>
                   ) : (
                     <button
                       onClick={() => handleSavePlan(m.plan, i)}
-                      className="px-2 py-1 text-[10px] font-medium bg-accent-blue/20 text-accent-blue rounded-md hover:bg-accent-blue/30 transition-colors"
+                      style={{
+                        padding: '4px 10px', fontSize: 10, fontWeight: 600,
+                        background: 'rgba(255,255,255,0.2)', color: '#fff',
+                        border: 'none', borderRadius: 8, cursor: 'pointer',
+                      }}
                     >
                       Save this plan
                     </button>
@@ -345,23 +376,31 @@ export default function ChatBar({ onRefresh, todayEntry, profile }) {
           </div>
         ))}
         {loading && (
-          <div className="flex justify-start">
-            <div className="bg-bg-secondary rounded-xl px-3 py-2 text-xs text-text-muted rounded-bl-sm">
+          <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 8 }}>
+            <div style={{
+              background: 'var(--color-cream-bg)', borderRadius: 14, padding: '8px 12px',
+              fontSize: 12, color: 'var(--color-ink-muted)', borderBottomLeftRadius: 4,
+            }}>
               typing...
             </div>
           </div>
         )}
       </div>
 
-      {/* Interactive buttons (arm feel, sleep, etc.) */}
+      {/* Interactive buttons */}
       {renderButtons()}
 
       {/* Quick actions */}
       {!checkinFlow && !outingFlow && (
-        <div className="flex gap-1.5 px-3 py-1 overflow-x-auto scrollbar-none flex-shrink-0">
+        <div style={{ display: 'flex', gap: 6, padding: '4px 12px', overflowX: 'auto', flexShrink: 0 }}>
           {quickActions.map(qa => (
             <button key={qa.label} onClick={qa.action}
-              className="px-3 py-1 text-[10px] font-medium bg-bg-secondary text-text-muted rounded-full whitespace-nowrap hover:bg-bg-tertiary transition-colors">
+              style={{
+                padding: '3px 10px', fontSize: 10, fontWeight: 500,
+                background: 'var(--color-cream-bg)', color: 'var(--color-ink-muted)',
+                border: '0.5px solid var(--color-cream-border)', borderRadius: 12,
+                cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
+              }}>
               {qa.label}
             </button>
           ))}
@@ -369,7 +408,10 @@ export default function ChatBar({ onRefresh, todayEntry, profile }) {
       )}
 
       {/* Input */}
-      <div className="flex gap-2 px-3 py-2 border-t border-bg-tertiary flex-shrink-0">
+      <div style={{
+        display: 'flex', gap: 8, padding: '6px 12px 8px',
+        borderTop: '0.5px solid var(--color-cream-border)', flexShrink: 0,
+      }}>
         <input
           type={outingFlow?.step === 'pitch_count' ? 'number' : 'text'}
           placeholder={inputPlaceholder}
@@ -377,11 +419,22 @@ export default function ChatBar({ onRefresh, todayEntry, profile }) {
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && inputSubmit()}
           disabled={!!checkinFlow || nextOutingFlow}
-          className="flex-1 bg-bg-secondary text-text-primary text-sm rounded-full px-4 py-2 border border-bg-tertiary focus:border-accent-blue focus:outline-none disabled:opacity-50"
+          style={{
+            flex: 1, background: 'var(--color-cream-bg)', color: 'var(--color-ink-primary)',
+            fontSize: 13, borderRadius: 20, padding: '8px 16px',
+            border: '0.5px solid var(--color-cream-border)', outline: 'none',
+            opacity: (!!checkinFlow || nextOutingFlow) ? 0.5 : 1,
+          }}
         />
-        <button onClick={inputSubmit} disabled={!input.trim() || loading || !!checkinFlow || nextOutingFlow}
-          className="px-3 py-2 text-xs font-medium bg-accent-blue text-white rounded-full disabled:opacity-40 transition-colors">
-          →
+        <button onClick={inputSubmit}
+          disabled={!input.trim() || loading || !!checkinFlow || nextOutingFlow}
+          style={{
+            width: 34, height: 34, borderRadius: '50%',
+            background: (!input.trim() || loading || !!checkinFlow || nextOutingFlow) ? 'var(--color-cream-subtle)' : 'var(--color-maroon)',
+            color: '#fff', border: 'none', cursor: 'pointer',
+            fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+          ↑
         </button>
       </div>
     </div>

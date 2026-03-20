@@ -4,19 +4,19 @@
 
 export const FLAG_COLORS = {
   green: {
-    bg: 'bg-[#064e3b]',
+    bg: 'bg-flag-green/15',
     text: 'text-flag-green',
-    stroke: '#4ade80',
+    stroke: '#1D9E75',
   },
   yellow: {
-    bg: 'bg-[#713f12]',
+    bg: 'bg-flag-yellow/15',
     text: 'text-flag-yellow',
-    stroke: '#facc15',
+    stroke: '#BA7517',
   },
   red: {
-    bg: 'bg-[#7f1d1d]',
+    bg: 'bg-flag-red/15',
     text: 'text-flag-red',
-    stroke: '#ef4444',
+    stroke: '#A32D2D',
   },
 };
 

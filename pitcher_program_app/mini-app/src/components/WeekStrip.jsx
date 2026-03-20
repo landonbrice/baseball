@@ -1,93 +1,93 @@
-import { FLAG_COLORS, getArmFeelLevel } from '../constants';
-
-const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-
-// Rotation day → short training intent label
-const INTENT_LABELS = {
-  none: 'Rest',
-  recovery_flush: 'Recovery',
-  power_development: 'Power',
-  strength_maintenance: 'Pull',
-  strength_development: 'Strength',
-  activation_maintenance: 'Mobility',
-};
-
 /**
- * 7-day color-coded rotation strip showing arm feel and training intent.
- * @param {Array} entries - Last 7 daily log entries
- * @param {number} todayRotationDay - Current rotation day (0-6)
+ * Week strip — Mon-Sun with status dots and outing markers.
+ * Receives pre-computed `week` array from /week-summary endpoint.
  */
-export default function WeekStrip({ entries = [], todayRotationDay = 0, onDayClick, selectedDate }) {
-  const days = [];
-  const now = new Date();
-
-  for (let i = 6; i >= 0; i--) {
-    const date = new Date(now);
-    date.setDate(date.getDate() - i);
-    const dateStr = date.toISOString().split('T')[0];
-    const entry = entries.find(e => e.date === dateStr);
-    const dayOfWeek = date.getDay();
-    const isToday = i === 0;
-
-    // Derive rotation day for future days relative to today
-    const rotationDay = entry?.rotation_day ?? (isToday ? todayRotationDay : null);
-
-    days.push({
-      label: DAY_LABELS[dayOfWeek],
-      date: date.getDate(),
-      dateStr,
-      armFeel: entry?.pre_training?.arm_feel,
-      hasOuting: !!entry?.outing,
-      hasEntry: !!entry,
-      isToday,
-      isFuture: !entry && !isToday,
-      rotationDay,
-      trainingIntent: entry?.plan_generated?.template_day
-        ? _intentForDay(rotationDay)
-        : (isToday ? _intentForDay(todayRotationDay) : null),
-    });
-  }
+export default function WeekStrip({ week = [], selectedDate, onDayClick }) {
+  if (!week.length) return null;
 
   return (
-    <div className="flex justify-between gap-1">
-      {days.map((day, i) => {
-        const level = day.armFeel != null ? getArmFeelLevel(day.armFeel) : null;
-        const bgClass = level ? FLAG_COLORS[level].bg : 'bg-bg-secondary';
-        const isSelected = selectedDate && selectedDate === day.dateStr;
-        const clickable = day.hasEntry || day.isToday;
-
-        return (
-          <button
-            key={i}
-            disabled={!clickable}
-            onClick={() => clickable && onDayClick?.(day.dateStr)}
-            className={`flex flex-col items-center flex-1 py-2 rounded-lg transition-colors ${
-              isSelected ? 'ring-2 ring-text-primary' : day.isToday ? 'ring-2 ring-accent-blue' : ''
-            } ${bgClass} ${day.isFuture ? 'opacity-50' : ''} ${clickable ? 'cursor-pointer' : 'cursor-default'}`}
-          >
-            <span className="text-[10px] text-text-muted">{day.label}</span>
-            <span className={`text-sm font-semibold mt-0.5 ${
-              day.armFeel != null ? '' : 'text-text-muted'
-            }`}>
-              {day.hasOuting ? '🔴' : (day.armFeel != null ? day.armFeel : '—')}
-            </span>
-            <span className="text-[10px] text-text-muted mt-0.5">{day.date}</span>
-            {day.trainingIntent && (
-              <span className="text-[8px] text-text-secondary mt-0.5 truncate max-w-full px-0.5">
-                {day.trainingIntent}
-              </span>
-            )}
-          </button>
-        );
-      })}
+    <div style={{
+      background: 'var(--color-white)',
+      padding: '8px 10px',
+      borderBottom: '0.5px solid var(--color-cream-border)',
+      display: 'flex',
+      gap: 2,
+      borderRadius: 10,
+    }}>
+      {week.map(day => (
+        <DayChip
+          key={day.date}
+          day={day}
+          isSelected={selectedDate === day.date}
+          onClick={day.is_past || day.is_today ? onDayClick : () => {}}
+        />
+      ))}
     </div>
   );
 }
 
-// Map rotation day number to intent label
-const _DAY_INTENTS = ['none', 'recovery_flush', 'power_development', 'strength_maintenance', 'strength_development', 'activation_maintenance', 'none'];
-function _intentForDay(rotationDay) {
-  if (rotationDay == null) return null;
-  const intent = _DAY_INTENTS[rotationDay % 7];
-  return INTENT_LABELS[intent] || null;
+function DayChip({ day, isSelected, onClick }) {
+  const { day_label, day_number, is_today, is_past, flag_level, had_outing, is_upcoming_outing } = day;
+
+  const dotColor = flag_level === 'green'  ? 'var(--color-flag-green)'
+                 : flag_level === 'yellow' ? 'var(--color-flag-yellow)'
+                 : flag_level === 'red'    ? 'var(--color-flag-red)'
+                 : null;
+
+  const active = is_today || isSelected;
+
+  return (
+    <div
+      onClick={() => onClick(day.date)}
+      style={{
+        flex: 1,
+        textAlign: 'center',
+        padding: '5px 2px',
+        borderRadius: 7,
+        cursor: is_past || is_today ? 'pointer' : 'default',
+        background: active ? 'var(--color-maroon)' : 'transparent',
+      }}
+    >
+      {/* Day letter */}
+      <div style={{
+        fontSize: 8,
+        color: active ? 'rgba(255,255,255,0.55)'
+             : is_past && flag_level ? 'var(--color-ink-muted)'
+             : 'var(--color-ink-faint)',
+      }}>
+        {day_label}
+      </div>
+
+      {/* Day number */}
+      <div style={{
+        fontSize: active ? 11 : 10,
+        fontWeight: active ? 700 : 400,
+        color: active ? '#fff'
+             : is_past && flag_level ? 'var(--color-ink-secondary)'
+             : 'var(--color-ink-faint)',
+        marginTop: 2,
+      }}>
+        {day_number}
+      </div>
+
+      {/* Marker row */}
+      <div style={{ height: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 2 }}>
+        {had_outing ? (
+          <div style={{
+            width: 4, height: 4,
+            background: active ? 'var(--color-rose-blush)' : 'var(--color-maroon-mid)',
+            transform: 'rotate(45deg)',
+          }} />
+        ) : is_upcoming_outing ? (
+          <div style={{
+            width: 4, height: 4,
+            border: '1px solid var(--color-rose-blush)',
+            borderRadius: '50%',
+          }} />
+        ) : dotColor ? (
+          <div style={{ width: 4, height: 4, borderRadius: '50%', background: dotColor }} />
+        ) : null}
+      </div>
+    </div>
+  );
 }

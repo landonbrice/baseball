@@ -108,6 +108,54 @@ async def get_upcoming(pitcher_id: str, request: Request):
     return {"upcoming": upcoming}
 
 
+@router.get("/pitcher/{pitcher_id}/week-summary")
+async def get_week_summary(pitcher_id: str, request: Request):
+    """Return Mon-Sun of the current calendar week with per-day status."""
+    _require_pitcher_auth(request, pitcher_id)
+    from datetime import date, timedelta
+
+    today = date.today()
+    monday = today - timedelta(days=today.weekday())
+    week_days = [monday + timedelta(days=i) for i in range(7)]
+
+    try:
+        profile = load_profile(pitcher_id)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Pitcher not found")
+
+    log = load_log(pitcher_id)
+    flags = profile.get("active_flags", {})
+
+    days_until = flags.get("next_outing_days")
+    upcoming_date = (today + timedelta(days=int(days_until))).isoformat() if days_until is not None else None
+
+    entries_by_date = {e["date"]: e for e in log.get("entries", [])}
+
+    result = []
+    for d in week_days:
+        d_str = d.isoformat()
+        entry = entries_by_date.get(d_str)
+
+        flag_level = None
+        had_outing = False
+        if entry:
+            flag_level = entry.get("pre_training", {}).get("flag_level")
+            had_outing = entry.get("outing") is not None
+
+        result.append({
+            "date": d_str,
+            "day_label": d.strftime("%a")[0],
+            "day_number": d.day,
+            "is_today": d_str == today.isoformat(),
+            "is_past": d < today,
+            "flag_level": flag_level,
+            "had_outing": had_outing,
+            "is_upcoming_outing": d_str == upcoming_date,
+        })
+
+    return {"week": result, "today": today.isoformat()}
+
+
 @router.post("/pitcher/{pitcher_id}/complete-exercise")
 async def complete_exercise(pitcher_id: str, request: Request):
     """Toggle exercise completion from dashboard."""

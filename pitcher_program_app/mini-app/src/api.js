@@ -92,6 +92,13 @@ export async function sendChat(pitcherId, message, type = 'text', initData = nul
 }
 
 /**
+ * Fetch week summary (Mon-Sun with per-day status).
+ */
+export async function fetchWeekSummary(pitcherId, initData = null) {
+  return fetchApi(`/api/pitcher/${pitcherId}/week-summary`, initData);
+}
+
+/**
  * Set when the pitcher expects to pitch next.
  * days_until_outing: 0 = today, 1 = tomorrow, etc.
  */

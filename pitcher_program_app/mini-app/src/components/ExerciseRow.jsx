@@ -1,45 +1,50 @@
 /**
  * Single exercise row with interactive checkbox, prescription, and optional video link.
- * @param {object} exercise - Exercise from library (resolved)
- * @param {string} prescribed - Prescription string (e.g. "3x5 @ 275")
- * @param {boolean} completed - Whether this exercise is marked complete
- * @param {function} onToggle - Called when checkbox is tapped (optional)
  */
 export default function ExerciseRow({ exercise, prescribed, completed, onToggle }) {
   if (!exercise) return null;
 
   return (
-    <div className="flex items-center gap-3 py-1.5">
-      {/* Clickable checkbox (only if onToggle provided) */}
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 10, padding: '6px 4px',
+      opacity: completed ? 0.45 : 1,
+    }}>
       {onToggle ? (
         <button
           onClick={onToggle}
-          className={`w-5 h-5 rounded-md border-[1.5px] flex-shrink-0 flex items-center justify-center transition-colors
-            ${completed
-              ? 'border-accent-blue bg-accent-blue/10 text-accent-blue'
-              : 'border-bg-tertiary'}`}
+          style={{
+            width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 9, fontWeight: 600, cursor: 'pointer', border: 'none',
+            ...(completed
+              ? { background: 'var(--color-flag-green)', color: '#fff' }
+              : { background: 'transparent', border: '1.5px solid var(--color-cream-subtle)', color: 'var(--color-ink-muted)' }
+            ),
+          }}
         >
-          {completed && <span className="text-[10px]">✓</span>}
+          {completed ? '✓' : '·'}
         </button>
       ) : (
-        <div className="w-1.5 h-1.5 rounded-full bg-text-muted flex-shrink-0 ml-1.5 mr-1" />
+        <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--color-ink-muted)', flexShrink: 0, marginLeft: 6, marginRight: 2 }} />
       )}
 
-      {/* Exercise info */}
-      <div className="flex-1 min-w-0">
-        <p className={`text-sm truncate ${completed ? 'text-text-muted line-through' : 'text-text-primary'}`}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <p style={{
+          fontSize: 13, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+          color: completed ? '#888' : 'var(--color-ink-primary)',
+          textDecoration: completed ? 'line-through' : 'none',
+        }}>
           {exercise.name || 'Unknown exercise'}
         </p>
-        <p className="text-[11px] text-text-muted">
+        <p style={{ fontSize: 11, color: 'var(--color-ink-muted)', margin: 0 }}>
           {prescribed}
           {exercise.muscles_primary?.[0] && ` · ${exercise.muscles_primary[0]}`}
         </p>
       </div>
 
-      {/* Video link */}
       {exercise.youtube_url && (
         <a href={exercise.youtube_url} target="_blank" rel="noopener noreferrer"
-           className="text-[11px] text-accent-blue flex-shrink-0">
+          style={{ fontSize: 11, color: 'var(--color-maroon)', flexShrink: 0, textDecoration: 'none' }}>
           ▶
         </a>
       )}

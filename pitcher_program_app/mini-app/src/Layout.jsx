@@ -10,27 +10,47 @@ const NAV_ITEMS = [
 
 export default function Layout() {
   return (
-    <div className="min-h-screen bg-bg-primary">
-      <main className="pb-20">
+    <div style={{ minHeight: '100vh', background: 'var(--color-cream-bg)' }}>
+      <main style={{ paddingBottom: 80 }}>
         <Outlet />
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 bg-bg-secondary border-t border-bg-tertiary"
-           style={{ paddingBottom: 'env(safe-area-inset-bottom, 0)' }}>
-        <div className="flex justify-around items-center h-16 max-w-lg mx-auto">
+      <nav style={{
+        position: 'fixed', bottom: 0, left: 0, right: 0,
+        background: 'var(--color-white)',
+        borderTop: '0.5px solid var(--color-cream-border)',
+        paddingBottom: 'env(safe-area-inset-bottom, 0)',
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center', height: 56, maxWidth: 480, margin: '0 auto' }}>
           {NAV_ITEMS.map(({ to, label, icon }) => (
             <NavLink
               key={to}
               to={to}
               end={to === '/'}
-              className={({ isActive }) =>
-                `flex flex-col items-center gap-0.5 px-3 py-1 text-xs transition-colors ${
-                  isActive ? 'text-accent-blue' : 'text-text-muted'
-                }`
-              }
+              style={{ textDecoration: 'none' }}
             >
-              <span className="text-lg">{icon}</span>
-              <span>{label}</span>
+              {({ isActive }) => (
+                <div style={{
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+                  padding: '4px 12px',
+                }}>
+                  {/* Active dot */}
+                  <div style={{
+                    width: 4, height: 4, borderRadius: '50%',
+                    background: isActive ? 'var(--color-maroon)' : 'transparent',
+                    marginBottom: 1,
+                  }} />
+                  <span style={{
+                    fontSize: 16,
+                    color: isActive ? 'var(--color-maroon)' : 'var(--color-ink-faint)',
+                  }}>{icon}</span>
+                  <span style={{
+                    fontSize: 10,
+                    color: isActive ? 'var(--color-maroon)' : 'var(--color-ink-faint)',
+                    fontWeight: isActive ? 600 : 400,
+                  }}>{label}</span>
+                </div>
+              )}
             </NavLink>
           ))}
         </div>
