@@ -10,7 +10,7 @@ LLM_CONFIG = {
     "provider": os.getenv("LLM_PROVIDER", "deepseek"),
     "model": os.getenv("LLM_MODEL", "deepseek-chat"),
     "max_tokens": 1000,
-    "temperature": 0.7,
+    "temperature": 0.3,
 }
 
 MINI_APP_URL = os.getenv("MINI_APP_URL", "").rstrip("/")
@@ -20,6 +20,6 @@ PITCHERS_DIR = os.path.join(DATA_DIR, "pitchers")
 TEMPLATES_DIR = os.path.join(DATA_DIR, "templates")
 KNOWLEDGE_DIR = os.path.join(DATA_DIR, "knowledge")
 
-CONTEXT_WINDOW_CHARS = 2000
+CONTEXT_WINDOW_CHARS = 500
 
 DISABLE_AUTH = os.getenv("DISABLE_AUTH", "").lower() == "true"

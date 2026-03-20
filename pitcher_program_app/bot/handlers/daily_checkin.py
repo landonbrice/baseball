@@ -42,7 +42,6 @@ async def start_checkin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         return ConversationHandler.END
 
     context.user_data["pitcher_id"] = pitcher_id
-    context.user_data["conversation_history"] = []  # reset on structured flow
 
     # Fix 1: Increment rotation day each check-in
     increment_days_since_outing(pitcher_id)

@@ -87,8 +87,8 @@ export async function submitAsk(pitcherId, question, history, initData) {
  * Send a chat message (unified endpoint for check-in, outing, text).
  * Returns { messages: [{ type, content, buttons? }] }
  */
-export async function sendChat(pitcherId, message, type = 'text', initData = null, history = []) {
-  return postApi(`/api/pitcher/${pitcherId}/chat`, { message, type, history }, initData);
+export async function sendChat(pitcherId, message, type = 'text', initData = null) {
+  return postApi(`/api/pitcher/${pitcherId}/chat`, { message, type }, initData);
 }
 
 /**

@@ -37,64 +37,13 @@ def load_context(pitcher_id: str) -> str:
         return f.read()
 
 
-_CONTEXT_HEADER = """## Persistent facts
-
-## Recent interactions
-"""
-
-
-def _ensure_context_structure(path: str) -> str:
-    """Ensure context.md has the two-section structure. Returns current content."""
-    if not os.path.exists(path):
-        with open(path, "w") as f:
-            f.write(_CONTEXT_HEADER)
-        return _CONTEXT_HEADER
-    with open(path, "r") as f:
-        content = f.read()
-    if "## Recent interactions" not in content:
-        # Migrate: treat existing content as recent interactions
-        new_content = f"## Persistent facts\n\n## Recent interactions\n{content}"
-        with open(path, "w") as f:
-            f.write(new_content)
-        return new_content
-    return content
-
-
 def append_context(pitcher_id: str, update_type: str, content: str) -> None:
-    """Append a timestamped entry to the Recent interactions section of context.md."""
+    """Append a timestamped entry to a pitcher's context.md."""
     path = os.path.join(get_pitcher_dir(pitcher_id), "context.md")
-    current = _ensure_context_structure(path)
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
     entry = f"- [{timestamp}] ({update_type}) {content}\n"
-
     with open(path, "a") as f:
         f.write(entry)
-
-    trim_context(pitcher_id)
-
-
-def trim_context(pitcher_id: str) -> None:
-    """Trim the Recent interactions section to keep only the last 15 lines."""
-    path = os.path.join(get_pitcher_dir(pitcher_id), "context.md")
-    if not os.path.exists(path):
-        return
-    with open(path, "r") as f:
-        content = f.read()
-
-    marker = "## Recent interactions"
-    idx = content.find(marker)
-    if idx < 0:
-        return
-
-    header = content[:idx + len(marker)]
-    interactions = content[idx + len(marker):]
-    lines = [l for l in interactions.strip().splitlines() if l.strip()]
-
-    if len(lines) > 15:
-        lines = lines[-15:]
-
-    with open(path, "w") as f:
-        f.write(header + "\n" + "\n".join(lines) + "\n")
 
 
 def load_log(pitcher_id: str) -> dict:

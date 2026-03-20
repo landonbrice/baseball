@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from 'react';
-import ReactMarkdown from 'react-markdown';
 import { useAuth } from '../App';
 import { useChat } from '../hooks/useChatState.jsx';
 import { sendChat, setNextOuting, savePlan } from '../api';
@@ -77,20 +76,10 @@ export default function ChatBar({ onRefresh, todayEntry, profile }) {
     if (!text || loading) return;
     setInput('');
     setExpanded(true);
-
-    // Build conversation history from existing messages for multi-turn context
-    const history = messages
-      .filter(m => m.type === 'text')
-      .slice(-6)
-      .map(m => ({
-        role: m.role === 'user' ? 'user' : 'assistant',
-        content: m.content,
-      }));
-
     setMessages(prev => [...prev, { role: 'user', type: 'text', content: text }]);
     setLoading(true);
     try {
-      const res = await sendChat(pitcherId, text, 'text', initData, history);
+      const res = await sendChat(pitcherId, text, 'text', initData);
       setMessages(prev => [...prev, ...processResponse(res)]);
     } catch {
       setMessages(prev => [...prev, { role: 'bot', type: 'text', content: 'Something went wrong. Try again.' }]);
@@ -337,11 +326,7 @@ export default function ChatBar({ onRefresh, todayEntry, profile }) {
                 ? 'bg-accent-blue text-white rounded-br-sm'
                 : 'bg-bg-secondary text-text-primary rounded-bl-sm'
             }`}>
-              {m.role === 'bot' ? (
-                <ReactMarkdown className="chat-markdown">{m.content}</ReactMarkdown>
-              ) : (
-                <p className="whitespace-pre-wrap">{m.content}</p>
-              )}
+              <p className="whitespace-pre-wrap">{m.content}</p>
               {m.type === 'save_plan' && m.plan && (
                 <div className="mt-2">
                   {m.saved ? (
