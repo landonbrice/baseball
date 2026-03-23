@@ -1,103 +1,149 @@
 # Pitcher Training Bot — Claude Init
 
-## Project Overview
+> Last updated: 2026-03-23
 
-Telegram bot + FastAPI data API + React mini-app for managing daily pitcher training (lifting, arm care, plyocare, recovery). Built for Landon Brice, UChicago baseball starter.
+## What This Is
 
-**Stack:** Python 3.11 / python-telegram-bot v20+ / FastAPI / DeepSeek API / React + Vite + Tailwind (mini-app)
-**Deployment:** Bot + API on Railway, Mini-app on Vercel
-**Spec:** `pitcher_program_app/MASTER_PROJECT.md`
+A live, production training intelligence system for the UChicago baseball pitching staff. Telegram bot + FastAPI sidecar + React Mini App dashboard. Each pitcher gets personalized daily lifting programs, arm care protocols, recovery programming, evidence-based Q&A, and longitudinal tracking — all driven by their individual profile, injury history, biometric data, and conversation context.
+
+**The system is deployed and actively used by real pitchers.**
+
+## Stack
+
+| Layer | Tech | Where |
+|-------|------|-------|
+| Bot | Python 3.11 / python-telegram-bot v20+ / APScheduler | Railway (long-polling) |
+| API | FastAPI / Uvicorn | Railway (same service, Procfile) |
+| LLM | DeepSeek (OpenAI-compatible wrapper) | DeepSeek API |
+| Mini App | React 18 / Vite / Tailwind CSS | Vercel |
+| Data | JSON files + Markdown context per pitcher | Railway filesystem |
+
+**Deployment URLs:**
+- API: `https://baseball-production-9d28.up.railway.app`
+- Mini App: Vercel (configured in `mini-app/.env.production`)
+- Bot: `@uchi_pitcher_bot` on Telegram
 
 ## Repo Structure
 
 ```
 pitcher_program_app/
-  bot/                    # Telegram bot (long-polling)
-    main.py               # Entry point, handlers, scheduled jobs (APScheduler)
-    config.py             # Env vars, paths, CONTEXT_WINDOW_CHARS
-    utils.py              # Shared keyboard builders
-    handlers/
-      daily_checkin.py    # /checkin ConversationHandler (arm feel → sleep → energy → triage → plan)
-      post_outing.py      # /outing ConversationHandler (pitch count → arm feel → notes → recovery plan)
-      qa.py               # Free-text Q&A via LLM
-    services/
-      context_manager.py  # Profile/log/context CRUD, pitcher lookup by telegram_id
-      triage.py           # Rule-based readiness triage (green/yellow/red)
-      plan_generator.py   # LLM-powered daily plan from templates + triage
-      progression.py      # Arm feel trends, sleep patterns, recovery curves
-      llm.py              # DeepSeek API wrapper (OpenAI-compatible)
-      knowledge_retrieval.py  # Exercise library + knowledge search
-      web_research.py     # Stub for web search fallback
-    prompts/              # LLM prompt templates (.md)
-  api/                    # FastAPI data API (sidecar)
-    main.py               # FastAPI app, CORS
-    auth.py               # Telegram initData HMAC validation
-    routes.py             # /api/pitcher/{id}/*, /api/exercises (authed)
-  data/
-    pitchers/             # Per-pitcher dirs (profile.json, daily_log.json, context.md)
-    templates/            # Training templates (starter_7day, arm_care_*, plyocare, reliever, recovery)
-    knowledge/            # exercise_library.json, extended_knowledge.md
-  mini-app/               # React Telegram Mini App
-    src/
-      constants.js        # Shared FLAG_COLORS palette
-      components/         # FlagBadge, WeekStrip, TrendChart, DailyCard, ExerciseRow
-      pages/              # Home, ExerciseLibrary, LogHistory, Profile
-      hooks/              # useApi, usePitcher, useTelegram
-  research/               # Reference material (not loaded by bot)
-  scripts/                # seed_test_data, seed_test_pitcher, intake_to_profile
+├── bot/                          # Telegram bot (long-polling)
+│   ├── main.py                   # Entry point, all handlers, scheduled jobs
+│   ├── config.py                 # Env vars, paths, CONTEXT_WINDOW_CHARS=500
+│   ├── run.py                    # Railway entry (Procfile: python -m bot.run)
+│   ├── utils.py                  # Shared keyboard builders
+│   ├── handlers/
+│   │   ├── daily_checkin.py      # /checkin ConversationHandler
+│   │   ├── post_outing.py        # /outing ConversationHandler
+│   │   └── qa.py                 # Free-text Q&A with conversation history
+│   ├── services/
+│   │   ├── context_manager.py    # Profile/log/context CRUD, pitcher lookup
+│   │   ├── checkin_service.py    # Check-in → triage → plan generation
+│   │   ├── outing_service.py     # Outing → recovery protocol
+│   │   ├── triage.py             # Rule-based readiness triage (green/yellow/red)
+│   │   ├── triage_llm.py         # LLM refinement for ambiguous triage
+│   │   ├── plan_generator.py     # LLM-powered daily plan from templates
+│   │   ├── progression.py        # Arm feel trends, weekly summaries
+│   │   ├── llm.py                # DeepSeek wrapper (model swappable via config)
+│   │   ├── knowledge_retrieval.py # Exercise library + knowledge search
+│   │   └── web_research.py       # Tavily API fallback
+│   └── prompts/                  # LLM prompt templates (.md)
+│
+├── api/                          # FastAPI sidecar for mini-app
+│   ├── main.py                   # App, CORS, health check
+│   ├── auth.py                   # Telegram initData HMAC validation
+│   └── routes.py                 # All /api/* endpoints (authed)
+│
+├── data/
+│   ├── pitchers/                 # Per-pitcher dirs: profile.json, context.md, daily_log.json
+│   ├── templates/                # Training program templates (JSON + MD)
+│   ├── knowledge/                # exercise_library.json, research base, extended knowledge
+│   └── intake_responses.json     # Raw Google Form responses
+│
+├── mini-app/                     # React Telegram Mini App
+│   ├── src/
+│   │   ├── App.jsx / Layout.jsx  # Router, ChatProvider, TelegramWebApp init
+│   │   ├── hooks/                # useApi, usePitcher, useTelegram, useChatState
+│   │   ├── components/           # ChatBar, DailyCard, WeekStrip, TrendChart, etc.
+│   │   └── pages/                # Home, Plans, ExerciseLibrary, LogHistory, Profile
+│   └── .env.production           # VITE_API_URL
+│
+├── research/                     # Reference material (NOT loaded at runtime)
+├── scripts/                      # intake_to_profile.py, seed scripts, backup
+├── bot_structure/                # Design docs (reference)
+├── files/                        # Architecture + pipeline docs
+├── past_arm_programs/            # Historical spreadsheets (reference)
+│
+├── MASTER_PROJECT.md             # Original project specification
+├── Procfile                      # Railway: web: python -m bot.run
+├── railway.toml                  # Build config (nixpacks)
+└── requirements.txt              # Python deps
 ```
-
-## Current State (after 2026-03-16 audit)
-
-All 17 audit fixes have been implemented but **not yet pushed or tested live**:
-
-### What was fixed
-- **Rotation day now increments** on each /checkin (was stuck at Day 0)
-- **Triage results persist** to profile (flag_level + arm_feel written back)
-- **Completion keyboard** on every plan ([All done] [Skipped some] [Dashboard])
-- **HMAC auth fixed** (key/message order corrected)
-- **API routes authed** via X-Telegram-Init-Data header
-- **Reliever branching** — "Did you throw?" before check-in
-- **8+ day outing detection** for starters
-- **Scheduled morning check-ins** via JobQueue at pitcher's notification_time
-- **/setday command** for manual rotation day correction
-- **Sunday 6pm weekly summary** sent proactively
-- **New templates** — reliever_flexible.json, recovery_protocols.json
-- **Shared utils** — keyboard builders, CONTEXT_WINDOW_CHARS, mini-app color constants
-- **Cleanup** — stale pitcher files merged into profile.json, source material moved to research/
-
-### What still needs work
-
-**High priority:**
-- [ ] **Push and deploy** — all changes are local. Push to trigger Railway/Vercel deploys
-- [ ] **Test /checkin end-to-end** — verify arm feel → sleep → energy → triage → plan with completion buttons
-- [ ] **Test /outing end-to-end** — verify outing → Day 0 reset → next /checkin shows Day 1
-- [ ] **Test /setday** — verify rotation day correction works
-- [ ] **Test API auth** — `curl /api/pitcher/pitcher_brice_001/profile` without header should 401
-- [ ] **Verify scheduler** — morning check-in and Sunday summary jobs run (needs telegram_id set)
-- [ ] **Landon's telegram_id** — still null in profile.json; will auto-backfill on first message via username match
-
-**Medium priority (implemented, needs testing):**
-- [x] **6pm follow-up** if morning check-in unanswered → `_send_evening_followup()` in main.py
-- [x] **Post-outing prompt** → `/gamestart` command schedules 2hr delayed reminder via JobQueue
-- [x] **Natural language rotation day** → regex in qa.py detects "I'm on day X" and updates profile
-- [x] **LLM-driven triage** → triage.py flags ambiguous cases, triage_llm.py refines via LLM
-- [x] **Web search fallback** → Tavily API integration in web_research.py (needs TAVILY_API_KEY env var)
-- [x] **Workout logging** → "Skipped some" button asks what was skipped, logs to daily_log
-
-**Low priority:**
-- [ ] Intake form to profile script (`scripts/intake_to_profile.py` exists but incomplete)
-- [ ] Trainer escalation mechanism (bot flags but no trainer notification channel)
-- [ ] Deload week auto-detection in progression.py
-- [ ] LLM prompt caching (system prompts loaded fresh each call)
 
 ## Key Patterns
 
-- **Pitcher lookup:** `get_pitcher_id_by_telegram(telegram_id, username)` — first match by telegram_id, fallback by telegram_username with auto-backfill
-- **Triage flow:** Pure Python rules in triage.py → green/yellow/red flag + modifications + protocol_adjustments
-- **Plan generation:** Templates (starter_7day.json) + triage result → LLM prompt → formatted protocol
-- **Context:** Append-only context.md per pitcher, truncated to CONTEXT_WINDOW_CHARS (500) for LLM calls
-- **Daily log:** JSON array of entries with pre_training, plan_generated, actual_logged, bot_observations
+### Pitcher Lookup
+`get_pitcher_id_by_telegram(telegram_id, username)` — matches by telegram_id first, falls back to telegram_username with auto-backfill on first message.
+
+### Context System (context.md per pitcher)
+Two sections:
+- **Persistent facts** — role, rotation, injury history, active mods (auto-rebuilt from profile)
+- **Recent interactions** — timestamped entries, trimmed to 15 most recent
+
+Truncated to `CONTEXT_WINDOW_CHARS` (500) for LLM calls.
+
+### Conversation History
+- **Telegram:** Last 3 exchanges in `context.user_data` (in-memory, per-session)
+- **Mini App:** ChatProvider holds messages in React state, sends to `/api/ask`
+- **Cross-platform gap:** Both read context.md but don't share real-time conversation state
+
+### Triage → Plan Pipeline
+1. Rule-based triage (`triage.py`) → green/yellow/red + modifications
+2. Ambiguous → LLM refinement (`triage_llm.py`)
+3. Templates + triage + context → LLM → structured protocol
+4. Results persist to profile.json active_flags
+
+### Scheduled Jobs
+- Morning check-in at pitcher's `notification_time`
+- 6pm follow-up if unanswered
+- Sunday 6pm weekly summary
+- `/gamestart` → 2hr delayed outing reminder
+
+### Onboarding Pipeline
+1. Pitcher fills Google Form → export to `data/intake_responses.json`
+2. `python scripts/intake_to_profile.py --json data/intake_responses.json`
+3. Creates `data/pitchers/{pitcher_id}/` (profile.json, context.md, daily_log.json)
+4. `telegram_id` backfills on first bot message via username match
+
+## Current Pitchers
+
+| ID | Name | Role | Notes |
+|----|------|------|-------|
+| landon_brice | Landon Brice | Starter (7-day) | Primary user/developer |
+| pitcher_benner_001 | Preston Benner | Starter (7-day) | LHP, UCL sprain history (PRP) |
+| pitcher_hartrick_001 | Wade Hartrick | Reliever (short) | Flexor/pronator strain history |
+| pitcher_heron_001 | Carter Heron | Reliever (long) | YELLOW — TJ + olecranon, 1yr post-op |
+| pitcher_kamat_001 | Taran Kamat | Reliever (short) | Shoulder impingement/GIRD (95%, recurs), whoop |
+| pitcher_kwinter_001 | Russell Kwinter | Starter (7-day) | LHP, partial UCL tear (2023, not fully resolved), low back, whoop |
+| pitcher_lazar_001 | Jonathan Lazar | Reliever (short) | Labrum surgery (~3yr ago), beginner lifter, no pull-ups |
+| pitcher_reed_001 | Lucien Reed | Reliever (short) | Recurring ulnar nerve impingement |
+| pitcher_richert_001 | Matthew Richert | Reliever (long) | UCL strain (2024), scap/shoulder soreness, whoop |
+| pitcher_sosna_001 | Mike Sosna | Reliever (short) | Active oblique strain, forearm tightness, very strong (585 trap bar) |
+| pitcher_wilson_001 | Wilson | Reliever (short) | YELLOW — active ulnar nerve symptoms |
+| test_pitcher_001 | Test Pitcher | Starter (7-day) | Test account |
+
+## Environment Variables
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| TELEGRAM_BOT_TOKEN | yes | — | From @BotFather |
+| DEEPSEEK_API_KEY | yes | — | DeepSeek API key |
+| MINI_APP_URL | no | — | Vercel mini-app URL |
+| LLM_PROVIDER | no | deepseek | Provider name |
+| LLM_MODEL | no | deepseek-chat | Model identifier |
+| TAVILY_API_KEY | no | — | Web research fallback |
+| PORT | no | 8000 | API port |
+| DISABLE_AUTH | no | false | Skip HMAC auth (dev only) |
 
 ## Running Locally
 
@@ -105,23 +151,22 @@ All 17 audit fixes have been implemented but **not yet pushed or tested live**:
 cd pitcher_program_app
 pip install -r requirements.txt
 
-# Bot (needs TELEGRAM_BOT_TOKEN + DEEPSEEK_API_KEY in .env)
+# Bot
 python -m bot.main
 
-# API (separate process)
+# API (separate terminal)
 python -m api.main
 
-# Mini-app
+# Mini-app (separate terminal)
 cd mini-app && npm install && npm run dev
 ```
 
-## Environment Variables
+## Critical: Data Backup
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| TELEGRAM_BOT_TOKEN | yes | Bot token from @BotFather |
-| DEEPSEEK_API_KEY | yes | DeepSeek API key |
-| MINI_APP_URL | no | Deployed mini-app URL (Vercel) |
-| LLM_MODEL | no | Default: deepseek-chat |
-| TAVILY_API_KEY | no | Tavily search API key for web research fallback |
-| PORT | no | API port, default 8000 |
+Railway filesystem resets on redeploy. Run `scripts/backup_data.sh` after any day of real usage to pull pitcher data and commit to repo.
+
+## Bot Scope Boundaries
+
+**Owns:** Lifting programs, arm care, plyocare, recovery, readiness triage, Q&A, longitudinal tracking, program modifications based on injury/biometrics.
+
+**Does NOT own:** Mechanical instruction, medical diagnosis, supplement recommendations. Flags concerns → tells pitcher to see trainer.

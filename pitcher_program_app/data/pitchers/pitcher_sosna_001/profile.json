@@ -1,0 +1,110 @@
+{
+  "pitcher_id": "pitcher_sosna_001",
+  "telegram_id": null,
+  "telegram_username": "mpsosna",
+  "name": "Mike Sosna",
+  "role": "reliever",
+  "rotation_length": 3,
+  "throws": "right",
+  "year": "Sophomore",
+  "physical_profile": {
+    "height_in": 72,
+    "weight_lbs": 185,
+    "body_comp_goal": "maintain",
+    "known_mobility_limitations": [],
+    "movement_screen_notes": ""
+  },
+  "injury_history": [
+    {
+      "date": "unknown",
+      "area": "medial_elbow",
+      "description": "Elbow Apophysitis - just rest until growth plate grew back in. Fully resolved",
+      "severity": "resolved",
+      "resolution": "rest",
+      "ongoing_considerations": "",
+      "flag_level": "green"
+    },
+    {
+      "date": "unknown",
+      "area": "lower_back",
+      "description": "Low back issues reported via intake",
+      "severity": "unknown",
+      "resolution": "unknown",
+      "ongoing_considerations": "",
+      "flag_level": "yellow"
+    },
+    {
+      "date": "unknown",
+      "area": "forearm",
+      "description": "Recurring forearm tightness",
+      "severity": "unknown",
+      "resolution": "unknown",
+      "ongoing_considerations": "Forearm tightness \u2014 currently managing",
+      "flag_level": "yellow"
+    },
+    {
+      "date": "unknown",
+      "area": "oblique",
+      "description": "Oblique strain \u2014 currently managing",
+      "severity": "active",
+      "resolution": "unknown",
+      "ongoing_considerations": "Oblique strain, forearm tightness",
+      "flag_level": "yellow"
+    }
+  ],
+  "current_training": {
+    "lifting_experience": "advanced",
+    "current_maxes": {
+      "trap_bar_dl": 585,
+      "front_squat": 275,
+      "db_bench": 85,
+      "pullup": "6 bodyweight reps"
+    },
+    "preferred_exercises": [],
+    "disliked_or_avoided": [],
+    "current_split": "upper_lower_2x",
+    "lift_timing": "Varies",
+    "time_constraints": "N/A"
+  },
+  "pitching_profile": {
+    "avg_velocity_fb": 0,
+    "pitch_arsenal": [
+      "Slider",
+      "Cutter"
+    ],
+    "typical_pitch_count": 30,
+    "avg_outing_innings": 0,
+    "mechanical_focus_areas": [
+      "Trunk rotation once oblique is healthy"
+    ],
+    "mechanical_notes": ""
+  },
+  "biometric_integration": {
+    "whoop_connected": false,
+    "baseline_hrv": null,
+    "baseline_rhr": null,
+    "avg_sleep_hours": 6.5
+  },
+  "goals": {
+    "primary": "Stay healthy and yoked",
+    "secondary": "",
+    "tertiary": ""
+  },
+  "preferences": {
+    "notification_time": "07:00",
+    "log_style": "conversational",
+    "detail_level": "concise",
+    "wants_youtube_links": true
+  },
+  "active_flags": {
+    "current_arm_feel": 4,
+    "current_flag_level": "green",
+    "last_outing_date": null,
+    "last_outing_pitches": null,
+    "days_since_outing": 99,
+    "active_modifications": [
+      "elevated_fpm_volume",
+      "reduced_axial_loading"
+    ]
+  }
+}

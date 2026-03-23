@@ -1,0 +1,83 @@
+{
+  "pitcher_id": "pitcher_reed_001",
+  "telegram_id": null,
+  "telegram_username": "paddleboarding",
+  "name": "Lucien Reed",
+  "role": "reliever",
+  "rotation_length": 3,
+  "throws": "right",
+  "year": "Freshman",
+  "physical_profile": {
+    "height_in": 72,
+    "weight_lbs": 185,
+    "body_comp_goal": "maintain",
+    "known_mobility_limitations": [],
+    "movement_screen_notes": ""
+  },
+  "injury_history": [
+    {
+      "date": "unknown",
+      "area": "medial_elbow",
+      "description": "Recurring elbow nerve impingement 2025 and 2026. Rest and strengthen, ulnar nerve glide. Must sleep with straight arm",
+      "severity": "unknown",
+      "resolution": "unknown",
+      "ongoing_considerations": "Sometimes shoulder pain",
+      "flag_level": "yellow"
+    }
+  ],
+  "current_training": {
+    "lifting_experience": "advanced",
+    "current_maxes": {
+      "trap_bar_dl": 505,
+      "front_squat": 120,
+      "db_bench": 75,
+      "pullup": "6 body weight"
+    },
+    "preferred_exercises": [],
+    "disliked_or_avoided": [],
+    "current_split": "upper_lower_2x",
+    "lift_timing": "Evenings",
+    "time_constraints": ""
+  },
+  "pitching_profile": {
+    "avg_velocity_fb": 0,
+    "pitch_arsenal": [
+      "4-seam fastball",
+      "Curveball",
+      "Changeup"
+    ],
+    "typical_pitch_count": 15,
+    "avg_outing_innings": 0,
+    "mechanical_focus_areas": [
+      "Stop flying front side open. Ride slope and turn back hip down to put front foot down"
+    ],
+    "mechanical_notes": ""
+  },
+  "biometric_integration": {
+    "whoop_connected": false,
+    "baseline_hrv": null,
+    "baseline_rhr": null,
+    "avg_sleep_hours": 6.5
+  },
+  "goals": {
+    "primary": "Stay healthy, strengthen",
+    "secondary": "",
+    "tertiary": ""
+  },
+  "preferences": {
+    "notification_time": "10:00",
+    "log_style": "conversational",
+    "detail_level": "moderate",
+    "wants_youtube_links": true
+  },
+  "active_flags": {
+    "current_arm_feel": 4,
+    "current_flag_level": "green",
+    "last_outing_date": null,
+    "last_outing_pitches": null,
+    "days_since_outing": 99,
+    "active_modifications": [
+      "elevated_fpm_volume"
+    ]
+  }
+}
