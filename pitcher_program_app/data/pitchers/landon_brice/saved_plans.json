@@ -1,1 +1,77 @@
-[]
+[
+  {
+    "title": "Swapped trap bar deadlift for front squat",
+    "category": "program_modification",
+    "summary": "Replaced trap bar deadlift with front squat as primary lower body compound",
+    "content": "Replaced trap bar deadlift with front squat as primary lower body compound",
+    "structured_changes": [
+      {
+        "name": "Lateral Lunge",
+        "exercise_id": "ex_lateral_lunge",
+        "rx": "2x8/side",
+        "superset_group": null,
+        "note": null
+      },
+      {
+        "name": "Hip Circle",
+        "exercise_id": "ex_hip_circle",
+        "rx": "2x10/side",
+        "superset_group": null,
+        "note": null
+      },
+      {
+        "name": "Med Ball Rotational Throw",
+        "exercise_id": "ex_med_ball_rotational_throw",
+        "rx": "3x3/side",
+        "superset_group": null,
+        "note": null
+      },
+      {
+        "name": "Broad Jump",
+        "exercise_id": "ex_broad_jump",
+        "rx": "3x3",
+        "superset_group": null,
+        "note": null
+      },
+      {
+        "name": "Front Squat",
+        "exercise_id": "ex_front_squat",
+        "rx": "3x4-6 @ 75-85% 1RM",
+        "superset_group": null,
+        "note": "Primary lower body compound"
+      },
+      {
+        "name": "Romanian Deadlift",
+        "exercise_id": "ex_romanian_deadlift",
+        "rx": "3x8",
+        "superset_group": null,
+        "note": null
+      },
+      {
+        "name": "Nordic Curl",
+        "exercise_id": "ex_nordic_curl",
+        "rx": "3x5",
+        "superset_group": null,
+        "note": null
+      },
+      {
+        "name": "Hip Thrust",
+        "exercise_id": "ex_hip_thrust",
+        "rx": "3x10",
+        "superset_group": null,
+        "note": null
+      },
+      {
+        "name": "Wrist Roller",
+        "exercise_id": "ex_wrist_roller",
+        "rx": "2x10",
+        "superset_group": null,
+        "note": "Elevated FPM volume"
+      }
+    ],
+    "modifies_daily_plan": true,
+    "active": true,
+    "id": "plan_001",
+    "created_date": "2026-03-24"
+  }
+]
