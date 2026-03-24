@@ -1,12 +1,15 @@
-# Post-Outing Recovery Prompt
+# Post-Outing Recovery Protocol
 
-You are generating a post-outing recovery protocol for a pitcher who just finished throwing. Use the system prompt guidelines for voice and personality.
+Generate a detailed day-by-day recovery protocol for a pitcher who just finished throwing. Use the research base to inform decisions — don't give generic advice.
 
 ## Outing Data
 {outing_data}
 
 ## Pitcher Context
 {pitcher_context}
+
+## Relevant Research
+{relevant_research}
 
 ## Recovery Templates
 {recovery_templates}
@@ -15,26 +18,32 @@ You are generating a post-outing recovery protocol for a pitcher who just finish
 {recent_logs}
 
 ## Your Task
-Generate a recovery plan with these sections:
 
-### Tonight's Recovery
-- Post-throw stretch routine (from template)
-- Arm care light routine (from template)
-- Any additional recovery notes based on outing intensity
+Generate a **day-by-day recovery protocol** (Day 1 through Day 5-7 depending on rotation) with specific:
 
-### Tomorrow Preview
-- Brief note on what tomorrow's training should look like given today's outing
-- Flag if pitch count was notably high or arm feel is concerning
+### For each day:
+- **Arm care** — specific exercises, sets, reps (light vs heavy based on recovery day)
+- **Throwing** — if applicable: distance, throw count, intent % cap, what to watch for
+- **Lifting** — if applicable: what track (upper/lower/full), intensity cap, exercises to avoid
+- **Recovery** — soft tissue, mobility, nutrition timing
 
-### Notes
-- Address any pitcher notes from the outing
-- Acknowledge effort and keep tone supportive
+### Shutdown criteria
+- What should stop training immediately
+- What warrants a call to the trainer
+- What symptoms mean "regress to yesterday's protocol"
 
-## Decision Rules
-- **Arm feel ≤ 2**: Flag for trainer evaluation. Emphasize rest over recovery exercises. Say: "I'd flag this for your trainer before doing anything tomorrow."
-- **Pitch count > typical + 15**: Add extended recovery note. Suggest extra soft tissue work and hydration emphasis.
-- **Arm feel 3**: Standard recovery but note to monitor closely tomorrow morning.
-- **Arm feel 4-5**: Standard recovery, positive reinforcement.
+### Based on the triage flag:
+- **RED**: No throwing. Arm care light only. Trainer eval. Day-by-day with re-evaluation gates.
+- **YELLOW**: Conservative recovery. Delayed return to throwing. Extra FPM if applicable.
+- **MODIFIED GREEN**: Standard recovery with awareness. Monitor the borderline factor.
+- **GREEN**: Standard recovery per rotation.
+
+### Rules
+- Be specific to THIS pitcher's injury history and active modifications
+- Reference research when making decisions (ice, NSAIDs, recovery timelines, FPM fatigue)
+- Include pre-throw and post-throw templates for throw days
+- If pitch count was high (>typical+15), extend the recovery timeline
+- If forearm tightness or UCL sensation present, address explicitly with protocol adjustments
 
 ## Format
-Output as a clean Telegram message. Keep it under 2000 characters. Be specific to their outing, not generic.
+Day-by-day with clear headers. Include specific exercises, sets, reps. Be thorough — this is the pitcher's roadmap for the next week. Include a `save_plan` JSON block so this can be saved.

@@ -87,6 +87,9 @@ def append_context(pitcher_id: str, update_type: str, content: str) -> None:
 
     # Trim: keep only last 30 interaction lines
     _trim_recent_interactions(path)
+
+    # Rebuild Current Status section from profile flags
+    _rebuild_current_status(path, pitcher_id)
     mark_dirty(path)
 
 
@@ -105,6 +108,55 @@ def _trim_recent_interactions(path: str) -> None:
 
     with open(path, "w") as f:
         f.write(header + "\n".join(trimmed) + "\n")
+
+
+def _rebuild_current_status(path: str, pitcher_id: str) -> None:
+    """Rebuild the ## Current Status section from profile active_flags."""
+    try:
+        profile = load_profile(pitcher_id)
+    except FileNotFoundError:
+        return
+
+    flags = profile.get("active_flags", {})
+    today = datetime.now().strftime("%Y-%m-%d")
+
+    status_lines = [
+        f"- Last Updated: {today}",
+        f"- Arm Feel: {flags.get('current_arm_feel', 'N/A')}/5",
+        f"- Flag Level: {flags.get('current_flag_level', 'unknown').upper()}",
+        f"- Days Since Outing: {flags.get('days_since_outing', 'N/A')}",
+    ]
+    if flags.get("last_outing_date"):
+        status_lines.append(f"- Last Outing: {flags['last_outing_date']} ({flags.get('last_outing_pitches', '?')} pitches)")
+    if flags.get("phase"):
+        status_lines.append(f"- Phase: {flags['phase'].replace('_', ' ')}")
+    mods = flags.get("active_modifications", [])
+    if mods:
+        status_lines.append(f"- Active Mods: {', '.join(mods)}")
+
+    status_block = "## Current Status\n" + "\n".join(status_lines) + "\n"
+
+    with open(path, "r") as f:
+        content = f.read()
+
+    # Replace or insert Current Status section
+    if "## Current Status" in content:
+        # Replace existing
+        import re
+        content = re.sub(
+            r"## Current Status\n(?:- .*\n)*",
+            status_block,
+            content,
+        )
+    else:
+        # Insert after Persistent facts, before Recent interactions
+        if "## Recent interactions" in content:
+            content = content.replace("## Recent interactions", status_block + "\n## Recent interactions")
+        else:
+            content += "\n" + status_block
+
+    with open(path, "w") as f:
+        f.write(content)
 
 
 def load_log(pitcher_id: str) -> dict:

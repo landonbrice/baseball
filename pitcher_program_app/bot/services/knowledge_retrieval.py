@@ -276,3 +276,111 @@ def _format_exercise(ex: dict) -> str:
                 parts.append(f"  {phase}: {sets}x{reps} @ {intensity}")
 
     return "\n".join(parts)
+
+
+# ── Research Generation (ported from arm-care-bot) ──
+
+RESEARCH_SYSTEM_PROMPT = """\
+You are a sports science research synthesizer. Your task is to produce a comprehensive, \
+well-structured research document on the given topic, specifically oriented toward \
+college pitchers managing arm health and training.
+
+Structure your output as a Markdown document with:
+1. YAML front matter (delimited by ---) containing a keywords field with 8-15 lowercase \
+search terms relevant to this topic, and a type field set to "core_research"
+2. A clear H1 title
+3. Sections covering: mechanisms/physiology, current evidence, practical applications \
+for a college pitcher, and key takeaways
+4. Cite specific studies or established findings where possible (author, year or \
+"established finding")
+5. Be thorough but focus on actionable knowledge — this document will be used as \
+reference material for an AI assistant advising pitchers
+
+Keep the document between 1500-4000 words. Prioritize depth and accuracy over breadth.\
+"""
+
+
+async def classify_and_generate_research(question: str) -> str | None:
+    """Classify a question and generate new research if needed.
+
+    Called when retrieve_knowledge() finds no matching docs.
+    Returns the new research content if generated, or None.
+    """
+    from bot.services.llm import call_llm, call_llm_reasoning
+
+    # Build list of existing topics
+    index = _load_research_index()
+    existing_topics = [fn.replace(".md", "").replace("_", " ") for fn in index.keys()]
+
+    # Classify: QUICK or RESEARCH
+    try:
+        classification_response = await call_llm(
+            "You classify questions from college pitchers about training and arm care.\n\n"
+            f"Existing research files cover: {', '.join(existing_topics)}\n\n"
+            "Classify as QUICK (answerable with existing knowledge) or RESEARCH "
+            "(needs a new deep-dive document).\n"
+            "Return ONLY valid JSON:\n"
+            'QUICK: {"type": "quick"}\n'
+            'RESEARCH: {"type": "research", "topic": "<concise>", '
+            '"filename": "<snake_case>", "keywords": ["kw1", "kw2", ...]}\n',
+            question,
+            max_tokens=200,
+        )
+        import json as _json
+        result = _json.loads(classification_response.strip())
+    except Exception as e:
+        logger.warning(f"Research classification failed: {e}")
+        return None
+
+    if result.get("type") != "research":
+        return None
+
+    topic = result.get("topic", question[:50])
+    filename = result.get("filename", "auto_research")
+    if not filename.endswith(".md"):
+        filename = f"{filename}.md"
+
+    logger.info(f"Generating research: {topic} → {filename}")
+
+    # Generate the research document using reasoning model
+    try:
+        content = await call_llm_reasoning(
+            RESEARCH_SYSTEM_PROMPT,
+            f"Topic: {topic}\n\nOriginal question: {question}\n\nProduce the research document.",
+            max_tokens=4000,
+        )
+    except Exception as e:
+        logger.error(f"Research generation failed: {e}")
+        return None
+
+    # Save to research directory
+    save_path = os.path.join(RESEARCH_DIR, filename)
+    try:
+        with open(save_path, "w") as f:
+            f.write(content)
+        logger.info(f"Saved new research: {save_path}")
+
+        # Update INDEX.md
+        from datetime import date
+        index_path = os.path.join(RESEARCH_DIR, "INDEX.md")
+        row = f"| {filename} | {topic} | {date.today().isoformat()} | Auto-generated |\n"
+        if os.path.exists(index_path):
+            with open(index_path, "a") as f:
+                f.write(row)
+        else:
+            with open(index_path, "w") as f:
+                f.write("# Research Index\n\n| File | Topic | Date | Key Finding |\n|---|---|---|---|\n" + row)
+
+        # Clear cache so new doc is discoverable
+        global _research_cache
+        _research_cache = {}
+
+        # Sync the new file
+        from scripts.data_sync import mark_dirty
+        mark_dirty(save_path)
+        mark_dirty(index_path)
+
+        return content
+    except Exception as e:
+        logger.error(f"Failed to save research: {e}")
+        return None

@@ -104,6 +104,7 @@ Generate today's training plan as a JSON object. Return ONLY the JSON — no mar
 ### Flag-Based Modifications
 - RED: Mobility and arm care only. No lifting. No high-intent throwing.
 - YELLOW: Reduce loads to RPE 6-7. Remove plyo throws. Keep FPM. Reduce compound intensity.
+- MODIFIED GREEN: Full program but with awareness — cap intensity at RPE 7-8. Monitor throughout. Mention the borderline factor in your morning brief.
 - GREEN: Full program per template.
 
 ### Injury Modifications

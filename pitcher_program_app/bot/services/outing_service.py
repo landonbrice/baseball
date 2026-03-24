@@ -4,7 +4,9 @@ import json
 import logging
 from datetime import datetime
 
-from bot.services.llm import call_llm, load_prompt
+from bot.services.llm import call_llm, call_llm_reasoning, load_prompt
+from bot.services.triage import triage
+from bot.services.knowledge_retrieval import retrieve_research_for_plan
 from bot.services.context_manager import (
     load_profile,
     load_context,
@@ -18,8 +20,11 @@ from bot.config import TEMPLATES_DIR, CONTEXT_WINDOW_CHARS
 logger = logging.getLogger(__name__)
 
 
-async def process_outing(pitcher_id: str, pitch_count: int, post_arm_feel: int, notes: str = "") -> dict:
-    """Process a post-outing report: update flags, generate recovery plan, log entry.
+async def process_outing(
+    pitcher_id: str, pitch_count: int, post_arm_feel: int, notes: str = "",
+    forearm_tightness: str = "none", ucl_sensation: bool = False,
+) -> dict:
+    """Process a post-outing report: triage, generate recovery protocol, log entry.
 
     Returns dict with: recovery_plan, flag_level, alerts, rotation_reset, outing_date.
     """
@@ -34,8 +39,23 @@ async def process_outing(pitcher_id: str, pitch_count: int, post_arm_feel: int, 
         "current_arm_feel": post_arm_feel,
     })
 
+    # Run weighted triage with full outing data
+    triage_result = triage(
+        arm_feel=post_arm_feel,
+        sleep_hours=7.0,  # not relevant for post-outing, use default
+        pitcher_profile=profile,
+        forearm_tightness=forearm_tightness,
+        ucl_sensation=ucl_sensation,
+        pitch_count=pitch_count,
+    )
+    flag_level = triage_result["flag_level"]
+    alerts = list(triage_result.get("alerts", []))
+
     # Load recovery templates
     recovery_templates = _load_recovery_templates()
+
+    # Load relevant research for this pitcher's injury profile
+    relevant_research = retrieve_research_for_plan(profile)
 
     # Build outing data string
     typical = profile.get("pitching_profile", {}).get("typical_pitch_count", 85)
@@ -43,22 +63,22 @@ async def process_outing(pitcher_id: str, pitch_count: int, post_arm_feel: int, 
         f"Date: {today}\n"
         f"Pitch count: {pitch_count} (typical: {typical})\n"
         f"Arm feel: {post_arm_feel}/5\n"
+        f"Forearm tightness: {forearm_tightness}\n"
+        f"UCL sensation: {'present' if ucl_sensation else 'none'}\n"
+        f"Triage flag: {flag_level.upper()}\n"
+        f"Triage reasoning: {triage_result['reasoning']}\n"
     )
     if notes:
         outing_data += f"Notes: {notes}\n"
-    if pitch_count > typical + 15:
-        outing_data += "⚠️ Pitch count significantly above typical — extended recovery recommended\n"
-    if post_arm_feel <= 2:
-        outing_data += "⚠️ Low arm feel — recommend trainer evaluation before tomorrow's work\n"
 
     # Build pitcher context
     pitcher_context = _build_outing_context(profile, pitcher_id)
 
     # Recent logs
-    recent = get_recent_entries(pitcher_id, n=3)
+    recent = get_recent_entries(pitcher_id, n=7)
     recent_logs = json.dumps(recent, indent=2) if recent else "No recent entries"
 
-    # Call LLM for recovery plan
+    # Call reasoning model for detailed recovery protocol
     system_prompt = load_prompt("system_prompt.md")
     recovery_prompt = load_prompt("post_outing_recovery.md")
 
@@ -66,21 +86,10 @@ async def process_outing(pitcher_id: str, pitch_count: int, post_arm_feel: int, 
     user_prompt = user_prompt.replace("{outing_data}", outing_data)
     user_prompt = user_prompt.replace("{recovery_templates}", recovery_templates)
     user_prompt = user_prompt.replace("{recent_logs}", recent_logs)
+    user_prompt = user_prompt.replace("{relevant_research}", relevant_research or "No research loaded.")
 
-    recovery_plan = await call_llm(system_prompt, user_prompt)
-
-    # Build alerts
-    alerts = []
-    if post_arm_feel <= 2:
-        alerts.append("I'd flag that arm feel for your trainer before doing anything tomorrow.")
-
-    # Determine flag level based on arm feel
-    if post_arm_feel <= 2:
-        flag_level = "red"
-    elif post_arm_feel == 3:
-        flag_level = "yellow"
-    else:
-        flag_level = "green"
+    # Use reasoning model for detailed day-by-day recovery
+    recovery_plan = await call_llm_reasoning(system_prompt, user_prompt, max_tokens=4000)
 
     # Log the outing entry
     entry = {
@@ -88,7 +97,10 @@ async def process_outing(pitcher_id: str, pitch_count: int, post_arm_feel: int, 
         "outing": {
             "pitch_count": pitch_count,
             "arm_feel": post_arm_feel,
+            "forearm_tightness": forearm_tightness,
+            "ucl_sensation": ucl_sensation,
             "notes": notes,
+            "flag_level": flag_level,
         },
         "pre_training": None,
         "actual_logged": None,
@@ -96,11 +108,13 @@ async def process_outing(pitcher_id: str, pitch_count: int, post_arm_feel: int, 
     }
     append_log_entry(pitcher_id, entry)
 
-    # Update context
+    # Update context with rich outing note
+    tightness_str = f", tightness={forearm_tightness}" if forearm_tightness != "none" else ""
+    ucl_str = ", UCL sensation present" if ucl_sensation else ""
     append_context(
         pitcher_id, "outing",
-        f"Outing: {pitch_count} pitches, arm_feel={post_arm_feel}/5"
-        + (f", notes: {notes[:80]}" if notes else "")
+        f"OUTING: {pitch_count}pc, feel={post_arm_feel}/5, {flag_level.upper()}{tightness_str}{ucl_str}"
+        + (f". {notes[:80]}" if notes else "")
     )
 
     return {

@@ -389,8 +389,34 @@ def _build_pitcher_context(profile: dict, context_md: str) -> str:
         parts.append(f"Active modifications: {', '.join(mods)}")
 
     # Injury history (brief)
+    injury_areas = []
     for injury in profile.get("injury_history", []):
-        parts.append(f"Injury history: {injury.get('area', '')} ({injury.get('date', '')}) — {injury.get('description', '')}")
+        area = injury.get("area", "")
+        injury_areas.append(area)
+        parts.append(f"Injury history: {area} ({injury.get('date', '')}) — {injury.get('description', '')}")
+        if injury.get("ongoing_considerations"):
+            parts.append(f"  Ongoing: {injury['ongoing_considerations']}")
+
+    # Dynamic injury-specific rules (derived from THIS pitcher's profile)
+    rules = []
+    if "medial_elbow" in injury_areas or "forearm" in injury_areas:
+        rules.append("Pronator/FPM work is non-negotiable — include in every protocol")
+        rules.append("UCL-area sensation on elbow extension = immediate RED flag")
+        rules.append("Forearm tightness is the primary warning sign — flag before it escalates")
+    if "shoulder" in injury_areas or "labrum" in injury_areas:
+        rules.append("Scapular stability work is non-negotiable — include in every protocol")
+        rules.append("Neutral grip pressing only — no overhead barbell work")
+        rules.append("Sharp anterior shoulder pain = immediate RED flag")
+    if "lower_back" in injury_areas:
+        rules.append("Reduced axial loading — prefer unilateral and supported variations")
+    if "oblique" in injury_areas:
+        rules.append("No rotational power work until cleared — protect the oblique")
+    if "biceps" in injury_areas:
+        rules.append("Monitor biceps tendon with heavy pulling — reduce chin-up volume if symptomatic")
+    if rules:
+        parts.append("\nPitcher-specific rules (from injury profile):")
+        for r in rules:
+            parts.append(f"  - {r}")
 
     # Training level and maxes
     training = profile.get("current_training", {})

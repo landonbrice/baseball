@@ -69,7 +69,14 @@ async def handle_question(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         # Knowledge retrieval
         knowledge = retrieve_knowledge(question)
 
-        # Web research fallback if knowledge is empty
+        # Research generation fallback if no docs matched
+        if not knowledge:
+            from bot.services.knowledge_retrieval import classify_and_generate_research
+            generated = await classify_and_generate_research(question)
+            if generated:
+                knowledge = generated
+
+        # Web research fallback if still empty
         if not knowledge:
             knowledge = web_search_fallback(question, pitcher_id)
 
