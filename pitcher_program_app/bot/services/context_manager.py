@@ -220,21 +220,25 @@ def get_pitcher_id_by_telegram(telegram_id: int, username: str = None) -> str | 
         return None
 
     username_match = None
+    entries = os.listdir(PITCHERS_DIR)
+    logger.info(f"Pitcher lookup: telegram_id={telegram_id}, username={username}, dir={PITCHERS_DIR}, entries={len(entries)}")
 
-    for entry in os.listdir(PITCHERS_DIR):
+    for entry in entries:
         profile_path = os.path.join(PITCHERS_DIR, entry, "profile.json")
         if os.path.exists(profile_path):
             try:
                 with open(profile_path, "r") as f:
                     profile = json.load(f)
-                if profile.get("telegram_id") == telegram_id:
+                stored_id = profile.get("telegram_id")
+                if stored_id == telegram_id:
                     return profile["pitcher_id"]
-                # Username fallback
+                # Username fallback (only if profile has no telegram_id yet)
                 if (username and not username_match
                         and profile.get("telegram_username", "").lower() == username.lower()
-                        and not profile.get("telegram_id")):
+                        and not stored_id):
                     username_match = profile
-            except (json.JSONDecodeError, KeyError):
+            except (json.JSONDecodeError, KeyError) as e:
+                logger.warning(f"Error reading {profile_path}: {e}")
                 continue
 
     # Username fallback: backfill telegram_id on first match
@@ -245,4 +249,5 @@ def get_pitcher_id_by_telegram(telegram_id: int, username: str = None) -> str | 
         logger.info(f"Matched {pitcher_id} via username '{username}', backfilled telegram_id={telegram_id}")
         return pitcher_id
 
+    logger.warning(f"No pitcher found for telegram_id={telegram_id}, username={username}")
     return None
