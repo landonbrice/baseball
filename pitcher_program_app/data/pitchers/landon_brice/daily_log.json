@@ -315,7 +315,8 @@
       "completed_exercises": {
         "ex_front_squat": true,
         "ex_romanian_deadlift": true,
-        "ex_nordic_curl": true
+        "ex_nordic_curl": true,
+        "ex_hip_thrust": true
       },
       "bot_observations": null
     }
