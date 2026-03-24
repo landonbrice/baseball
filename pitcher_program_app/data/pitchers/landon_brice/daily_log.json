@@ -312,7 +312,9 @@
         "estimated_duration_min": 50
       },
       "actual_logged": null,
-      "completed_exercises": {},
+      "completed_exercises": {
+        "ex_front_squat": true
+      },
       "bot_observations": null
     }
   ]
