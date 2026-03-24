@@ -65,9 +65,19 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
     day_key = f"day_{rotation_day}"
     today_template = rotation_template["days"].get(day_key, {})
 
-    # Return-to-throwing pitchers: use recovery/light template as base
+    # Return-to-throwing pitchers: use lift preference to pick template,
+    # or fall back to recovery/light if no preference given
     if not today_template or phase == "return_to_throwing":
-        today_template = rotation_template["days"].get("day_1", today_template)
+        lift_pref = (checkin_inputs or {}).get("lift_preference", "")
+        pref_to_day = {
+            "lower": "day_2",   # Lower Body — Power Focus
+            "upper": "day_3",   # Upper Body — Pull Emphasis
+            "full": "day_2",    # Use lower power as full body base
+            "rest": "day_1",    # Recovery
+            "auto": "day_1",    # Let rotation decide, default recovery
+        }
+        template_day = pref_to_day.get(lift_pref, "day_1")
+        today_template = rotation_template["days"].get(template_day, today_template)
 
     # Arm care template
     arm_care_type = triage_result["protocol_adjustments"]["arm_care_template"]

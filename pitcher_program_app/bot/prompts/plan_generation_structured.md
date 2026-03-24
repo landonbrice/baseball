@@ -92,7 +92,12 @@ Generate today's training plan as a JSON object. Return ONLY the JSON — no mar
 
 ### Pitcher Goals & Phase
 - Read the pitcher's primary goal and current phase from context
-- If phase is "return to throwing": focus on arm care, progressive throwing, and lifting that supports shoulder/elbow health. Do NOT prescribe game-day or rotation-specific programming. Use the template as an exercise pool, not a rotation schedule.
+- If phase is "return to throwing": the pitcher is building back, NOT shutting down. They should still get real training sessions with appropriate modifications:
+  - Respect their lift preference (if they asked for lower body, give them a full lower session)
+  - Moderate intensity (RPE 6-7 on compounds, not maximal)
+  - Include FPM and arm care work regardless of lift type
+  - Adjust throwing based on where they are in return (light catch → flat ground → bullpen progression)
+  - Do NOT default to a 2-exercise recovery flush unless they specifically asked for rest day
 - If time_constraints are noted, adjust exercise count to fit
 - Match communication verbosity to detail_level preference
 
