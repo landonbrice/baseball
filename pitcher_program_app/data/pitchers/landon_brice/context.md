@@ -8,3 +8,6 @@
 - [2026-03-24 04:37] (session) Arm: "great no foreaem tightness rn" (5/5). Arm 5/5, sleep 7.0h, GREEN flag. Lift: Lateral Lunge, Hip Circle, Med Ball Rotational Throw, Broad Jump, Trap Bar Deadlift. . Mods: Elevated FPM volume per UCL history flag, Ongoing: Pronator maintenance is non-negotiable. Forearm tightness is primary warning sign. UCL-area sensation on elbow extension means arm is under stress. Uses Rocksauce pre-throwing. Requested: lower.
 - [2026-03-24 11:59] (interaction) Q: Working in back squats today instead of trap bar can you update today’s pla | A: Back squat isn't in the system — it's contraindicated for pitchers (pins scapulae, high spinal load). You're Day 0 post-outing, so heavy lower body is recommended.
 I'll swap trap bar for front squat, | Mod: Replaced trap bar deadlift with front squat as primary lower body compound
+- [2026-03-24 12:49] (interaction) Q: Thinking about throwing today, can you give me a pre throw routine | A: You're Day 0 post-outing in a return-to-throwing phase. Today's pre-throw routine should be light and focused on recovery, not high-intent work.
+**Pre-Throw Routine (Recovery Day):**
+*   **J-Band Rou
