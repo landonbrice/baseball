@@ -31,9 +31,10 @@ from bot.handlers.post_outing import get_outing_handler
 from bot.handlers.qa import handle_question
 from bot.main import (
     start, help_command, status, setday, gamestart, dashboard,
-    post_init, _text_dispatcher,
+    backup_command, post_init, _text_dispatcher,
 )
 from api.main import app
+from scripts.seed_volume import seed_if_empty
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -46,6 +47,9 @@ async def main() -> None:
     if not TELEGRAM_BOT_TOKEN:
         logger.error("TELEGRAM_BOT_TOKEN not set")
         sys.exit(1)
+
+    # Seed persistent volume from repo data on first deploy
+    seed_if_empty()
 
     port = int(os.getenv("PORT", 8000))
 
@@ -66,6 +70,7 @@ async def main() -> None:
     application.add_handler(CommandHandler("setday", setday))
     application.add_handler(CommandHandler("gamestart", gamestart))
     application.add_handler(CommandHandler("dashboard", dashboard))
+    application.add_handler(CommandHandler("backup", backup_command))
     application.add_handler(CallbackQueryHandler(
         plan_completion_callback, pattern=r"^plan_(done|skipped|dashboard)$"
     ))

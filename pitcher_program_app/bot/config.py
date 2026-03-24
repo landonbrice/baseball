@@ -16,7 +16,10 @@ LLM_CONFIG = {
 MINI_APP_URL = os.getenv("MINI_APP_URL", "").rstrip("/")
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
-PITCHERS_DIR = os.path.join(DATA_DIR, "pitchers")
+PITCHERS_DIR = os.environ.get(
+    "PITCHERS_VOLUME_DIR",
+    os.path.join(DATA_DIR, "pitchers"),
+)
 TEMPLATES_DIR = os.path.join(DATA_DIR, "templates")
 KNOWLEDGE_DIR = os.path.join(DATA_DIR, "knowledge")
 
