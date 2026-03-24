@@ -1,4 +1,319 @@
 {
   "pitcher_id": "landon_brice",
-  "entries": []
+  "entries": [
+    {
+      "date": "2026-03-24",
+      "rotation_day": 0,
+      "pre_training": {
+        "arm_feel": 5,
+        "overall_energy": 3,
+        "sleep_hours": 7.0,
+        "flag_level": "green"
+      },
+      "plan_narrative": "Day 0 post-outing, arm feel 5/5. No forearm tightness reported. Today is a lower body power day with light arm care.",
+      "morning_brief": "Day 0 post-outing, arm feel 5/5. No forearm tightness reported. Today is a lower body power day with light arm care.",
+      "arm_care": {
+        "timing": "pre-lift",
+        "exercises": [
+          {
+            "name": "Arm Car Standing",
+            "rx": "1x20 each direction",
+            "superset_group": null,
+            "exercise_id": "ex_064",
+            "note": null
+          },
+          {
+            "name": "Pot Stir",
+            "rx": "1x20-30 swings each direction",
+            "superset_group": null,
+            "exercise_id": "ex_065",
+            "note": null
+          },
+          {
+            "name": "Chair Pose Snow Angel",
+            "rx": "2x10 sec hold into 5 active reps",
+            "superset_group": null,
+            "exercise_id": "ex_077",
+            "note": null
+          },
+          {
+            "name": "Push-Up Plus (High Plank to Yoga Pushup variant)",
+            "rx": "1x10",
+            "superset_group": null,
+            "exercise_id": "ex_028",
+            "note": null
+          },
+          {
+            "name": "Cross-Body Stretch (World's Greatest variant)",
+            "rx": "3 reps each leg",
+            "superset_group": null,
+            "exercise_id": "ex_035",
+            "note": null
+          },
+          {
+            "name": "Scorpion",
+            "rx": "1x8 each side",
+            "superset_group": null,
+            "exercise_id": "ex_085",
+            "note": null
+          },
+          {
+            "name": "Prone T ER Roll",
+            "rx": "2x10",
+            "superset_group": null,
+            "exercise_id": "ex_078",
+            "note": null
+          },
+          {
+            "name": "Weighted PNF",
+            "rx": "2x10 each pattern",
+            "superset_group": null,
+            "exercise_id": "ex_079",
+            "note": null
+          },
+          {
+            "name": "Modified Sleeper Contract-Relax",
+            "rx": "2 rounds: 3 bouts of 10/5 contract/relax",
+            "superset_group": null,
+            "exercise_id": "ex_087",
+            "note": null
+          },
+          {
+            "name": "Elbow Flexed Pronation-Supination",
+            "rx": "2x20",
+            "superset_group": null,
+            "exercise_id": "ex_041",
+            "note": "Elevated FPM volume"
+          },
+          {
+            "name": "Moving Flexor ISO",
+            "rx": "2x10",
+            "superset_group": null,
+            "exercise_id": "ex_072",
+            "note": "Elevated FPM volume"
+          },
+          {
+            "name": "Pronator Pressout",
+            "rx": "2x10",
+            "superset_group": null,
+            "exercise_id": "ex_071",
+            "note": "Elevated FPM volume"
+          },
+          {
+            "name": "Ulnar Nerve Tensioner",
+            "rx": "2x10",
+            "superset_group": null,
+            "exercise_id": "ex_075",
+            "note": null
+          },
+          {
+            "name": "Lat Hang",
+            "rx": "2x30 sec",
+            "superset_group": null,
+            "exercise_id": "ex_086",
+            "note": null
+          }
+        ]
+      },
+      "lifting": {
+        "intent": "power \u2014 lower body emphasis",
+        "estimated_duration_min": 50,
+        "exercises": [
+          {
+            "name": "Lateral Lunge",
+            "rx": "2x8 each side",
+            "superset_group": null,
+            "exercise_id": "ex_lateral_lunge",
+            "note": "Dynamic warmup"
+          },
+          {
+            "name": "Hip Circle",
+            "rx": "2x10 each direction",
+            "superset_group": null,
+            "exercise_id": "ex_hip_circle",
+            "note": "Dynamic warmup"
+          },
+          {
+            "name": "Med Ball Rotational Throw",
+            "rx": "3x4 each side, max intent",
+            "superset_group": null,
+            "exercise_id": "ex_med_ball_rotational",
+            "note": "Power block"
+          },
+          {
+            "name": "Broad Jump",
+            "rx": "3x3",
+            "superset_group": null,
+            "exercise_id": "ex_broad_jump",
+            "note": "Power block"
+          },
+          {
+            "name": "Trap Bar Deadlift",
+            "rx": "3x5 @ 295 lbs",
+            "superset_group": "A",
+            "exercise_id": "ex_001",
+            "note": "Primary compound, 85% of 350 max"
+          },
+          {
+            "name": "Romanian Deadlift",
+            "rx": "3x8 @ RPE 7",
+            "superset_group": "A",
+            "exercise_id": "ex_rdl",
+            "note": null
+          },
+          {
+            "name": "Nordic Curl",
+            "rx": "3x5",
+            "superset_group": "B",
+            "exercise_id": "ex_nordic_curl",
+            "note": null
+          },
+          {
+            "name": "Hip Thrust",
+            "rx": "3x10 @ RPE 8",
+            "superset_group": "B",
+            "exercise_id": "ex_002",
+            "note": null
+          },
+          {
+            "name": "Wrist Roller",
+            "rx": "2x1 up/down",
+            "superset_group": null,
+            "exercise_id": "ex_wrist_roller",
+            "note": "Elevated FPM volume"
+          }
+        ]
+      },
+      "throwing": {
+        "type": "none",
+        "intent": null,
+        "detail": "No throwing today per your preference. Day 0 is for recovery and lower body power."
+      },
+      "notes": [
+        "Pronator/FPM work is elevated today \u2014 non-negotiable for UCL protection.",
+        "Hydration target: 93 oz minimum (half bodyweight in oz).",
+        "Sleep observation: 7.0h last night. Aim for 8-10h tonight for tissue repair.",
+        "Post-lift nutrition: 30g protein + carbs within 30 min to support recovery.",
+        "Active recovery > ice. Use light movement or Marc Pro if available.",
+        "Monitor for any forearm tightness post-lift \u2014 flag immediately if present."
+      ],
+      "soreness_response": null,
+      "plan_generated": {
+        "template_day": "day_0",
+        "exercise_blocks": [
+          {
+            "block_name": "Arm Care (pre-lift)",
+            "exercises": [
+              {
+                "exercise_id": "ex_064",
+                "prescribed": "1x20 each direction"
+              },
+              {
+                "exercise_id": "ex_065",
+                "prescribed": "1x20-30 swings each direction"
+              },
+              {
+                "exercise_id": "ex_077",
+                "prescribed": "2x10 sec hold into 5 active reps"
+              },
+              {
+                "exercise_id": "ex_028",
+                "prescribed": "1x10"
+              },
+              {
+                "exercise_id": "ex_035",
+                "prescribed": "3 reps each leg"
+              },
+              {
+                "exercise_id": "ex_085",
+                "prescribed": "1x8 each side"
+              },
+              {
+                "exercise_id": "ex_078",
+                "prescribed": "2x10"
+              },
+              {
+                "exercise_id": "ex_079",
+                "prescribed": "2x10 each pattern"
+              },
+              {
+                "exercise_id": "ex_087",
+                "prescribed": "2 rounds: 3 bouts of 10/5 contract/relax"
+              },
+              {
+                "exercise_id": "ex_041",
+                "prescribed": "2x20"
+              },
+              {
+                "exercise_id": "ex_072",
+                "prescribed": "2x10"
+              },
+              {
+                "exercise_id": "ex_071",
+                "prescribed": "2x10"
+              },
+              {
+                "exercise_id": "ex_075",
+                "prescribed": "2x10"
+              },
+              {
+                "exercise_id": "ex_086",
+                "prescribed": "2x30 sec"
+              }
+            ]
+          },
+          {
+            "block_name": "Lifting \u2014 power \u2014 lower body emphasis",
+            "exercises": [
+              {
+                "exercise_id": "ex_lateral_lunge",
+                "prescribed": "2x8 each side"
+              },
+              {
+                "exercise_id": "ex_hip_circle",
+                "prescribed": "2x10 each direction"
+              },
+              {
+                "exercise_id": "ex_med_ball_rotational",
+                "prescribed": "3x4 each side, max intent"
+              },
+              {
+                "exercise_id": "ex_broad_jump",
+                "prescribed": "3x3"
+              },
+              {
+                "exercise_id": "ex_001",
+                "prescribed": "3x5 @ 295 lbs"
+              },
+              {
+                "exercise_id": "ex_rdl",
+                "prescribed": "3x8 @ RPE 7"
+              },
+              {
+                "exercise_id": "ex_nordic_curl",
+                "prescribed": "3x5"
+              },
+              {
+                "exercise_id": "ex_002",
+                "prescribed": "3x10 @ RPE 8"
+              },
+              {
+                "exercise_id": "ex_wrist_roller",
+                "prescribed": "2x1 up/down"
+              }
+            ]
+          }
+        ],
+        "throwing_plan": null,
+        "modifications_applied": [
+          "Elevated FPM volume per UCL history flag",
+          "Ongoing: Pronator maintenance is non-negotiable. Forearm tightness is primary warning sign. UCL-area sensation on elbow extension means arm is under stress. Uses Rocksauce pre-throwing."
+        ],
+        "estimated_duration_min": 50
+      },
+      "actual_logged": null,
+      "completed_exercises": {},
+      "bot_observations": null
+    }
+  ]
 }
