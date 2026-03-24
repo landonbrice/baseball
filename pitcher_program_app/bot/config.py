@@ -9,6 +9,7 @@ DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
 LLM_CONFIG = {
     "provider": os.getenv("LLM_PROVIDER", "deepseek"),
     "model": os.getenv("LLM_MODEL", "deepseek-chat"),
+    "model_reasoning": os.getenv("LLM_MODEL_REASONING", "deepseek-reasoner"),
     "max_tokens": 1000,
     "temperature": 0.7,
 }

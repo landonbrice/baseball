@@ -4,7 +4,7 @@ import json
 import os
 import logging
 from bot.config import TEMPLATES_DIR, KNOWLEDGE_DIR, CONTEXT_WINDOW_CHARS
-from bot.services.llm import call_llm, load_prompt
+from bot.services.llm import call_llm, call_llm_reasoning, load_prompt
 from bot.services.context_manager import load_profile, load_context, get_recent_entries, load_saved_plans
 from bot.services.knowledge_retrieval import retrieve_research_for_plan
 
@@ -126,7 +126,12 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
     else:
         user_prompt = user_prompt.replace("{checkin_inputs}", "No check-in inputs provided.")
 
-    raw = await call_llm(system_prompt, user_prompt, max_tokens=2000)
+    # Use reasoning model for RTT pitchers or complex injury profiles
+    use_reasoning = phase == "return_to_throwing" or flag_level == "red"
+    if use_reasoning:
+        raw = await call_llm_reasoning(system_prompt, user_prompt, max_tokens=4000)
+    else:
+        raw = await call_llm(system_prompt, user_prompt, max_tokens=2000)
 
     # Parse structured JSON from LLM response
     plan = _parse_plan_json(raw)

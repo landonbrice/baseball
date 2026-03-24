@@ -439,7 +439,15 @@ async def post_chat(pitcher_id: str, request: Request):
             user_prompt = user_prompt.replace("{knowledge_context}", knowledge)
 
             history = body.get("history", [])
-            answer = await call_llm(system_prompt, user_prompt, history=history)
+
+            # Route complex protocol requests to reasoning model
+            from bot.handlers.qa import _REASONING_KEYWORDS
+            from bot.services.llm import call_llm_reasoning
+            q_lower = question.lower()
+            if any(kw in q_lower for kw in _REASONING_KEYWORDS):
+                answer = await call_llm_reasoning(system_prompt, user_prompt, max_tokens=4000, history=history)
+            else:
+                answer = await call_llm(system_prompt, user_prompt, history=history)
 
             messages = []
 

@@ -1,4 +1,12 @@
-"""Unified LLM call function. Wraps the configured provider (DeepSeek by default)."""
+"""Unified LLM call function. Wraps the configured provider (DeepSeek by default).
+
+Supports model routing:
+- call_llm(): uses deepseek-chat (fast, cheap, good for daily plans and Q&A)
+- call_llm_reasoning(): uses deepseek-reasoner (slower, deeper, for complex protocols)
+
+The reasoning model is used for multi-day programs, return-to-throw progressions,
+and any request that needs the depth of a real coaching plan.
+"""
 
 import os
 import logging
@@ -15,7 +23,10 @@ def load_prompt(prompt_name: str) -> str:
         return f.read()
 
 
-async def call_llm(system_prompt: str, user_message: str, max_tokens: int = None, history: list[dict] = None) -> str:
+async def call_llm(
+    system_prompt: str, user_message: str, max_tokens: int = None,
+    history: list[dict] = None, model: str = None,
+) -> str:
     """Call the configured LLM and return the response text.
 
     Args:
@@ -23,12 +34,10 @@ async def call_llm(system_prompt: str, user_message: str, max_tokens: int = None
         user_message: The user-facing message or structured input.
         max_tokens: Override for max response tokens.
         history: Optional conversation history (list of {role, content} dicts).
-
-    Returns:
-        The LLM's response text.
+        model: Override model name (e.g. "deepseek-reasoner" for complex tasks).
     """
     provider = LLM_CONFIG["provider"]
-    model = LLM_CONFIG["model"]
+    model = model or LLM_CONFIG["model"]
     tokens = max_tokens or LLM_CONFIG["max_tokens"]
     temperature = LLM_CONFIG["temperature"]
 
@@ -36,6 +45,23 @@ async def call_llm(system_prompt: str, user_message: str, max_tokens: int = None
         return await _call_deepseek(system_prompt, user_message, model, tokens, temperature, history)
     else:
         raise ValueError(f"Unsupported LLM provider: {provider}")
+
+
+async def call_llm_reasoning(
+    system_prompt: str, user_message: str, max_tokens: int = 4000,
+    history: list[dict] = None,
+) -> str:
+    """Call the reasoning model for complex multi-step protocol generation.
+
+    Used for: multi-day programs, return-to-throw progressions, post-outing
+    recovery protocols, anything needing deep domain reasoning.
+
+    Uses deepseek-reasoner which does chain-of-thought before answering.
+    Higher token budget (4000) for detailed output.
+    """
+    model = LLM_CONFIG.get("model_reasoning", "deepseek-reasoner")
+    logger.info(f"Using reasoning model: {model}")
+    return await call_llm(system_prompt, user_message, max_tokens=max_tokens, history=history, model=model)
 
 
 async def _call_deepseek(
@@ -52,7 +78,7 @@ async def _call_deepseek(
 
     messages = [{"role": "system", "content": system_prompt}]
     if history:
-        messages.extend(history[-6:])  # cap at 6 entries (3 exchanges)
+        messages.extend(history[-6:])
     messages.append({"role": "user", "content": user_message})
 
     try:
@@ -64,5 +90,5 @@ async def _call_deepseek(
         )
         return response.choices[0].message.content
     except APIError as e:
-        logger.error(f"DeepSeek API error: {e}")
+        logger.error(f"DeepSeek API error ({model}): {e}")
         raise

@@ -4,7 +4,15 @@ import logging
 import re
 from telegram import Update
 from telegram.ext import ContextTypes
-from bot.services.llm import call_llm, load_prompt
+from bot.services.llm import call_llm, call_llm_reasoning, load_prompt
+
+# Keywords that signal a request needs deep reasoning (multi-day protocols, progressions)
+_REASONING_KEYWORDS = [
+    "return to throw", "rtt", "progression", "2 week", "2-week", "two week",
+    "ramp up", "ramp-up", "build back", "protocol", "recovery plan",
+    "multi-day", "week plan", "throwing program", "return to mound",
+    "shut down", "come back from", "post-injury", "rehab",
+]
 from bot.services.context_manager import (
     load_profile,
     load_context,
@@ -70,7 +78,14 @@ async def handle_question(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         user_prompt = user_prompt.replace("{knowledge_context}", knowledge)
 
         history = context.user_data.get("conversation_history", [])
-        response = await call_llm(system_prompt, user_prompt, history=history)
+
+        # Route complex protocol requests to reasoning model
+        q_lower = question.lower()
+        needs_reasoning = any(kw in q_lower for kw in _REASONING_KEYWORDS)
+        if needs_reasoning:
+            response = await call_llm_reasoning(system_prompt, user_prompt, max_tokens=4000, history=history)
+        else:
+            response = await call_llm(system_prompt, user_prompt, history=history)
         await update.message.reply_text(response)
 
         history.append({"role": "user", "content": question})
