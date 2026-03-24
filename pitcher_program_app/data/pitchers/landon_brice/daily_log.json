@@ -313,7 +313,9 @@
       },
       "actual_logged": null,
       "completed_exercises": {
-        "ex_front_squat": true
+        "ex_front_squat": true,
+        "ex_romanian_deadlift": true,
+        "ex_nordic_curl": true
       },
       "bot_observations": null
     }
