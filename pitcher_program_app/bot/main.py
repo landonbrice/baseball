@@ -39,6 +39,9 @@ async def start(update: Update, context) -> None:
         try:
             profile = load_profile(pitcher_id)
             first_name = profile.get("name", first_name).split()[0]
+
+            # Ensure scheduled jobs exist for this pitcher (covers first-message backfill)
+            _ensure_pitcher_jobs(context.application, pitcher_id, profile)
         except Exception:
             pass
 
@@ -202,18 +205,35 @@ async def dashboard(update: Update, context) -> None:
 # --- Scheduled jobs ---
 
 async def _send_morning_checkin(context) -> None:
-    """Send a morning check-in prompt to a pitcher."""
+    """Send a morning check-in prompt with rotation day preview."""
     pitcher_id = context.job.data["pitcher_id"]
     chat_id = context.job.data["chat_id"]
 
     from bot.utils import build_rating_keyboard
+    from bot.services.context_manager import load_profile
     reply_markup = build_rating_keyboard("arm_feel")
 
+    # Build rotation day preview
+    try:
+        profile = load_profile(pitcher_id)
+        rotation_day = profile.get("active_flags", {}).get("days_since_outing", 0)
+        from bot.services.plan_generator import load_template
+        template = load_template("starter_7day.json")
+        day_key = f"day_{rotation_day}"
+        day_data = template["days"].get(day_key, {})
+        label = day_data.get("label", f"Day {rotation_day}")
+        throwing = day_data.get("throwing", "none")
+
+        preview = f"Day {rotation_day} — {label}"
+        if throwing and throwing != "none" and throwing != "none_or_light_catch":
+            preview += f"\nThrowing: {throwing.replace('_', ' ')}"
+
+        msg = f"{preview}\n\nHow's the arm? (1-5)\nOr type /checkin for the full flow."
+    except Exception:
+        msg = "Morning check-in time. How's the arm today? (1-5)\n\nOr type /checkin to start the full flow."
+
     await context.bot.send_message(
-        chat_id=chat_id,
-        text="Morning check-in time. How's the arm feel today? (1-5)\n\n"
-             "Or type /checkin to start the full flow.",
-        reply_markup=reply_markup,
+        chat_id=chat_id, text=msg, reply_markup=reply_markup,
     )
 
 
@@ -266,6 +286,44 @@ async def _send_weekly_summary(context) -> None:
                 await context.bot.send_message(chat_id=chat_id, text=summary)
         except Exception as e:
             logger.error(f"Error sending weekly summary to {entry}: {e}")
+
+
+def _ensure_pitcher_jobs(application: Application, pitcher_id: str, profile: dict) -> None:
+    """Ensure morning check-in and evening follow-up jobs exist for a pitcher.
+
+    Called on /start to handle newly backfilled telegram_ids without restart.
+    """
+    job_queue = application.job_queue
+    if not job_queue:
+        return
+
+    chat_id = profile.get("telegram_id")
+    if not chat_id:
+        return
+
+    # Check if jobs already scheduled
+    existing = job_queue.get_jobs_by_name(f"morning_checkin_{pitcher_id}")
+    if existing:
+        return
+
+    time_str = profile.get("preferences", {}).get("notification_time", "08:00")
+    try:
+        hour, minute = map(int, time_str.split(":"))
+    except (ValueError, AttributeError):
+        hour, minute = 8, 0
+    notify_time = dt_time(hour=hour, minute=minute)
+
+    job_queue.run_daily(
+        _send_morning_checkin, time=notify_time,
+        data={"pitcher_id": pitcher_id, "chat_id": chat_id},
+        name=f"morning_checkin_{pitcher_id}",
+    )
+    job_queue.run_daily(
+        _send_evening_followup, time=dt_time(hour=18, minute=0),
+        data={"pitcher_id": pitcher_id, "chat_id": chat_id},
+        name=f"evening_followup_{pitcher_id}",
+    )
+    logger.info(f"Dynamically scheduled jobs for {pitcher_id} at {time_str}")
 
 
 def _schedule_jobs(application: Application) -> None:

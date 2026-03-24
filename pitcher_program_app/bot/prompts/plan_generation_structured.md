@@ -67,6 +67,29 @@ Generate today's training plan as a JSON object. Return ONLY the JSON — no mar
 - Use exercise_id from the template or exercise library. Always include it.
 - Use the EXACT name from the exercise library.
 
+### Exercise Volume Requirements
+- **Full lifting days (Day 2, 3, 4):** Minimum 6 exercises, target 7-8. The session should take 45-60 minutes.
+- **Light days (Day 1, 5):** 4-6 exercises, 25-35 minutes.
+- **Rest days (Day 0, 6):** Arm care and mobility only. No lifting.
+- If the template provides 9 exercises, you may trim to 7-8 if time-constrained, but NEVER below 6 on a full day.
+- Every full lifting day needs: 1-2 compound movements, 2-3 accessories, 1-2 core/stability.
+
+### Template Adherence
+- The template's exercise_ids are your PRIMARY source. Use them.
+- Do NOT substitute lower body exercises on upper body days or vice versa.
+- Day 2 (Lower Power) and Day 4 (Lower Strength) = lower body compound focus. No bench press, no overhead press.
+- Day 3 (Upper Pull) = upper body emphasis. No squat, no deadlift (trap bar DL is a LOWER BODY exercise).
+- Day 5 (Light Upper) = light upper + pre-game. Keep intensity low.
+- If a pitcher's saved plan modification changes the focus, that overrides the template's body part focus but NOT the volume requirements.
+
+### Duration Estimates
+- Include `estimated_duration_min` in the lifting object.
+- Compound exercise: ~5 min per exercise (including rest)
+- Accessory: ~3-4 min per exercise
+- Superset pair: ~4-5 min (shared rest)
+- Core/stability: ~3 min
+- 7 exercises with 2 supersets = ~42-48 min. That's the sweet spot.
+
 ### Flag-Based Modifications
 - RED: Mobility and arm care only. No lifting. No high-intent throwing.
 - YELLOW: Reduce loads to RPE 6-7. Remove plyo throws. Keep FPM. Reduce compound intensity.

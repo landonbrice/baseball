@@ -11,6 +11,7 @@ from bot.services.context_manager import (
     get_pitcher_id_by_telegram,
     append_context,
     update_active_flags,
+    get_recent_entries,
 )
 from bot.config import CONTEXT_WINDOW_CHARS
 from bot.services.knowledge_retrieval import retrieve_knowledge
@@ -76,7 +77,7 @@ async def handle_question(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         history.append({"role": "assistant", "content": response})
         context.user_data["conversation_history"] = history[-6:]
 
-        append_context(pitcher_id, "interaction", f"Q: {question[:100]}")
+        append_context(pitcher_id, "interaction", f"Q: {question[:80]} | A: {response[:200]}")
 
     except Exception as e:
         logger.error(f"Error handling question: {e}", exc_info=True)
@@ -109,5 +110,14 @@ Use the following to avoid repeating plans already given, reference prior conver
     if active_plans:
         plans_text = "\n".join(f"- {p['title']}: {p.get('summary', '')}" for p in active_plans)
         parts.append(f"\nActive saved plans:\n{plans_text}")
+
+    # Include last generated plan for continuity
+    recent = get_recent_entries(pitcher_id, n=1)
+    if recent:
+        last = recent[0]
+        lifting = last.get("lifting", {})
+        if lifting and lifting.get("exercises"):
+            exercise_names = [ex.get("name", "") for ex in lifting["exercises"]]
+            parts.append(f"\nLast prescribed lift ({last.get('date', '?')}, Day {last.get('rotation_day', '?')}): {', '.join(exercise_names)}")
 
     return "\n".join(parts)

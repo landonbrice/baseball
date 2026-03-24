@@ -12,7 +12,7 @@ from bot.config import KNOWLEDGE_DIR, CONTEXT_WINDOW_CHARS, DISABLE_AUTH
 from bot.services.context_manager import (
     load_profile, load_log, load_context, update_exercise_completion,
     append_context, increment_days_since_outing, load_saved_plans,
-    save_plan, deactivate_plan, update_active_flags,
+    save_plan, deactivate_plan, update_active_flags, get_recent_entries,
 )
 from bot.services.progression import analyze_progression
 from bot.services.plan_generator import get_upcoming_days
@@ -249,6 +249,15 @@ async def post_ask(pitcher_id: str, request: Request):
     if context_md:
         pitcher_context += f"\n\nRecent context:\n{context_md[-CONTEXT_WINDOW_CHARS:]}"
 
+    # Include last generated plan for continuity
+    recent = get_recent_entries(pitcher_id, n=1)
+    if recent:
+        last = recent[0]
+        lifting = last.get("lifting", {})
+        if lifting and lifting.get("exercises"):
+            exercise_names = [ex.get("name", "") for ex in lifting["exercises"]]
+            pitcher_context += f"\n\nLast prescribed lift ({last.get('date', '?')}, Day {last.get('rotation_day', '?')}): {', '.join(exercise_names)}"
+
     # Build conversation history for multi-turn
     history = body.get("history", [])
     history_text = ""
@@ -268,7 +277,7 @@ async def post_ask(pitcher_id: str, request: Request):
             user_prompt += f"\n\nConversation so far:{history_text}\n\nLatest question: {question}"
 
         answer = await call_llm(system_prompt, user_prompt)
-        append_context(pitcher_id, "interaction", f"Q: {question[:100]}")
+        append_context(pitcher_id, "interaction", f"Q: {question[:80]} | A: {answer[:200]}")
         return {"answer": answer}
     except Exception as e:
         logger.error(f"Ask error for {pitcher_id}: {e}", exc_info=True)
@@ -397,6 +406,28 @@ Use the following to avoid repeating plans already given, reference prior conver
                 )
                 pitcher_context += f"\n\nActive saved plans:\n{plans_summary}"
 
+            # Include last generated plan for continuity
+            recent = get_recent_entries(pitcher_id, n=1)
+            if recent:
+                last = recent[0]
+                lifting = last.get("lifting", {})
+                if lifting and lifting.get("exercises"):
+                    exercise_names = [ex.get("name", "") for ex in lifting["exercises"]]
+                    pitcher_context += f"\n\nLast prescribed lift ({last.get('date', '?')}, Day {last.get('rotation_day', '?')}): {', '.join(exercise_names)}"
+
+            # Include plan_context if pitcher is viewing a specific plan
+            plan_context = body.get("plan_context")
+            if plan_context:
+                plan_data = plan_context.get("plan_data", {})
+                pc_lifting = plan_data.get("lifting", {})
+                pc_exercises = pc_lifting.get("exercises", [])
+                if pc_exercises:
+                    exercise_list = ", ".join(f"{ex['name']} {ex.get('rx','')}" for ex in pc_exercises)
+                    pitcher_context += f"\n\nThe pitcher is viewing and asking about this specific plan:\n"
+                    pitcher_context += f"Title: {plan_data.get('title', '')}\n"
+                    pitcher_context += f"Exercises: {exercise_list}\n"
+                    pitcher_context += "When making modifications, return a program_modification JSON block with the updated exercise list."
+
             system_prompt = load_prompt("system_prompt.md")
             qa_prompt = load_prompt("qa_prompt.md")
             knowledge = retrieve_knowledge(question)
@@ -430,18 +461,60 @@ Use the following to avoid repeating plans already given, reference prior conver
 
                 # Auto-save as plan if requested
                 if mod_data.get("save_as_plan"):
-                    plan = save_plan(pitcher_id, {
-                        "title": mod_data.get("title", "Program modification"),
-                        "category": "program_modification",
-                        "summary": ", ".join(mod_data.get("changes", [])),
-                        "content": "\n".join(mod_data.get("changes", [])),
-                        "modifies_daily_plan": True,
-                        "active": True,
-                    })
-                    messages.append({
-                        "type": "text",
-                        "content": f"Saved as active plan: {plan['title']}. This will influence your daily programming.",
-                    })
+                    plan_context = body.get("plan_context")
+                    if plan_context and plan_context.get("plan_id"):
+                        # Update existing plan in place
+                        all_plans = load_saved_plans(pitcher_id)
+                        for p in all_plans:
+                            if p["id"] == plan_context["plan_id"]:
+                                if mod_data.get("exercises"):
+                                    if "lifting" not in p:
+                                        p["lifting"] = {}
+                                    p["lifting"]["exercises"] = mod_data["exercises"]
+                                if mod_data.get("title"):
+                                    p["title"] = mod_data["title"]
+                                p["summary"] = ", ".join(mod_data.get("changes", []))
+                                break
+                        plans_path = os.path.join(
+                            __import__("bot.services.context_manager", fromlist=["get_pitcher_dir"]).get_pitcher_dir(pitcher_id),
+                            "saved_plans.json"
+                        )
+                        with open(plans_path, "w") as f:
+                            json.dump(all_plans, f, indent=2)
+                        messages.append({
+                            "type": "text",
+                            "content": f"Updated plan: {mod_data.get('title', 'Program modification')}.",
+                        })
+                        messages.append({"type": "status", "content": "plan_updated"})
+                    else:
+                        saved = save_plan(pitcher_id, {
+                            "title": mod_data.get("title", "Program modification"),
+                            "category": "program_modification",
+                            "summary": ", ".join(mod_data.get("changes", [])),
+                            "content": "\n".join(mod_data.get("changes", [])),
+                            "structured_changes": mod_data.get("exercises", []),
+                            "modifies_daily_plan": True,
+                            "active": True,
+                        })
+                        messages.append({
+                            "type": "text",
+                            "content": f"Saved as active plan: {saved['title']}. This will influence your daily programming.",
+                        })
+
+                    # Regenerate today's plan with the modification applied
+                    try:
+                        arm_feel = flags.get("current_arm_feel", 4)
+                        log = load_log(pitcher_id)
+                        last_sleep = 7.0
+                        for entry in reversed(log.get("entries", [])):
+                            pt = entry.get("pre_training", {})
+                            if pt.get("sleep_hours"):
+                                last_sleep = pt["sleep_hours"]
+                                break
+                        await process_checkin(pitcher_id, arm_feel, last_sleep)
+                        messages.append({"type": "status", "content": "plan_loaded"})
+                    except Exception as e:
+                        logger.warning(f"Failed to regenerate plan after modification: {e}")
 
                 # Update active_modifications in profile
                 mod_title = mod_data.get("title", "")
@@ -455,11 +528,12 @@ Use the following to avoid repeating plans already given, reference prior conver
             else:
                 messages.append({"type": "text", "content": answer})
 
-            # Append context summary for substantial exchanges
-            summary = f"Q: {question[:80]}"
-            if len(answer) > 300:
-                # Include a brief summary of the answer too
-                summary += f" | A: {clean_answer[:100]}"
+            # Append context summary — always include answer excerpt
+            summary = f"Q: {question[:80]} | A: {clean_answer[:200]}"
+            if plan_data:
+                summary += f" | Saved plan: {plan_data.get('title', '')}"
+            if mod_data:
+                summary += f" | Mod: {', '.join(mod_data.get('changes', [])[:2])}"
             append_context(pitcher_id, "interaction", summary)
 
             return {"messages": messages}
@@ -498,6 +572,117 @@ async def post_deactivate_plan(pitcher_id: str, plan_id: str, request: Request):
     if not found:
         raise HTTPException(status_code=404, detail="Plan not found")
     return {"status": "ok"}
+
+
+@router.post("/pitcher/{pitcher_id}/plans/{plan_id}/activate")
+async def post_activate_plan(pitcher_id: str, plan_id: str, request: Request):
+    """Activate a saved plan."""
+    _require_pitcher_auth(request, pitcher_id)
+    plans = load_saved_plans(pitcher_id)
+    found = False
+    for plan in plans:
+        if plan["id"] == plan_id:
+            plan["active"] = True
+            found = True
+            break
+    if not found:
+        raise HTTPException(status_code=404, detail="Plan not found")
+    from bot.services.context_manager import get_pitcher_dir
+    plans_path = os.path.join(get_pitcher_dir(pitcher_id), "saved_plans.json")
+    with open(plans_path, "w") as f:
+        json.dump(plans, f, indent=2)
+    return {"status": "ok"}
+
+
+@router.post("/pitcher/{pitcher_id}/generate-plan")
+async def generate_custom_plan(pitcher_id: str, request: Request):
+    """Generate a custom plan from user selections and save it."""
+    _require_pitcher_auth(request, pitcher_id)
+    body = await request.json()
+
+    plan_type = body.get("plan_type", "full_body")
+    duration_min = body.get("duration_min", 45)
+    emphasis = body.get("emphasis", [])
+    notes = body.get("notes", "")
+
+    profile = load_profile(pitcher_id)
+    context_md = load_context(pitcher_id)
+
+    # Map plan_type to template day
+    type_to_template = {
+        "lower_power": "day_2", "lower_strength": "day_4",
+        "upper_pull": "day_3", "upper_push": "day_3",
+        "full_body": "day_2", "recovery": "day_1", "arm_care": "day_1",
+    }
+    type_labels = {
+        "lower_power": "Lower body — power focus",
+        "lower_strength": "Lower body — strength focus",
+        "upper_pull": "Upper body — pull emphasis",
+        "upper_push": "Upper body — push emphasis",
+        "full_body": "Full body",
+        "recovery": "Recovery / mobility",
+        "arm_care": "Arm care focused session",
+    }
+    emphasis_labels = {
+        "heavy_compounds": "Prioritize heavy compound movements",
+        "hypertrophy": "Hypertrophy rep ranges (3x8-12), moderate weight",
+        "explosive": "Explosive/power emphasis — med ball, jumps",
+        "fpm": "Extra flexor-pronator mass and arm health work",
+        "pre_game": "Keep intensity low, activation focused",
+    }
+
+    template_key = type_to_template.get(plan_type, "day_2")
+    from bot.services.plan_generator import load_template, _build_pitcher_context, _parse_plan_json
+    template = load_template("starter_7day.json")
+    day_data = template["days"].get(template_key, {})
+
+    request_text = f"Generate a {type_labels.get(plan_type, plan_type)} plan."
+    if duration_min:
+        request_text += f" Target duration: {duration_min} minutes."
+    if emphasis:
+        emph_text = "; ".join(emphasis_labels.get(e, e) for e in emphasis)
+        request_text += f" Emphasis: {emph_text}."
+    if notes:
+        request_text += f" Additional: {notes}"
+
+    pitcher_context = _build_pitcher_context(profile, context_md)
+    system_prompt = load_prompt("system_prompt.md")
+    plan_prompt = load_prompt("plan_generation_structured.md")
+
+    user_prompt = plan_prompt.replace("{pitcher_context}", pitcher_context)
+    user_prompt = user_prompt.replace("{rotation_day}", f"Custom plan: {type_labels.get(plan_type, plan_type)}")
+    user_prompt = user_prompt.replace("{triage_result}", '{"flag_level": "green", "modifications": [], "protocol_adjustments": {"arm_care_template": "heavy"}}')
+    user_prompt = user_prompt.replace("{templates}", json.dumps(day_data, indent=2))
+    user_prompt = user_prompt.replace("{recent_logs}", "[]")
+    user_prompt += f"\n\n## CUSTOM PLAN REQUEST\n{request_text}\n\nGenerate a complete plan matching this request. Ensure appropriate exercise count (6-8 for 45min, 4-5 for 25min, 8-10 for 60min)."
+
+    response = await call_llm(system_prompt, user_prompt, max_tokens=2000)
+    plan_data = _parse_plan_json(response)
+
+    if not plan_data:
+        raise HTTPException(status_code=500, detail="Failed to generate structured plan")
+
+    title = type_labels.get(plan_type, "Custom plan")
+    if emphasis:
+        title += f" — {', '.join(emphasis[:2])}"
+
+    saved = save_plan(pitcher_id, {
+        "title": title,
+        "category": "custom_program",
+        "summary": request_text[:200],
+        "arm_care": plan_data.get("arm_care", {}),
+        "lifting": plan_data.get("lifting", {}),
+        "throwing": plan_data.get("throwing", {"type": "none"}),
+        "notes": plan_data.get("notes", []),
+        "modifies_daily_plan": False,
+        "active": True,
+        "generation_request": {
+            "plan_type": plan_type, "duration_min": duration_min,
+            "emphasis": emphasis, "notes": notes,
+        },
+    })
+
+    return {"plan": saved}
 
 
 @lru_cache(maxsize=1)

@@ -99,6 +99,8 @@ async def generate_plan(pitcher_id: str, triage_result: dict) -> dict:
     plan = _parse_plan_json(raw)
 
     if plan:
+        plan = _validate_plan(plan, today_template, rotation_day)
+
         # Structured plan parsed successfully
         morning_brief = plan.get("morning_brief", "")
         arm_care_data = plan.get("arm_care", {})
@@ -208,6 +210,72 @@ def _parse_plan_json(raw: str) -> dict | None:
     return None
 
 
+# Exercise IDs by body focus for template adherence validation
+_LOWER_BODY_IDS = {
+    "ex_001", "ex_front_squat", "ex_rdl", "ex_hip_thrust", "ex_split_squat",
+    "ex_goblet_squat", "ex_nordic_curl", "ex_calf_raise", "ex_lateral_lunge",
+    "ex_lateral_bound", "ex_broad_jump",
+}
+_UPPER_BODY_IDS = {
+    "ex_db_bench", "ex_landmine_press", "ex_weighted_pullup", "ex_db_row",
+    "ex_face_pull", "ex_push_up_plus", "ex_ytw", "ex_band_pull_apart",
+    "ex_med_ball_overhead_slam",
+}
+# Day-to-body-focus mapping
+_DAY_BODY_FOCUS = {
+    2: "lower", 4: "lower",
+    3: "upper", 5: "upper",
+}
+
+
+def _validate_plan(plan: dict, template: dict, rotation_day: int) -> dict:
+    """Post-LLM validation: enforce exercise minimums and body-part adherence."""
+    lifting = plan.get("lifting", {})
+    if not lifting:
+        return plan
+    exercises = lifting.get("exercises", [])
+
+    # Full lifting days (2, 3, 4) need at least 6 exercises
+    full_days = {2, 3, 4}
+    if rotation_day in full_days and len(exercises) < 6:
+        # Pull missing exercises from the template to fill
+        template_exercises = []
+        for block in (template.get("lifting") or {}).get("blocks", []):
+            for ex in block.get("exercises", []):
+                template_exercises.append(ex)
+
+        existing_ids = {ex.get("exercise_id", "") for ex in exercises}
+        for tex in template_exercises:
+            if len(exercises) >= 7:
+                break
+            if tex["exercise_id"] not in existing_ids:
+                exercises.append({
+                    "name": tex.get("exercise_id", "").replace("ex_", "").replace("_", " ").title(),
+                    "exercise_id": tex["exercise_id"],
+                    "rx": _PRESCRIPTION_DEFAULTS.get(tex.get("prescription_mode", "strength"), "3x8"),
+                    "superset_group": None,
+                    "note": "Added from template",
+                })
+
+        lifting["exercises"] = exercises
+
+    # Body-part guardrails
+    body_focus = _DAY_BODY_FOCUS.get(rotation_day)
+    if body_focus == "upper":
+        exercises = [ex for ex in exercises if ex.get("exercise_id") not in _LOWER_BODY_IDS]
+    elif body_focus == "lower":
+        exercises = [ex for ex in exercises if ex.get("exercise_id") not in _UPPER_BODY_IDS]
+    lifting["exercises"] = exercises
+
+    # Enforce duration estimate
+    if not lifting.get("estimated_duration_min"):
+        n = len(exercises)
+        lifting["estimated_duration_min"] = max(25, n * 5)
+
+    plan["lifting"] = lifting
+    return plan
+
+
 def _select_plyocare(routines: dict, rotation_day: int, flag_level: str) -> dict | None:
     """Select the appropriate plyocare routine for the rotation day."""
     routines_data = routines.get("routines", {})
@@ -314,7 +382,37 @@ def _build_pitcher_context(profile: dict, context_md: str) -> str:
     except Exception:
         pass  # Don't break plan generation if plans file missing
 
-    # Recent context (last 500 chars)
+    # Yesterday's plan (prevents re-prescription)
+    try:
+        pitcher_id = profile.get("pitcher_id", "")
+        if pitcher_id:
+            recent_entries = get_recent_entries(pitcher_id, n=2)
+            for entry in reversed(recent_entries):
+                lifting = entry.get("lifting", {})
+                arm_care = entry.get("arm_care", {})
+
+                lift_summary = ""
+                if lifting and lifting.get("exercises"):
+                    names = [ex.get("name", "") for ex in lifting["exercises"][:6]]
+                    lift_summary = f"Lifting: {', '.join(names)}"
+
+                ac_summary = ""
+                if arm_care and arm_care.get("exercises"):
+                    names = [ex.get("name", "") for ex in arm_care["exercises"][:4]]
+                    ac_summary = f"Arm care: {', '.join(names)}"
+
+                if lift_summary or ac_summary:
+                    rotation_day = entry.get("rotation_day", "?")
+                    parts.append(f"\nPrevious plan ({entry.get('date', '?')}, Day {rotation_day}):")
+                    if lift_summary:
+                        parts.append(f"  {lift_summary}")
+                    if ac_summary:
+                        parts.append(f"  {ac_summary}")
+                    break
+    except Exception:
+        pass
+
+    # Recent context
     if context_md:
         recent = context_md[-CONTEXT_WINDOW_CHARS:]
         parts.append(f"\nRecent interactions:\n{recent}")

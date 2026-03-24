@@ -126,3 +126,24 @@ export async function savePlan(pitcherId, plan, initData = null) {
 export async function deactivatePlan(pitcherId, planId, initData = null) {
   return postApi(`/api/pitcher/${pitcherId}/plans/${planId}/deactivate`, {}, initData);
 }
+
+/**
+ * Activate a saved plan (set active=true).
+ */
+export async function activatePlan(pitcherId, planId, initData = null) {
+  return postApi(`/api/pitcher/${pitcherId}/plans/${planId}/activate`, {}, initData);
+}
+
+/**
+ * Generate a custom plan from user selections.
+ */
+export async function generatePlan(pitcherId, options, initData = null) {
+  return postApi(`/api/pitcher/${pitcherId}/generate-plan`, options, initData);
+}
+
+/**
+ * Send a chat message with plan context (for plan detail chat).
+ */
+export async function sendChatWithPlan(pitcherId, message, planContext, initData = null, history = []) {
+  return postApi(`/api/pitcher/${pitcherId}/chat`, { message, type: 'text', history, plan_context: planContext }, initData);
+}

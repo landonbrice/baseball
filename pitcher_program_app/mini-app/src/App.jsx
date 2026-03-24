@@ -9,6 +9,7 @@ import ExerciseLibrary from './pages/ExerciseLibrary';
 import LogHistory from './pages/LogHistory';
 import Profile from './pages/Profile';
 import Plans from './pages/Plans';
+import PlanDetail from './pages/PlanDetail';
 
 const AuthContext = createContext(null);
 export const useAuth = () => useContext(AuthContext);
@@ -68,6 +69,7 @@ export default function App() {
               <Route path="exercises" element={<ExerciseLibrary />} />
               <Route path="log" element={<LogHistory />} />
               <Route path="plans" element={<Plans />} />
+              <Route path="plans/:planId" element={<PlanDetail />} />
               <Route path="profile" element={<Profile />} />
             </Route>
           </Routes>

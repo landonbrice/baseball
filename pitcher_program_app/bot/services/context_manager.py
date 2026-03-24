@@ -88,7 +88,7 @@ def append_context(pitcher_id: str, update_type: str, content: str) -> None:
 
 
 def _trim_recent_interactions(path: str) -> None:
-    """Keep only the last 15 lines under ## Recent interactions."""
+    """Keep only the last 30 lines under ## Recent interactions."""
     with open(path, "r") as f:
         content = f.read()
 
@@ -98,7 +98,7 @@ def _trim_recent_interactions(path: str) -> None:
     parts = content.split("## Recent interactions")
     header = parts[0] + "## Recent interactions\n"
     interaction_lines = [l for l in parts[1].splitlines() if l.strip()]
-    trimmed = interaction_lines[-15:] if len(interaction_lines) > 15 else interaction_lines
+    trimmed = interaction_lines[-30:] if len(interaction_lines) > 30 else interaction_lines
 
     with open(path, "w") as f:
         f.write(header + "\n".join(trimmed) + "\n")

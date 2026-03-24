@@ -1,23 +1,27 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../App';
 import { useApi } from '../hooks/useApi';
 import { deactivatePlan } from '../api';
 import ChatBar from '../components/ChatBar';
+import PlanBuilder from '../components/PlanBuilder';
 
 export default function Plans() {
   const { pitcherId, initData } = useAuth();
+  const navigate = useNavigate();
   const { data, loading, error, refetch } = useApi(
     pitcherId ? `/api/pitcher/${pitcherId}/plans` : null,
     initData
   );
 
-  const [expandedId, setExpandedId] = useState(null);
+  const [showBuilder, setShowBuilder] = useState(false);
 
   const plans = data?.plans || [];
   const activePlans = plans.filter(p => p.active);
   const pastPlans = plans.filter(p => !p.active);
 
-  const handleDeactivate = async (planId) => {
+  const handleDeactivate = async (planId, e) => {
+    e.stopPropagation();
     try {
       await deactivatePlan(pitcherId, planId, initData);
       refetch();
@@ -38,13 +42,27 @@ export default function Plans() {
 
   return (
     <div className="p-4 space-y-4 pb-28">
-      <h1 className="text-lg font-bold text-text-primary">Saved Plans</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h1 className="text-lg font-bold text-text-primary" style={{ margin: 0 }}>Plans</h1>
+      </div>
+
+      {/* New plan button */}
+      <button
+        onClick={() => setShowBuilder(true)}
+        style={{
+          width: '100%', padding: 12, borderRadius: 12,
+          background: 'var(--color-maroon)', color: '#fff',
+          fontSize: 13, fontWeight: 500, border: 'none', cursor: 'pointer',
+        }}
+      >
+        + New plan
+      </button>
 
       {plans.length === 0 && (
         <div className="bg-bg-secondary rounded-xl p-4 text-center">
           <p className="text-sm text-text-muted">No saved plans yet.</p>
           <p className="text-xs text-text-muted mt-1">
-            Ask your bot for a program or progression — it'll offer to save it here.
+            Generate one above, or ask the bot for a program — it'll offer to save it here.
           </p>
         </div>
       )}
@@ -57,9 +75,8 @@ export default function Plans() {
               <PlanCard
                 key={plan.id}
                 plan={plan}
-                expanded={expandedId === plan.id}
-                onToggle={() => setExpandedId(prev => prev === plan.id ? null : plan.id)}
-                onDeactivate={() => handleDeactivate(plan.id)}
+                onClick={() => navigate(`/plans/${plan.id}`)}
+                onDeactivate={(e) => handleDeactivate(plan.id, e)}
               />
             ))}
           </div>
@@ -74,8 +91,7 @@ export default function Plans() {
               <PlanCard
                 key={plan.id}
                 plan={plan}
-                expanded={expandedId === plan.id}
-                onToggle={() => setExpandedId(prev => prev === plan.id ? null : plan.id)}
+                onClick={() => navigate(`/plans/${plan.id}`)}
               />
             ))}
           </div>
@@ -83,14 +99,28 @@ export default function Plans() {
       )}
 
       <ChatBar />
+
+      {showBuilder && <PlanBuilder onClose={() => { setShowBuilder(false); refetch(); }} />}
     </div>
   );
 }
 
-function PlanCard({ plan, expanded, onToggle, onDeactivate }) {
+function PlanCard({ plan, onClick, onDeactivate }) {
+  // Exercise preview
+  const exercises = plan.lifting?.exercises || [];
+  const previewNames = exercises.slice(0, 3).map(ex => ex.name || ex.exercise_id?.replace('ex_', ''));
+  const moreCount = Math.max(0, exercises.length - 3);
+  const previewText = previewNames.length
+    ? previewNames.join(', ') + (moreCount > 0 ? ` + ${moreCount} more` : '')
+    : null;
+
   return (
-    <div className="bg-bg-secondary rounded-xl overflow-hidden">
-      <button onClick={onToggle} className="w-full text-left px-4 py-3">
+    <div
+      onClick={onClick}
+      style={{ cursor: 'pointer' }}
+      className="bg-bg-secondary rounded-xl overflow-hidden"
+    >
+      <div className="w-full text-left px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-text-primary truncate">{plan.title}</p>
@@ -99,33 +129,22 @@ function PlanCard({ plan, expanded, onToggle, onDeactivate }) {
               {plan.expires_date && ` · expires ${plan.expires_date}`}
             </p>
           </div>
-          {plan.modifies_daily_plan && (
-            <span className="text-[9px] bg-accent-blue/10 text-accent-blue px-1.5 py-0.5 rounded-full ml-2 flex-shrink-0">
-              modifies plan
-            </span>
-          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+            {plan.modifies_daily_plan && (
+              <span className="text-[9px] bg-accent-blue/10 text-accent-blue px-1.5 py-0.5 rounded-full">
+                modifies plan
+              </span>
+            )}
+            <span style={{ color: 'var(--color-ink-faint)', fontSize: 14 }}>›</span>
+          </div>
         </div>
-        {!expanded && plan.summary && (
+        {previewText && (
+          <p style={{ fontSize: 11, color: 'var(--color-ink-muted)', marginTop: 4 }}>{previewText}</p>
+        )}
+        {!previewText && plan.summary && (
           <p className="text-xs text-text-secondary mt-1 line-clamp-2">{plan.summary}</p>
         )}
-      </button>
-
-      {expanded && (
-        <div className="px-4 pb-3 border-t border-bg-tertiary pt-2">
-          {plan.summary && (
-            <p className="text-xs text-text-secondary mb-2">{plan.summary}</p>
-          )}
-          <p className="text-xs text-text-primary whitespace-pre-wrap">{plan.content}</p>
-          {onDeactivate && plan.active && (
-            <button
-              onClick={(e) => { e.stopPropagation(); onDeactivate(); }}
-              className="mt-3 px-3 py-1 text-[10px] font-medium text-flag-red bg-flag-red/10 rounded-md"
-            >
-              Deactivate
-            </button>
-          )}
-        </div>
-      )}
+      </div>
     </div>
   );
 }
