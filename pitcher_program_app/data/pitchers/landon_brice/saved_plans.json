@@ -73,5 +73,16 @@
     "active": true,
     "id": "plan_001",
     "created_date": "2026-03-24"
+  },
+  {
+    "title": "2-Week Return to Mound Progression",
+    "category": "throwing_program",
+    "summary": "Gradual ramp-up after forearm/UCL tightness, focused on rebuilding FPM capacity.",
+    "content": "**Week 1: Rebuild Capacity**\n*   **Day 1-2:** Light catch only (60-90 ft). Heavy arm care protocol daily.\n*   **Day 3-4:** Flat ground throws (50-60% intent). Focus on feel, not velo. Add light plyos (pink/green balls).\n*   **Day 5-6:** Long toss progression (up to 120-150 ft, low arc). Medium arm care.\n*   **Day 7:** Active recovery. No throwing.\n\n**Week 2: Re-introduce Mound**\n*   **Day 8:** First bullpen (15-20 pitches, fastball only, 70-75% intent). Pre-throw with full plyo routine.\n*   **Day 9:** Recovery day. Light catch, heavy arm care.\n*   **Day 10:** Second bullpen (25-30 pitches, mix in 1-2 secondary pitches, 75-80% intent).\n*   **Day 11-12:** Recovery & maintenance throwing.\n*   **Day 13:** Simulated inning (15-20 game-like pitches).\n*   **Day 14:** Full recovery day.\n\n**Key Rules:**\n1.  Arm feel is the governor. Any day \u2264 3/10, regress to previous day's workload.\n2.  Non-negotiable: Heavy arm care on all non-throwing days, light arm care pre-throw.\n3.  Lifting supports: Lower body volume stays moderate, upper body remains scapular/FPM focused.",
+    "modifies_daily_plan": false,
+    "expires_date": "2026-04-07",
+    "id": "plan_002",
+    "active": true,
+    "created_date": "2026-03-24"
   }
 ]
