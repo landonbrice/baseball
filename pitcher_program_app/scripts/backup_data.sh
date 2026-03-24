@@ -28,7 +28,7 @@ for pitcher_dir in $(railway run -- ls data/pitchers/ 2>/dev/null); do
     echo "  Backing up: $pitcher_dir"
     mkdir -p "$DATA_DIR/$pitcher_dir"
 
-    for file in profile.json context.md daily_log.json; do
+    for file in profile.json context.md daily_log.json saved_plans.json; do
         railway run -- cat "data/pitchers/$pitcher_dir/$file" 2>/dev/null \
             > "$DATA_DIR/$pitcher_dir/$file" || true
     done

@@ -1,6 +1,6 @@
 {
   "pitcher_id": "landon_brice",
-  "telegram_id": null,
+  "telegram_id": 8763992478,
   "telegram_username": "landonbrice",
   "name": "Landon Brice",
   "role": "starter",
@@ -80,7 +80,7 @@
     "current_flag_level": "green",
     "last_outing_date": null,
     "last_outing_pitches": null,
-    "days_since_outing": 99,
+    "days_since_outing": 3,
     "active_modifications": [
       "elevated_fpm_volume"
     ]
