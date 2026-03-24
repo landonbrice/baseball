@@ -319,7 +319,9 @@
         "ex_hip_thrust": true,
         "ex_041": true,
         "ex_hip_circle": true,
-        "ex_wrist_roller": true
+        "ex_wrist_roller": true,
+        "ex_lateral_lunge": true,
+        "ex_med_ball_rotational_throw": true
       },
       "bot_observations": null
     }
