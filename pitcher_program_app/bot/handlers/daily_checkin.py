@@ -44,10 +44,11 @@ async def start_checkin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     context.user_data["pitcher_id"] = pitcher_id
     context.user_data["conversation_history"] = []
 
-    # Fix 1: Increment rotation day each check-in
-    increment_days_since_outing(pitcher_id)
-
+    # Increment rotation day (skip for return-to-throwing phase)
     profile = load_profile(pitcher_id)
+    if profile.get("active_flags", {}).get("phase") != "return_to_throwing":
+        increment_days_since_outing(pitcher_id)
+        profile = load_profile(pitcher_id)  # Reload after increment
     flags = profile.get("active_flags", {})
     days_since = flags.get("days_since_outing", 0)
     role = profile.get("role", "starter")

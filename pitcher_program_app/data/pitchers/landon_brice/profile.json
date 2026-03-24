@@ -80,7 +80,8 @@
     "current_flag_level": "green",
     "last_outing_date": null,
     "last_outing_pitches": null,
-    "days_since_outing": 3,
+    "days_since_outing": 0,
+    "phase": "return_to_throwing",
     "active_modifications": [
       "elevated_fpm_volume"
     ]

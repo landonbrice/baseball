@@ -182,8 +182,10 @@ async def post_checkin(pitcher_id: str, request: Request):
     if arm_feel is None or sleep_hours is None:
         raise HTTPException(status_code=400, detail="arm_feel and sleep_hours required")
 
-    # Increment rotation day (same as Telegram's start_checkin)
-    increment_days_since_outing(pitcher_id)
+    # Increment rotation day (skip for return-to-throwing phase)
+    profile_check = load_profile(pitcher_id)
+    if profile_check.get("active_flags", {}).get("phase") != "return_to_throwing":
+        increment_days_since_outing(pitcher_id)
 
     try:
         result = await process_checkin(
@@ -239,17 +241,9 @@ async def post_ask(pitcher_id: str, request: Request):
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Pitcher not found")
 
-    # Build context
-    context_md = load_context(pitcher_id)
-    flags = profile.get("active_flags", {})
-    pitcher_context = "\n".join([
-        f"Name: {profile.get('name', 'Unknown')}",
-        f"Role: {profile.get('role', 'starter')}",
-        f"Arm feel: {flags.get('current_arm_feel', 'N/A')}/5",
-        f"Days since outing: {flags.get('days_since_outing', 'N/A')}",
-    ])
-    if context_md:
-        pitcher_context += f"\n\nRecent context:\n{context_md[-CONTEXT_WINDOW_CHARS:]}"
+    # Build context (shared with Telegram Q&A)
+    from bot.handlers.qa import _build_qa_context
+    pitcher_context = _build_qa_context(profile, pitcher_id)
 
     # Include last generated plan for continuity
     recent = get_recent_entries(pitcher_id, n=1)
@@ -336,7 +330,9 @@ async def post_chat(pitcher_id: str, request: Request):
             if arm_feel is None or sleep_hours is None:
                 return {"messages": [{"type": "text", "content": "I need your arm feel and sleep hours to check in."}]}
 
-            increment_days_since_outing(pitcher_id)
+            profile_chk = load_profile(pitcher_id)
+            if profile_chk.get("active_flags", {}).get("phase") != "return_to_throwing":
+                increment_days_since_outing(pitcher_id)
             result = await process_checkin(pitcher_id, int(arm_feel), float(sleep_hours))
 
             messages = []
@@ -384,29 +380,11 @@ async def post_chat(pitcher_id: str, request: Request):
                 return {"messages": [{"type": "text", "content": "What's on your mind?"}]}
 
             profile = load_profile(pitcher_id)
-            context_md = load_context(pitcher_id)
             flags = profile.get("active_flags", {})
-            pitcher_context = "\n".join([
-                f"Name: {profile.get('name', 'Unknown')}",
-                f"Role: {profile.get('role', 'starter')}",
-                f"Arm feel: {flags.get('current_arm_feel', 'N/A')}/5",
-                f"Days since outing: {flags.get('days_since_outing', 'N/A')}",
-            ])
-            if context_md:
-                pitcher_context += f"""
 
-## Conversation history & known context
-Use the following to avoid repeating plans already given, reference prior conversations naturally, and apply persistent modifications proactively.
-
-{context_md[-CONTEXT_WINDOW_CHARS:]}"""
-
-            # Include active saved plans in context
-            active_plans = [p for p in load_saved_plans(pitcher_id) if p.get("active")]
-            if active_plans:
-                plans_summary = "\n".join(
-                    f"- {p['title']}: {p.get('summary', '')}" for p in active_plans
-                )
-                pitcher_context += f"\n\nActive saved plans:\n{plans_summary}"
+            # Build context (shared with Telegram Q&A — includes injuries, goals, phase, etc.)
+            from bot.handlers.qa import _build_qa_context
+            pitcher_context = _build_qa_context(profile, pitcher_id)
 
             # Include last generated plan for continuity
             recent = get_recent_entries(pitcher_id, n=1)
@@ -461,6 +439,10 @@ Use the following to avoid repeating plans already given, reference prior conver
                 clean_answer = _strip_json_block(answer, "program_modification")
                 messages.append({"type": "text", "content": clean_answer.strip()})
 
+                # Log if exercises array is missing from modification
+                if not mod_data.get("exercises"):
+                    logger.warning(f"program_modification missing exercises array — changes: {mod_data.get('changes', [])}")
+
                 # Auto-save as plan if requested
                 if mod_data.get("save_as_plan"):
                     plan_context = body.get("plan_context")
@@ -503,40 +485,53 @@ Use the following to avoid repeating plans already given, reference prior conver
                             "content": f"Saved as active plan: {saved['title']}. This will influence your daily programming.",
                         })
 
-                    # Regenerate today's plan (update existing entry, don't create new)
-                    try:
-                        from bot.services.plan_generator import generate_plan
-                        from bot.services.triage import triage
-                        from datetime import datetime as _dt
-
-                        profile = load_profile(pitcher_id)
-                        arm_feel = flags.get("current_arm_feel", 4)
-                        triage_result = triage(
-                            arm_feel=arm_feel, sleep_hours=7.0,
-                            pitcher_profile=profile, energy=3,
-                        )
-                        new_plan = await generate_plan(pitcher_id, triage_result)
-
-                        # Update today's existing log entry (no duplicate)
-                        today = _dt.now().strftime("%Y-%m-%d")
-                        log = load_log(pitcher_id)
-                        for entry in log["entries"]:
-                            if entry.get("date") == today:
-                                if new_plan.get("arm_care"):
-                                    entry["arm_care"] = new_plan["arm_care"]
-                                if new_plan.get("lifting"):
-                                    entry["lifting"] = new_plan["lifting"]
-                                if new_plan.get("throwing"):
-                                    entry["throwing"] = new_plan["throwing"]
-                                if new_plan.get("notes"):
-                                    entry["notes"] = new_plan["notes"]
-                                entry["morning_brief"] = new_plan.get("morning_brief")
-                                entry["plan_narrative"] = new_plan.get("narrative")
+                    # If mod has exercises, directly update today's log (fast path)
+                    if mod_data.get("exercises"):
+                        from datetime import datetime as _dt_fast
+                        today_fast = _dt_fast.now().strftime("%Y-%m-%d")
+                        log_fast = load_log(pitcher_id)
+                        for entry in log_fast["entries"]:
+                            if entry.get("date") == today_fast:
+                                if "lifting" not in entry:
+                                    entry["lifting"] = {}
+                                entry["lifting"]["exercises"] = mod_data["exercises"]
                                 break
-                        save_log(pitcher_id, log)
+                        save_log(pitcher_id, log_fast)
                         messages.append({"type": "status", "content": "plan_loaded"})
-                    except Exception as e:
-                        logger.warning(f"Failed to regenerate plan after modification: {e}")
+                    else:
+                        # No exercises — regenerate today's plan (slow path)
+                        try:
+                            from bot.services.plan_generator import generate_plan
+                            from bot.services.triage import triage
+                            from datetime import datetime as _dt
+
+                            profile = load_profile(pitcher_id)
+                            arm_feel = flags.get("current_arm_feel", 4)
+                            triage_result = triage(
+                                arm_feel=arm_feel, sleep_hours=7.0,
+                                pitcher_profile=profile, energy=3,
+                            )
+                            new_plan = await generate_plan(pitcher_id, triage_result)
+
+                            today = _dt.now().strftime("%Y-%m-%d")
+                            log = load_log(pitcher_id)
+                            for entry in log["entries"]:
+                                if entry.get("date") == today:
+                                    if new_plan.get("arm_care"):
+                                        entry["arm_care"] = new_plan["arm_care"]
+                                    if new_plan.get("lifting"):
+                                        entry["lifting"] = new_plan["lifting"]
+                                    if new_plan.get("throwing"):
+                                        entry["throwing"] = new_plan["throwing"]
+                                    if new_plan.get("notes"):
+                                        entry["notes"] = new_plan["notes"]
+                                    entry["morning_brief"] = new_plan.get("morning_brief")
+                                    entry["plan_narrative"] = new_plan.get("narrative")
+                                    break
+                            save_log(pitcher_id, log)
+                            messages.append({"type": "status", "content": "plan_loaded"})
+                        except Exception as e:
+                            logger.warning(f"Failed to regenerate plan after modification: {e}")
 
                 # Update active_modifications in profile
                 mod_title = mod_data.get("title", "")

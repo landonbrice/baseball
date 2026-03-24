@@ -90,6 +90,12 @@ Generate today's training plan as a JSON object. Return ONLY the JSON — no mar
 - Core/stability: ~3 min
 - 7 exercises with 2 supersets = ~42-48 min. That's the sweet spot.
 
+### Pitcher Goals & Phase
+- Read the pitcher's primary goal and current phase from context
+- If phase is "return to throwing": focus on arm care, progressive throwing, and lifting that supports shoulder/elbow health. Do NOT prescribe game-day or rotation-specific programming. Use the template as an exercise pool, not a rotation schedule.
+- If time_constraints are noted, adjust exercise count to fit
+- Match communication verbosity to detail_level preference
+
 ### Flag-Based Modifications
 - RED: Mobility and arm care only. No lifting. No high-intent throwing.
 - YELLOW: Reduce loads to RPE 6-7. Remove plyo throws. Keep FPM. Reduce compound intensity.

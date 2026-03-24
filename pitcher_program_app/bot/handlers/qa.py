@@ -94,9 +94,27 @@ def _build_qa_context(profile: dict, pitcher_id: str) -> str:
     parts = [
         f"Name: {profile.get('name', 'Unknown')}",
         f"Role: {profile.get('role', 'starter')}",
+        f"Throws: {profile.get('throws', 'unknown')}",
         f"Arm feel: {flags.get('current_arm_feel', 'N/A')}/5",
         f"Days since outing: {flags.get('days_since_outing', 'N/A')}",
     ]
+
+    # Injury history
+    for injury in profile.get("injury_history", []):
+        parts.append(f"Injury: {injury.get('area', '')} — {injury.get('description', '')}")
+
+    # Goals and preferences
+    goals = profile.get("goals", {})
+    if goals.get("primary"):
+        parts.append(f"Primary goal: {goals['primary']}")
+    detail = profile.get("preferences", {}).get("detail_level")
+    if detail:
+        parts.append(f"Communication preference: {detail}")
+
+    # Phase
+    phase = flags.get("phase")
+    if phase:
+        parts.append(f"Current phase: {phase.replace('_', ' ')}")
 
     if context_md:
         parts.append(f"""

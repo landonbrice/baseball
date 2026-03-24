@@ -53,6 +53,7 @@ async def generate_plan(pitcher_id: str, triage_result: dict) -> dict:
     recent_logs = get_recent_entries(pitcher_id, n=3)
     rotation_day = get_rotation_day(profile)
     rotation_length = profile.get("rotation_length", 7)
+    phase = profile.get("active_flags", {}).get("phase")
     # Clamp to valid rotation range
     if rotation_day >= rotation_length:
         rotation_day = rotation_day % rotation_length
@@ -62,6 +63,10 @@ async def generate_plan(pitcher_id: str, triage_result: dict) -> dict:
     rotation_template = load_template("starter_7day.json")
     day_key = f"day_{rotation_day}"
     today_template = rotation_template["days"].get(day_key, {})
+
+    # Return-to-throwing pitchers: use recovery/light template as base
+    if not today_template or phase == "return_to_throwing":
+        today_template = rotation_template["days"].get("day_1", today_template)
 
     # Arm care template
     arm_care_type = triage_result["protocol_adjustments"]["arm_care_template"]
@@ -370,6 +375,42 @@ def _build_pitcher_context(profile: dict, context_md: str) -> str:
     physical = profile.get("physical_profile", {})
     if physical.get("weight_lbs"):
         parts.append(f"Weight: {physical['weight_lbs']} lbs")
+
+    # Goals
+    goals = profile.get("goals", {})
+    if goals.get("primary"):
+        parts.append(f"Primary goal: {goals['primary']}")
+    if goals.get("secondary"):
+        parts.append(f"Secondary goal: {goals['secondary']}")
+
+    # Preferences
+    prefs = profile.get("preferences", {})
+    detail = prefs.get("detail_level")
+    if detail:
+        parts.append(f"Communication preference: {detail}")
+    if prefs.get("conservative_on_forearm_tightness"):
+        parts.append("NOTE: Pitcher is conservative on forearm tightness — flag early")
+
+    # Time constraints
+    if training.get("time_constraints") and training["time_constraints"] not in ("", "N/A", "No"):
+        parts.append(f"Time constraints: {training['time_constraints']}")
+    if training.get("lift_timing"):
+        parts.append(f"Usual lift timing: {training['lift_timing']}")
+
+    # Mechanical focus (context, not coaching)
+    mech = profile.get("pitching_profile", {}).get("mechanical_focus_areas", [])
+    if mech:
+        parts.append(f"Mechanical focus areas (context only): {', '.join(mech)}")
+
+    # Phase (return-to-throwing, etc.)
+    phase = flags.get("phase")
+    if phase:
+        parts.append(f"Current phase: {phase.replace('_', ' ')}")
+
+    # Sleep baseline
+    bio = profile.get("biometric_integration", {})
+    if bio.get("avg_sleep_hours"):
+        parts.append(f"Average sleep baseline: {bio['avg_sleep_hours']}h")
 
     # Active saved plans that modify daily programming
     try:
