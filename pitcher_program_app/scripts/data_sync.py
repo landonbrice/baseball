@@ -27,8 +27,9 @@ GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
 REPO_SLUG = os.environ.get("GITHUB_REPO", "landonbrice/baseball")
 BRANCH = "main"
 
-# Base path on Railway — files are at /app/pitcher_program_app/...
-# We need to convert absolute paths to repo-relative paths
+# On Railway, /app/ maps to pitcher_program_app/ in the repo
+# (Railway root directory is set to pitcher_program_app/)
+REPO_SUBDIR = os.environ.get("GITHUB_REPO_SUBDIR", "pitcher_program_app")
 _APP_ROOT = os.environ.get("RAILWAY_VOLUME_MOUNT_PATH", "/app")
 
 
@@ -46,15 +47,21 @@ def _is_railway() -> bool:
 def _abs_to_repo_path(filepath: str) -> str | None:
     """Convert an absolute filesystem path to a repo-relative path.
 
-    /app/pitcher_program_app/data/pitchers/landon_brice/profile.json
+    On Railway: /app/data/pitchers/landon_brice/profile.json
     → pitcher_program_app/data/pitchers/landon_brice/profile.json
+
+    Locally: /Users/.../pitcher_program_app/data/pitchers/.../profile.json
+    → pitcher_program_app/data/pitchers/.../profile.json
     """
-    # Try stripping /app/ prefix (Railway default)
+    # Try stripping /app/ prefix and prepending repo subdir (Railway)
     for prefix in ["/app/", _APP_ROOT.rstrip("/") + "/"]:
         if filepath.startswith(prefix):
-            return filepath[len(prefix):]
+            relative = filepath[len(prefix):]
+            if REPO_SUBDIR:
+                return f"{REPO_SUBDIR}/{relative}"
+            return relative
 
-    # Try finding pitcher_program_app in the path
+    # Local dev: find pitcher_program_app in the path
     marker = "pitcher_program_app/"
     idx = filepath.find(marker)
     if idx >= 0:
