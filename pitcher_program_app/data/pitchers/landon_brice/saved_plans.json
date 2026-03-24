@@ -75,14 +75,95 @@
     "created_date": "2026-03-24"
   },
   {
-    "title": "2-Week Return to Mound Progression",
+    "title": "Added lateral core and scapular stability work",
     "category": "throwing_program",
-    "summary": "Gradual ramp-up after forearm/UCL tightness, focused on rebuilding FPM capacity.",
+    "summary": "Added Side Plank and Modified Side Plank ER with Pressout + Ball Drop",
     "content": "**Week 1: Rebuild Capacity**\n*   **Day 1-2:** Light catch only (60-90 ft). Heavy arm care protocol daily.\n*   **Day 3-4:** Flat ground throws (50-60% intent). Focus on feel, not velo. Add light plyos (pink/green balls).\n*   **Day 5-6:** Long toss progression (up to 120-150 ft, low arc). Medium arm care.\n*   **Day 7:** Active recovery. No throwing.\n\n**Week 2: Re-introduce Mound**\n*   **Day 8:** First bullpen (15-20 pitches, fastball only, 70-75% intent). Pre-throw with full plyo routine.\n*   **Day 9:** Recovery day. Light catch, heavy arm care.\n*   **Day 10:** Second bullpen (25-30 pitches, mix in 1-2 secondary pitches, 75-80% intent).\n*   **Day 11-12:** Recovery & maintenance throwing.\n*   **Day 13:** Simulated inning (15-20 game-like pitches).\n*   **Day 14:** Full recovery day.\n\n**Key Rules:**\n1.  Arm feel is the governor. Any day \u2264 3/10, regress to previous day's workload.\n2.  Non-negotiable: Heavy arm care on all non-throwing days, light arm care pre-throw.\n3.  Lifting supports: Lower body volume stays moderate, upper body remains scapular/FPM focused.",
     "modifies_daily_plan": false,
     "expires_date": "2026-04-07",
     "id": "plan_002",
     "active": true,
-    "created_date": "2026-03-24"
+    "created_date": "2026-03-24",
+    "lifting": {
+      "exercises": [
+        {
+          "name": "Lateral Lunge",
+          "exercise_id": "ex_lateral_lunge",
+          "rx": "3x5/side @ 2-3 RIR",
+          "superset_group": null,
+          "note": null
+        },
+        {
+          "name": "Hip Circle",
+          "exercise_id": "ex_hip_circle",
+          "rx": "2x15",
+          "superset_group": null,
+          "note": null
+        },
+        {
+          "name": "Med Ball Rotational Throw",
+          "exercise_id": "ex_med_ball_rotational_throw",
+          "rx": "2x5/side",
+          "superset_group": null,
+          "note": null
+        },
+        {
+          "name": "Broad Jump",
+          "exercise_id": "ex_broad_jump",
+          "rx": "3x3",
+          "superset_group": null,
+          "note": null
+        },
+        {
+          "name": "Front Squat",
+          "exercise_id": "ex_front_squat",
+          "rx": "3x5 @ 2-3 RIR",
+          "superset_group": null,
+          "note": null
+        },
+        {
+          "name": "Romanian Deadlift",
+          "exercise_id": "ex_romanian_deadlift",
+          "rx": "3x8",
+          "superset_group": null,
+          "note": null
+        },
+        {
+          "name": "Nordic Curl",
+          "exercise_id": "ex_nordic_curl",
+          "rx": "3x5",
+          "superset_group": null,
+          "note": null
+        },
+        {
+          "name": "Hip Thrust",
+          "exercise_id": "ex_hip_thrust",
+          "rx": "3x10",
+          "superset_group": null,
+          "note": null
+        },
+        {
+          "name": "Wrist Roller",
+          "exercise_id": "ex_wrist_roller",
+          "rx": "3x up/down",
+          "superset_group": null,
+          "note": null
+        },
+        {
+          "name": "Side Plank",
+          "exercise_id": "ex_side_plank",
+          "rx": "2x30 sec/side",
+          "superset_group": null,
+          "note": null
+        },
+        {
+          "name": "Modified Side Plank ER with Pressout + Ball Drop",
+          "exercise_id": "ex_modified_side_plank_er_pressout_ball_drop",
+          "rx": "2x10 ER reps / 15 ball drops",
+          "superset_group": null,
+          "note": null
+        }
+      ]
+    }
   }
 ]
