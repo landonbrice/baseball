@@ -316,7 +316,9 @@
         "ex_front_squat": true,
         "ex_romanian_deadlift": true,
         "ex_nordic_curl": true,
-        "ex_hip_thrust": true
+        "ex_hip_thrust": true,
+        "ex_041": true,
+        "ex_hip_circle": true
       },
       "bot_observations": null
     }
