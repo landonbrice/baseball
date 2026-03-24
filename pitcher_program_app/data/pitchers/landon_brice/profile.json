@@ -76,7 +76,7 @@
     "conservative_on_forearm_tightness": true
   },
   "active_flags": {
-    "current_arm_feel": 4,
+    "current_arm_feel": 5,
     "current_flag_level": "green",
     "last_outing_date": null,
     "last_outing_pitches": null,
