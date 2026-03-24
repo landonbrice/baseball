@@ -83,7 +83,8 @@
     "days_since_outing": 0,
     "phase": "return_to_throwing",
     "active_modifications": [
-      "elevated_fpm_volume"
+      "elevated_fpm_volume",
+      "Swapped trap bar deadlift for front squat"
     ]
   }
 }
