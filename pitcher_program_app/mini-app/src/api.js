@@ -147,3 +147,10 @@ export async function generatePlan(pitcherId, options, initData = null) {
 export async function sendChatWithPlan(pitcherId, message, planContext, initData = null, history = []) {
   return postApi(`/api/pitcher/${pitcherId}/chat`, { message, type: 'text', history, plan_context: planContext }, initData);
 }
+
+/**
+ * Apply a saved plan to today's daily log entry.
+ */
+export async function applyPlanToToday(pitcherId, planId, initData = null) {
+  return postApi(`/api/pitcher/${pitcherId}/apply-plan/${planId}`, {}, initData);
+}

@@ -10,9 +10,10 @@ from fastapi import APIRouter, HTTPException, Query, Request
 
 from bot.config import KNOWLEDGE_DIR, CONTEXT_WINDOW_CHARS, DISABLE_AUTH
 from bot.services.context_manager import (
-    load_profile, load_log, load_context, update_exercise_completion,
+    load_profile, load_log, save_log, load_context, update_exercise_completion,
     append_context, increment_days_since_outing, load_saved_plans,
     save_plan, deactivate_plan, update_active_flags, get_recent_entries,
+    get_pitcher_dir,
 )
 from bot.services.progression import analyze_progression
 from bot.services.plan_generator import get_upcoming_days
@@ -476,8 +477,7 @@ Use the following to avoid repeating plans already given, reference prior conver
                                 p["summary"] = ", ".join(mod_data.get("changes", []))
                                 break
                         plans_path = os.path.join(
-                            __import__("bot.services.context_manager", fromlist=["get_pitcher_dir"]).get_pitcher_dir(pitcher_id),
-                            "saved_plans.json"
+                            get_pitcher_dir(pitcher_id), "saved_plans.json"
                         )
                         with open(plans_path, "w") as f:
                             json.dump(all_plans, f, indent=2)
@@ -501,17 +501,37 @@ Use the following to avoid repeating plans already given, reference prior conver
                             "content": f"Saved as active plan: {saved['title']}. This will influence your daily programming.",
                         })
 
-                    # Regenerate today's plan with the modification applied
+                    # Regenerate today's plan (update existing entry, don't create new)
                     try:
+                        from bot.services.plan_generator import generate_plan
+                        from bot.services.triage import triage
+                        from datetime import datetime as _dt
+
+                        profile = load_profile(pitcher_id)
                         arm_feel = flags.get("current_arm_feel", 4)
+                        triage_result = triage(
+                            arm_feel=arm_feel, sleep_hours=7.0,
+                            pitcher_profile=profile, energy=3,
+                        )
+                        new_plan = await generate_plan(pitcher_id, triage_result)
+
+                        # Update today's existing log entry (no duplicate)
+                        today = _dt.now().strftime("%Y-%m-%d")
                         log = load_log(pitcher_id)
-                        last_sleep = 7.0
-                        for entry in reversed(log.get("entries", [])):
-                            pt = entry.get("pre_training", {})
-                            if pt.get("sleep_hours"):
-                                last_sleep = pt["sleep_hours"]
+                        for entry in log["entries"]:
+                            if entry.get("date") == today:
+                                if new_plan.get("arm_care"):
+                                    entry["arm_care"] = new_plan["arm_care"]
+                                if new_plan.get("lifting"):
+                                    entry["lifting"] = new_plan["lifting"]
+                                if new_plan.get("throwing"):
+                                    entry["throwing"] = new_plan["throwing"]
+                                if new_plan.get("notes"):
+                                    entry["notes"] = new_plan["notes"]
+                                entry["morning_brief"] = new_plan.get("morning_brief")
+                                entry["plan_narrative"] = new_plan.get("narrative")
                                 break
-                        await process_checkin(pitcher_id, arm_feel, last_sleep)
+                        save_log(pitcher_id, log)
                         messages.append({"type": "status", "content": "plan_loaded"})
                     except Exception as e:
                         logger.warning(f"Failed to regenerate plan after modification: {e}")
@@ -587,11 +607,74 @@ async def post_activate_plan(pitcher_id: str, plan_id: str, request: Request):
             break
     if not found:
         raise HTTPException(status_code=404, detail="Plan not found")
-    from bot.services.context_manager import get_pitcher_dir
     plans_path = os.path.join(get_pitcher_dir(pitcher_id), "saved_plans.json")
     with open(plans_path, "w") as f:
         json.dump(plans, f, indent=2)
     return {"status": "ok"}
+
+
+@router.post("/pitcher/{pitcher_id}/apply-plan/{plan_id}")
+async def apply_plan_to_today(pitcher_id: str, plan_id: str, request: Request):
+    """Apply a saved plan's exercises to today's daily log entry."""
+    _require_pitcher_auth(request, pitcher_id)
+    from datetime import datetime as _dt
+
+    # Load the plan
+    plans = load_saved_plans(pitcher_id)
+    plan = None
+    for p in plans:
+        if p["id"] == plan_id:
+            plan = p
+            break
+    if not plan:
+        raise HTTPException(status_code=404, detail="Plan not found")
+
+    # Activate it and mark as modifies_daily_plan
+    plan["active"] = True
+    plan["modifies_daily_plan"] = True
+    plans_path = os.path.join(get_pitcher_dir(pitcher_id), "saved_plans.json")
+    with open(plans_path, "w") as f:
+        json.dump(plans, f, indent=2)
+
+    # Update today's log entry with the plan's exercises
+    today = _dt.now().strftime("%Y-%m-%d")
+    log = load_log(pitcher_id)
+
+    today_entry = None
+    for entry in log["entries"]:
+        if entry.get("date") == today:
+            today_entry = entry
+            break
+
+    if today_entry is None:
+        today_entry = {
+            "date": today,
+            "rotation_day": load_profile(pitcher_id).get("active_flags", {}).get("days_since_outing", 0),
+            "pre_training": None,
+            "plan_generated": {},
+            "completed_exercises": {},
+        }
+        log["entries"].append(today_entry)
+
+    if plan.get("arm_care"):
+        today_entry["arm_care"] = plan["arm_care"]
+    if plan.get("lifting"):
+        today_entry["lifting"] = plan["lifting"]
+    if plan.get("throwing"):
+        today_entry["throwing"] = plan["throwing"]
+    if plan.get("notes"):
+        today_entry["notes"] = plan["notes"]
+    today_entry["morning_brief"] = f"Applied plan: {plan.get('title', 'Custom plan')}"
+    today_entry["plan_generated"] = {
+        "template_day": f"plan_{plan_id}",
+        "exercise_blocks": [],
+        "modifications_applied": [f"Applied plan: {plan.get('title', '')}"],
+    }
+
+    save_log(pitcher_id, log)
+    append_context(pitcher_id, "plan_applied", f"Applied '{plan.get('title', '')}' to today's training")
+
+    return {"status": "ok", "applied_plan": plan.get("title", "")}
 
 
 @router.post("/pitcher/{pitcher_id}/generate-plan")

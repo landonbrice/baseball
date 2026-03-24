@@ -26,8 +26,13 @@ async def process_checkin(pitcher_id: str, arm_feel: int, sleep_hours: float, en
     weekly_summary, plan_narrative, exercise_blocks, throwing_plan,
     estimated_duration_min, modifications_applied, template_day, rotation_day.
     """
-    # Load profile and run triage
+    # Load profile and clamp unreasonable days_since_outing
     profile = load_profile(pitcher_id)
+    rotation_length = profile.get("rotation_length", 7)
+    if profile.get("active_flags", {}).get("days_since_outing", 0) > rotation_length * 2:
+        update_active_flags(pitcher_id, {"days_since_outing": rotation_length - 1})
+        profile = load_profile(pitcher_id)
+
     triage_result = triage(
         arm_feel=arm_feel,
         sleep_hours=sleep_hours,

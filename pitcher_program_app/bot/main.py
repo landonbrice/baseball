@@ -182,6 +182,42 @@ async def _send_post_outing_reminder(context) -> None:
         )
 
 
+ADMIN_TELEGRAM_IDS = [8763992478]  # Landon
+
+
+async def backup_command(update: Update, context) -> None:
+    """Handle /backup — admin only. Show data status."""
+    if update.effective_user.id not in ADMIN_TELEGRAM_IDS:
+        await update.message.reply_text("Admin only.")
+        return
+
+    pitcher_count = 0
+    total_entries = 0
+    pitchers_with_id = 0
+    for entry in os.listdir(PITCHERS_DIR):
+        profile_path = os.path.join(PITCHERS_DIR, entry, "profile.json")
+        if not os.path.exists(profile_path):
+            continue
+        pitcher_count += 1
+        import json as _json
+        with open(profile_path) as f:
+            profile = _json.load(f)
+        if profile.get("telegram_id"):
+            pitchers_with_id += 1
+        log_path = os.path.join(PITCHERS_DIR, entry, "daily_log.json")
+        if os.path.exists(log_path):
+            with open(log_path) as f:
+                log = _json.load(f)
+            total_entries += len(log.get("entries", []))
+
+    await update.message.reply_text(
+        f"Data status:\n"
+        f"  Pitchers: {pitcher_count} ({pitchers_with_id} with telegram_id)\n"
+        f"  Total log entries: {total_entries}\n\n"
+        f"Run 'bash scripts/backup_data.sh' from local to pull this data."
+    )
+
+
 async def dashboard(update: Update, context) -> None:
     """Handle /dashboard command — open the Mini App."""
     if not MINI_APP_URL:
@@ -422,6 +458,7 @@ def main() -> None:
     application.add_handler(CommandHandler("setday", setday))
     application.add_handler(CommandHandler("gamestart", gamestart))
     application.add_handler(CommandHandler("dashboard", dashboard))
+    application.add_handler(CommandHandler("backup", backup_command))
 
     # Fix 3: Plan completion callbacks (outside conversation handler)
     application.add_handler(CallbackQueryHandler(

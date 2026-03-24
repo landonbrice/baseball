@@ -52,6 +52,10 @@ async def generate_plan(pitcher_id: str, triage_result: dict) -> dict:
     context = load_context(pitcher_id)
     recent_logs = get_recent_entries(pitcher_id, n=3)
     rotation_day = get_rotation_day(profile)
+    rotation_length = profile.get("rotation_length", 7)
+    # Clamp to valid rotation range
+    if rotation_day >= rotation_length:
+        rotation_day = rotation_day % rotation_length
     flag_level = triage_result["flag_level"]
 
     # Load templates

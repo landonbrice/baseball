@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import { useAuth } from '../App';
 import { useApi } from '../hooks/useApi';
-import { sendChatWithPlan, deactivatePlan, activatePlan } from '../api';
+import { sendChatWithPlan, deactivatePlan, activatePlan, applyPlanToToday } from '../api';
 import DailyCard from '../components/DailyCard';
 
 export default function PlanDetail() {
@@ -88,6 +88,15 @@ export default function PlanDetail() {
     } catch { /* silent */ }
   };
 
+  const handleAddToToday = async () => {
+    try {
+      await applyPlanToToday(pitcherId, planId, initData);
+      navigate('/');
+    } catch (e) {
+      console.error('Failed to apply plan:', e);
+    }
+  };
+
   const handleSend = async () => {
     const text = input.trim();
     if (!text || chatLoading) return;
@@ -130,13 +139,23 @@ export default function PlanDetail() {
             {plan.category?.replace(/_/g, ' ')} · {plan.created_date}
           </p>
         </div>
-        <button onClick={handleToggleActive} style={{
-          padding: '4px 10px', fontSize: 10, fontWeight: 600, borderRadius: 8, border: 'none', cursor: 'pointer',
-          background: plan.active ? 'rgba(239,68,68,0.1)' : 'rgba(34,197,94,0.1)',
-          color: plan.active ? 'var(--color-flag-red)' : 'var(--color-flag-green)',
-        }}>
-          {plan.active ? 'Deactivate' : 'Activate'}
-        </button>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {hasExercises && (
+            <button onClick={handleAddToToday} style={{
+              padding: '4px 10px', fontSize: 10, fontWeight: 600, borderRadius: 8, border: 'none', cursor: 'pointer',
+              background: 'rgba(34,197,94,0.1)', color: 'var(--color-flag-green)',
+            }}>
+              Add to today
+            </button>
+          )}
+          <button onClick={handleToggleActive} style={{
+            padding: '4px 10px', fontSize: 10, fontWeight: 600, borderRadius: 8, border: 'none', cursor: 'pointer',
+            background: plan.active ? 'rgba(239,68,68,0.1)' : 'rgba(34,197,94,0.1)',
+            color: plan.active ? 'var(--color-flag-red)' : 'var(--color-flag-green)',
+          }}>
+            {plan.active ? 'Deactivate' : 'Activate'}
+          </button>
+        </div>
       </div>
 
       {/* Status badges */}
