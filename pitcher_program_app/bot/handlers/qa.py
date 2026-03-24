@@ -138,4 +138,17 @@ Use the following to avoid repeating plans already given, reference prior conver
             exercise_names = [ex.get("name", "") for ex in lifting["exercises"]]
             parts.append(f"\nLast prescribed lift ({last.get('date', '?')}, Day {last.get('rotation_day', '?')}): {', '.join(exercise_names)}")
 
+    # Long-term memory (weekly summaries)
+    from bot.services.context_manager import load_profile as _load_profile
+    try:
+        full_profile = _load_profile(pitcher_id)
+        summaries = full_profile.get("weekly_summaries", [])
+        if summaries:
+            recent_summaries = summaries[-14:]
+            parts.append("\nPrevious session summaries:")
+            for s in recent_summaries:
+                parts.append(f"  {s}")
+    except Exception:
+        pass
+
     return "\n".join(parts)

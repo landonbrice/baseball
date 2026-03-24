@@ -131,5 +131,9 @@ Use this research to inform your exercise selection, protocol decisions, and not
 ## Today's Templates
 {templates}
 
+## Pitcher's Check-In Input
+Incorporate these preferences into the plan. The arm report is in the pitcher's own words — use it for context on how they're feeling.
+{checkin_inputs}
+
 ## Recent Logs
 {recent_logs}

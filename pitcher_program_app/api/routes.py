@@ -323,17 +323,39 @@ async def post_chat(pitcher_id: str, request: Request):
 
     try:
         if msg_type == "checkin":
-            # msg is { arm_feel, sleep_hours, soreness? }
+            # msg is { arm_report?, arm_feel?, sleep_hours?, lift_preference?, throw_intent?, next_pitch_days? }
             data = msg if isinstance(msg, dict) else {}
             arm_feel = data.get("arm_feel")
-            sleep_hours = data.get("sleep_hours")
-            if arm_feel is None or sleep_hours is None:
-                return {"messages": [{"type": "text", "content": "I need your arm feel and sleep hours to check in."}]}
+            arm_report = data.get("arm_report", "")
+            lift_preference = data.get("lift_preference", "")
+            throw_intent = data.get("throw_intent", "")
+            next_pitch_days = data.get("next_pitch_days")
 
+            # Classify arm report if no numeric arm_feel provided
+            if arm_feel is None and arm_report:
+                from bot.handlers.daily_checkin import _classify_arm_report
+                arm_feel, _ = await _classify_arm_report(arm_report)
+            elif arm_feel is None:
+                arm_feel = 4  # default
+
+            # Default sleep from profile baseline
             profile_chk = load_profile(pitcher_id)
+            sleep_hours = data.get("sleep_hours") or profile_chk.get("biometric_integration", {}).get("avg_sleep_hours") or 7.0
+
             if profile_chk.get("active_flags", {}).get("phase") != "return_to_throwing":
                 increment_days_since_outing(pitcher_id)
-            result = await process_checkin(pitcher_id, int(arm_feel), float(sleep_hours))
+
+            # Update schedule if next_pitch_days specified
+            if next_pitch_days and int(next_pitch_days) > 0:
+                rotation = profile_chk.get("rotation_length", 7)
+                new_day = max(0, rotation - int(next_pitch_days))
+                update_active_flags(pitcher_id, {"days_since_outing": new_day, "next_outing_days": int(next_pitch_days)})
+
+            result = await process_checkin(
+                pitcher_id, int(arm_feel), float(sleep_hours),
+                arm_report=arm_report, lift_preference=lift_preference,
+                throw_intent=throw_intent, next_pitch_days=next_pitch_days,
+            )
 
             messages = []
             flag = result["flag_level"].upper()

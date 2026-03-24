@@ -23,6 +23,6 @@ PITCHERS_DIR = os.environ.get(
 TEMPLATES_DIR = os.path.join(DATA_DIR, "templates")
 KNOWLEDGE_DIR = os.path.join(DATA_DIR, "knowledge")
 
-CONTEXT_WINDOW_CHARS = 3000  # ~400 words, enough for 5-7 meaningful exchanges
+CONTEXT_WINDOW_CHARS = 12000  # ~3000 tokens, full context.md untruncated for 12 pitchers
 
 DISABLE_AUTH = os.getenv("DISABLE_AUTH", "").lower() == "true"

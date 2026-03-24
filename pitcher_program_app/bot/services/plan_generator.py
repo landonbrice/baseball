@@ -37,7 +37,7 @@ def get_rotation_day(pitcher_profile: dict) -> int:
     return pitcher_profile.get("active_flags", {}).get("days_since_outing", 0)
 
 
-async def generate_plan(pitcher_id: str, triage_result: dict) -> dict:
+async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: dict = None) -> dict:
     """Generate today's training protocol for a pitcher.
 
     The LLM returns structured JSON with arm_care, lifting, throwing,
@@ -51,7 +51,7 @@ async def generate_plan(pitcher_id: str, triage_result: dict) -> dict:
     """
     profile = load_profile(pitcher_id)
     context = load_context(pitcher_id)
-    recent_logs = get_recent_entries(pitcher_id, n=3)
+    recent_logs = get_recent_entries(pitcher_id, n=7)
     rotation_day = get_rotation_day(profile)
     rotation_length = profile.get("rotation_length", 7)
     phase = profile.get("active_flags", {}).get("phase")
@@ -106,6 +106,15 @@ async def generate_plan(pitcher_id: str, triage_result: dict) -> dict:
     user_prompt = user_prompt.replace("{triage_result}", json.dumps(triage_result, indent=2))
     user_prompt = user_prompt.replace("{templates}", templates_context)
     user_prompt = user_prompt.replace("{recent_logs}", json.dumps(recent_logs, indent=2))
+
+    # Inject check-in inputs if available
+    if checkin_inputs:
+        inputs_text = "\n".join(
+            f"{k.replace('_', ' ').title()}: {v}" for k, v in checkin_inputs.items() if v
+        )
+        user_prompt = user_prompt.replace("{checkin_inputs}", inputs_text)
+    else:
+        user_prompt = user_prompt.replace("{checkin_inputs}", "No check-in inputs provided.")
 
     raw = await call_llm(system_prompt, user_prompt, max_tokens=2000)
 
@@ -432,35 +441,50 @@ def _build_pitcher_context(profile: dict, context_md: str) -> str:
     except Exception:
         pass  # Don't break plan generation if plans file missing
 
-    # Yesterday's plan (prevents re-prescription)
+    # Recent training history (7-day rolling window)
     try:
         pitcher_id = profile.get("pitcher_id", "")
         if pitcher_id:
-            recent_entries = get_recent_entries(pitcher_id, n=2)
-            for entry in reversed(recent_entries):
-                lifting = entry.get("lifting", {})
-                arm_care = entry.get("arm_care", {})
+            recent_entries = get_recent_entries(pitcher_id, n=7)
+            if recent_entries:
+                parts.append("\nRecent training (7-day window):")
+                for entry in recent_entries:
+                    pt = entry.get("pre_training", {})
+                    date = entry.get("date", "?")
+                    arm = pt.get("arm_feel", "?")
+                    flag = pt.get("flag_level", "?")
 
-                lift_summary = ""
-                if lifting and lifting.get("exercises"):
-                    names = [ex.get("name", "") for ex in lifting["exercises"][:6]]
-                    lift_summary = f"Lifting: {', '.join(names)}"
+                    lifting = entry.get("lifting", {})
+                    lift_str = ""
+                    if lifting and lifting.get("exercises"):
+                        names = [ex.get("name", "") for ex in lifting["exercises"][:4]]
+                        lift_str = f" Lift: {', '.join(names)}"
 
-                ac_summary = ""
-                if arm_care and arm_care.get("exercises"):
-                    names = [ex.get("name", "") for ex in arm_care["exercises"][:4]]
-                    ac_summary = f"Arm care: {', '.join(names)}"
+                    throw_str = ""
+                    throwing = entry.get("throwing", {})
+                    if throwing and throwing.get("type", "none") != "none":
+                        throw_str = f" Throw: {throwing['type']}"
 
-                if lift_summary or ac_summary:
-                    rotation_day = entry.get("rotation_day", "?")
-                    parts.append(f"\nPrevious plan ({entry.get('date', '?')}, Day {rotation_day}):")
-                    if lift_summary:
-                        parts.append(f"  {lift_summary}")
-                    if ac_summary:
-                        parts.append(f"  {ac_summary}")
-                    break
+                    skip_str = ""
+                    if entry.get("skip_notes"):
+                        skip_str = f" [Skipped: {entry['skip_notes']}]"
+
+                    outing_str = ""
+                    if entry.get("outing"):
+                        o = entry["outing"]
+                        outing_str = f" OUTING: {o.get('pitch_count','?')}pc"
+
+                    parts.append(f"  {date}: Arm {arm}/5 {flag.upper()}.{lift_str}{throw_str}{skip_str}{outing_str}")
     except Exception:
         pass
+
+    # Long-term memory (weekly summaries)
+    summaries = profile.get("weekly_summaries", [])
+    if summaries:
+        recent_summaries = summaries[-14:]
+        parts.append("\nPrevious session summaries:")
+        for s in recent_summaries:
+            parts.append(f"  {s}")
 
     # Recent context
     if context_md:

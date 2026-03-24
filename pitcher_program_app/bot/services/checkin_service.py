@@ -17,7 +17,11 @@ from bot.services.context_manager import (
 logger = logging.getLogger(__name__)
 
 
-async def process_checkin(pitcher_id: str, arm_feel: int, sleep_hours: float, energy: int = 3) -> dict:
+async def process_checkin(
+    pitcher_id: str, arm_feel: int, sleep_hours: float, energy: int = 3,
+    arm_report: str = "", lift_preference: str = "",
+    throw_intent: str = "", next_pitch_days: int | None = None,
+) -> dict:
     """Run triage, generate plan, log entry, and return structured results.
 
     Does NOT increment days_since_outing — callers handle that separately.
@@ -65,8 +69,17 @@ async def process_checkin(pitcher_id: str, arm_feel: int, sleep_hours: float, en
     if progression["flags"]:
         triage_result.setdefault("progression_flags", []).extend(progression["flags"])
 
-    # Generate plan
-    plan_result = await generate_plan(pitcher_id, triage_result)
+    # Generate plan with check-in inputs
+    checkin_inputs = {}
+    if arm_report:
+        checkin_inputs["arm_report"] = arm_report
+    if lift_preference:
+        checkin_inputs["lift_preference"] = lift_preference
+    if throw_intent:
+        checkin_inputs["throw_intent"] = throw_intent
+    if next_pitch_days is not None:
+        checkin_inputs["next_pitch_days"] = f"{next_pitch_days} days"
+    plan_result = await generate_plan(pitcher_id, triage_result, checkin_inputs=checkin_inputs)
 
     # Build and append log entry
     rotation_day = profile.get("active_flags", {}).get("days_since_outing", 0)
@@ -104,12 +117,24 @@ async def process_checkin(pitcher_id: str, arm_feel: int, sleep_hours: float, en
     }
     append_log_entry(pitcher_id, entry)
 
-    # Update context
+    # Write rich session note to context
     flag = triage_result["flag_level"].upper()
-    append_context(
-        pitcher_id, "status",
-        f"Check-in: arm_feel={arm_feel}, sleep={sleep_hours}h, energy={energy}, flag={flag}"
-    )
+    lifting_summary = ""
+    if plan_result and plan_result.get("lifting", {}).get("exercises"):
+        names = [ex.get("name", "") for ex in plan_result["lifting"]["exercises"][:5]]
+        lifting_summary = f"Lift: {', '.join(names)}"
+    throwing_summary = ""
+    if plan_result and plan_result.get("throwing", {}).get("type", "none") != "none":
+        throwing_summary = f"Throwing: {plan_result['throwing'].get('type', '')}"
+    mods = plan_result.get("modifications_applied", []) if plan_result else []
+    mods_str = f" Mods: {', '.join(mods[:3])}" if mods else ""
+
+    session_note = f"Arm {arm_feel}/5, sleep {sleep_hours}h, {flag} flag. {lifting_summary}. {throwing_summary}.{mods_str}".strip()
+    if arm_report:
+        session_note = f'Arm: "{arm_report}" ({arm_feel}/5). {session_note}'
+    if lift_preference:
+        session_note += f" Requested: {lift_preference}."
+    append_context(pitcher_id, "session", session_note)
 
     return {
         "flag_level": triage_result["flag_level"],

@@ -93,31 +93,46 @@ export default function ChatBar({ onRefresh, todayEntry, profile }) {
     }
   };
 
-  // ── Check-in flow ──
+  // ── Check-in flow (guided open) ──
   const startCheckin = () => {
     setExpanded(true);
-    setCheckinFlow({ step: 'arm_feel' });
-    setMessages(prev => [...prev, { role: 'bot', type: 'text', content: "How's the arm?" }]);
+    setCheckinFlow({ step: 'arm_report' });
+    const firstName = profile?.name?.split(' ')[0] || 'there';
+    setMessages(prev => [...prev, { role: 'bot', type: 'text', content: `Morning ${firstName}. How's the arm feeling?` }]);
   };
 
-  const handleArmFeel = (feel) => {
-    setMessages(prev => [...prev, { role: 'user', type: 'text', content: `${feel}` }]);
-    setCheckinFlow({ step: 'sleep', arm_feel: feel });
-    setMessages(prev => [...prev, { role: 'bot', type: 'text', content: 'Sleep?' }]);
+  const handleArmReport = (text) => {
+    setMessages(prev => [...prev, { role: 'user', type: 'text', content: text }]);
+    setCheckinFlow({ step: 'lift_pref', arm_report: text });
+    setMessages(prev => [...prev, { role: 'bot', type: 'text', content: 'What are you thinking for a lift today?' }]);
   };
 
-  const handleSleep = async (hours, label) => {
+  const handleLiftPref = (pref, label) => {
+    setMessages(prev => [...prev, { role: 'user', type: 'text', content: label }]);
+    setCheckinFlow(prev => ({ ...prev, step: 'throw_intent', lift_preference: pref }));
+    setMessages(prev => [...prev, { role: 'bot', type: 'text', content: 'Throwing today?' }]);
+  };
+
+  const handleThrowIntent = (intent, label) => {
+    setMessages(prev => [...prev, { role: 'user', type: 'text', content: label }]);
+    setCheckinFlow(prev => ({ ...prev, step: 'schedule', throw_intent: intent }));
+    setMessages(prev => [...prev, { role: 'bot', type: 'text', content: 'When do you pitch next?' }]);
+  };
+
+  const handleSchedule = async (days, label) => {
     setMessages(prev => [...prev, { role: 'user', type: 'text', content: label }]);
     setCheckinFlow(null);
     setLoading(true);
-    setMessages(prev => [...prev, { role: 'bot', type: 'text', content: 'Running triage and building your plan...' }]);
+    setMessages(prev => [...prev, { role: 'bot', type: 'text', content: 'Building your plan...' }]);
     try {
       const res = await sendChat(pitcherId, {
-        arm_feel: checkinFlow.arm_feel,
-        sleep_hours: hours,
+        arm_report: checkinFlow.arm_report,
+        arm_feel: null, // backend classifies from arm_report text
+        lift_preference: checkinFlow.lift_preference,
+        throw_intent: checkinFlow.throw_intent,
+        next_pitch_days: days,
       }, 'checkin', initData);
       setMessages(prev => {
-        // Remove the "building plan" message
         const without = prev.slice(0, -1);
         return [...without, ...processResponse(res)];
       });
@@ -208,24 +223,48 @@ export default function ChatBar({ onRefresh, todayEntry, profile }) {
 
   // ── Determine what interactive buttons to show ──
   const renderButtons = () => {
-    if (checkinFlow?.step === 'arm_feel') {
+    if (checkinFlow?.step === 'arm_report') {
+      // No buttons — text input is active, user types freely
+      return null;
+    }
+    if (checkinFlow?.step === 'lift_pref') {
       return (
-        <div style={{ display: 'flex', gap: 6, padding: '0 12px 8px' }}>
-          {[1, 2, 3, 4, 5].map(n => (
-            <button key={n} onClick={() => handleArmFeel(n)}
-              style={{ flex: 1, padding: '8px 0', fontSize: 13, fontWeight: 600, background: 'var(--color-cream-bg)', color: 'var(--color-ink-primary)', borderRadius: 8, border: '0.5px solid var(--color-cream-border)', cursor: 'pointer' }}>
-              {n}
+        <div style={{ display: 'flex', gap: 6, padding: '0 12px 8px', flexWrap: 'wrap' }}>
+          {[
+            { l: 'Upper', v: 'upper' }, { l: 'Lower', v: 'lower' }, { l: 'Full body', v: 'full' },
+            { l: 'Rest day', v: 'rest' }, { l: 'Your call', v: 'auto' },
+          ].map(o => (
+            <button key={o.v} onClick={() => handleLiftPref(o.v, o.l)}
+              style={{ padding: '6px 12px', fontSize: 11, fontWeight: 500, background: 'var(--color-cream-bg)', color: 'var(--color-ink-primary)', borderRadius: 8, border: '0.5px solid var(--color-cream-border)', cursor: 'pointer' }}>
+              {o.l}
             </button>
           ))}
         </div>
       );
     }
-    if (checkinFlow?.step === 'sleep') {
+    if (checkinFlow?.step === 'throw_intent') {
       return (
-        <div style={{ display: 'flex', gap: 6, padding: '0 12px 8px' }}>
-          {[{ l: '<6h', v: 5.5 }, { l: '6-7h', v: 6.5 }, { l: '7-8h', v: 7.5 }, { l: '8+h', v: 8.5 }].map(o => (
-            <button key={o.v} onClick={() => handleSleep(o.v, o.l)}
-              style={{ flex: 1, padding: '8px 0', fontSize: 11, fontWeight: 500, background: 'var(--color-cream-bg)', color: 'var(--color-ink-primary)', borderRadius: 8, border: '0.5px solid var(--color-cream-border)', cursor: 'pointer' }}>
+        <div style={{ display: 'flex', gap: 6, padding: '0 12px 8px', flexWrap: 'wrap' }}>
+          {[
+            { l: 'Flat ground', v: 'flat_ground' }, { l: 'Bullpen', v: 'bullpen' },
+            { l: 'Long toss', v: 'long_toss' }, { l: 'Light catch', v: 'light_catch' }, { l: 'No', v: 'none' },
+          ].map(o => (
+            <button key={o.v} onClick={() => handleThrowIntent(o.v, o.l)}
+              style={{ padding: '6px 12px', fontSize: 11, fontWeight: 500, background: 'var(--color-cream-bg)', color: 'var(--color-ink-primary)', borderRadius: 8, border: '0.5px solid var(--color-cream-border)', cursor: 'pointer' }}>
+              {o.l}
+            </button>
+          ))}
+        </div>
+      );
+    }
+    if (checkinFlow?.step === 'schedule') {
+      return (
+        <div style={{ display: 'flex', gap: 6, padding: '0 12px 8px', flexWrap: 'wrap' }}>
+          {[
+            { l: 'Tomorrow', d: 1 }, { l: '2 days', d: 2 }, { l: '3+ days', d: 3 }, { l: 'Not sure', d: 0 },
+          ].map(o => (
+            <button key={o.d} onClick={() => handleSchedule(o.d, o.l)}
+              style={{ padding: '6px 12px', fontSize: 11, fontWeight: 500, background: 'var(--color-cream-bg)', color: 'var(--color-ink-primary)', borderRadius: 8, border: '0.5px solid var(--color-cream-border)', cursor: 'pointer' }}>
               {o.l}
             </button>
           ))}
@@ -265,9 +304,13 @@ export default function ChatBar({ onRefresh, todayEntry, profile }) {
     return null;
   };
 
-  // Whether the text input should submit to the outing pitch count handler
-  const inputSubmit = outingFlow?.step === 'pitch_count' ? handlePitchCount : handleSend;
-  const inputPlaceholder = outingFlow?.step === 'pitch_count'
+  // Route text input to the right handler
+  const inputSubmit = checkinFlow?.step === 'arm_report'
+    ? () => { if (input.trim()) { handleArmReport(input.trim()); setInput(''); } }
+    : outingFlow?.step === 'pitch_count' ? handlePitchCount : handleSend;
+  const inputPlaceholder = checkinFlow?.step === 'arm_report'
+    ? 'e.g. forearm\'s a little tight...'
+    : outingFlow?.step === 'pitch_count'
     ? 'Pitch count...'
     : 'Ask about today\'s plan...';
 
@@ -429,16 +472,16 @@ export default function ChatBar({ onRefresh, todayEntry, profile }) {
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && inputSubmit()}
-          disabled={!!checkinFlow || nextOutingFlow}
+          disabled={(!!checkinFlow && checkinFlow.step !== 'arm_report') || nextOutingFlow}
           style={{
             flex: 1, background: 'var(--color-cream-bg)', color: 'var(--color-ink-primary)',
             fontSize: 13, borderRadius: 20, padding: '8px 16px',
             border: '0.5px solid var(--color-cream-border)', outline: 'none',
-            opacity: (!!checkinFlow || nextOutingFlow) ? 0.5 : 1,
+            opacity: ((!!checkinFlow && checkinFlow.step !== 'arm_report') || nextOutingFlow) ? 0.5 : 1,
           }}
         />
         <button onClick={inputSubmit}
-          disabled={!input.trim() || loading || !!checkinFlow || nextOutingFlow}
+          disabled={!input.trim() || loading || (!!checkinFlow && checkinFlow.step !== 'arm_report') || nextOutingFlow}
           style={{
             width: 34, height: 34, borderRadius: '50%',
             background: (!input.trim() || loading || !!checkinFlow || nextOutingFlow) ? 'var(--color-cream-subtle)' : 'var(--color-maroon)',

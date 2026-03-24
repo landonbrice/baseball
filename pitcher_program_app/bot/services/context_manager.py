@@ -125,10 +125,64 @@ def save_log(pitcher_id: str, log: dict) -> None:
 
 
 def append_log_entry(pitcher_id: str, entry: dict) -> None:
-    """Append a new entry to a pitcher's daily log."""
+    """Append a new entry to a pitcher's daily log.
+
+    Maintains a 7-day rolling window: entries older than 7 are
+    summarized into profile.json weekly_summaries and removed.
+    """
     log = load_log(pitcher_id)
     log["entries"].append(entry)
+
+    # Summarize and remove entries beyond the 7-day window
+    training_entries = [e for e in log["entries"] if e.get("pre_training")]
+    if len(training_entries) > 7:
+        to_summarize = training_entries[:-7]
+        summaries = [_summarize_entry(e) for e in to_summarize]
+
+        # Append summaries to profile
+        profile = load_profile(pitcher_id)
+        if "weekly_summaries" not in profile:
+            profile["weekly_summaries"] = []
+        profile["weekly_summaries"].extend(summaries)
+        save_profile(pitcher_id, profile)
+
+        # Remove old entries from log
+        dates_to_remove = {e["date"] for e in to_summarize}
+        log["entries"] = [e for e in log["entries"] if e.get("date") not in dates_to_remove]
+        logger.info(f"Summarized {len(to_summarize)} old entries for {pitcher_id}")
+
     save_log(pitcher_id, log)
+
+
+def _summarize_entry(entry: dict) -> str:
+    """Distill a log entry into a 1-line summary for long-term memory."""
+    pt = entry.get("pre_training", {})
+    date = entry.get("date", "?")
+    arm = pt.get("arm_feel", "?")
+    sleep = pt.get("sleep_hours", "?")
+    flag = (pt.get("flag_level") or "?").upper()
+
+    parts = [f"{date}: Arm {arm}/5, sleep {sleep}h, {flag}"]
+
+    lifting = entry.get("lifting", {})
+    if lifting and lifting.get("intent"):
+        parts.append(lifting["intent"])
+    elif lifting and lifting.get("exercises"):
+        names = [ex.get("name", "") for ex in lifting["exercises"][:3]]
+        parts.append(f"Lift: {', '.join(names)}")
+
+    throwing = entry.get("throwing", {})
+    if throwing and throwing.get("type", "none") != "none":
+        parts.append(f"Threw: {throwing['type']}")
+
+    if entry.get("skip_notes"):
+        parts.append(f"Skipped: {entry['skip_notes']}")
+
+    if entry.get("outing"):
+        o = entry["outing"]
+        parts.append(f"OUTING: {o.get('pitch_count', '?')}pc, post-feel {o.get('post_arm_feel', '?')}/5")
+
+    return ". ".join(parts)
 
 
 def get_recent_entries(pitcher_id: str, n: int = 5) -> list:
