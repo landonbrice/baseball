@@ -5,6 +5,7 @@ import os
 import logging
 from datetime import datetime
 from bot.config import PITCHERS_DIR
+from scripts.data_sync import mark_dirty
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +27,7 @@ def save_profile(pitcher_id: str, profile: dict) -> None:
     path = os.path.join(get_pitcher_dir(pitcher_id), "profile.json")
     with open(path, "w") as f:
         json.dump(profile, f, indent=2)
+    mark_dirty(path)
 
 
 def load_context(pitcher_id: str) -> str:
@@ -83,8 +85,9 @@ def append_context(pitcher_id: str, update_type: str, content: str) -> None:
     with open(path, "a") as f:
         f.write(entry)
 
-    # Trim: keep only last 15 interaction lines
+    # Trim: keep only last 30 interaction lines
     _trim_recent_interactions(path)
+    mark_dirty(path)
 
 
 def _trim_recent_interactions(path: str) -> None:
@@ -118,6 +121,7 @@ def save_log(pitcher_id: str, log: dict) -> None:
     path = os.path.join(get_pitcher_dir(pitcher_id), "daily_log.json")
     with open(path, "w") as f:
         json.dump(log, f, indent=2)
+    mark_dirty(path)
 
 
 def append_log_entry(pitcher_id: str, entry: dict) -> None:
@@ -186,6 +190,7 @@ def save_plan(pitcher_id: str, plan: dict) -> dict:
     path = os.path.join(get_pitcher_dir(pitcher_id), "saved_plans.json")
     with open(path, "w") as f:
         json.dump(plans, f, indent=2)
+    mark_dirty(path)
     return plan
 
 
@@ -198,6 +203,7 @@ def deactivate_plan(pitcher_id: str, plan_id: str) -> bool:
             path = os.path.join(get_pitcher_dir(pitcher_id), "saved_plans.json")
             with open(path, "w") as f:
                 json.dump(plans, f, indent=2)
+            mark_dirty(path)
             return True
     return False
 

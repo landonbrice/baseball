@@ -15,6 +15,7 @@ from bot.services.context_manager import (
     save_plan, deactivate_plan, update_active_flags, get_recent_entries,
     get_pitcher_dir,
 )
+from scripts.data_sync import mark_dirty
 from bot.services.progression import analyze_progression
 from bot.services.plan_generator import get_upcoming_days
 from bot.services.checkin_service import process_checkin
@@ -481,6 +482,7 @@ Use the following to avoid repeating plans already given, reference prior conver
                         )
                         with open(plans_path, "w") as f:
                             json.dump(all_plans, f, indent=2)
+                        mark_dirty(plans_path)
                         messages.append({
                             "type": "text",
                             "content": f"Updated plan: {mod_data.get('title', 'Program modification')}.",
@@ -610,6 +612,7 @@ async def post_activate_plan(pitcher_id: str, plan_id: str, request: Request):
     plans_path = os.path.join(get_pitcher_dir(pitcher_id), "saved_plans.json")
     with open(plans_path, "w") as f:
         json.dump(plans, f, indent=2)
+    mark_dirty(plans_path)
     return {"status": "ok"}
 
 
@@ -635,6 +638,7 @@ async def apply_plan_to_today(pitcher_id: str, plan_id: str, request: Request):
     plans_path = os.path.join(get_pitcher_dir(pitcher_id), "saved_plans.json")
     with open(plans_path, "w") as f:
         json.dump(plans, f, indent=2)
+    mark_dirty(plans_path)
 
     # Update today's log entry with the plan's exercises
     today = _dt.now().strftime("%Y-%m-%d")
