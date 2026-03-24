@@ -318,7 +318,8 @@
         "ex_nordic_curl": true,
         "ex_hip_thrust": true,
         "ex_041": true,
-        "ex_hip_circle": true
+        "ex_hip_circle": true,
+        "ex_wrist_roller": true
       },
       "bot_observations": null
     }
