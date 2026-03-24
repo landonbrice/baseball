@@ -39,6 +39,20 @@ def _is_railway() -> bool:
     return bool(os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("RAILWAY_SERVICE_NAME"))
 
 
+def _find_repo_root() -> str | None:
+    """Find the git repo root, or None if not in a repo."""
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            capture_output=True, text=True, timeout=5,
+        )
+        if result.returncode == 0:
+            return result.stdout.strip()
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        pass
+    return None
+
+
 def _configure_git() -> bool:
     """Configure git for pushing. Returns True if successful."""
     if not GITHUB_TOKEN:
@@ -46,6 +60,18 @@ def _configure_git() -> bool:
         return False
 
     try:
+        # Check if we're in a git repo; if not, init one
+        repo_root = _find_repo_root()
+        if not repo_root:
+            # Railway nixpacks may strip .git — init a fresh repo
+            subprocess.run(["git", "init"], capture_output=True, check=True)
+            subprocess.run(["git", "add", "."], capture_output=True, check=True, timeout=30)
+            subprocess.run(
+                ["git", "commit", "-m", "init: Railway baseline"],
+                capture_output=True, check=True, timeout=15,
+            )
+            logger.info("data_sync: initialized fresh git repo")
+
         # Set git identity for commits
         subprocess.run(
             ["git", "config", "user.email", "bot@uchi-pitcher.railway.app"],
@@ -58,10 +84,35 @@ def _configure_git() -> bool:
 
         # Set remote URL with token auth
         remote_url = f"https://x-access-token:{GITHUB_TOKEN}@github.com/{REPO_SLUG}.git"
-        subprocess.run(
-            ["git", "remote", "set-url", "origin", remote_url],
-            capture_output=True, check=True,
+
+        # Add or update remote
+        result = subprocess.run(
+            ["git", "remote", "get-url", "origin"],
+            capture_output=True,
         )
+        if result.returncode == 0:
+            subprocess.run(
+                ["git", "remote", "set-url", "origin", remote_url],
+                capture_output=True, check=True,
+            )
+        else:
+            subprocess.run(
+                ["git", "remote", "add", "origin", remote_url],
+                capture_output=True, check=True,
+            )
+
+        # Fetch so we can push (need common history)
+        subprocess.run(
+            ["git", "fetch", "origin", "main"],
+            capture_output=True, timeout=30,
+        )
+
+        # Try to set upstream tracking
+        subprocess.run(
+            ["git", "branch", "--set-upstream-to=origin/main", "main"],
+            capture_output=True,
+        )
+
         return True
     except (subprocess.CalledProcessError, FileNotFoundError) as e:
         logger.warning(f"data_sync: git config failed: {e}")
@@ -82,11 +133,11 @@ def _sync_once() -> None:
         return
 
     try:
-        # Pull first to avoid conflicts (fast-forward only)
+        # Pull first to avoid conflicts (fast-forward only, ignore errors)
         subprocess.run(
-            ["git", "pull", "--ff-only", "origin", "main"],
+            ["git", "pull", "--ff-only", "--no-rebase", "origin", "main"],
             capture_output=True, timeout=30,
-        )
+        )  # OK if this fails (no tracking, diverged, etc)
 
         # Stage only pitcher data files
         subprocess.run(

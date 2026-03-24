@@ -182,7 +182,7 @@ async def _send_post_outing_reminder(context) -> None:
         )
 
 
-ADMIN_TELEGRAM_IDS = [8763992478]  # Landon
+ADMIN_TELEGRAM_IDS = [8589499360]  # Landon
 
 
 async def backup_command(update: Update, context) -> None:
