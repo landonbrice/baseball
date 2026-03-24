@@ -1,3 +1,8 @@
+---
+keywords: [lifting, driveline, periodization, strength, plyometrics, rir, accessory, in-season, off-season, power, volume, squat, deadlift, bench]
+type: program_reference
+---
+
 # Driveline Lifting Programs — Extracted Knowledge
 # Source: PITCHING-PROGRAM-FINAL.pdf (Driveline Baseball, 2022)
 # Classification: Reference knowledge for bot lifting program generation

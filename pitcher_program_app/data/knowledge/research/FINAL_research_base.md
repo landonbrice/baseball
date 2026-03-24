@@ -1,3 +1,8 @@
+---
+keywords: [training, exercise, program, lift, strength, rom, screening, push, pull, squat, deadlift, bench, principles, evidence, research, triage, decision, cycling, periodization]
+type: core_research
+---
+
 # UChicago Pitcher Training System — Synthesized Research Base
 ## Sources: Gemini Research, Tread Athletics In-Season Blueprint, Cressey Sports Performance, Driveline Baseball
 

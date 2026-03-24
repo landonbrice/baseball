@@ -1,3 +1,8 @@
+---
+keywords: [fpm, flexor, pronator, medial elbow, ucl, tightness, strain, isometric, acute, pain, yellow flag, loading, wrist flexion, forearm, guarding]
+type: core_research
+---
+
 When a pitcher experiences tightness in the UCL area during full flexion or contraction, research suggests this is likely a **Flexor-Pronator Mass (FPM) strain** or a protective guarding response. Because the FPM (specifically the FCU and FDS) originates at the medial epicondyle and overlays the UCL, its contraction provides the "dynamic varus" force needed to protect the ligament.
 
 If the FPM is strained or fatigued, it can no longer effectively dissipate the 64–120 Nm of valgus torque generated during a pitch, leading to increased "gapping" of the medial joint space and direct stress on the UCL.

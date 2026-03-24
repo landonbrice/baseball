@@ -6,6 +6,7 @@ import logging
 from bot.config import TEMPLATES_DIR, KNOWLEDGE_DIR, CONTEXT_WINDOW_CHARS
 from bot.services.llm import call_llm, load_prompt
 from bot.services.context_manager import load_profile, load_context, get_recent_entries, load_saved_plans
+from bot.services.knowledge_retrieval import retrieve_research_for_plan
 
 logger = logging.getLogger(__name__)
 
@@ -92,11 +93,15 @@ async def generate_plan(pitcher_id: str, triage_result: dict) -> dict:
     templates_context = _format_templates(today_template, arm_care, plyocare)
     pitcher_context = _build_pitcher_context(profile, context)
 
+    # Load research relevant to this pitcher's injury profile
+    relevant_research = retrieve_research_for_plan(profile)
+
     # Load structured prompt and call LLM
     prompt_template = load_prompt("plan_generation_structured.md")
     system_prompt = load_prompt("system_prompt.md")
 
-    user_prompt = prompt_template.replace("{pitcher_context}", pitcher_context)
+    user_prompt = prompt_template.replace("{relevant_research}", relevant_research or "No specific research loaded.")
+    user_prompt = user_prompt.replace("{pitcher_context}", pitcher_context)
     user_prompt = user_prompt.replace("{rotation_day}", f"Day {rotation_day} ({today_template.get('label', 'Unknown')})")
     user_prompt = user_prompt.replace("{triage_result}", json.dumps(triage_result, indent=2))
     user_prompt = user_prompt.replace("{templates}", templates_context)

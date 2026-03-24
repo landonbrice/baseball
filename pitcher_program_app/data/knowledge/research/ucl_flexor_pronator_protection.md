@@ -1,3 +1,8 @@
+---
+keywords: [ucl, flexor, pronator, medial, elbow, forearm, tight, tightness, valgus, ligament, dynamic stabilization, fpm, injury, protect, prevent, arm]
+type: core_research
+---
+
 # Research: Flexor-Pronator Complex & UCL Protection
 
 ## The Core Mechanism (Why Pronator Work Is Non-Negotiable)

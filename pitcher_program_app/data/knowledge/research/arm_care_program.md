@@ -1,3 +1,8 @@
+---
+keywords: [arm care, pronator, scapular, external rotation, superset, warm-up, elbow health, shoulder stability, band, activation]
+type: program_reference
+---
+
 # Arm Care Program — Extracted from Team Past Programs
 # Source: Arm care adjustment.xlsx
 # Classification: Reference for bot arm care protocol generation

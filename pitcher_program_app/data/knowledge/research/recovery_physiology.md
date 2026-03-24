@@ -1,3 +1,8 @@
+---
+keywords: [recovery, sore, soreness, ice, inflammation, sleep, hrv, rest, fatigue, tired, ache, stiff, pain, hurt, nsaid, ibuprofen, stretch, mobility, warm, heat, blood flow, massage, foam roll, doms, post-outing, cool down]
+type: core_research
+---
+
 # Research: Post-Outing Recovery Physiology
 
 ## What's Actually Happening in Your Arm After a Start

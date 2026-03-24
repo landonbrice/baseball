@@ -1,3 +1,8 @@
+---
+keywords: [supplement, nutrition, collagen, vitamin c, creatine, turmeric, curcumin, magnesium, omega, fish oil, tart cherry, hydration, water, protein, zinc, probiotic, vitamin d, food, eat, diet, drink]
+type: program_reference
+---
+
 In-season nutrition for a starting pitcher should focus on three primary pillars: protecting the connective tissue "hardware" (UCL and tendons), accelerating muscle recovery after high-stress outings, and supporting the central nervous system (CNS) during a long season.
 
 ### 1. The "Hardware" Stack: UCL and Tendon Protection

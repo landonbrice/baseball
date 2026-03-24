@@ -1,4 +1,16 @@
-"""Knowledge retrieval for Q&A. Searches research base and exercise library."""
+"""Knowledge retrieval. Keyword-matches research docs + searches exercise library.
+
+Research docs in data/knowledge/research/ have YAML front matter with keywords:
+    ---
+    keywords: [tight, forearm, ucl, pronator, ...]
+    type: core_research
+    ---
+
+Two retrieval modes:
+- retrieve_knowledge(question): keyword-matches query against research docs (for Q&A)
+- retrieve_research_for_plan(pitcher_profile): loads docs relevant to a pitcher's
+  injury areas + always loads triage and recovery (for plan generation)
+"""
 
 import json
 import os
@@ -7,6 +19,8 @@ import logging
 from bot.config import KNOWLEDGE_DIR
 
 logger = logging.getLogger(__name__)
+
+RESEARCH_DIR = os.path.join(KNOWLEDGE_DIR, "research")
 
 STOP_WORDS = {
     "a", "an", "the", "is", "are", "was", "were", "be", "been", "being",
@@ -20,28 +34,91 @@ STOP_WORDS = {
     "it", "its", "they", "their", "he", "she", "him", "her",
 }
 
+# Cache: maps filename -> (keywords, type, content)
+_research_cache: dict[str, tuple[list[str], str, str]] = {}
 
-def retrieve_knowledge(question: str, max_chunks: int = 2, max_tokens: int = 1000) -> str:
-    """Search research base and exercise library for relevant knowledge.
 
-    Returns formatted context string for prompt injection, or empty string.
+def _parse_front_matter(text: str) -> tuple[list[str], str]:
+    """Extract keywords and type from YAML front matter.
+
+    Returns (keywords_list, doc_type).
     """
-    keywords = _extract_keywords(question)
-    if not keywords:
-        return ""
+    match = re.match(r"^---\s*\n(.*?)\n---", text, re.DOTALL)
+    if not match:
+        return [], ""
+    keywords = []
+    doc_type = ""
+    for line in match.group(1).split("\n"):
+        line = line.strip()
+        if line.startswith("keywords:"):
+            raw = line[len("keywords:"):].strip()
+            if raw.startswith("[") and raw.endswith("]"):
+                keywords = [k.strip().strip("\"'") for k in raw[1:-1].split(",") if k.strip()]
+        elif line.startswith("type:"):
+            doc_type = line[len("type:"):].strip()
+    return keywords, doc_type
 
+
+def _strip_front_matter(text: str) -> str:
+    """Remove YAML front matter from content for injection."""
+    return re.sub(r"^---\s*\n.*?\n---\s*\n?", "", text, count=1, flags=re.DOTALL)
+
+
+def _load_research_index() -> dict[str, tuple[list[str], str, str]]:
+    """Scan research/ directory and build keyword index.
+
+    Returns dict: filename -> (keywords, type, content_without_frontmatter)
+    Caches results after first call.
+    """
+    global _research_cache
+    if _research_cache:
+        return _research_cache
+
+    if not os.path.exists(RESEARCH_DIR):
+        logger.warning(f"Research directory not found: {RESEARCH_DIR}")
+        return {}
+
+    for filename in os.listdir(RESEARCH_DIR):
+        if not filename.endswith(".md") or filename == "INDEX.md":
+            continue
+        filepath = os.path.join(RESEARCH_DIR, filename)
+        try:
+            with open(filepath, "r") as f:
+                content = f.read()
+            keywords, doc_type = _parse_front_matter(content)
+            if keywords:
+                _research_cache[filename] = (keywords, doc_type, _strip_front_matter(content))
+        except Exception as e:
+            logger.warning(f"Error reading research file {filename}: {e}")
+
+    logger.info(f"Loaded {len(_research_cache)} research docs with keywords")
+    return _research_cache
+
+
+def retrieve_knowledge(question: str, max_docs: int = 3, max_chars: int = 8000) -> str:
+    """Keyword-match a question against research docs + exercise library.
+
+    Used for Q&A. Returns formatted context string for prompt injection.
+    """
+    query_lower = question.lower()
     results = []
 
-    # Search research sections
-    sections = _load_research_sections()
-    scored = [(s, _score_section(s, keywords)) for s in sections]
-    scored.sort(key=lambda x: x[1], reverse=True)
+    # 1. Keyword-match research docs
+    index = _load_research_index()
+    scored_docs = []
+    for filename, (keywords, doc_type, content) in index.items():
+        matches = sum(1 for kw in keywords if kw in query_lower)
+        if matches > 0:
+            scored_docs.append((filename, matches, content))
 
-    for section, score in scored[:max_chunks]:
-        if score > 0:
-            results.append(section["content"])
+    # Sort by match count, take top N
+    scored_docs.sort(key=lambda x: x[1], reverse=True)
+    for filename, score, content in scored_docs[:max_docs]:
+        results.append(content)
+        logger.info(f"Knowledge match: {filename} (score={score})")
 
-    # Search exercises
+    # 2. Search exercise library
+    keywords = _extract_keywords(question)
     exercises = _search_exercises(question, keywords)
     for ex in exercises[:3]:
         results.append(_format_exercise(ex))
@@ -50,59 +127,85 @@ def retrieve_knowledge(question: str, max_chunks: int = 2, max_tokens: int = 100
         return ""
 
     combined = "\n\n---\n\n".join(results)
-    # Rough token limit (4 chars ≈ 1 token)
-    if len(combined) > max_tokens * 4:
-        combined = combined[: max_tokens * 4]
+    if len(combined) > max_chars:
+        combined = combined[:max_chars]
 
     return combined
 
 
-def _load_research_sections() -> list[dict]:
-    """Split research markdown files by ## or ### headers into chunks."""
-    sections = []
+def retrieve_research_for_plan(pitcher_profile: dict, max_chars: int = 12000) -> str:
+    """Load research docs relevant to a pitcher's profile for plan generation.
 
-    for filename in ["FINAL_research_base.md", "extended_knowledge.md"]:
-        path = os.path.join(KNOWLEDGE_DIR, filename)
-        if not os.path.exists(path):
+    Always loads: tightness_triage_framework, recovery_physiology.
+    Conditionally loads based on injury areas:
+      - medial_elbow/forearm → ucl_flexor_pronator_protection, FPM
+      - shoulder → arm_care_program
+    Also loads docs matching the pitcher's active modifications.
+
+    Returns combined research text for injection into plan prompt.
+    """
+    index = _load_research_index()
+    loaded = {}  # filename -> content (dedup)
+
+    # Always load triage + recovery for plan generation
+    always_load = ["tightness_triage_framework.md", "recovery_physiology.md"]
+    for filename in always_load:
+        if filename in index:
+            loaded[filename] = index[filename][2]
+
+    # Load based on pitcher injury areas
+    injury_areas = set()
+    for injury in pitcher_profile.get("injury_history", []):
+        area = injury.get("area", "").lower()
+        if area:
+            injury_areas.add(area)
+
+    # Map injury areas to research keywords for matching
+    injury_keywords = set()
+    for area in injury_areas:
+        if area in ("medial_elbow", "forearm"):
+            injury_keywords.update(["ucl", "flexor", "pronator", "fpm", "forearm", "medial", "elbow"])
+        elif area in ("shoulder",):
+            injury_keywords.update(["shoulder", "scapular", "arm care", "external rotation"])
+        elif area in ("lower_back",):
+            injury_keywords.update(["workload", "load management", "strength"])
+        elif area in ("oblique",):
+            injury_keywords.update(["workload", "training"])
+
+    # Match injury keywords against research docs
+    for filename, (keywords, doc_type, content) in index.items():
+        if filename in loaded:
             continue
-        with open(path, "r") as f:
-            content = f.read()
+        if any(ik in keywords for ik in injury_keywords):
+            loaded[filename] = content
 
-        # Split by ## headers
-        parts = re.split(r"(?=^##\s)", content, flags=re.MULTILINE)
-        for part in parts:
-            part = part.strip()
-            if not part or len(part) < 30:
-                continue
-            # Extract title from first line
-            title_match = re.match(r"^#{2,3}\s+(.+)", part)
-            title = title_match.group(1) if title_match else ""
-            sections.append({
-                "title": title.lower(),
-                "content": part,
-                "source": filename,
-            })
+    # Also load based on active modifications
+    mods = pitcher_profile.get("active_flags", {}).get("active_modifications", [])
+    mod_keywords = set()
+    for mod in mods:
+        mod_lower = mod.lower()
+        if "fpm" in mod_lower or "pronator" in mod_lower:
+            mod_keywords.update(["fpm", "flexor", "pronator", "ucl"])
+        if "pressing" in mod_lower or "shoulder" in mod_lower:
+            mod_keywords.update(["shoulder", "arm care"])
+        if "axial" in mod_lower:
+            mod_keywords.update(["workload", "load"])
 
-    return sections
+    for filename, (keywords, doc_type, content) in index.items():
+        if filename in loaded:
+            continue
+        if any(mk in keywords for mk in mod_keywords):
+            loaded[filename] = content
 
+    if not loaded:
+        return ""
 
-def _score_section(section: dict, keywords: list[str]) -> float:
-    """Score a section by keyword overlap. Title matches weighted 3x."""
-    if not keywords:
-        return 0.0
+    combined = "\n\n---\n\n".join(loaded.values())
+    if len(combined) > max_chars:
+        combined = combined[:max_chars]
 
-    title = section["title"]
-    content_lower = section["content"].lower()
-    score = 0.0
-
-    for kw in keywords:
-        kw_lower = kw.lower()
-        if kw_lower in title:
-            score += 3.0
-        if kw_lower in content_lower:
-            score += 1.0
-
-    return score / len(keywords)
+    logger.info(f"Plan research: loaded {len(loaded)} docs ({', '.join(loaded.keys())})")
+    return combined
 
 
 def _search_exercises(question: str, keywords: list[str]) -> list[dict]:
@@ -133,7 +236,6 @@ def _search_exercises(question: str, keywords: list[str]) -> list[dict]:
 
         for kw in keywords:
             if kw.lower() in searchable:
-                # Name/alias match worth more
                 name_field = (ex.get("name", "") + " " + " ".join(ex.get("aliases", []))).lower()
                 if kw.lower() in name_field:
                     score += 3.0

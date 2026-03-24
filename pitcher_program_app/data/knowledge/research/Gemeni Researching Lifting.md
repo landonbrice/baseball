@@ -1,3 +1,7 @@
+---
+keywords: [exercise, fpm, scapular, pull push ratio, landmine press, bench alternative, barbell free, hip hinge, split squat, power clean, exercise library, strength exercise, in-season lifting]
+type: core_research
+---
 
 Gemmini Research Plan
 

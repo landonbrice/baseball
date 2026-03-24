@@ -1,3 +1,8 @@
+---
+keywords: [throwing, plyo ball, plyocare, j-band, wrist weight, long toss, velocity, bullpen, weighted ball, throwing phases, arm care, recovery, flat ground, mound work]
+type: program_reference
+---
+
 # Driveline 16-Week Throwing Program — Extracted Knowledge
 # Source: PITCHING-PROGRAM-FINAL.pdf (Driveline Baseball, 2022)
 # Classification: Reference knowledge for bot Q&A and protocol generation

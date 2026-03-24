@@ -1,3 +1,8 @@
+---
+keywords: [brice, personal, soft tissue, mobility, eldoa, nerve glide, ulnar, post-outing, daily arm health, lacrosse ball, thoracic]
+type: program_reference
+---
+
 # Brice Arm Care Protocol — Reference Material
 # Source: Brice Thoughts.xlsx
 # Classification: Reference for bot LLM to draw from contextually (not a template)

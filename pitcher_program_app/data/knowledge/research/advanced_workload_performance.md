@@ -1,3 +1,8 @@
+---
+keywords: [workload, pitch count, bfr, blood flow restriction, collagen, vitamin c, pitch clock, velocity, innings, volume, training, periodization, strength, in-season, load management, connective tissue, a:c ratio]
+type: core_research
+---
+
 # Research: Advanced Workload Management, Periodization & Performance
 
 ## What's New Here (Beyond Existing Research Docs)

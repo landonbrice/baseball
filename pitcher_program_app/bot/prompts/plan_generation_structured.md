@@ -115,6 +115,10 @@ Include 4-6 notes covering:
 - Post-lift nutrition timing
 - Any injury-specific callouts
 
+## Relevant Research
+Use this research to inform your exercise selection, protocol decisions, and notes. Cite specific findings when making programming decisions.
+{relevant_research}
+
 ## Pitcher Context
 {pitcher_context}
 

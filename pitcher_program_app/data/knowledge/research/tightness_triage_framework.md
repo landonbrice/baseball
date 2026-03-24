@@ -1,3 +1,8 @@
+---
+keywords: [triage, protocol, flag, red, yellow, green, worried, concern, sharp, numb, tingling, swelling, shut down, skip, day off, should i throw, modify, modification, back off, push through, can i throw, what should i do]
+type: core_research
+---
+
 # Tightness Triage: Protocol Decision Framework
 
 ## Purpose
