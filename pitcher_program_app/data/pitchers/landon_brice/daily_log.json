@@ -122,21 +122,21 @@
           {
             "name": "Lateral Lunge",
             "exercise_id": "ex_lateral_lunge",
-            "rx": "2x8/side",
+            "rx": "3x5/side @ 2-3 RIR",
             "superset_group": null,
             "note": null
           },
           {
             "name": "Hip Circle",
             "exercise_id": "ex_hip_circle",
-            "rx": "2x10/side",
+            "rx": "2x15",
             "superset_group": null,
             "note": null
           },
           {
             "name": "Med Ball Rotational Throw",
             "exercise_id": "ex_med_ball_rotational_throw",
-            "rx": "3x3/side",
+            "rx": "2x5/side",
             "superset_group": null,
             "note": null
           },
@@ -150,9 +150,9 @@
           {
             "name": "Front Squat",
             "exercise_id": "ex_front_squat",
-            "rx": "3x4-6 @ 75-85% 1RM",
+            "rx": "3x5 @ 2-3 RIR",
             "superset_group": null,
-            "note": "Primary lower body compound"
+            "note": null
           },
           {
             "name": "Romanian Deadlift",
@@ -178,9 +178,23 @@
           {
             "name": "Wrist Roller",
             "exercise_id": "ex_wrist_roller",
-            "rx": "2x10",
+            "rx": "3x up/down",
             "superset_group": null,
-            "note": "Elevated FPM volume"
+            "note": null
+          },
+          {
+            "name": "Side Plank",
+            "exercise_id": "ex_side_plank",
+            "rx": "2x30 sec/side",
+            "superset_group": null,
+            "note": null
+          },
+          {
+            "name": "Modified Side Plank ER with Pressout + Ball Drop",
+            "exercise_id": "ex_modified_side_plank_er_pressout_ball_drop",
+            "rx": "2x10 ER reps / 15 ball drops",
+            "superset_group": null,
+            "note": null
           }
         ]
       },
