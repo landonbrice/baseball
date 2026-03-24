@@ -11,3 +11,5 @@ I'll swap trap bar for front squat, | Mod: Replaced trap bar deadlift with front
 - [2026-03-24 12:49] (interaction) Q: Thinking about throwing today, can you give me a pre throw routine | A: You're Day 0 post-outing in a return-to-throwing phase. Today's pre-throw routine should be light and focused on recovery, not high-intent work.
 **Pre-Throw Routine (Recovery Day):**
 *   **J-Band Rou
+- [2026-03-24 14:22] (interaction) Q: can we make this plan more in-depth? | A: Given you're in a return-to-throwing phase with a forearm/UCL history, "more in-depth" means adding targeted work for the areas that need it most: lateral core stability and scapular control.
+Here’s  | Mod: Added Side Plank and Modified Side Plank ER with Pressout + Ball Drop
