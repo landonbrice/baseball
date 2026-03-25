@@ -358,7 +358,10 @@
         "ex_face_pull": true,
         "ex_pallof_press": true,
         "ex_band_er_90": true,
-        "ex_med_ball_overhead_slam": true
+        "ex_med_ball_overhead_slam": true,
+        "ex_j_band_routine": true,
+        "ex_band_pull_apart": true,
+        "ex_pronator_supinator_band": true
       },
       "arm_care": {
         "timing": "pre-lift",
