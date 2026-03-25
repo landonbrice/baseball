@@ -22,3 +22,4 @@ I'll swap trap bar for front squat, | Mod: Replaced trap bar deadlift with front
 - [2026-03-24 14:22] (interaction) Q: can we make this plan more in-depth? | A: Given you're in a return-to-throwing phase with a forearm/UCL history, "more in-depth" means adding targeted work for the areas that need it most: lateral core stability and scapular control.
 Here’s  | Mod: Added Side Plank and Modified Side Plank ER with Pressout + Ball Drop
 - [2026-03-25 14:32] (interaction) Q: Probably 14 days, I’m ramping back up to get on the Mount | A: Got it — you're ramping up to get back on the mound in about 14 days. Since you're in a return-to-throwing phase with a forearm/UCL history, the next two weeks are about controlled, progressive loadin | Saved plan: 14-Day Ramp to Mound
+- [2026-03-25 14:47] (plan_applied) Applied 'Upper body — push emphasis — heavy_compounds' to today's training
