@@ -1,35 +1,50 @@
 import { createContext, useContext, useState, useCallback } from 'react';
 
-const ChatContext = createContext(null);
+const AppContext = createContext(null);
 
-export function ChatProvider({ children }) {
+export function AppProvider({ children }) {
+  // Coach conversation — persists across tab navigation
   const [messages, setMessages] = useState([]);
 
-  const addMessage = useCallback((msg) => {
-    setMessages(prev => [...prev, msg]);
+  // Global refresh counter — any component can trigger a Home re-fetch
+  const [globalRefreshKey, setGlobalRefreshKey] = useState(0);
+  const triggerRefresh = useCallback(() => {
+    setGlobalRefreshKey(k => k + 1);
   }, []);
 
-  const addMessages = useCallback((msgs) => {
-    setMessages(prev => [...prev, ...msgs]);
-  }, []);
+  // Coach notification badge — true when there's an unread morning briefing
+  const [coachBadge, setCoachBadge] = useState(false);
+  const clearCoachBadge = useCallback(() => setCoachBadge(false), []);
 
-  const clearMessages = useCallback(() => {
-    setMessages([]);
-  }, []);
+  // Coach in-progress indicator — true while check-in is mid-flow
+  const [checkinInProgress, setCheckinInProgress] = useState(false);
 
+  const addMessage = useCallback((msg) => setMessages(prev => [...prev, msg]), []);
+  const addMessages = useCallback((msgs) => setMessages(prev => [...prev, ...msgs]), []);
+  const clearMessages = useCallback(() => setMessages([]), []);
   const replaceLastAndAdd = useCallback((msgs) => {
     setMessages(prev => [...prev.slice(0, -1), ...msgs]);
   }, []);
 
   return (
-    <ChatContext.Provider value={{ messages, setMessages, addMessage, addMessages, clearMessages, replaceLastAndAdd }}>
+    <AppContext.Provider value={{
+      messages, setMessages, addMessage, addMessages, clearMessages, replaceLastAndAdd,
+      globalRefreshKey, triggerRefresh,
+      coachBadge, setCoachBadge, clearCoachBadge,
+      checkinInProgress, setCheckinInProgress,
+    }}>
       {children}
-    </ChatContext.Provider>
+    </AppContext.Provider>
   );
 }
 
-export function useChat() {
-  const ctx = useContext(ChatContext);
-  if (!ctx) throw new Error('useChat must be used within ChatProvider');
+export function useAppContext() {
+  const ctx = useContext(AppContext);
+  if (!ctx) throw new Error('useAppContext must be used within AppProvider');
   return ctx;
+}
+
+// Backwards-compatible alias
+export function useChat() {
+  return useAppContext();
 }

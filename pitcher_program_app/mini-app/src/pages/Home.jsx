@@ -1,5 +1,6 @@
 import { useMemo, useCallback, useState } from 'react';
 import { useAuth } from '../App';
+import { useAppContext } from '../hooks/useChatState';
 import { usePitcher } from '../hooks/usePitcher';
 import { useApi } from '../hooks/useApi';
 import WeekStrip from '../components/WeekStrip';
@@ -7,14 +8,12 @@ import DailyCard from '../components/DailyCard';
 import TrendChart from '../components/TrendChart';
 import UpcomingDays from '../components/UpcomingDays';
 import InsightsCard from '../components/InsightsCard';
-import ChatBar from '../components/ChatBar';
 
 export default function Home() {
   const { pitcherId, initData } = useAuth();
-  const [refreshKey, setRefreshKey] = useState(0);
-  const handleRefresh = useCallback(() => setRefreshKey(k => k + 1), []);
+  const { globalRefreshKey } = useAppContext();
 
-  const suffix = refreshKey ? `?_r=${refreshKey}` : '';
+  const suffix = globalRefreshKey ? `?_r=${globalRefreshKey}` : '';
   const { profile, log, progression, loading, error } = usePitcher(pitcherId, initData, suffix);
   const exercises = useApi('/api/exercises', initData);
   const slugs = useApi('/api/exercises/slugs', initData);
@@ -86,7 +85,7 @@ export default function Home() {
                : 'var(--color-flag-red)';
 
   return (
-    <div style={{ paddingBottom: 140 }}>
+    <div style={{ paddingBottom: 20 }}>
       {/* ── Maroon header band ── */}
       <div style={{ background: 'var(--color-maroon)', padding: '14px 16px 12px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
@@ -130,7 +129,7 @@ export default function Home() {
           <div style={{ background: 'var(--color-white)', borderRadius: 12, padding: 16, textAlign: 'center', marginTop: 12 }}>
             <p style={{ fontSize: 14, color: 'var(--color-ink-primary)', marginBottom: 4 }}>You're set up.</p>
             <p style={{ fontSize: 12, color: 'var(--color-ink-muted)' }}>
-              Use the chat below to check in or log an outing to get your first plan.
+              Head to the Coach tab to check in or log an outing to get your first plan.
             </p>
           </div>
         ) : (
@@ -222,12 +221,6 @@ export default function Home() {
         <InsightsCard observations={progression?.observations} />
       </div>
 
-      {/* Chat bar */}
-      <ChatBar
-        todayEntry={todayEntry?.date === todayStr ? todayEntry : null}
-        profile={profile}
-        onRefresh={handleRefresh}
-      />
     </div>
   );
 }

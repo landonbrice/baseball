@@ -158,6 +158,22 @@ async def get_week_summary(pitcher_id: str, request: Request):
     return {"week": result, "today": today.isoformat()}
 
 
+@router.get("/pitcher/{pitcher_id}/morning-status")
+async def morning_status(pitcher_id: str, request: Request):
+    """Check if pitcher has a morning briefing and whether they've checked in today."""
+    _require_pitcher_auth(request, pitcher_id)
+    from datetime import datetime
+
+    log = load_log(pitcher_id)
+    today = datetime.now().strftime("%Y-%m-%d")
+    today_entry = next((e for e in log.get("entries", []) if e["date"] == today), None)
+    return {
+        "checked_in_today": bool(today_entry and today_entry.get("pre_training", {}).get("arm_feel")),
+        "has_briefing": bool(today_entry and today_entry.get("morning_brief")),
+        "morning_brief": today_entry.get("morning_brief") if today_entry else None,
+    }
+
+
 @router.post("/pitcher/{pitcher_id}/complete-exercise")
 async def complete_exercise(pitcher_id: str, request: Request):
     """Toggle exercise completion from dashboard."""

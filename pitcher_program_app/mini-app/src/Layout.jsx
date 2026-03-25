@@ -1,14 +1,17 @@
 import { NavLink, Outlet } from 'react-router-dom';
+import { useAppContext } from './hooks/useChatState';
 
 const NAV_ITEMS = [
-  { to: '/', label: 'Home', icon: '⌂' },
-  { to: '/exercises', label: 'Exercises', icon: '◎' },
-  { to: '/plans', label: 'Plans', icon: '▤' },
-  { to: '/log', label: 'History', icon: '▦' },
-  { to: '/profile', label: 'Profile', icon: '○' },
+  { to: '/',        label: 'Home',    icon: '\u2302' },
+  { to: '/coach',   label: 'Coach',   icon: '\u25C9' },
+  { to: '/plans',   label: 'Plans',   icon: '\u25A4' },
+  { to: '/log',     label: 'History', icon: '\u25A6' },
+  { to: '/profile', label: 'Profile', icon: '\u25CB' },
 ];
 
 export default function Layout() {
+  const { coachBadge, checkinInProgress } = useAppContext();
+
   return (
     <div style={{ minHeight: '100vh', background: 'var(--color-cream-bg)' }}>
       <main style={{ paddingBottom: 80 }}>
@@ -32,7 +35,7 @@ export default function Layout() {
               {({ isActive }) => (
                 <div style={{
                   display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
-                  padding: '4px 12px',
+                  padding: '4px 12px', position: 'relative',
                 }}>
                   {/* Active dot */}
                   <div style={{
@@ -43,7 +46,27 @@ export default function Layout() {
                   <span style={{
                     fontSize: 16,
                     color: isActive ? 'var(--color-maroon)' : 'var(--color-ink-faint)',
-                  }}>{icon}</span>
+                    position: 'relative',
+                  }}>
+                    {icon}
+                    {/* Coach badge indicators */}
+                    {to === '/coach' && coachBadge && !isActive && (
+                      <span style={{
+                        position: 'absolute', top: -3, right: -4,
+                        width: 7, height: 7, borderRadius: '50%',
+                        background: 'var(--color-maroon)',
+                        border: '1.5px solid var(--color-cream-bg)',
+                      }} />
+                    )}
+                    {to === '/coach' && checkinInProgress && !isActive && (
+                      <span style={{
+                        position: 'absolute', top: -3, right: -4,
+                        width: 7, height: 7, borderRadius: '50%',
+                        background: '#BA7517',
+                        border: '1.5px solid var(--color-cream-bg)',
+                      }} />
+                    )}
+                  </span>
                   <span style={{
                     fontSize: 10,
                     color: isActive ? 'var(--color-maroon)' : 'var(--color-ink-faint)',

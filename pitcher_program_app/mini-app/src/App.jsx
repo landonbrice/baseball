@@ -1,10 +1,11 @@
 import { useState, useEffect, createContext, useContext } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { useTelegram } from './hooks/useTelegram';
-import { resolveAuth } from './api';
-import { ChatProvider } from './hooks/useChatState.jsx';
+import { resolveAuth, fetchApi } from './api';
+import { AppProvider, useAppContext } from './hooks/useChatState.jsx';
 import Layout from './Layout';
 import Home from './pages/Home';
+import Coach from './pages/Coach';
 import ExerciseLibrary from './pages/ExerciseLibrary';
 import LogHistory from './pages/LogHistory';
 import Profile from './pages/Profile';
@@ -61,20 +62,39 @@ export default function App() {
 
   return (
     <AuthContext.Provider value={{ pitcherId, initData }}>
-      <ChatProvider>
+      <AppProvider>
+        <MorningBadgeCheck pitcherId={pitcherId} initData={initData} />
         <BrowserRouter>
           <Routes>
             <Route element={<Layout />}>
               <Route index element={<Home />} />
-              <Route path="exercises" element={<ExerciseLibrary />} />
-              <Route path="log" element={<LogHistory />} />
+              <Route path="coach" element={<Coach />} />
               <Route path="plans" element={<Plans />} />
               <Route path="plans/:planId" element={<PlanDetail />} />
+              <Route path="log" element={<LogHistory />} />
+              <Route path="exercises" element={<ExerciseLibrary />} />
               <Route path="profile" element={<Profile />} />
             </Route>
           </Routes>
         </BrowserRouter>
-      </ChatProvider>
+      </AppProvider>
     </AuthContext.Provider>
   );
+}
+
+function MorningBadgeCheck({ pitcherId, initData }) {
+  const { setCoachBadge } = useAppContext();
+
+  useEffect(() => {
+    if (!pitcherId) return;
+    fetchApi(`/api/pitcher/${pitcherId}/morning-status`, initData)
+      .then(d => {
+        if (d.has_briefing && !d.checked_in_today) {
+          setCoachBadge(true);
+        }
+      })
+      .catch(() => {});
+  }, [pitcherId, initData, setCoachBadge]);
+
+  return null;
 }

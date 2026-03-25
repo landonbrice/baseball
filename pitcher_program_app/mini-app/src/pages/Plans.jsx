@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../App';
 import { useApi } from '../hooks/useApi';
 import { deactivatePlan } from '../api';
-import ChatBar from '../components/ChatBar';
 import PlanBuilder from '../components/PlanBuilder';
 
 export default function Plans() {
@@ -97,8 +96,6 @@ export default function Plans() {
           </div>
         </div>
       )}
-
-      <ChatBar />
 
       {showBuilder && <PlanBuilder onClose={() => { setShowBuilder(false); refetch(); }} />}
     </div>
