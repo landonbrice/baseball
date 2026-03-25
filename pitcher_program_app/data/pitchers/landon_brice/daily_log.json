@@ -354,7 +354,11 @@
         "ex_weighted_pullup": true,
         "ex_db_bench": true,
         "ex_db_row": true,
-        "ex_landmine_press": true
+        "ex_landmine_press": true,
+        "ex_face_pull": true,
+        "ex_pallof_press": true,
+        "ex_band_er_90": true,
+        "ex_med_ball_overhead_slam": true
       },
       "arm_care": {
         "timing": "pre-lift",
