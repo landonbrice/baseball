@@ -3,6 +3,14 @@
 - Injury history:  — Forearm/UCL area tightening that prevented throwing. Soft tissue/flexor-pronator complex issue with medial elbow involvement. Not a UCL tear.
 - Active program modifications: elevated_fpm_volume
 
+## Current Status
+- Last Updated: 2026-03-25
+- Arm Feel: 5/5
+- Flag Level: GREEN
+- Days Since Outing: 0
+- Phase: return to throwing
+- Active Mods: elevated_fpm_volume, Swapped trap bar deadlift for front squat, Added lateral core and scapular stability work
+
 ## Recent interactions
 - [2026-03-24 04:31] (interaction) Q: What's my plan for today? | A: You’re Day 0 post-outing, arm feel 4/5, and in return-to-throwing phase. Today is a recovery day — no high-intent throwing, no heavy lifting. Focus is on active recovery, light arm care, and maintaini
 - [2026-03-24 04:37] (session) Arm: "great no foreaem tightness rn" (5/5). Arm 5/5, sleep 7.0h, GREEN flag. Lift: Lateral Lunge, Hip Circle, Med Ball Rotational Throw, Broad Jump, Trap Bar Deadlift. . Mods: Elevated FPM volume per UCL history flag, Ongoing: Pronator maintenance is non-negotiable. Forearm tightness is primary warning sign. UCL-area sensation on elbow extension means arm is under stress. Uses Rocksauce pre-throwing. Requested: lower.
@@ -13,3 +21,4 @@ I'll swap trap bar for front squat, | Mod: Replaced trap bar deadlift with front
 *   **J-Band Rou
 - [2026-03-24 14:22] (interaction) Q: can we make this plan more in-depth? | A: Given you're in a return-to-throwing phase with a forearm/UCL history, "more in-depth" means adding targeted work for the areas that need it most: lateral core stability and scapular control.
 Here’s  | Mod: Added Side Plank and Modified Side Plank ER with Pressout + Ball Drop
+- [2026-03-25 14:32] (interaction) Q: Probably 14 days, I’m ramping back up to get on the Mount | A: Got it — you're ramping up to get back on the mound in about 14 days. Since you're in a return-to-throwing phase with a forearm/UCL history, the next two weeks are about controlled, progressive loadin | Saved plan: 14-Day Ramp to Mound
