@@ -18,3 +18,5 @@
 - Communication preference: Moderate de
 - [2026-03-25 16:43] (interaction) Q: Today I am going to throw 3 sets of 25, last time I threw i had some medial disc | A: Given your history of medial elbow pain and recent flare-ups, here’s how to approach today:
 **Concern level:** Moderate. Medial pain on the first set that resolves by the second is a classic sign of 
+- [2026-03-25 18:00] (interaction) Q: I also had some olecronen/tricep area pain post throw on overhead tricep extensi | A: Given your history of olecranon stress fracture and tricep pain on overhead extensions, this is a **moderate concern**.
+**Why it's notable:** Overhead tricep extensions load the long head of the tric
