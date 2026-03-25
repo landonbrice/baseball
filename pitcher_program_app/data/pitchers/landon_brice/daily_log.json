@@ -350,7 +350,10 @@
           "Applied plan: Upper body \u2014 push emphasis \u2014 heavy_compounds"
         ]
       },
-      "completed_exercises": {},
+      "completed_exercises": {
+        "ex_weighted_pullup": true,
+        "ex_db_bench": true
+      },
       "arm_care": {
         "timing": "pre-lift",
         "exercises": [
