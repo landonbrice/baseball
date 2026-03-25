@@ -338,6 +338,121 @@
         "ex_med_ball_rotational_throw": true
       },
       "bot_observations": null
+    },
+    {
+      "date": "2026-03-25",
+      "rotation_day": 0,
+      "pre_training": null,
+      "plan_generated": {
+        "template_day": "plan_plan_003",
+        "exercise_blocks": [],
+        "modifications_applied": [
+          "Applied plan: Upper body \u2014 push emphasis \u2014 heavy_compounds"
+        ]
+      },
+      "completed_exercises": {},
+      "arm_care": {
+        "timing": "pre-lift",
+        "exercises": [
+          {
+            "name": "J-Band Routine",
+            "rx": "2x10 each direction",
+            "superset_group": null,
+            "exercise_id": "ex_j_band_routine",
+            "note": "UCL-area sensation on elbow extension is a RED flag \u2014 stop if you feel it."
+          },
+          {
+            "name": "Band Pull-Apart",
+            "rx": "2x15 light band",
+            "superset_group": null,
+            "exercise_id": "ex_band_pull_apart",
+            "note": null
+          },
+          {
+            "name": "Pronator/Supinator with Band",
+            "rx": "2x15 each way",
+            "superset_group": null,
+            "exercise_id": "ex_pronator_supinator_band",
+            "note": "Non-negotiable FPM work for your history. Focus on control."
+          }
+        ]
+      },
+      "lifting": {
+        "intent": "strength \u2014 upper body push emphasis",
+        "estimated_duration_min": 45,
+        "exercises": [
+          {
+            "name": "Med Ball Overhead Slam",
+            "rx": "3x5 @ RPE 8",
+            "superset_group": null,
+            "exercise_id": "ex_med_ball_overhead_slam",
+            "note": "Explosive intent. Don't max out."
+          },
+          {
+            "name": "Weighted Pull-Up",
+            "rx": "3x5 @ BW+45 lbs",
+            "superset_group": "A",
+            "exercise_id": "ex_weighted_pullup",
+            "note": "Primary pull strength."
+          },
+          {
+            "name": "DB Bench Press",
+            "rx": "3x8 @ 90 lbs",
+            "superset_group": "A",
+            "exercise_id": "ex_db_bench",
+            "note": "Heavy compound push. Maintain scapular retraction."
+          },
+          {
+            "name": "DB Row",
+            "rx": "3x10 each side @ RPE 7",
+            "superset_group": "B",
+            "exercise_id": "ex_db_row",
+            "note": null
+          },
+          {
+            "name": "Landmine Press",
+            "rx": "3x10 @ RPE 7",
+            "superset_group": "B",
+            "exercise_id": "ex_landmine_press",
+            "note": "Neutral-grip pressing is shoulder-friendly."
+          },
+          {
+            "name": "Face Pull",
+            "rx": "3x15 light band",
+            "superset_group": null,
+            "exercise_id": "ex_face_pull",
+            "note": "Scapular health and external rotation."
+          },
+          {
+            "name": "Pallof Press",
+            "rx": "3x10 each side @ RPE 7",
+            "superset_group": null,
+            "exercise_id": "ex_pallof_press",
+            "note": "Lateral core stability \u2014 critical for your added mod."
+          },
+          {
+            "name": "Band External Rotation at 90\u00b0",
+            "rx": "2x15 light band",
+            "superset_group": null,
+            "exercise_id": "ex_band_er_90",
+            "note": null
+          }
+        ]
+      },
+      "throwing": {
+        "type": "none",
+        "intent": null,
+        "detail": "You're Day 1 post-outing in a return-to-throwing phase. Follow your 14-day ramp plan for throwing progression \u2014 today is not a throwing day."
+      },
+      "notes": [
+        "Pronator work is non-negotiable \u2014 it builds fatigue resistance in the muscles that protect your UCL during high-pitch-count outings.",
+        "Hydration target: \u226593 oz (half your 185 lbs bodyweight). Crucial for tissue recovery.",
+        "You're in a rebuild phase \u2014 prioritize perfect form over max weight. RPE 7-8 is the sweet spot.",
+        "Post-lift nutrition: Consume 20-30g protein within 60 minutes to support muscle repair.",
+        "Monitor forearm tightness closely \u2014 it's your primary warning sign. Flag it immediately if it appears.",
+        "The 2:1 pull-to-push ratio (Pull-Ups + Rows vs. Bench + Landmine) protects shoulder health while building pressing strength."
+      ],
+      "morning_brief": "Applied plan: Upper body \u2014 push emphasis \u2014 heavy_compounds"
     }
   ]
 }
