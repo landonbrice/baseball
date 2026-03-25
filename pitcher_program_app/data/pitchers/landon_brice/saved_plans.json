@@ -271,7 +271,7 @@
       "Monitor forearm tightness closely \u2014 it's your primary warning sign. Flag it immediately if it appears.",
       "The 2:1 pull-to-push ratio (Pull-Ups + Rows vs. Bench + Landmine) protects shoulder health while building pressing strength."
     ],
-    "modifies_daily_plan": false,
+    "modifies_daily_plan": true,
     "active": true,
     "generation_request": {
       "plan_type": "upper_push",
