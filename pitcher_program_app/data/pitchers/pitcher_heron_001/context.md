@@ -20,3 +20,5 @@
 **Concern level:** Moderate. Medial pain on the first set that resolves by the second is a classic sign of 
 - [2026-03-25 18:00] (interaction) Q: I also had some olecronen/tricep area pain post throw on overhead tricep extensi | A: Given your history of olecranon stress fracture and tricep pain on overhead extensions, this is a **moderate concern**.
 **Why it's notable:** Overhead tricep extensions load the long head of the tric
+- [2026-03-25 19:16] (interaction) Q: Throwing felt very good today, post throw the only thing is that an overhead tri | A: Given your history of olecranon stress fracture and UCL surgery, any new or shifting pain location is worth a closer look.
+**Bicep-area tightness post-throw:** This could be a shift in your compensat
