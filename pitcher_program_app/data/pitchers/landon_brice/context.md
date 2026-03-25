@@ -23,3 +23,4 @@ I'll swap trap bar for front squat, | Mod: Replaced trap bar deadlift with front
 Here’s  | Mod: Added Side Plank and Modified Side Plank ER with Pressout + Ball Drop
 - [2026-03-25 14:32] (interaction) Q: Probably 14 days, I’m ramping back up to get on the Mount | A: Got it — you're ramping up to get back on the mound in about 14 days. Since you're in a return-to-throwing phase with a forearm/UCL history, the next two weeks are about controlled, progressive loadin | Saved plan: 14-Day Ramp to Mound
 - [2026-03-25 14:47] (plan_applied) Applied 'Upper body — push emphasis — heavy_compounds' to today's training
+- [2026-03-25 15:15] (interaction) Q: Liked this lift today thanks | A: Glad to hear it. That was a heavy push emphasis day — DB bench, landmine press, weighted pull-ups — designed to build strength while you're ramping back up. The volume was moderate to keep you fresh f
