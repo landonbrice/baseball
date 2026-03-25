@@ -22,3 +22,5 @@
 **Why it's notable:** Overhead tricep extensions load the long head of the tric
 - [2026-03-25 19:16] (interaction) Q: Throwing felt very good today, post throw the only thing is that an overhead tri | A: Given your history of olecranon stress fracture and UCL surgery, any new or shifting pain location is worth a closer look.
 **Bicep-area tightness post-throw:** This could be a shift in your compensat
+- [2026-03-25 20:27] (interaction) Q: I am going to lift now, what should I do | A: Given your current status (Day 99 post-outing, arm feel 4/5, YELLOW flag), you're in a modified protocol. The priority is supporting your return to throwing without pain, not pushing intensity.
+**Tod
