@@ -16,3 +16,5 @@
 - Right-handed reliever (long inning), freshman  
 - Primary goal: Return to throwing 100% pain free  
 - Communication preference: Moderate de
+- [2026-03-25 16:43] (interaction) Q: Today I am going to throw 3 sets of 25, last time I threw i had some medial disc | A: Given your history of medial elbow pain and recent flare-ups, here’s how to approach today:
+**Concern level:** Moderate. Medial pain on the first set that resolves by the second is a classic sign of 
