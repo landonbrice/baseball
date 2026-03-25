@@ -1,6 +1,6 @@
 {
   "pitcher_id": "pitcher_heron_001",
-  "telegram_id": null,
+  "telegram_id": 8767680376,
   "telegram_username": "carterpheron",
   "name": "Carter Heron",
   "role": "reliever",
@@ -33,7 +33,7 @@
     {
       "date": "unknown",
       "area": "shoulder",
-      "description": "Shoulder pain during TJ rehab progression — currently much improved",
+      "description": "Shoulder pain during TJ rehab progression \u2014 currently much improved",
       "severity": "mild",
       "resolution": "Improving with rehab",
       "ongoing_considerations": "Monitor during throwing progression",
