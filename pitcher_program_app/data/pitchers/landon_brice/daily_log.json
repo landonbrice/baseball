@@ -352,7 +352,9 @@
       },
       "completed_exercises": {
         "ex_weighted_pullup": true,
-        "ex_db_bench": true
+        "ex_db_bench": true,
+        "ex_db_row": true,
+        "ex_landmine_press": true
       },
       "arm_care": {
         "timing": "pre-lift",
