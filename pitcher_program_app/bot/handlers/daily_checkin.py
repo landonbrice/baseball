@@ -615,6 +615,9 @@ async def _generate_plan_and_respond(message, context) -> int:
     profile = load_profile(pitcher_id)
     sleep_hours = (profile.get("biometric_integration") or {}).get("avg_sleep_hours") or 7.0
 
+    # Let the pitcher know we're working on it
+    status_msg = await message.reply_text("Generating your plan...")
+
     try:
         result = await process_checkin(
             pitcher_id, arm_feel, sleep_hours,
@@ -624,6 +627,12 @@ async def _generate_plan_and_respond(message, context) -> int:
             next_pitch_days=next_pitch_days,
             arm_clarification=arm_clarification,
         )
+
+        # Remove the "generating" message
+        try:
+            await status_msg.delete()
+        except Exception:
+            pass
 
         # Send triage + brief
         flag = result["flag_level"].upper()
@@ -651,8 +660,22 @@ async def _generate_plan_and_respond(message, context) -> int:
         if result["weekly_summary"]:
             await message.reply_text(result["weekly_summary"])
 
+    except TimeoutError:
+        logger.error(f"LLM timeout during check-in for {pitcher_id}")
+        try:
+            await status_msg.delete()
+        except Exception:
+            pass
+        await message.reply_text(
+            "Plan generation is taking longer than usual. Your check-in data has been saved.\n\n"
+            "Try /checkin again in a minute, or open the mini app for your last plan."
+        )
     except Exception as e:
         logger.error(f"Error in check-in flow: {e}", exc_info=True)
+        try:
+            await status_msg.delete()
+        except Exception:
+            pass
         await message.reply_text(
             "Something went wrong generating your plan. Try /checkin again, "
             "or let your coach know."

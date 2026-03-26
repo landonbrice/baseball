@@ -8,11 +8,16 @@ The reasoning model is used for multi-day programs, return-to-throw progressions
 and any request that needs the depth of a real coaching plan.
 """
 
+import asyncio
 import os
 import logging
 from bot.config import LLM_CONFIG, DEEPSEEK_API_KEY
 
 logger = logging.getLogger(__name__)
+
+# Timeouts (seconds) for each model tier
+FAST_TIMEOUT = 20
+REASONING_TIMEOUT = 45
 
 
 def load_prompt(prompt_name: str) -> str:
@@ -25,7 +30,7 @@ def load_prompt(prompt_name: str) -> str:
 
 async def call_llm(
     system_prompt: str, user_message: str, max_tokens: int = None,
-    history: list[dict] = None, model: str = None,
+    history: list = None, model: str = None, timeout: int = None,
 ) -> str:
     """Call the configured LLM and return the response text.
 
@@ -35,21 +40,24 @@ async def call_llm(
         max_tokens: Override for max response tokens.
         history: Optional conversation history (list of {role, content} dicts).
         model: Override model name (e.g. "deepseek-reasoner" for complex tasks).
+        timeout: Override timeout in seconds.
     """
     provider = LLM_CONFIG["provider"]
     model = model or LLM_CONFIG["model"]
     tokens = max_tokens or LLM_CONFIG["max_tokens"]
     temperature = LLM_CONFIG["temperature"]
+    is_reasoning = model == LLM_CONFIG.get("model_reasoning", "deepseek-reasoner")
+    timeout = timeout or (REASONING_TIMEOUT if is_reasoning else FAST_TIMEOUT)
 
     if provider == "deepseek":
-        return await _call_deepseek(system_prompt, user_message, model, tokens, temperature, history)
+        return await _call_deepseek(system_prompt, user_message, model, tokens, temperature, history, timeout)
     else:
         raise ValueError(f"Unsupported LLM provider: {provider}")
 
 
 async def call_llm_reasoning(
     system_prompt: str, user_message: str, max_tokens: int = 4000,
-    history: list[dict] = None,
+    history: list = None,
 ) -> str:
     """Call the reasoning model for complex multi-step protocol generation.
 
@@ -61,19 +69,23 @@ async def call_llm_reasoning(
     """
     model = LLM_CONFIG.get("model_reasoning", "deepseek-reasoner")
     logger.info(f"Using reasoning model: {model}")
-    return await call_llm(system_prompt, user_message, max_tokens=max_tokens, history=history, model=model)
+    return await call_llm(
+        system_prompt, user_message, max_tokens=max_tokens,
+        history=history, model=model, timeout=REASONING_TIMEOUT,
+    )
 
 
 async def _call_deepseek(
-    system_prompt: str, user_message: str, model: str, max_tokens: int, temperature: float,
-    history: list[dict] = None,
+    system_prompt: str, user_message: str, model: str, max_tokens: int,
+    temperature: float, history: list = None, timeout: int = FAST_TIMEOUT,
 ) -> str:
-    """Call DeepSeek's OpenAI-compatible API."""
+    """Call DeepSeek's OpenAI-compatible API with timeout."""
     from openai import AsyncOpenAI, APIError
 
     client = AsyncOpenAI(
         api_key=DEEPSEEK_API_KEY,
         base_url="https://api.deepseek.com",
+        timeout=timeout,
     )
 
     messages = [{"role": "system", "content": system_prompt}]
@@ -82,13 +94,19 @@ async def _call_deepseek(
     messages.append({"role": "user", "content": user_message})
 
     try:
-        response = await client.chat.completions.create(
-            model=model,
-            max_tokens=max_tokens,
-            temperature=temperature,
-            messages=messages,
+        response = await asyncio.wait_for(
+            client.chat.completions.create(
+                model=model,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                messages=messages,
+            ),
+            timeout=timeout,
         )
         return response.choices[0].message.content
+    except asyncio.TimeoutError:
+        logger.error(f"DeepSeek timeout after {timeout}s ({model})")
+        raise TimeoutError(f"LLM call timed out after {timeout}s")
     except APIError as e:
         logger.error(f"DeepSeek API error ({model}): {e}")
         raise

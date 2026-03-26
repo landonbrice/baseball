@@ -11,7 +11,7 @@ export default function Coach() {
   const navigate = useNavigate();
   const {
     messages, setMessages, addMessage,
-    globalRefreshKey, triggerRefresh, clearCoachBadge, setCheckinInProgress,
+    globalRefreshKey, triggerRefresh, clearCoachBadge, setCheckinInProgress, setCheckinCompleted,
     consumePlanContext,
   } = useAppContext();
 
@@ -92,6 +92,7 @@ export default function Coach() {
         triggerRefresh();
         if (m.content === 'plan_loaded') {
           setCheckinInProgress(false);
+          setCheckinCompleted(true);
           newMsgs.push({
             role: 'bot',
             type: 'plan_ready',
@@ -507,7 +508,7 @@ export default function Coach() {
   const inputDisabled = (!!checkinFlow && checkinFlow.step !== 'arm_report') || nextOutingFlow;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 80px)', background: 'var(--color-cream-bg)' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100dvh - 80px)', background: 'var(--color-cream-bg)' }}>
 
       {/* Maroon header */}
       <div style={{ background: 'var(--color-maroon)', padding: '14px 16px 12px', flexShrink: 0 }}>

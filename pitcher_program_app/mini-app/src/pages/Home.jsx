@@ -16,7 +16,7 @@ import StaffPulse from '../components/StaffPulse';
 
 export default function Home() {
   const { pitcherId, initData } = useAuth();
-  const { globalRefreshKey } = useAppContext();
+  const { globalRefreshKey, checkinCompleted } = useAppContext();
   const navigate = useNavigate();
   const suffix = globalRefreshKey ? `?_r=${globalRefreshKey}` : '';
   const { profile, log, progression, loading, error } = usePitcher(pitcherId, initData, suffix);
@@ -53,7 +53,7 @@ export default function Home() {
   const flagLevel = String(flags.current_flag_level || 'green');
   const armFeel = typeof flags.current_arm_feel === 'number' ? flags.current_arm_feel : null;
   const isNewPitcher = !entries.length && !flags.last_outing_date;
-  const hasCheckedIn = !!((todayEntry?.pre_training || {}).arm_feel);
+  const hasCheckedIn = checkinCompleted || !!((todayEntry?.pre_training || {}).arm_feel);
   const isViewingPast = selectedDate && selectedDate !== todayStr;
 
   const rawBrief = todayEntry?.morning_brief || (todayEntry?.plan_generated || {}).morning_brief;

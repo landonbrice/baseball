@@ -29,12 +29,14 @@ body {
   padding: 0;
   padding-bottom: env(safe-area-inset-bottom, 0);
   -webkit-font-smoothing: antialiased;
-  min-height: 100vh;
+  min-height: 100dvh;
+  min-height: 100vh; /* fallback for older browsers */
 }
 
 /* Telegram WebApp safe area */
 #root {
-  min-height: 100vh;
+  min-height: 100dvh;
+  min-height: 100vh; /* fallback */
   padding-bottom: 72px; /* BottomNav height */
 }
 

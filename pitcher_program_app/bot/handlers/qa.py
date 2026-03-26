@@ -101,6 +101,11 @@ async def handle_question(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
         append_context(pitcher_id, "interaction", f"Q: {question[:80]} | A: {response[:200]}")
 
+    except TimeoutError:
+        logger.error(f"LLM timeout answering Q&A for {pitcher_id}")
+        await update.message.reply_text(
+            "That's taking too long to process right now. Try asking again in a moment."
+        )
     except Exception as e:
         logger.error(f"Error handling question: {e}", exc_info=True)
         await update.message.reply_text(

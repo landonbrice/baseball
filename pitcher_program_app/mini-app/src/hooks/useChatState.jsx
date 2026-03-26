@@ -28,6 +28,9 @@ export function AppProvider({ children }) {
   // Coach in-progress indicator — true while check-in is mid-flow
   const [checkinInProgress, setCheckinInProgress] = useState(false);
 
+  // Tracks whether check-in was completed this session (hides banner immediately)
+  const [checkinCompleted, setCheckinCompleted] = useState(false);
+
   const addMessage = useCallback((msg) => setMessages(prev => [...prev, msg]), []);
   const addMessages = useCallback((msgs) => setMessages(prev => [...prev, ...msgs]), []);
   const clearMessages = useCallback(() => setMessages([]), []);
@@ -41,6 +44,7 @@ export function AppProvider({ children }) {
       globalRefreshKey, triggerRefresh,
       coachBadge, setCoachBadge, clearCoachBadge,
       checkinInProgress, setCheckinInProgress,
+      checkinCompleted, setCheckinCompleted,
       setPlanContext, consumePlanContext,
     }}>
       {children}

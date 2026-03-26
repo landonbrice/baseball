@@ -8,6 +8,9 @@ import logging
 import os
 import sys
 from datetime import datetime, time as dt_time
+from zoneinfo import ZoneInfo
+
+CHICAGO_TZ = ZoneInfo("America/Chicago")
 
 from telegram import Update, BotCommand, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from telegram.ext import (
@@ -168,7 +171,7 @@ async def _send_post_outing_reminder(context) -> None:
 
     # Check if they already logged an outing today
     log = load_log(pitcher_id)
-    today = datetime.now().strftime("%Y-%m-%d")
+    today = datetime.now(CHICAGO_TZ).strftime("%Y-%m-%d")
     has_outing = any(
         entry.get("date") == today and entry.get("outing") is not None
         for entry in log.get("entries", [])
@@ -281,7 +284,7 @@ async def _send_evening_followup(context) -> None:
     chat_id = context.job.data["chat_id"]
 
     log = load_log(pitcher_id)
-    today = datetime.now().strftime("%Y-%m-%d")
+    today = datetime.now(CHICAGO_TZ).strftime("%Y-%m-%d")
 
     # Check if there's a check-in entry for today
     has_checkin = any(
@@ -347,7 +350,7 @@ def _ensure_pitcher_jobs(application: Application, pitcher_id: str, profile: dic
         hour, minute = map(int, time_str.split(":"))
     except (ValueError, AttributeError):
         hour, minute = 8, 0
-    notify_time = dt_time(hour=hour, minute=minute)
+    notify_time = dt_time(hour=hour, minute=minute, tzinfo=CHICAGO_TZ)
 
     job_queue.run_daily(
         _send_morning_checkin, time=notify_time,
@@ -355,11 +358,11 @@ def _ensure_pitcher_jobs(application: Application, pitcher_id: str, profile: dic
         name=f"morning_checkin_{pitcher_id}",
     )
     job_queue.run_daily(
-        _send_evening_followup, time=dt_time(hour=18, minute=0),
+        _send_evening_followup, time=dt_time(hour=18, minute=0, tzinfo=CHICAGO_TZ),
         data={"pitcher_id": pitcher_id, "chat_id": chat_id},
         name=f"evening_followup_{pitcher_id}",
     )
-    logger.info(f"Dynamically scheduled jobs for {pitcher_id} at {time_str}")
+    logger.info(f"Dynamically scheduled jobs for {pitcher_id} at {time_str} Chicago time")
 
 
 def _schedule_jobs(application: Application) -> None:
@@ -383,10 +386,13 @@ def _schedule_jobs(application: Application) -> None:
                 if not chat_id:
                     continue
 
-                # Parse notification time (default 08:00)
+                # Parse notification time (default 08:00) — all times in Chicago
                 time_str = (profile.get("preferences") or {}).get("notification_time", "08:00")
-                hour, minute = map(int, time_str.split(":"))
-                notify_time = dt_time(hour=hour, minute=minute)
+                try:
+                    hour, minute = map(int, time_str.split(":"))
+                except (ValueError, AttributeError):
+                    hour, minute = 8, 0
+                notify_time = dt_time(hour=hour, minute=minute, tzinfo=CHICAGO_TZ)
 
                 job_queue.run_daily(
                     _send_morning_checkin,
@@ -394,27 +400,27 @@ def _schedule_jobs(application: Application) -> None:
                     data={"pitcher_id": entry, "chat_id": chat_id},
                     name=f"morning_checkin_{entry}",
                 )
-                logger.info(f"Scheduled morning check-in for {entry} at {time_str}")
+                logger.info(f"Scheduled morning check-in for {entry} at {time_str} Chicago")
 
-                # Phase 3a: 6pm follow-up if check-in unanswered
+                # 6pm follow-up if check-in unanswered (Chicago time)
                 job_queue.run_daily(
                     _send_evening_followup,
-                    time=dt_time(hour=18, minute=0),
+                    time=dt_time(hour=18, minute=0, tzinfo=CHICAGO_TZ),
                     data={"pitcher_id": entry, "chat_id": chat_id},
                     name=f"evening_followup_{entry}",
                 )
-                logger.info(f"Scheduled 6pm follow-up for {entry}")
+                logger.info(f"Scheduled 6pm Chicago follow-up for {entry}")
             except Exception as e:
                 logger.error(f"Error scheduling job for {entry}: {e}")
 
-    # Schedule Sunday 6pm weekly summary
+    # Schedule Sunday 6pm weekly summary (Chicago time)
     job_queue.run_daily(
         _send_weekly_summary,
-        time=dt_time(hour=18, minute=0),
+        time=dt_time(hour=18, minute=0, tzinfo=CHICAGO_TZ),
         days=(6,),  # Sunday = 6
         name="weekly_summary",
     )
-    logger.info("Scheduled Sunday 6pm weekly summary")
+    logger.info("Scheduled Sunday 6pm Chicago weekly summary")
 
 
 async def post_init(application: Application) -> None:
