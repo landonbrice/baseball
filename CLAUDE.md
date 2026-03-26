@@ -1,12 +1,49 @@
-# Pitcher Training Bot — Claude Init
+# Pitcher Training Intelligence — Claude Init
 
-> Last updated: 2026-03-23
+> Last updated: 2026-03-26
+> Sprint status: Phases 1-4 complete. Supabase live, coaching UX shipped, visible compounding deployed. Phase 5 (polish + adoption) next.
 
 ## What This Is
 
-A live, production training intelligence system for the UChicago baseball pitching staff. Telegram bot + FastAPI sidecar + React Mini App dashboard. Each pitcher gets personalized daily lifting programs, arm care protocols, recovery programming, evidence-based Q&A, and longitudinal tracking — all driven by their individual profile, injury history, biometric data, and conversation context.
+A training intelligence system for the UChicago baseball pitching staff. Telegram bot + FastAPI API + React Mini App. Each pitcher gets personalized daily programs (lifting, arm care, recovery, throwing), evidence-based Q&A, and longitudinal tracking — driven by their individual profile, injury history, and conversation context.
 
-**The system is deployed and actively used by real pitchers.**
+**Three layers:**
+- **Bot (Telegram)** — Conversational input layer. Morning check-ins, post-outing reports, free-text Q&A. The coaching relationship.
+- **Mini App (React)** — Value/visibility layer. Programs, completion tracking, trajectory over time. Where compounding becomes tangible.
+- **Intelligence Engine (Python/FastAPI)** — Triage, plan generation, knowledge retrieval, progression analysis. The thinking that connects input to output.
+
+**The system is deployed but adoption is low.** The intelligence layer is solid. The problems are UX friction, fragile data persistence, and lack of visible payoff for consistency. This sprint fixes that.
+
+## Active Sprint (March 2026)
+
+> Full details in PROJECT_VISION.md. This section is the quick reference.
+
+### Phase 1: Supabase Migration (Priority)
+Migrate from JSON-on-Railway-filesystem to Supabase Postgres. This unblocks everything else.
+
+**Key tables:** `pitchers`, `injury_history`, `active_flags`, `daily_entries`, `exercises`, `templates`, `saved_plans`, `chat_messages`, `weekly_summaries`
+
+**Critical addition:** `chat_messages` table — both Telegram and mini app write here, both read. Solves the cross-platform conversation gap.
+
+**Approach:**
+- Create `bot/services/db.py` — async Supabase client, all CRUD operations
+- Swap `context_manager.py` to read/write Supabase instead of filesystem
+- Keep JSON files as read-only fallback during transition
+- Migration script reads existing JSON data → inserts into Supabase
+
+**New env vars needed:** `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`
+
+### Phase 2: State Awareness
+Bot and mini app share unified pitcher state. Morning status endpoint, cross-platform conversation history, explicit check-in tracking.
+
+### Phase 3: Coaching Conversation Quality
+Same data captured, but the bot *responds* to each step before asking the next. Context-aware prompts that reference yesterday's data. Smart defaults where rotation position is known. Preserve space for real pitcher input — the coaching is in the response, not the removal of steps.
+
+### Phase 4: Visible Compounding
+Mini app home redesign: arm feel trends, consistency streaks, LLM-generated weekly insights, exercise progression, plan modification history.
+
+### Phase 5: Polish + Adoption Push
+Update docs, fix broken flows, in-person onboarding with 2-3 pitchers, team monitoring dashboard.
 
 ## Stack
 
@@ -16,7 +53,7 @@ A live, production training intelligence system for the UChicago baseball pitchi
 | API | FastAPI / Uvicorn | Railway (same service, Procfile) |
 | LLM | DeepSeek (OpenAI-compatible wrapper) | DeepSeek API |
 | Mini App | React 18 / Vite / Tailwind CSS | Vercel |
-| Data | JSON files + Markdown context per pitcher | Railway filesystem |
+| Data | Supabase (Postgres) | Supabase |
 
 **Deployment URLs:**
 - API: `https://baseball-production-9d28.up.railway.app`
@@ -29,52 +66,54 @@ A live, production training intelligence system for the UChicago baseball pitchi
 pitcher_program_app/
 ├── bot/                          # Telegram bot (long-polling)
 │   ├── main.py                   # Entry point, all handlers, scheduled jobs
-│   ├── config.py                 # Env vars, paths, CONTEXT_WINDOW_CHARS=500
+│   ├── config.py                 # Env vars, paths, CONTEXT_WINDOW_CHARS=12000
 │   ├── run.py                    # Railway entry (Procfile: python -m bot.run)
 │   ├── utils.py                  # Shared keyboard builders
 │   ├── handlers/
-│   │   ├── daily_checkin.py      # /checkin ConversationHandler
-│   │   ├── post_outing.py        # /outing ConversationHandler
-│   │   └── qa.py                 # Free-text Q&A with conversation history
+│   │   ├── daily_checkin.py      # /checkin ConversationHandler (5 states, reliever branching)
+│   │   ├── post_outing.py        # /outing ConversationHandler (pitch count → arm feel → tightness → UCL → notes)
+│   │   └── qa.py                 # Free-text Q&A with dual LLM routing (fast vs reasoning)
 │   ├── services/
-│   │   ├── context_manager.py    # Profile/log/context CRUD, pitcher lookup
-│   │   ├── checkin_service.py    # Check-in → triage → plan generation
-│   │   ├── outing_service.py     # Outing → recovery protocol
-│   │   ├── triage.py             # Rule-based readiness triage (green/yellow/red)
-│   │   ├── triage_llm.py         # LLM refinement for ambiguous triage
-│   │   ├── plan_generator.py     # LLM-powered daily plan from templates
-│   │   ├── progression.py        # Arm feel trends, weekly summaries
-│   │   ├── llm.py                # DeepSeek wrapper (model swappable via config)
-│   │   ├── knowledge_retrieval.py # Exercise library + knowledge search
-│   │   └── web_research.py       # Tavily API fallback
-│   └── prompts/                  # LLM prompt templates (.md)
+│   │   ├── db.py                 # Supabase client, all CRUD operations
+│   │   ├── context_manager.py    # Profile/log/context CRUD — Supabase-backed with JSON fallback
+│   │   ├── checkin_service.py    # Check-in → triage → plan generation pipeline
+│   │   ├── outing_service.py     # Outing → recovery protocol pipeline
+│   │   ├── triage.py             # Rule-based readiness triage (green/yellow/red), injury-aware
+│   │   ├── triage_llm.py         # LLM refinement for ambiguous triage cases
+│   │   ├── plan_generator.py     # LLM-powered daily plan from templates (674 lines, most complex service)
+│   │   ├── progression.py        # Arm feel trends, sleep patterns, recovery curves, weekly summaries
+│   │   ├── llm.py                # DeepSeek wrapper (call_llm + call_llm_reasoning)
+│   │   ├── knowledge_retrieval.py # Exercise library search + auto-research generation
+│   │   └── web_research.py       # Tavily API fallback for Q&A
+│   └── prompts/                  # LLM prompt templates (.md): system, qa, plan_generation, triage, recovery
 │
 ├── api/                          # FastAPI sidecar for mini-app
 │   ├── main.py                   # App, CORS, health check
 │   ├── auth.py                   # Telegram initData HMAC validation
-│   └── routes.py                 # All /api/* endpoints (authed)
+│   └── routes.py                 # 25+ endpoints: auth, checkin, outing, chat, plans, exercises, progression
 │
 ├── data/
-│   ├── pitchers/                 # Per-pitcher dirs: profile.json, context.md, daily_log.json
-│   ├── templates/                # Training program templates (JSON + MD)
-│   ├── knowledge/                # exercise_library.json, research base, extended knowledge
+│   ├── pitchers/                 # Per-pitcher dirs: profile.json, context.md, daily_log.json (12 active)
+│   ├── templates/                # 9 training templates (starter_7day, reliever_flexible, arm_care, plyocare, recovery, etc.)
+│   ├── knowledge/                # exercise_library.json (250+ exercises), research docs with YAML front matter
 │   └── intake_responses.json     # Raw Google Form responses
 │
 ├── mini-app/                     # React Telegram Mini App
 │   ├── src/
-│   │   ├── App.jsx / Layout.jsx  # Router, ChatProvider, TelegramWebApp init
+│   │   ├── App.jsx / Layout.jsx  # Router, auth context, TelegramWebApp init, morning badge check
 │   │   ├── hooks/                # useApi, usePitcher, useTelegram, useChatState
-│   │   ├── components/           # ChatBar, DailyCard, WeekStrip, TrendChart, etc.
-│   │   └── pages/                # Home, Plans, ExerciseLibrary, LogHistory, Profile
+│   │   ├── components/           # DailyCard, WeekStrip, TrendChart, SessionProgress, Sparkline, StreakBadge, StaffPulse, CoachFAB, TrendInsightChart, ExerciseWhy, etc. (19 total)
+│   │   └── pages/                # Home, Coach, Plans, PlanDetail, ExerciseLibrary, LogHistory, Profile (7 total)
 │   └── .env.production           # VITE_API_URL
 │
+├── scripts/                      # intake_to_profile.py, seed scripts, data_sync.py, backup_data.sh
 ├── research/                     # Reference material (NOT loaded at runtime)
-├── scripts/                      # intake_to_profile.py, seed scripts, backup
 ├── bot_structure/                # Design docs (reference)
 ├── files/                        # Architecture + pipeline docs
 ├── past_arm_programs/            # Historical spreadsheets (reference)
 │
-├── MASTER_PROJECT.md             # Original project specification
+├── PROJECT_VISION.md             # CURRENT: Vision, architecture decisions, sprint plan
+├── MASTER_PROJECT.md             # LEGACY: Original specification (superseded by PROJECT_VISION.md)
 ├── Procfile                      # Railway: web: python -m bot.run
 ├── railway.toml                  # Build config (nixpacks)
 └── requirements.txt              # Python deps
@@ -85,35 +124,35 @@ pitcher_program_app/
 ### Pitcher Lookup
 `get_pitcher_id_by_telegram(telegram_id, username)` — matches by telegram_id first, falls back to telegram_username with auto-backfill on first message.
 
-### Context System (context.md per pitcher)
-Two sections:
-- **Persistent facts** — role, rotation, injury history, active mods (auto-rebuilt from profile)
-- **Recent interactions** — timestamped entries, trimmed to 15 most recent
-
-Truncated to `CONTEXT_WINDOW_CHARS` (500) for LLM calls.
-
-### Conversation History
-- **Telegram:** Last 3 exchanges in `context.user_data` (in-memory, per-session)
-- **Mini App:** ChatProvider holds messages in React state, sends to `/api/ask`
-- **Cross-platform gap:** Both read context.md but don't share real-time conversation state
+### Context System
+Supabase-backed. `context_manager.py` queries recent `chat_messages` + `daily_entries` + `active_flags` from Supabase to build LLM context. JSON filesystem fallback available via `USE_JSON_FALLBACK=true`.
 
 ### Triage → Plan Pipeline
 1. Rule-based triage (`triage.py`) → green/yellow/red + modifications
-2. Ambiguous → LLM refinement (`triage_llm.py`)
-3. Templates + triage + context → LLM → structured protocol
-4. Results persist to profile.json active_flags
+2. Ambiguous cases → LLM refinement (`triage_llm.py`)
+3. Templates + triage + context → LLM → structured JSON protocol
+4. Fallback to template-derived blocks if LLM fails
+5. Results persist to active_flags
+
+### Dual LLM Routing
+- `call_llm()` — fast model (deepseek-chat) for simple Q&A, check-in responses
+- `call_llm_reasoning()` — reasoning model (deepseek-reasoner) for multi-day protocols, complex recovery plans
+- Keyword detection in qa.py routes to appropriate model
+
+### API Endpoints (routes.py)
+**Auth:** `/api/auth/resolve`
+**Data:** `/api/pitcher/{id}/profile`, `/log`, `/progression`, `/upcoming`, `/week-summary`, `/morning-status`
+**Actions:** `POST /checkin`, `/outing`, `/chat` (unified), `/set-next-outing`, `/complete-exercise`
+**Plans:** `GET/POST /plans`, `/plans/{id}/activate`, `/deactivate`, `/apply-plan/{id}`, `/generate-plan`
+**Library:** `/api/exercises`, `/api/exercises/slugs`
+**Team:** `/api/staff/pulse`
+**Trends:** `/api/pitcher/{id}/trend`, `/api/pitcher/{id}/chat-history`
 
 ### Scheduled Jobs
 - Morning check-in at pitcher's `notification_time`
 - 6pm follow-up if unanswered
 - Sunday 6pm weekly summary
 - `/gamestart` → 2hr delayed outing reminder
-
-### Onboarding Pipeline
-1. Pitcher fills Google Form → export to `data/intake_responses.json`
-2. `python scripts/intake_to_profile.py --json data/intake_responses.json`
-3. Creates `data/pitchers/{pitcher_id}/` (profile.json, context.md, daily_log.json)
-4. `telegram_id` backfills on first bot message via username match
 
 ## Current Pitchers
 
@@ -138,6 +177,8 @@ Truncated to `CONTEXT_WINDOW_CHARS` (500) for LLM calls.
 |----------|----------|---------|-------------|
 | TELEGRAM_BOT_TOKEN | yes | — | From @BotFather |
 | DEEPSEEK_API_KEY | yes | — | DeepSeek API key |
+| SUPABASE_URL | yes | — | Supabase project URL |
+| SUPABASE_SERVICE_KEY | yes | — | Supabase service role key |
 | MINI_APP_URL | no | — | Vercel mini-app URL |
 | LLM_PROVIDER | no | deepseek | Provider name |
 | LLM_MODEL | no | deepseek-chat | Model identifier |
@@ -161,9 +202,28 @@ python -m api.main
 cd mini-app && npm install && npm run dev
 ```
 
-## Critical: Data Backup
+## Supabase Schema
 
-Railway filesystem resets on redeploy. Run `scripts/backup_data.sh` after any day of real usage to pull pitcher data and commit to repo.
+Project: `pitcher-training-intel` (us-east-1)
+
+| Table | Purpose |
+|-------|---------|
+| `pitchers` | Pitcher profiles — id, name, role, physical/pitching/training/biometric JSONB fields |
+| `injury_history` | Per-pitcher injury records with severity, area, flag_level, red_flags |
+| `active_flags` | Current state per pitcher — arm_feel, flag_level, days_since_outing, modifications |
+| `daily_entries` | Daily training logs — pre_training, plan_generated, actual_logged, completed_exercises |
+| `exercises` | Exercise library (95 exercises) — prescription, tags, contraindications, youtube_url |
+| `templates` | Training templates (9) — rotation day structure, exercise blocks |
+| `saved_plans` | Pitcher-specific saved/generated plans with plan_data JSONB |
+| `chat_messages` | Cross-platform conversation persistence — source (telegram/mini_app), role, content |
+| `weekly_summaries` | Aggregated weekly data for long-term tracking |
+
+## Known Issues & Tech Debt
+
+- Exercise library has YouTube link gaps (see `unmatched_youtube.csv`)
+- Templates reference exercise IDs that must exist in library — no validation
+- WHOOP API integration is a stub (schema fields exist, no API calls)
+- `data_sync.py` still exists but is disabled — can be removed entirely
 
 ## Bot Scope Boundaries
 

@@ -1,3 +1,5 @@
+> **SUPERSEDED:** This document is historical. See `/PROJECT_VISION.md` for the current vision and sprint plan (March 2026).
+
 # MASTER PROJECT DOCUMENT: UChicago Pitcher Training System
 # Claude Code: Read this file FIRST before touching anything else.
 

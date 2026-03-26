@@ -13,9 +13,8 @@ from bot.services.context_manager import (
     load_profile, load_log, save_log, load_context, update_exercise_completion,
     append_context, increment_days_since_outing, load_saved_plans,
     save_plan, deactivate_plan, update_active_flags, get_recent_entries,
-    get_pitcher_dir,
+    get_pitcher_dir, activate_plan, update_plan_data,
 )
-from scripts.data_sync import mark_dirty
 from bot.services.progression import analyze_progression
 from bot.services.plan_generator import get_upcoming_days
 from bot.services.checkin_service import process_checkin
@@ -160,18 +159,86 @@ async def get_week_summary(pitcher_id: str, request: Request):
 
 @router.get("/pitcher/{pitcher_id}/morning-status")
 async def morning_status(pitcher_id: str, request: Request):
-    """Check if pitcher has a morning briefing and whether they've checked in today."""
+    """Return unified pitcher state: check-in status, arm feel trend, last interaction, schedule."""
     _require_pitcher_auth(request, pitcher_id)
-    from datetime import datetime
+    from datetime import datetime, date, timedelta
 
     log = load_log(pitcher_id)
-    today = datetime.now().strftime("%Y-%m-%d")
-    today_entry = next((e for e in log.get("entries", []) if e["date"] == today), None)
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    entries = log.get("entries", [])
+    today_entry = next((e for e in entries if e.get("date") == today_str), None)
+
+    # Check-in status — explicit from active_flags phase, or inferred from log
+    checked_in = bool(today_entry and today_entry.get("pre_training", {}).get("arm_feel"))
+
+    # Arm feel trend — last 7 entries with arm_feel data
+    arm_feels = []
+    for e in reversed(entries):
+        af = (e.get("pre_training") or {}).get("arm_feel")
+        if af is not None:
+            arm_feels.append({"date": e.get("date"), "arm_feel": af})
+        if len(arm_feels) >= 7:
+            break
+    arm_feels.reverse()
+
+    # Trend direction
+    trend = "stable"
+    if len(arm_feels) >= 3:
+        recent_avg = sum(a["arm_feel"] for a in arm_feels[-3:]) / 3
+        older_avg = sum(a["arm_feel"] for a in arm_feels[:min(3, len(arm_feels))]) / min(3, len(arm_feels))
+        if recent_avg - older_avg >= 0.5:
+            trend = "improving"
+        elif older_avg - recent_avg >= 0.5:
+            trend = "declining"
+
+    # Last interaction timestamp from chat_messages
+    last_interaction = None
+    try:
+        from bot.services.context_manager import _using_supabase
+        if _using_supabase():
+            from bot.services import db as _db
+            history = _db.get_chat_history(pitcher_id, limit=1)
+            if history:
+                last_interaction = history[-1].get("created_at")
+    except Exception:
+        pass
+
+    # Days until outing from active_flags
+    try:
+        profile = load_profile(pitcher_id)
+        flags = profile.get("active_flags", {})
+    except FileNotFoundError:
+        flags = {}
+
     return {
-        "checked_in_today": bool(today_entry and today_entry.get("pre_training", {}).get("arm_feel")),
+        "checked_in_today": checked_in,
         "has_briefing": bool(today_entry and today_entry.get("morning_brief")),
         "morning_brief": today_entry.get("morning_brief") if today_entry else None,
+        "last_interaction": last_interaction,
+        "arm_feel_trend": arm_feels,
+        "trend_direction": trend,
+        "days_until_outing": flags.get("next_outing_days"),
+        "days_since_outing": flags.get("days_since_outing"),
+        "current_flag_level": flags.get("current_flag_level", "green"),
+        "current_arm_feel": flags.get("current_arm_feel"),
     }
+
+
+@router.get("/pitcher/{pitcher_id}/chat-history")
+async def get_chat_history(pitcher_id: str, request: Request, limit: int = Query(default=30)):
+    """Return recent chat messages for cross-platform conversation persistence."""
+    _require_pitcher_auth(request, pitcher_id)
+
+    try:
+        from bot.services.context_manager import _using_supabase
+        if _using_supabase():
+            from bot.services import db as _db
+            messages = _db.get_chat_history(pitcher_id, limit=limit)
+            return {"messages": messages}
+    except Exception as e:
+        logger.warning(f"Chat history fetch failed: {e}")
+
+    return {"messages": []}
 
 
 @router.post("/pitcher/{pitcher_id}/complete-exercise")
@@ -325,6 +392,21 @@ async def set_next_outing(pitcher_id: str, request: Request):
         raise HTTPException(status_code=404, detail="Pitcher not found")
 
 
+def _persist_chat(pitcher_id: str, user_content: str, bot_messages: list, source: str = "mini_app"):
+    """Persist user message and bot response to chat_messages table."""
+    try:
+        from bot.services.context_manager import _using_supabase
+        if _using_supabase():
+            from bot.services import db as _db
+            if user_content:
+                _db.insert_chat_message(pitcher_id, source, "user", user_content)
+            for m in bot_messages:
+                if m.get("type") == "text" and m.get("content"):
+                    _db.insert_chat_message(pitcher_id, source, "assistant", m["content"])
+    except Exception as e:
+        logger.debug(f"Chat persistence failed (non-critical): {e}")
+
+
 @router.post("/pitcher/{pitcher_id}/chat")
 async def post_chat(pitcher_id: str, request: Request):
     """Unified chat endpoint. Handles structured check-ins, outings, and free-text Q&A.
@@ -392,6 +474,10 @@ async def post_chat(pitcher_id: str, request: Request):
             if result.get("notes"):
                 messages.append({"type": "text", "content": "Anything else you want to know about today's plan?"})
 
+            # Persist to chat_messages
+            checkin_summary = f"Check-in: arm {arm_feel}/5, lift {lift_preference or 'auto'}, throw {throw_intent or 'none'}"
+            _persist_chat(pitcher_id, checkin_summary, messages)
+
             return {
                 "messages": messages,
                 "morning_brief": brief or None,
@@ -413,6 +499,11 @@ async def post_chat(pitcher_id: str, request: Request):
             for alert in result.get("alerts", []):
                 messages.append({"type": "text", "content": f"⚠️ {alert}"})
             messages.append({"type": "status", "content": "rotation_reset"})
+
+            # Persist to chat_messages
+            outing_summary = f"Outing: {pitch_count} pitches, arm feel {post_arm_feel}/5"
+            _persist_chat(pitcher_id, outing_summary, messages)
+
             return {
                 "messages": messages,
                 "flag_level": result.get("flag_level", "green"),
@@ -501,23 +592,13 @@ async def post_chat(pitcher_id: str, request: Request):
                     plan_context = body.get("plan_context")
                     if plan_context and plan_context.get("plan_id"):
                         # Update existing plan in place
-                        all_plans = load_saved_plans(pitcher_id)
-                        for p in all_plans:
-                            if p["id"] == plan_context["plan_id"]:
-                                if mod_data.get("exercises"):
-                                    if "lifting" not in p:
-                                        p["lifting"] = {}
-                                    p["lifting"]["exercises"] = mod_data["exercises"]
-                                if mod_data.get("title"):
-                                    p["title"] = mod_data["title"]
-                                p["summary"] = ", ".join(mod_data.get("changes", []))
-                                break
-                        plans_path = os.path.join(
-                            get_pitcher_dir(pitcher_id), "saved_plans.json"
-                        )
-                        with open(plans_path, "w") as f:
-                            json.dump(all_plans, f, indent=2)
-                        mark_dirty(plans_path)
+                        plan_updates = {}
+                        if mod_data.get("exercises"):
+                            plan_updates["lifting"] = {"exercises": mod_data["exercises"]}
+                        if mod_data.get("title"):
+                            plan_updates["title"] = mod_data["title"]
+                        plan_updates["summary"] = ", ".join(mod_data.get("changes", []))
+                        update_plan_data(pitcher_id, plan_context["plan_id"], plan_updates)
                         messages.append({
                             "type": "text",
                             "content": f"Updated plan: {mod_data.get('title', 'Program modification')}.",
@@ -606,6 +687,9 @@ async def post_chat(pitcher_id: str, request: Request):
                 summary += f" | Mod: {', '.join(mod_data.get('changes', [])[:2])}"
             append_context(pitcher_id, "interaction", summary)
 
+            # Persist user question and bot response to chat_messages
+            _persist_chat(pitcher_id, question, messages)
+
             return {"messages": messages}
 
     except FileNotFoundError:
@@ -648,19 +732,9 @@ async def post_deactivate_plan(pitcher_id: str, plan_id: str, request: Request):
 async def post_activate_plan(pitcher_id: str, plan_id: str, request: Request):
     """Activate a saved plan."""
     _require_pitcher_auth(request, pitcher_id)
-    plans = load_saved_plans(pitcher_id)
-    found = False
-    for plan in plans:
-        if plan["id"] == plan_id:
-            plan["active"] = True
-            found = True
-            break
+    found = activate_plan(pitcher_id, plan_id)
     if not found:
         raise HTTPException(status_code=404, detail="Plan not found")
-    plans_path = os.path.join(get_pitcher_dir(pitcher_id), "saved_plans.json")
-    with open(plans_path, "w") as f:
-        json.dump(plans, f, indent=2)
-    mark_dirty(plans_path)
     return {"status": "ok"}
 
 
@@ -681,12 +755,8 @@ async def apply_plan_to_today(pitcher_id: str, plan_id: str, request: Request):
         raise HTTPException(status_code=404, detail="Plan not found")
 
     # Activate it and mark as modifies_daily_plan
-    plan["active"] = True
-    plan["modifies_daily_plan"] = True
-    plans_path = os.path.join(get_pitcher_dir(pitcher_id), "saved_plans.json")
-    with open(plans_path, "w") as f:
-        json.dump(plans, f, indent=2)
-    mark_dirty(plans_path)
+    activate_plan(pitcher_id, plan_id)
+    update_plan_data(pitcher_id, plan_id, {"modifies_daily_plan": True})
 
     # Update today's log entry with the plan's exercises
     today = _dt.now().strftime("%Y-%m-%d")
@@ -833,7 +903,7 @@ async def get_exercises():
     return _load_exercise_library()
 
 
-def _extract_json_block(text: str, key: str) -> dict | None:
+def _extract_json_block(text: str, key: str):
     """Try to extract a JSON object containing `key` from LLM response text."""
     # Look for ```json blocks first
     for match in re.finditer(r"```(?:json)?\s*\n?(.*?)```", text, re.DOTALL):
@@ -893,3 +963,184 @@ async def get_slug_map():
         if "slug" in ex:
             slug_map[ex["slug"]] = ex["id"]
     return slug_map
+
+
+# ---------------------------------------------------------------------------
+# Staff / Team endpoints
+# ---------------------------------------------------------------------------
+
+@router.get("/staff/pulse")
+async def staff_pulse():
+    """Team check-in status — public staff view (no auth required).
+
+    Returns which pitchers have checked in today, their rotation info, and role.
+    """
+    from datetime import date as _date
+
+    from bot.services import db as _db
+
+    today_str = _date.today().isoformat()
+
+    all_pitchers = _db.list_pitchers()
+
+    # Exclude test accounts
+    pitchers = [p for p in all_pitchers if p.get("pitcher_id") != "test_pitcher_001"]
+
+    pitcher_results = []
+    checked_in_count = 0
+
+    for p in pitchers:
+        pid = p.get("pitcher_id", "")
+        first_name = p.get("first_name", pid)
+
+        # Determine role
+        role_raw = (p.get("role") or "").lower()
+        if role_raw in ("reliever", "rp", "closer", "cl"):
+            role = "RP"
+        else:
+            role = "SP"
+
+        # Get active flags for rotation info
+        flags = _db.get_active_flags(pid)
+        days_since = flags.get("days_since_outing")
+
+        if role == "SP":
+            if days_since is not None:
+                rotation_info = "Day %d" % int(days_since)
+            else:
+                rotation_info = "Day 0"
+        else:
+            # Relievers: Day 0 or 1 means "Day after", otherwise "Available"
+            if days_since is not None and int(days_since) <= 1:
+                rotation_info = "Day after"
+            else:
+                rotation_info = "Available"
+
+        # Check if pitcher has a daily entry for today
+        today_entry = _db.get_daily_entries(pid, limit=1)
+        checked_in = False
+        if today_entry and today_entry[0].get("date") == today_str:
+            entry = today_entry[0]
+            # Consider checked-in if the entry has pre_training arm_feel
+            pre = entry.get("pre_training")
+            if isinstance(pre, dict) and pre.get("arm_feel") is not None:
+                checked_in = True
+            elif entry.get("arm_feel") is not None:
+                checked_in = True
+
+        if checked_in:
+            checked_in_count += 1
+
+        pitcher_results.append({
+            "first_name": first_name,
+            "checked_in": checked_in,
+            "rotation_info": rotation_info,
+            "role": role,
+        })
+
+    return {
+        "checked_in_count": checked_in_count,
+        "total_pitchers": len(pitchers),
+        "pitchers": pitcher_results,
+    }
+
+
+@router.get("/pitcher/{pitcher_id}/trend")
+async def pitcher_trend(pitcher_id: str, request: Request):
+    """4-week arm feel trend for a pitcher.
+
+    Returns weekly aggregations, a sparkline of recent arm_feel values,
+    outing-day markers, and current consecutive check-in streak.
+    """
+    _require_pitcher_auth(request, pitcher_id)
+
+    from datetime import date as _date, timedelta
+
+    from bot.services import db as _db
+
+    entries = _db.get_daily_entries(pitcher_id, limit=30)
+
+    # Entries come newest-first; reverse for chronological order
+    entries.sort(key=lambda e: e.get("date", ""))
+
+    today_str = _date.today().isoformat()
+
+    # --- Sparkline (last 15 arm_feel values) ---
+    arm_feel_entries = []
+    for e in entries:
+        af = None
+        pre = e.get("pre_training")
+        if isinstance(pre, dict):
+            af = pre.get("arm_feel")
+        if af is None:
+            af = e.get("arm_feel")
+        if af is not None:
+            arm_feel_entries.append({"date": e.get("date"), "arm_feel": af, "entry": e})
+
+    sparkline_data = arm_feel_entries[-15:] if len(arm_feel_entries) > 15 else arm_feel_entries
+    sparkline = [d["arm_feel"] for d in sparkline_data]
+
+    # --- Outing day indices (which sparkline positions had an outing) ---
+    outing_day_indices = []
+    for idx, d in enumerate(sparkline_data):
+        entry = d["entry"]
+        if entry.get("outing") is not None:
+            outing_day_indices.append(idx)
+
+    # --- Current streak (consecutive days with a check-in ending at today) ---
+    current_streak = 0
+    check_dates = set()
+    for e in entries:
+        d = e.get("date")
+        if d:
+            # Count as checked-in if there is pre_training arm_feel or arm_feel
+            pre = e.get("pre_training")
+            has_checkin = False
+            if isinstance(pre, dict) and pre.get("arm_feel") is not None:
+                has_checkin = True
+            elif e.get("arm_feel") is not None:
+                has_checkin = True
+            if has_checkin:
+                check_dates.add(d)
+
+    day = _date.today()
+    while day.isoformat() in check_dates:
+        current_streak += 1
+        day = day - timedelta(days=1)
+
+    # --- Weeks (group by ISO week, compute avg/high/low arm_feel) ---
+    week_buckets = {}  # type: dict
+    for d in arm_feel_entries:
+        entry_date = _date.fromisoformat(d["date"])
+        iso_year, iso_week, _ = entry_date.isocalendar()
+        key = (iso_year, iso_week)
+        if key not in week_buckets:
+            # Monday of this ISO week
+            monday = entry_date - timedelta(days=entry_date.weekday())
+            week_buckets[key] = {
+                "start_date": monday.isoformat(),
+                "values": [],
+            }
+        week_buckets[key]["values"].append(d["arm_feel"])
+
+    # Sort by week key and take last 4 weeks
+    sorted_keys = sorted(week_buckets.keys())[-4:]
+    weeks = []
+    for i, key in enumerate(sorted_keys, start=1):
+        bucket = week_buckets[key]
+        vals = bucket["values"]
+        weeks.append({
+            "week_label": "Wk %d" % i,
+            "start_date": bucket["start_date"],
+            "avg": round(sum(vals) / len(vals), 1),
+            "high": max(vals),
+            "low": min(vals),
+            "days_logged": len(vals),
+        })
+
+    return {
+        "weeks": weeks,
+        "sparkline": sparkline,
+        "outing_day_indices": outing_day_indices,
+        "current_streak": current_streak,
+    }

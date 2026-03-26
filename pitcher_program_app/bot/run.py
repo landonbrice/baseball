@@ -35,7 +35,8 @@ from bot.main import (
 )
 from api.main import app
 from scripts.seed_volume import seed_if_empty
-from scripts.data_sync import start_sync
+# data_sync disabled — Supabase is now the source of truth (Phase 1 migration complete)
+# from scripts.data_sync import start_sync
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -52,8 +53,8 @@ async def main() -> None:
     # Seed persistent volume from repo data on first deploy
     seed_if_empty()
 
-    # Start background data sync to GitHub
-    start_sync()
+    # Data sync disabled — Supabase is now the source of truth
+    # start_sync()
 
     port = int(os.getenv("PORT", 8000))
 

@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { toggleExercise } from '../api';
+import ExerciseWhy from './ExerciseWhy';
 
 const TABS = [
   { id: 'arm_care', label: 'Arm care' },
@@ -18,6 +19,7 @@ function resolveExercise(exerciseId, exerciseMap, slugMap) {
 export default function DailyCard({ entry, exerciseMap = {}, slugMap = {}, pitcherId, initData, readOnly = false }) {
   const [activeTab, setActiveTab] = useState('arm_care');
   const [completed, setCompleted] = useState(entry?.completed_exercises || {});
+  const [expandedWhy, setExpandedWhy] = useState({});
 
   const handleToggle = useCallback((exerciseId, newState) => {
     if (readOnly) return;
@@ -25,6 +27,10 @@ export default function DailyCard({ entry, exerciseMap = {}, slugMap = {}, pitch
     toggleExercise(pitcherId, entry?.date, exerciseId, newState, initData)
       .catch(() => setCompleted(prev => ({ ...prev, [exerciseId]: !newState })));
   }, [pitcherId, entry?.date, initData, readOnly]);
+
+  const toggleWhy = useCallback((exerciseId) => {
+    setExpandedWhy(prev => ({ ...prev, [exerciseId]: !prev[exerciseId] }));
+  }, []);
 
   if (!entry) {
     return (
@@ -52,7 +58,7 @@ export default function DailyCard({ entry, exerciseMap = {}, slugMap = {}, pitch
 
   return (
     <div style={{ background: 'var(--color-white)', borderRadius: 12, overflow: 'hidden' }}>
-      {/* ── Pill nav ── */}
+      {/* Pill nav */}
       <div style={{
         padding: '8px 12px',
         display: 'flex',
@@ -83,15 +89,17 @@ export default function DailyCard({ entry, exerciseMap = {}, slugMap = {}, pitch
         ))}
       </div>
 
-      {/* ── Tab content ── */}
+      {/* Tab content */}
       <div style={{ padding: 14 }}>
         {activeTab === 'arm_care' && (
           <TabArmCare armCare={armCare} fallbackBlocks={fallbackBlocks} hasStructured={hasStructured}
-            exerciseMap={exerciseMap} slugMap={slugMap} completed={completed} onToggle={readOnly ? null : handleToggle} />
+            exerciseMap={exerciseMap} slugMap={slugMap} completed={completed}
+            onToggle={readOnly ? null : handleToggle} expandedWhy={expandedWhy} onToggleWhy={toggleWhy} />
         )}
         {activeTab === 'lifting' && (
           <TabLifting lifting={lifting} fallbackBlocks={fallbackBlocks} hasStructured={hasStructured}
-            exerciseMap={exerciseMap} slugMap={slugMap} completed={completed} onToggle={readOnly ? null : handleToggle} />
+            exerciseMap={exerciseMap} slugMap={slugMap} completed={completed}
+            onToggle={readOnly ? null : handleToggle} expandedWhy={expandedWhy} onToggleWhy={toggleWhy} />
         )}
         {activeTab === 'throwing' && (
           <TabThrowing throwing={throwing} fallbackPlan={plan_generated?.throwing_plan} />
@@ -115,39 +123,59 @@ export default function DailyCard({ entry, exerciseMap = {}, slugMap = {}, pitch
   );
 }
 
+// ── Block reasoning ──
+
+function BlockReasoning({ reasoning }) {
+  if (!reasoning) return null;
+  return (
+    <p style={{
+      fontSize: 11, color: 'var(--color-ink-muted)', fontStyle: 'italic',
+      lineHeight: 1.5, margin: '0 0 8px 0',
+    }}>
+      {reasoning}
+    </p>
+  );
+}
+
 // ── Tabs ──
 
-function TabArmCare({ armCare, fallbackBlocks, hasStructured, exerciseMap, slugMap, completed, onToggle }) {
+function TabArmCare({ armCare, fallbackBlocks, hasStructured, exerciseMap, slugMap, completed, onToggle, expandedWhy, onToggleWhy }) {
   if (hasStructured && armCare?.exercises?.length) {
     return (
       <div>
         {armCare.timing && <SectionLabel>{armCare.timing}</SectionLabel>}
-        <SupersetList exercises={armCare.exercises} exerciseMap={exerciseMap} slugMap={slugMap} completed={completed} onToggle={onToggle} />
+        <BlockReasoning reasoning={armCare.reasoning} />
+        <SupersetList exercises={armCare.exercises} exerciseMap={exerciseMap} slugMap={slugMap}
+          completed={completed} onToggle={onToggle} expandedWhy={expandedWhy} onToggleWhy={onToggleWhy} />
       </div>
     );
   }
   const armBlocks = fallbackBlocks.filter(b => b.block_name?.toLowerCase().includes('arm'));
   if (armBlocks.length) {
     return armBlocks.map((block, i) => (
-      <FallbackBlock key={i} block={block} exerciseMap={exerciseMap} slugMap={slugMap} completed={completed} onToggle={onToggle} />
+      <FallbackBlock key={i} block={block} exerciseMap={exerciseMap} slugMap={slugMap}
+        completed={completed} onToggle={onToggle} expandedWhy={expandedWhy} onToggleWhy={onToggleWhy} />
     ));
   }
   return <EmptyTab>No arm care prescribed today</EmptyTab>;
 }
 
-function TabLifting({ lifting, fallbackBlocks, hasStructured, exerciseMap, slugMap, completed, onToggle }) {
+function TabLifting({ lifting, fallbackBlocks, hasStructured, exerciseMap, slugMap, completed, onToggle, expandedWhy, onToggleWhy }) {
   if (hasStructured && lifting?.exercises?.length) {
     return (
       <div>
         {lifting.intent && <SectionLabel>{lifting.intent}</SectionLabel>}
-        <SupersetList exercises={lifting.exercises} exerciseMap={exerciseMap} slugMap={slugMap} completed={completed} onToggle={onToggle} />
+        <BlockReasoning reasoning={lifting.reasoning} />
+        <SupersetList exercises={lifting.exercises} exerciseMap={exerciseMap} slugMap={slugMap}
+          completed={completed} onToggle={onToggle} expandedWhy={expandedWhy} onToggleWhy={onToggleWhy} />
       </div>
     );
   }
   const liftBlocks = fallbackBlocks.filter(b => !b.block_name?.toLowerCase().includes('arm') && !b.block_name?.toLowerCase().includes('plyo'));
   if (liftBlocks.length) {
     return liftBlocks.map((block, i) => (
-      <FallbackBlock key={i} block={block} exerciseMap={exerciseMap} slugMap={slugMap} completed={completed} onToggle={onToggle} />
+      <FallbackBlock key={i} block={block} exerciseMap={exerciseMap} slugMap={slugMap}
+        completed={completed} onToggle={onToggle} expandedWhy={expandedWhy} onToggleWhy={onToggleWhy} />
     ));
   }
   return <EmptyTab>No lifting prescribed today</EmptyTab>;
@@ -187,7 +215,7 @@ function TabNotes({ notes }) {
 
 // ── Superset renderer ──
 
-function SupersetList({ exercises, exerciseMap, slugMap, completed, onToggle }) {
+function SupersetList({ exercises, exerciseMap, slugMap, completed, onToggle, expandedWhy, onToggleWhy }) {
   const groups = [];
   let currentGroup = null;
   let letterIndex = 0;
@@ -212,21 +240,29 @@ function SupersetList({ exercises, exerciseMap, slugMap, completed, onToggle }) 
         <div key={gi} style={g.letter ? { borderLeft: '2px solid var(--color-rose-blush)', paddingLeft: 8, marginBottom: 8 } : { marginBottom: 4 }}>
           {g.exercises.map((ex, ei) => {
             const lib = resolveExercise(ex.exercise_id, exerciseMap, slugMap);
-            const exerciseObj = lib || { name: ex.name || ex.exercise_id, youtube_url: '', muscles_primary: [] };
+            const exerciseObj = lib || { name: ex.name || ex.exercise_id, youtube_url: '', muscles_primary: [], pitching_relevance: '' };
             const isCompleted = completed[ex.exercise_id] === true;
             const label = g.letter ? `${g.letter}${ei + 1}` : null;
             const isFpm = (ex.note || '').toLowerCase().includes('elevated') || (ex.note || '').toLowerCase().includes('fpm');
 
+            // Build "why" from exercise data or library
+            const why = ex.why || exerciseObj.pitching_relevance || '';
+
             return (
               <ExerciseItem
                 key={ei}
+                exerciseId={ex.exercise_id}
                 exercise={exerciseObj}
                 rx={ex.rx || ex.prescribed || ''}
+                prescription={ex.prescription || ''}
                 note={ex.note}
                 label={label}
                 completed={isCompleted}
                 isFpm={isFpm}
+                why={why}
+                whyExpanded={!!expandedWhy[ex.exercise_id]}
                 onToggle={onToggle ? () => onToggle(ex.exercise_id, !isCompleted) : null}
+                onToggleWhy={() => onToggleWhy(ex.exercise_id)}
               />
             );
           })}
@@ -236,9 +272,9 @@ function SupersetList({ exercises, exerciseMap, slugMap, completed, onToggle }) 
   );
 }
 
-// ── Exercise item with three visual states ──
+// ── Exercise item with info button and expandable why ──
 
-function ExerciseItem({ exercise, rx, note, label, completed, isFpm, onToggle }) {
+function ExerciseItem({ exerciseId, exercise, rx, prescription, note, label, completed, isFpm, why, whyExpanded, onToggle, onToggleWhy }) {
   const rowStyle = {
     display: 'flex', alignItems: 'center', gap: 10, padding: '6px 4px',
     borderRadius: 8,
@@ -259,67 +295,99 @@ function ExerciseItem({ exercise, rx, note, label, completed, isFpm, onToggle })
     ),
   };
 
-  return (
-    <div style={rowStyle}>
-      {onToggle ? (
-        <button onClick={onToggle} style={circleStyle}>
-          {completed ? '✓' : label || '·'}
-        </button>
-      ) : (
-        <span style={circleStyle}>{label || '·'}</span>
-      )}
+  // Full prescription line
+  const fullRx = prescription || rx;
 
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{
-          fontSize: 13, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-          color: completed ? '#888' : 'var(--color-ink-primary)',
-          textDecoration: completed ? 'line-through' : 'none',
-          fontWeight: isFpm && !completed ? 600 : 400,
-        }}>
-          {exercise.name || 'Unknown exercise'}
-        </p>
-        <p style={{ fontSize: 11, color: isFpm && !completed ? 'var(--color-maroon)' : 'var(--color-ink-muted)', margin: 0 }}>
-          {isFpm && !completed && <span>priority · </span>}
-          {rx}
-          {note && !isFpm && <span style={{ color: 'var(--color-maroon)' }}> · {note}</span>}
-        </p>
+  return (
+    <div>
+      <div style={rowStyle}>
+        {onToggle ? (
+          <button onClick={onToggle} style={circleStyle}>
+            {completed ? '\u2713' : label || '\u00B7'}
+          </button>
+        ) : (
+          <span style={circleStyle}>{label || '\u00B7'}</span>
+        )}
+
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{
+            fontSize: 13, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+            color: completed ? '#888' : 'var(--color-ink-primary)',
+            textDecoration: completed ? 'line-through' : 'none',
+            fontWeight: isFpm && !completed ? 600 : 400,
+          }}>
+            {exercise.name || 'Unknown exercise'}
+          </p>
+          {/* Full prescription on its own line */}
+          <p style={{ fontSize: 11, color: isFpm && !completed ? 'var(--color-maroon)' : 'var(--color-ink-muted)', margin: 0 }}>
+            {isFpm && !completed && <span>priority \u00B7 </span>}
+            {fullRx}
+            {note && !isFpm && <span style={{ color: 'var(--color-maroon)' }}> \u00B7 {note}</span>}
+          </p>
+        </div>
+
+        {/* Info button */}
+        {why && !completed && (
+          <button
+            onClick={onToggleWhy}
+            style={{
+              width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 10, cursor: 'pointer', border: 'none',
+              background: whyExpanded ? 'var(--color-rose-blush)' : 'var(--color-cream-bg)',
+              color: whyExpanded ? '#fff' : 'var(--color-ink-muted)',
+            }}
+          >
+            i
+          </button>
+        )}
+
+        {exercise.youtube_url && (
+          <a href={exercise.youtube_url} target="_blank" rel="noopener noreferrer"
+            style={{ fontSize: 11, color: 'var(--color-maroon)', flexShrink: 0, textDecoration: 'none' }}>{'\u25B6'}</a>
+        )}
+
+        {isFpm && !completed && (
+          <span style={{
+            fontSize: 8, padding: '2px 6px', borderRadius: 8,
+            border: '1px solid var(--color-maroon)', color: 'var(--color-maroon)',
+            flexShrink: 0, fontWeight: 600, textTransform: 'uppercase',
+          }}>FPM</span>
+        )}
       </div>
 
-      {exercise.youtube_url && (
-        <a href={exercise.youtube_url} target="_blank" rel="noopener noreferrer"
-          style={{ fontSize: 11, color: 'var(--color-maroon)', flexShrink: 0, textDecoration: 'none' }}>▶</a>
-      )}
-
-      {isFpm && !completed && (
-        <span style={{
-          fontSize: 8, padding: '2px 6px', borderRadius: 8,
-          border: '1px solid var(--color-maroon)', color: 'var(--color-maroon)',
-          flexShrink: 0, fontWeight: 600, textTransform: 'uppercase',
-        }}>FPM</span>
-      )}
+      {/* Expandable why */}
+      <ExerciseWhy why={why} expanded={whyExpanded} />
     </div>
   );
 }
 
-// ── Fallback block renderer (old format) ──
+// ── Fallback block renderer ──
 
-function FallbackBlock({ block, exerciseMap, slugMap, completed, onToggle }) {
+function FallbackBlock({ block, exerciseMap, slugMap, completed, onToggle, expandedWhy, onToggleWhy }) {
   return (
     <div style={{ marginBottom: 8 }}>
       <SectionLabel>{block.block_name}</SectionLabel>
       {block.exercises?.map((ex, i) => {
         const exercise = resolveExercise(ex.exercise_id, exerciseMap, slugMap);
+        const exerciseObj = exercise || { name: ex.exercise_id, youtube_url: '', muscles_primary: [], pitching_relevance: '' };
         const isCompleted = completed[ex.exercise_id] === true;
+        const why = exerciseObj.pitching_relevance || '';
         return (
           <ExerciseItem
             key={i}
-            exercise={exercise || { name: ex.exercise_id, youtube_url: '', muscles_primary: [] }}
+            exerciseId={ex.exercise_id}
+            exercise={exerciseObj}
             rx={ex.prescribed}
+            prescription=""
             note={null}
             label={null}
             completed={isCompleted}
             isFpm={false}
+            why={why}
+            whyExpanded={!!expandedWhy[ex.exercise_id]}
             onToggle={onToggle ? () => onToggle(ex.exercise_id, !isCompleted) : null}
+            onToggleWhy={() => onToggleWhy(ex.exercise_id)}
           />
         );
       })}

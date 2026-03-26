@@ -4,7 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import { useAuth } from '../App';
 import { useAppContext } from '../hooks/useChatState';
 import { usePitcher } from '../hooks/usePitcher';
-import { sendChat, sendChatWithPlan, setNextOuting, savePlan } from '../api';
+import { sendChat, sendChatWithPlan, setNextOuting, savePlan, fetchChatHistory } from '../api';
 
 export default function Coach() {
   const { pitcherId, initData } = useAuth();
@@ -37,6 +37,34 @@ export default function Coach() {
   useEffect(() => {
     clearCoachBadge();
   }, [clearCoachBadge]);
+
+  // Load conversation history from Supabase on first open (cross-platform persistence)
+  const [historyLoaded, setHistoryLoaded] = useState(false);
+  useEffect(() => {
+    if (!pitcherId || historyLoaded || messages.length > 0) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetchChatHistory(pitcherId, initData, 20);
+        if (cancelled || !res.messages?.length) return;
+        const restored = res.messages
+          .filter(m => m.role === 'user' || m.role === 'assistant')
+          .map(m => ({
+            role: m.role === 'user' ? 'user' : 'bot',
+            type: 'text',
+            content: m.content,
+          }));
+        if (restored.length > 0) {
+          setMessages(restored);
+        }
+      } catch (e) {
+        // Non-critical — just start with empty chat
+      } finally {
+        if (!cancelled) setHistoryLoaded(true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [pitcherId, initData, historyLoaded, messages.length]);
 
   // Auto-open with welcome for new pitchers
   useEffect(() => {
@@ -123,48 +151,42 @@ export default function Coach() {
     }
   };
 
-  // ── Check-in flow ──
-  const startCheckin = () => {
-    setCheckinInProgress(true);
-    setCheckinFlow({ step: 'arm_report' });
-    const firstName = profile?.name?.split(' ')[0] || 'there';
-    setMessages(prev => [...prev, { role: 'bot', type: 'text', content: `Morning ${firstName}. How's the arm feeling?` }]);
+  // ── Smart defaults ──
+  const daysSince = flags.days_since_outing ?? 99;
+  const isRecoveryDay = daysSince <= 1;
+  const scheduleKnown = flags.next_outing_days != null && flags.next_outing_days > 0;
+
+  const quickClassify = (text) => {
+    const lower = text.toLowerCase();
+    if (['great', 'perfect', 'amazing', 'feels good', 'no issues'].some(w => lower.includes(w))) return { feel: 5, ack: "Good to hear." };
+    if (['sharp', 'shooting', 'numb', 'tingling'].some(w => lower.includes(w))) return { feel: 1, ack: "Noted \u2014 we'll keep things light and protective today." };
+    if (['terrible', 'really bad', 'awful'].some(w => lower.includes(w))) return { feel: 2, ack: "Noted \u2014 we'll keep things light today." };
+    if (['tight', 'sore', 'stiff', 'tender'].some(w => lower.includes(w))) return { feel: 3, ack: "Got it \u2014 I'll factor that into your plan." };
+    if (['good', 'fine', 'solid', 'normal', 'decent'].some(w => lower.includes(w))) return { feel: 4, ack: "Arm's feeling solid." };
+    const num = parseInt(text);
+    if (num >= 1 && num <= 5) {
+      if (num <= 2) return { feel: num, ack: "Noted \u2014 we'll keep things light today." };
+      if (num === 3) return { feel: 3, ack: "Got it \u2014 I'll factor that in." };
+      return { feel: num, ack: "Arm's feeling solid." };
+    }
+    return { feel: null, ack: "Got it." };
   };
 
-  const handleArmReport = (text) => {
-    setMessages(prev => [...prev, { role: 'user', type: 'text', content: text }]);
-    setCheckinFlow({ step: 'lift_pref', arm_report: text });
-    setMessages(prev => [...prev, { role: 'bot', type: 'text', content: 'What are you thinking for a lift today?' }]);
-  };
-
-  const handleLiftPref = (pref, label) => {
-    setMessages(prev => [...prev, { role: 'user', type: 'text', content: label }]);
-    setCheckinFlow(prev => ({ ...prev, step: 'throw_intent', lift_preference: pref }));
-    setMessages(prev => [...prev, { role: 'bot', type: 'text', content: 'Throwing today?' }]);
-  };
-
-  const handleThrowIntent = (intent, label) => {
-    setMessages(prev => [...prev, { role: 'user', type: 'text', content: label }]);
-    setCheckinFlow(prev => ({ ...prev, step: 'schedule', throw_intent: intent }));
-    setMessages(prev => [...prev, { role: 'bot', type: 'text', content: 'When do you pitch next?' }]);
-  };
-
-  const handleSchedule = async (days, label) => {
-    setMessages(prev => [...prev, { role: 'user', type: 'text', content: label }]);
-    const flowData = { ...checkinFlow };
+  // ── Finalize check-in — send to API ──
+  const finalizeCheckin = async (flowData) => {
     setCheckinFlow(null);
     setLoading(true);
     setMessages(prev => [...prev, { role: 'bot', type: 'text', content: 'Building your plan...' }]);
     try {
       const res = await sendChat(pitcherId, {
-        arm_report: flowData.arm_report,
-        arm_feel: null,
-        lift_preference: flowData.lift_preference,
-        throw_intent: flowData.throw_intent,
-        next_pitch_days: days,
+        arm_report: flowData.arm_report || '',
+        arm_feel: flowData.arm_feel || null,
+        lift_preference: flowData.lift_preference || 'auto',
+        throw_intent: flowData.throw_intent || 'none',
+        next_pitch_days: flowData.next_pitch_days ?? (scheduleKnown ? flags.next_outing_days : null),
       }, 'checkin', initData);
       setMessages(prev => {
-        const without = prev.slice(0, -1); // remove "Building your plan..."
+        const without = prev.slice(0, -1);
         return [...without, ...processResponse(res)];
       });
     } catch {
@@ -173,6 +195,128 @@ export default function Coach() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // ── Check-in flow ──
+  const startCheckin = () => {
+    setCheckinInProgress(true);
+    setCheckinFlow({ step: 'arm_report' });
+    const firstName = profile?.name?.split(' ')[0] || 'there';
+    const greeting = isRecoveryDay
+      ? `Morning ${firstName}. Day after \u2014 how's the arm recovering?`
+      : `Morning ${firstName}. How's the arm feeling?`;
+    setMessages(prev => [...prev, { role: 'bot', type: 'text', content: greeting }]);
+  };
+
+  const handleArmReport = (text) => {
+    setMessages(prev => [...prev, { role: 'user', type: 'text', content: text }]);
+    const { feel, ack } = quickClassify(text);
+    const flowData = { arm_report: text, arm_feel: feel };
+
+    // Refinement 1: Recovery day — recommend + give choice
+    if (isRecoveryDay) {
+      const feelComment = feel != null
+        ? (feel >= 4 ? `arm's at a ${feel} \u2014 solid recovery` : feel === 3 ? `arm's at a ${feel} \u2014 pretty typical day-after` : `arm's at a ${feel} \u2014 let's be careful`)
+        : 'day after';
+      setCheckinFlow({ ...flowData, step: 'recovery_confirm' });
+      setMessages(prev => [...prev, { role: 'bot', type: 'text',
+        content: `Day after, ${feelComment}. I'd keep it to recovery flush and blood flow. Want me to build that, or are you thinking something different?`
+      }]);
+      return;
+    }
+
+    // Refinement 2: Arm feel 1-2 — probe before assuming protective
+    if (feel != null && feel <= 2) {
+      setCheckinFlow({ ...flowData, step: 'low_arm_clarify' });
+      setMessages(prev => [...prev, { role: 'bot', type: 'text',
+        content: `${ack} That's on the lower end \u2014 is this soreness you'd expect given where you are in rotation, or does something feel different?`
+      }]);
+      return;
+    }
+
+    // Normal flow: ack + lift preference
+    setCheckinFlow({ ...flowData, step: 'lift_pref' });
+    setMessages(prev => [...prev, { role: 'bot', type: 'text', content: ack + ' What are you thinking for a lift?' }]);
+  };
+
+  // Refinement 1: Recovery day choice handler
+  const handleRecoveryConfirm = (choice) => {
+    if (choice === 'yes') {
+      setMessages(prev => [...prev, { role: 'user', type: 'text', content: 'Recovery day' }]);
+      const flowData = { ...checkinFlow, lift_preference: 'rest', throw_intent: 'none' };
+      if (scheduleKnown) {
+        setMessages(prev => [...prev, { role: 'bot', type: 'text', content: 'Recovery day it is. Building your plan...' }]);
+        finalizeCheckin(flowData);
+      } else {
+        setCheckinFlow({ ...flowData, step: 'schedule' });
+        setMessages(prev => [...prev, { role: 'bot', type: 'text', content: 'Recovery day it is. When do you pitch next?' }]);
+      }
+    } else {
+      setMessages(prev => [...prev, { role: 'user', type: 'text', content: 'Something different' }]);
+      setCheckinFlow({ ...checkinFlow, step: 'lift_pref' });
+      setMessages(prev => [...prev, { role: 'bot', type: 'text', content: "Got it \u2014 your call. What are you thinking for a lift?" }]);
+    }
+  };
+
+  // Refinement 2: Low arm feel clarification handler
+  const handleLowArmClarify = (choice) => {
+    if (choice === 'expected') {
+      setMessages(prev => [...prev, { role: 'user', type: 'text', content: 'Expected soreness' }]);
+      setCheckinFlow({ ...checkinFlow, step: 'lift_pref', arm_clarification: 'expected_soreness' });
+      setMessages(prev => [...prev, { role: 'bot', type: 'text', content: "Expected soreness \u2014 got it. We'll keep intensity down. Want to do a light lift or take a rest day?" }]);
+    } else {
+      setMessages(prev => [...prev, { role: 'user', type: 'text', content: 'Something feels off' }]);
+      const flowData = { ...checkinFlow, arm_clarification: 'concerned', lift_preference: 'rest', throw_intent: 'none' };
+      if (scheduleKnown) {
+        setMessages(prev => [...prev, { role: 'bot', type: 'text', content: "Something feels off \u2014 flagging this. Building a protective plan..." }]);
+        finalizeCheckin(flowData);
+      } else {
+        setCheckinFlow({ ...flowData, step: 'schedule' });
+        setMessages(prev => [...prev, { role: 'bot', type: 'text', content: "Something feels off \u2014 flagging this. We'll go protective today. When do you pitch next?" }]);
+      }
+    }
+  };
+
+  const handleLiftPref = (pref, label) => {
+    setMessages(prev => [...prev, { role: 'user', type: 'text', content: label }]);
+    const updated = { ...checkinFlow, lift_preference: pref };
+
+    // Smart default: rest day → skip throw intent
+    if (pref === 'rest') {
+      updated.throw_intent = 'none';
+      if (scheduleKnown) {
+        setMessages(prev => [...prev, { role: 'bot', type: 'text', content: 'Rest day \u2014 building your plan.' }]);
+        finalizeCheckin(updated);
+        return;
+      }
+      setCheckinFlow({ ...updated, step: 'schedule' });
+      setMessages(prev => [...prev, { role: 'bot', type: 'text', content: 'When do you pitch next?' }]);
+      return;
+    }
+
+    setCheckinFlow({ ...updated, step: 'throw_intent' });
+    setMessages(prev => [...prev, { role: 'bot', type: 'text', content: 'Throwing today?' }]);
+  };
+
+  const handleThrowIntent = (intent, label) => {
+    setMessages(prev => [...prev, { role: 'user', type: 'text', content: label }]);
+    const updated = { ...checkinFlow, throw_intent: intent };
+
+    // Smart default: skip schedule if already known
+    if (scheduleKnown) {
+      setMessages(prev => [...prev, { role: 'bot', type: 'text', content: 'Got it.' }]);
+      finalizeCheckin(updated);
+      return;
+    }
+
+    setCheckinFlow({ ...updated, step: 'schedule' });
+    setMessages(prev => [...prev, { role: 'bot', type: 'text', content: 'When do you pitch next?' }]);
+  };
+
+  const handleSchedule = async (days, label) => {
+    setMessages(prev => [...prev, { role: 'user', type: 'text', content: label }]);
+    const flowData = { ...checkinFlow, next_pitch_days: days > 0 ? days : null };
+    await finalizeCheckin(flowData);
   };
 
   // ── Outing flow ──
@@ -253,6 +397,24 @@ export default function Coach() {
 
   // ── Determine what interactive buttons to show ──
   const renderButtons = () => {
+    const btnStyle = { padding: '6px 12px', fontSize: 11, fontWeight: 500, background: 'var(--color-cream-bg)', color: 'var(--color-ink-primary)', borderRadius: 8, border: '0.5px solid var(--color-cream-border)', cursor: 'pointer' };
+
+    if (checkinFlow?.step === 'recovery_confirm') {
+      return (
+        <div style={{ display: 'flex', gap: 6, padding: '0 12px 8px', flexWrap: 'wrap' }}>
+          <button onClick={() => handleRecoveryConfirm('yes')} style={btnStyle}>Recovery day</button>
+          <button onClick={() => handleRecoveryConfirm('no')} style={btnStyle}>Something different</button>
+        </div>
+      );
+    }
+    if (checkinFlow?.step === 'low_arm_clarify') {
+      return (
+        <div style={{ display: 'flex', gap: 6, padding: '0 12px 8px', flexWrap: 'wrap' }}>
+          <button onClick={() => handleLowArmClarify('expected')} style={btnStyle}>Expected soreness</button>
+          <button onClick={() => handleLowArmClarify('concerned')} style={btnStyle}>Something feels off</button>
+        </div>
+      );
+    }
     if (checkinFlow?.step === 'lift_pref') {
       return (
         <div style={{ display: 'flex', gap: 6, padding: '0 12px 8px', flexWrap: 'wrap' }}>

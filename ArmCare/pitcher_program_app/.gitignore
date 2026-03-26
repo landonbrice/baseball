@@ -1,9 +1,0 @@
-.env
-__pycache__/
-*.pyc
-node_modules/
-mini-app/dist/
-mini-app/build/
-.DS_Store
-*.egg-info/
-.venv/

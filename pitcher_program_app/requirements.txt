@@ -7,3 +7,4 @@ uvicorn>=0.32.0
 APScheduler>=3.10.0
 openpyxl>=3.1.0
 thefuzz>=0.22.0
+supabase>=2.0.0

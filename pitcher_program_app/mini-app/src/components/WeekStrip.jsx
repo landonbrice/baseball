@@ -1,5 +1,5 @@
 /**
- * Week strip — Mon-Sun with status dots and outing markers.
+ * Week strip — Mon-Sun with arm-feel-colored status dots, outing markers, and legend.
  * Receives pre-computed `week` array from /week-summary endpoint.
  */
 export default function WeekStrip({ week = [], selectedDate, onDayClick }) {
@@ -8,31 +8,70 @@ export default function WeekStrip({ week = [], selectedDate, onDayClick }) {
   return (
     <div style={{
       background: 'var(--color-white)',
-      padding: '8px 10px',
-      borderBottom: '0.5px solid var(--color-cream-border)',
-      display: 'flex',
-      gap: 2,
       borderRadius: 10,
+      overflow: 'hidden',
     }}>
-      {week.map(day => (
-        <DayChip
-          key={day.date}
-          day={day}
-          isSelected={selectedDate === day.date}
-          onClick={day.is_past || day.is_today ? onDayClick : () => {}}
-        />
-      ))}
+      {/* Day chips */}
+      <div style={{
+        padding: '8px 10px',
+        display: 'flex',
+        gap: 2,
+      }}>
+        {week.map(day => (
+          <DayChip
+            key={day.date}
+            day={day}
+            isSelected={selectedDate === day.date}
+            onClick={day.is_past || day.is_today ? onDayClick : () => {}}
+          />
+        ))}
+      </div>
+
+      {/* Legend */}
+      <div style={{
+        borderTop: '0.5px solid var(--color-cream-border)',
+        padding: '5px 12px',
+        display: 'flex',
+        gap: 12,
+        justifyContent: 'center',
+      }}>
+        <LegendItem color="var(--color-flag-green)" label="Complete" />
+        <LegendItem color="var(--color-flag-yellow)" label="Partial" />
+        <LegendItem color="var(--color-cream-subtle)" label="Upcoming" />
+        <LegendItem color="var(--color-maroon-mid)" label="Outing" shape="diamond" />
+      </div>
+    </div>
+  );
+}
+
+function LegendItem({ color, label, shape = 'circle' }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+      {shape === 'diamond' ? (
+        <div style={{ width: 5, height: 5, background: color, transform: 'rotate(45deg)' }} />
+      ) : (
+        <div style={{ width: 5, height: 5, borderRadius: '50%', background: color }} />
+      )}
+      <span style={{ fontSize: 8, color: 'var(--color-ink-muted)' }}>{label}</span>
     </div>
   );
 }
 
 function DayChip({ day, isSelected, onClick }) {
-  const { day_label, day_number, is_today, is_past, flag_level, had_outing, is_upcoming_outing } = day;
+  const { day_label, day_number, is_today, is_past, flag_level, had_outing, is_upcoming_outing, arm_feel } = day;
 
-  const dotColor = flag_level === 'green'  ? 'var(--color-flag-green)'
-                 : flag_level === 'yellow' ? 'var(--color-flag-yellow)'
-                 : flag_level === 'red'    ? 'var(--color-flag-red)'
-                 : null;
+  // Arm feel color for the status dot
+  const armFeelColor = arm_feel >= 4 ? 'var(--color-flag-green)'
+                     : arm_feel === 3 ? 'var(--color-flag-yellow)'
+                     : arm_feel >= 1 ? 'var(--color-flag-red)'
+                     : null;
+
+  // Use arm feel color if available, fall back to flag_level color
+  const dotColor = armFeelColor
+                || (flag_level === 'green'  ? 'var(--color-flag-green)'
+                  : flag_level === 'yellow' ? 'var(--color-flag-yellow)'
+                  : flag_level === 'red'    ? 'var(--color-flag-red)'
+                  : null);
 
   const active = is_today || isSelected;
 
@@ -48,7 +87,6 @@ function DayChip({ day, isSelected, onClick }) {
         background: active ? 'var(--color-maroon)' : 'transparent',
       }}
     >
-      {/* Day letter */}
       <div style={{
         fontSize: 8,
         color: active ? 'rgba(255,255,255,0.55)'
@@ -58,7 +96,6 @@ function DayChip({ day, isSelected, onClick }) {
         {day_label}
       </div>
 
-      {/* Day number */}
       <div style={{
         fontSize: active ? 11 : 10,
         fontWeight: active ? 700 : 400,
@@ -70,7 +107,6 @@ function DayChip({ day, isSelected, onClick }) {
         {day_number}
       </div>
 
-      {/* Marker row */}
       <div style={{ height: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 2 }}>
         {had_outing ? (
           <div style={{
@@ -85,7 +121,10 @@ function DayChip({ day, isSelected, onClick }) {
             borderRadius: '50%',
           }} />
         ) : dotColor ? (
-          <div style={{ width: 4, height: 4, borderRadius: '50%', background: dotColor }} />
+          <div style={{
+            width: 4, height: 4, borderRadius: '50%',
+            background: active ? '#fff' : dotColor,
+          }} />
         ) : null}
       </div>
     </div>

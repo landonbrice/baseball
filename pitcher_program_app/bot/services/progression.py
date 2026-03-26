@@ -54,7 +54,7 @@ def analyze_progression(pitcher_id: str) -> dict:
     }
 
 
-def _analyze_arm_feel_trend(entries: list[dict]) -> tuple[list[str], list[str]]:
+def _analyze_arm_feel_trend(entries: list) -> tuple[list[str], list[str]]:
     """Check for declining arm feel trends.
 
     Flags:
@@ -89,7 +89,7 @@ def _analyze_arm_feel_trend(entries: list[dict]) -> tuple[list[str], list[str]]:
     return observations, flags
 
 
-def _analyze_sleep_pattern(entries: list[dict]) -> tuple[list[str], list[str]]:
+def _analyze_sleep_pattern(entries: list) -> tuple[list[str], list[str]]:
     """Check for poor sleep patterns.
 
     Flags:
@@ -131,7 +131,7 @@ def _analyze_sleep_pattern(entries: list[dict]) -> tuple[list[str], list[str]]:
     return observations, flags
 
 
-def _analyze_recovery_curve(entries: list[dict]) -> tuple[list[str], list[str]]:
+def _analyze_recovery_curve(entries: list) -> tuple[list[str], list[str]]:
     """Check if arm feel recovers after outings.
 
     Looks for post-outing entries where arm feel isn't recovering
@@ -172,7 +172,7 @@ def _analyze_recovery_curve(entries: list[dict]) -> tuple[list[str], list[str]]:
     return observations, flags
 
 
-def _generate_weekly_summary(pitcher_id: str, entries: list[dict]) -> str | None:
+def _generate_weekly_summary(pitcher_id: str, entries: list):
     """Generate a weekly summary (Sunday only)."""
     if not entries:
         return None
