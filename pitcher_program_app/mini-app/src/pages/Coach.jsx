@@ -11,7 +11,7 @@ export default function Coach() {
   const navigate = useNavigate();
   const {
     messages, setMessages, addMessage,
-    triggerRefresh, clearCoachBadge, setCheckinInProgress,
+    globalRefreshKey, triggerRefresh, clearCoachBadge, setCheckinInProgress,
   } = useAppContext();
 
   const [input, setInput] = useState('');
@@ -21,7 +21,8 @@ export default function Coach() {
   const [nextOutingFlow, setNextOutingFlow] = useState(false);
   const scrollRef = useRef(null);
 
-  const { profile, log } = usePitcher(pitcherId, initData);
+  const suffix = globalRefreshKey ? `?_r=${globalRefreshKey}` : '';
+  const { profile, log } = usePitcher(pitcherId, initData, suffix);
 
   const todayStr = new Date().toISOString().split('T')[0];
   const entries = log?.entries || [];
@@ -66,6 +67,16 @@ export default function Coach() {
             type: 'plan_ready',
             content: res.morning_brief || 'Your plan is ready.',
             flagLevel: res.flag_level || 'green',
+          });
+        } else if (m.content === 'plan_updated') {
+          newMsgs.push({
+            role: 'bot', type: 'text',
+            content: 'Plan updated — your changes are live on Home.',
+          });
+        } else if (m.content === 'rotation_reset') {
+          newMsgs.push({
+            role: 'bot', type: 'text',
+            content: 'Outing logged. Rotation reset — recovery plan is on Home.',
           });
         }
       } else {

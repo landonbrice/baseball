@@ -3,7 +3,6 @@ import { useAuth } from '../App';
 import { usePitcher } from '../hooks/usePitcher';
 import { useApi } from '../hooks/useApi';
 import DailyCard from '../components/DailyCard';
-import ChatBar from '../components/ChatBar';
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
@@ -92,7 +91,6 @@ export default function LogHistory() {
         </div>
       )}
 
-      <ChatBar />
     </div>
   );
 }

@@ -2,7 +2,6 @@ import { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '../App';
 import { useApi } from '../hooks/useApi';
 import { submitAsk } from '../api';
-import ChatBar from '../components/ChatBar';
 
 const CATEGORIES = [
   { key: 'all', label: 'All' },
@@ -118,7 +117,6 @@ export default function ExerciseLibrary() {
         <p className="text-flag-red text-sm">Failed to load exercises.</p>
       )}
 
-      <ChatBar />
     </div>
   );
 }

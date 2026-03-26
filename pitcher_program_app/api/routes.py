@@ -392,7 +392,11 @@ async def post_chat(pitcher_id: str, request: Request):
             if result.get("notes"):
                 messages.append({"type": "text", "content": "Anything else you want to know about today's plan?"})
 
-            return {"messages": messages}
+            return {
+                "messages": messages,
+                "morning_brief": brief or None,
+                "flag_level": result.get("flag_level", "green"),
+            }
 
         elif msg_type == "outing":
             # msg is { pitch_count, post_arm_feel, notes? }
@@ -409,7 +413,10 @@ async def post_chat(pitcher_id: str, request: Request):
             for alert in result.get("alerts", []):
                 messages.append({"type": "text", "content": f"⚠️ {alert}"})
             messages.append({"type": "status", "content": "rotation_reset"})
-            return {"messages": messages}
+            return {
+                "messages": messages,
+                "flag_level": result.get("flag_level", "green"),
+            }
 
         else:
             # Free-text Q&A
