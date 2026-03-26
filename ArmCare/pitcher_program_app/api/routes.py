@@ -903,7 +903,7 @@ async def get_exercises():
     return _load_exercise_library()
 
 
-def _extract_json_block(text: str, key: str) -> dict | None:
+def _extract_json_block(text: str, key: str):
     """Try to extract a JSON object containing `key` from LLM response text."""
     # Look for ```json blocks first
     for match in re.finditer(r"```(?:json)?\s*\n?(.*?)```", text, re.DOTALL):

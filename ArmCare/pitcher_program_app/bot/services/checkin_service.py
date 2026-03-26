@@ -12,15 +12,55 @@ from bot.services.context_manager import (
     append_context,
     append_log_entry,
     update_active_flags,
+    get_recent_entries,
 )
 
 logger = logging.getLogger(__name__)
 
 
+def _build_recent_history_context(pitcher_id, n=5):
+    """Build condensed recent history string for LLM context injection.
+
+    Returns a short summary of the last N days so coaching responses
+    can reference patterns (e.g. "forearm tightness again — third time this week").
+    """
+    try:
+        entries = get_recent_entries(pitcher_id, n=n)
+    except Exception:
+        return ""
+
+    if not entries:
+        return ""
+
+    lines = []
+    for e in entries:
+        date = e.get("date", "?")
+        pt = e.get("pre_training") or {}
+        arm = pt.get("arm_feel", "?")
+        flag = (pt.get("flag_level") or "?").upper()
+        soreness = pt.get("soreness_notes", "")
+
+        parts = [f"{date}: arm {arm}/5, {flag}"]
+        if soreness:
+            parts.append(f"notes: {soreness[:80]}")
+        if e.get("skip_notes"):
+            parts.append(f"skipped: {e['skip_notes'][:60]}")
+
+        # Throwing
+        throwing = e.get("throwing") or {}
+        if throwing and throwing.get("type", "none") != "none":
+            parts.append(f"threw: {throwing['type']}")
+
+        lines.append(". ".join(parts))
+
+    return "Recent history (last {} days):\n{}".format(len(lines), "\n".join(lines))
+
+
 async def process_checkin(
     pitcher_id: str, arm_feel: int, sleep_hours: float, energy: int = 3,
     arm_report: str = "", lift_preference: str = "",
-    throw_intent: str = "", next_pitch_days: int | None = None,
+    throw_intent: str = "", next_pitch_days=None,
+    arm_clarification: str = "",
 ) -> dict:
     """Run triage, generate plan, log entry, and return structured results.
 
@@ -43,6 +83,19 @@ async def process_checkin(
         pitcher_profile=profile,
         energy=energy,
     )
+
+    # Apply arm clarification to triage (Refinement 2)
+    if arm_clarification == "expected_soreness" and arm_feel is not None and arm_feel <= 2:
+        # Pitcher says it's expected — modify green, still protective but not shutdown
+        if triage_result["flag_level"] == "red":
+            triage_result["flag_level"] = "yellow"
+            triage_result["reasoning"] += " Pitcher reports soreness is expected for rotation position — downgraded from red."
+        triage_result.setdefault("modifications", []).append("expected_soreness_override")
+    elif arm_clarification == "concerned":
+        # Pitcher says something feels off — ensure yellow/red
+        if triage_result["flag_level"] == "green":
+            triage_result["flag_level"] = "yellow"
+            triage_result["reasoning"] += " Pitcher flagged concern about arm feel — upgraded to yellow."
 
     # LLM-driven triage refinement for ambiguous cases
     if triage_result.get("protocol_adjustments", {}).get("needs_llm_triage"):
@@ -71,7 +124,10 @@ async def process_checkin(
     if progression["flags"]:
         triage_result.setdefault("progression_flags", []).extend(progression["flags"])
 
-    # Generate plan with check-in inputs
+    # Build recent history context (Refinement 3)
+    recent_history = _build_recent_history_context(pitcher_id, n=5)
+
+    # Generate plan with check-in inputs + history
     checkin_inputs = {}
     if arm_report:
         checkin_inputs["arm_report"] = arm_report
@@ -81,6 +137,10 @@ async def process_checkin(
         checkin_inputs["throw_intent"] = throw_intent
     if next_pitch_days is not None:
         checkin_inputs["next_pitch_days"] = f"{next_pitch_days} days"
+    if arm_clarification:
+        checkin_inputs["arm_clarification"] = arm_clarification
+    if recent_history:
+        checkin_inputs["recent_history"] = recent_history
     plan_result = await generate_plan(pitcher_id, triage_result, checkin_inputs=checkin_inputs)
 
     # Build and append log entry

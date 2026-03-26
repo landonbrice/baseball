@@ -202,7 +202,7 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
         }
 
 
-def _parse_plan_json(raw: str) -> dict | None:
+def _parse_plan_json(raw: str):
     """Try to parse structured JSON from the LLM response.
 
     Handles responses that may have markdown fences or extra text.
@@ -314,7 +314,7 @@ def _validate_plan(plan: dict, template: dict, rotation_day: int) -> dict:
     return plan
 
 
-def _select_plyocare(routines: dict, rotation_day: int, flag_level: str) -> dict | None:
+def _select_plyocare(routines: dict, rotation_day: int, flag_level: str):
     """Select the appropriate plyocare routine for the rotation day."""
     routines_data = routines.get("routines", {})
     # Handle both dict and list format
@@ -354,7 +354,7 @@ def _select_plyocare(routines: dict, rotation_day: int, flag_level: str) -> dict
     return routines_list[0] if routines_list else None
 
 
-def _format_templates(today_template: dict, arm_care: dict, plyocare: dict | None) -> str:
+def _format_templates(today_template: dict, arm_care: dict, plyocare) -> str:
     """Format templates into a readable string for the LLM prompt."""
     parts = []
 
@@ -545,7 +545,7 @@ _PRESCRIPTION_DEFAULTS = {
 }
 
 
-def _build_exercise_blocks(today_template: dict, arm_care: dict, plyocare: dict | None) -> list:
+def _build_exercise_blocks(today_template: dict, arm_care: dict, plyocare) -> list:
     """Build structured exercise_blocks from template data for the daily log."""
     blocks = []
 
@@ -609,7 +609,7 @@ def _build_exercise_blocks(today_template: dict, arm_care: dict, plyocare: dict 
     return blocks
 
 
-def _build_throwing_plan(today_template: dict) -> dict | None:
+def _build_throwing_plan(today_template: dict):
     """Extract throwing plan from the rotation day template."""
     throwing = today_template.get("throwing")
     if not throwing or throwing == "none":

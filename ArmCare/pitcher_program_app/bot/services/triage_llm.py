@@ -15,7 +15,7 @@ async def llm_triage_refinement(
     energy: int,
     profile: dict,
     pitcher_id: str,
-) -> dict | None:
+):
     """Call LLM for nuanced triage when rule-based logic hits an ambiguous zone.
 
     Returns dict with 'modifications' and 'reasoning', or None on failure.

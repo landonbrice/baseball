@@ -300,7 +300,7 @@ Keep the document between 1500-4000 words. Prioritize depth and accuracy over br
 """
 
 
-async def classify_and_generate_research(question: str) -> str | None:
+async def classify_and_generate_research(question: str):
     """Classify a question and generate new research if needed.
 
     Called when retrieve_knowledge() finds no matching docs.
