@@ -84,7 +84,7 @@ export default function UpcomingDays({ upcoming = [], exerciseMap = {} }) {
                   {day.throwing && (
                     <div className="mt-2 pt-1 border-t border-bg-tertiary">
                       <p className="text-[10px] text-text-muted uppercase font-medium">Throwing</p>
-                      <p className="text-xs text-text-secondary">{typeof day.throwing === 'string' ? day.throwing : day.throwing.details || 'See plan'}</p>
+                      <p className="text-xs text-text-secondary">{typeof day.throwing === 'string' ? day.throwing : typeof day.throwing?.details === 'string' ? day.throwing.details : 'See plan'}</p>
                     </div>
                   )}
                 </div>

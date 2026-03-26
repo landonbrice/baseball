@@ -148,7 +148,7 @@ export default function PlanDetail() {
       {/* Summary */}
       {plan.summary && (
         <div style={{ padding: '0 16px 12px' }}>
-          <p style={{ fontSize: 12, color: 'var(--color-ink-secondary)', margin: 0 }}>{plan.summary}</p>
+          <p style={{ fontSize: 12, color: 'var(--color-ink-secondary)', margin: 0 }}>{typeof plan.summary === 'string' ? plan.summary : ''}</p>
         </div>
       )}
 
@@ -167,7 +167,7 @@ export default function PlanDetail() {
       ) : plan.content ? (
         <div style={{ padding: '0 16px 12px' }}>
           <div style={{ background: 'var(--color-white)', borderRadius: 12, padding: 14 }}>
-            <p style={{ fontSize: 12, color: 'var(--color-ink-primary)', whiteSpace: 'pre-wrap', margin: 0 }}>{plan.content}</p>
+            <p style={{ fontSize: 12, color: 'var(--color-ink-primary)', whiteSpace: 'pre-wrap', margin: 0 }}>{typeof plan.content === 'string' ? plan.content : ''}</p>
           </div>
         </div>
       ) : null}

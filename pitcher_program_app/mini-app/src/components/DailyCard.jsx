@@ -147,7 +147,7 @@ function TabArmCare({ armCare, fallbackBlocks, hasStructured, exerciseMap, slugM
   if (hasStructured && armCare?.exercises?.length) {
     return (
       <div>
-        {armCare.timing && <SectionLabel>{armCare.timing}</SectionLabel>}
+        {typeof armCare.timing === 'string' && <SectionLabel>{armCare.timing}</SectionLabel>}
         <BlockReasoning reasoning={armCare.reasoning} />
         <SupersetList exercises={armCare.exercises} exerciseMap={exerciseMap} slugMap={slugMap}
           completed={completed} onToggle={onToggle} expandedWhy={expandedWhy} onToggleWhy={onToggleWhy} />
@@ -168,7 +168,7 @@ function TabLifting({ lifting, fallbackBlocks, hasStructured, exerciseMap, slugM
   if (hasStructured && lifting?.exercises?.length) {
     return (
       <div>
-        {lifting.intent && <SectionLabel>{lifting.intent}</SectionLabel>}
+        {typeof lifting.intent === 'string' && <SectionLabel>{lifting.intent}</SectionLabel>}
         <BlockReasoning reasoning={lifting.reasoning} />
         <SupersetList exercises={lifting.exercises} exerciseMap={exerciseMap} slugMap={slugMap}
           completed={completed} onToggle={onToggle} expandedWhy={expandedWhy} onToggleWhy={onToggleWhy} />

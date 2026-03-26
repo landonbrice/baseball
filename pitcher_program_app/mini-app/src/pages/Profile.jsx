@@ -50,7 +50,7 @@ export default function Profile() {
       {/* Pitching */}
       <Section title="Pitching">
         <Row label="FB Velocity" value={`${profile.pitching_profile?.avg_velocity_fb ?? '—'} mph`} />
-        <Row label="Arsenal" value={profile.pitching_profile?.pitch_arsenal?.join(', ') || '—'} />
+        <Row label="Arsenal" value={Array.isArray(profile.pitching_profile?.pitch_arsenal) ? profile.pitching_profile.pitch_arsenal.join(', ') : '—'} />
         <Row label="Typical Count" value={`${profile.pitching_profile?.typical_pitch_count ?? '—'} pitches`} />
       </Section>
 
@@ -89,8 +89,8 @@ export default function Profile() {
               <p className="text-xs text-text-primary">
                 {injury.date} — {injury.area.replace(/_/g, ' ')} ({injury.severity})
               </p>
-              <p className="text-xs text-text-muted">{injury.description}</p>
-              {injury.ongoing_considerations && (
+              <p className="text-xs text-text-muted">{typeof injury.description === 'string' ? injury.description : ''}</p>
+              {injury.ongoing_considerations && typeof injury.ongoing_considerations === 'string' && (
                 <p className="text-xs text-flag-yellow mt-0.5">{injury.ongoing_considerations}</p>
               )}
             </div>

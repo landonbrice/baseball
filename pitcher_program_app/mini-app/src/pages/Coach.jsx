@@ -29,7 +29,8 @@ export default function Coach() {
   const entries = log?.entries || [];
   const todayEntry = entries.find(e => e.date === todayStr);
   const hasCheckedIn = !!todayEntry?.pre_training?.arm_feel;
-  const morningBrief = todayEntry?.morning_brief || todayEntry?.plan_generated?.morning_brief;
+  const rawBrief = todayEntry?.morning_brief || todayEntry?.plan_generated?.morning_brief;
+  const morningBrief = typeof rawBrief === 'string' ? rawBrief : null;
   const isNewPitcher = profile && !profile.active_flags?.last_outing_date && !todayEntry;
   const [welcomeSent, setWelcomeSent] = useState(false);
 
@@ -150,6 +151,8 @@ export default function Coach() {
       setLoading(false);
     }
   };
+
+  const flags = profile?.active_flags || {};
 
   // ── Smart defaults ──
   const daysSince = flags.days_since_outing ?? 99;
@@ -503,8 +506,6 @@ export default function Coach() {
     : hasCheckedIn ? "Ask about today's plan..." : 'Ask your coach...';
   const inputDisabled = (!!checkinFlow && checkinFlow.step !== 'arm_report') || nextOutingFlow;
 
-  const flags = profile?.active_flags || {};
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 80px)', background: 'var(--color-cream-bg)' }}>
 
@@ -603,9 +604,9 @@ export default function Coach() {
                 border: m.role === 'user' ? 'none' : '0.5px solid #e4dfd8',
               }}>
                 {m.role === 'bot' ? (
-                  <div className="chat-markdown"><ReactMarkdown>{m.content}</ReactMarkdown></div>
+                  <div className="chat-markdown"><ReactMarkdown>{typeof m.content === 'string' ? m.content : ''}</ReactMarkdown></div>
                 ) : (
-                  <p style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{m.content}</p>
+                  <p style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{typeof m.content === 'string' ? m.content : String(m.content ?? '')}</p>
                 )}
                 {/* Save plan button */}
                 {m.type === 'save_plan' && m.plan && (
