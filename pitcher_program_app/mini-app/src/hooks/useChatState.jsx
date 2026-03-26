@@ -1,10 +1,19 @@
-import { createContext, useContext, useState, useCallback } from 'react';
+import { createContext, useContext, useState, useCallback, useRef } from 'react';
 
 const AppContext = createContext(null);
 
 export function AppProvider({ children }) {
   // Coach conversation — persists across tab navigation
   const [messages, setMessages] = useState([]);
+
+  // Plan context — set by PlanDetail before navigating to Coach
+  const planContextRef = useRef(null);
+  const setPlanContext = useCallback((ctx) => { planContextRef.current = ctx; }, []);
+  const consumePlanContext = useCallback(() => {
+    const ctx = planContextRef.current;
+    planContextRef.current = null;
+    return ctx;
+  }, []);
 
   // Global refresh counter — any component can trigger a Home re-fetch
   const [globalRefreshKey, setGlobalRefreshKey] = useState(0);
@@ -32,6 +41,7 @@ export function AppProvider({ children }) {
       globalRefreshKey, triggerRefresh,
       coachBadge, setCoachBadge, clearCoachBadge,
       checkinInProgress, setCheckinInProgress,
+      setPlanContext, consumePlanContext,
     }}>
       {children}
     </AppContext.Provider>

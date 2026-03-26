@@ -9,7 +9,7 @@ export default function PlanDetail() {
   const { planId } = useParams();
   const navigate = useNavigate();
   const { pitcherId, initData } = useAuth();
-  const { addMessage } = useAppContext();
+  const { addMessage, setPlanContext } = useAppContext();
   const { data, loading, refetch } = useApi(
     pitcherId ? `/api/pitcher/${pitcherId}/plans` : null,
     initData
@@ -88,6 +88,7 @@ export default function PlanDetail() {
   };
 
   const handleAskCoach = () => {
+    setPlanContext({ plan_id: planId, plan_data: plan });
     addMessage({
       role: 'bot', type: 'text',
       content: `You're looking at: "${plan.title}". What do you want to know?`,

@@ -4,7 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import { useAuth } from '../App';
 import { useAppContext } from '../hooks/useChatState';
 import { usePitcher } from '../hooks/usePitcher';
-import { sendChat, setNextOuting, savePlan } from '../api';
+import { sendChat, sendChatWithPlan, setNextOuting, savePlan } from '../api';
 
 export default function Coach() {
   const { pitcherId, initData } = useAuth();
@@ -12,6 +12,7 @@ export default function Coach() {
   const {
     messages, setMessages, addMessage,
     globalRefreshKey, triggerRefresh, clearCoachBadge, setCheckinInProgress,
+    consumePlanContext,
   } = useAppContext();
 
   const [input, setInput] = useState('');
@@ -110,7 +111,10 @@ export default function Coach() {
         .filter(m => m.type === 'text')
         .slice(-6)
         .map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.content }));
-      const res = await sendChat(pitcherId, text, 'text', initData, history);
+      const planCtx = consumePlanContext();
+      const res = planCtx
+        ? await sendChatWithPlan(pitcherId, text, planCtx, initData, history)
+        : await sendChat(pitcherId, text, 'text', initData, history);
       setMessages(prev => [...prev, ...processResponse(res)]);
     } catch {
       setMessages(prev => [...prev, { role: 'bot', type: 'text', content: 'Something went wrong. Try again.' }]);

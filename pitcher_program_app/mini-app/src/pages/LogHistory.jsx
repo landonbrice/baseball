@@ -1,5 +1,7 @@
 import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../App';
+import { useAppContext } from '../hooks/useChatState';
 import { usePitcher } from '../hooks/usePitcher';
 import { useApi } from '../hooks/useApi';
 import DailyCard from '../components/DailyCard';
@@ -16,6 +18,8 @@ function armFeelCellColor(feel) {
 
 export default function LogHistory() {
   const { pitcherId, initData } = useAuth();
+  const navigate = useNavigate();
+  const { addMessage } = useAppContext();
   const { log, loading } = usePitcher(pitcherId, initData);
   const exercises = useApi('/api/exercises', initData);
   const slugs = useApi('/api/exercises/slugs', initData);
@@ -88,6 +92,26 @@ export default function LogHistory() {
             initData={initData}
             readOnly={true}
           />
+          <div
+            onClick={() => {
+              const flag = selectedEntry.pre_training?.flag_level || 'green';
+              const feel = selectedEntry.pre_training?.arm_feel;
+              addMessage({
+                role: 'user', type: 'text',
+                content: `Tell me about my ${selectedEntry.date} session — I was ${flag} flag${feel ? `, arm feel ${feel}/5` : ''}. Why did I get that plan?`,
+              });
+              setSelectedEntry(null);
+              navigate('/coach');
+            }}
+            style={{
+              marginTop: 10, background: 'var(--color-maroon)', borderRadius: 10,
+              padding: '9px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              cursor: 'pointer',
+            }}
+          >
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#fff' }}>Ask coach about this day</span>
+            <span style={{ color: '#e8a0aa' }}>{'\u2192'}</span>
+          </div>
         </div>
       )}
 

@@ -1,9 +1,13 @@
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../App';
+import { useAppContext } from '../hooks/useChatState';
 import { usePitcher } from '../hooks/usePitcher';
 import FlagBadge from '../components/FlagBadge';
 
 export default function Profile() {
   const { pitcherId, initData } = useAuth();
+  const navigate = useNavigate();
+  const { addMessage } = useAppContext();
   const { profile, loading } = usePitcher(pitcherId, initData);
 
   if (loading) {
@@ -91,8 +95,40 @@ export default function Profile() {
               )}
             </div>
           ))}
+          <button
+            onClick={() => {
+              addMessage({
+                role: 'user', type: 'text',
+                content: 'How does my injury history affect my current training plan?',
+              });
+              navigate('/coach');
+            }}
+            style={{ marginTop: 8, fontSize: 11, color: 'var(--color-maroon)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}
+          >
+            Ask coach how this affects my plan {'\u2192'}
+          </button>
         </Section>
       )}
+
+      {/* Ask coach CTA */}
+      <div
+        onClick={() => {
+          const flag = flags.current_flag_level || 'green';
+          addMessage({
+            role: 'user', type: 'text',
+            content: `I'm currently ${flag} flag. What should I know about my training right now?`,
+          });
+          navigate('/coach');
+        }}
+        style={{
+          background: 'var(--color-maroon)', borderRadius: 10,
+          padding: '9px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          cursor: 'pointer',
+        }}
+      >
+        <span style={{ fontSize: 11, fontWeight: 700, color: '#fff' }}>Ask coach about my training</span>
+        <span style={{ color: '#e8a0aa' }}>{'\u2192'}</span>
+      </div>
 
     </div>
   );

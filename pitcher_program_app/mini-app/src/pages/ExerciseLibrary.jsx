@@ -1,7 +1,8 @@
 import { useState, useMemo, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../App';
+import { useAppContext } from '../hooks/useChatState';
 import { useApi } from '../hooks/useApi';
-import { submitAsk } from '../api';
 
 const CATEGORIES = [
   { key: 'all', label: 'All' },
@@ -108,7 +109,6 @@ export default function ExerciseLibrary() {
             expanded={expandedId === ex.id}
             onToggle={() => setExpandedId(expandedId === ex.id ? null : ex.id)}
             pitcherId={pitcherId}
-            initData={initData}
           />
         ))}
       </div>
@@ -121,26 +121,16 @@ export default function ExerciseLibrary() {
   );
 }
 
-function ExerciseCard({ exercise, expanded, onToggle, pitcherId, initData }) {
-  const [whyAnswer, setWhyAnswer] = useState(null);
-  const [whyLoading, setWhyLoading] = useState(false);
+function ExerciseCard({ exercise, expanded, onToggle, pitcherId }) {
+  const navigate = useNavigate();
+  const { addMessage } = useAppContext();
 
-  const handleWhy = async () => {
-    if (whyAnswer || whyLoading) return;
-    setWhyLoading(true);
-    try {
-      const res = await submitAsk(
-        pitcherId,
-        `Why is "${exercise.name}" in my program? Given my profile and training history, explain why this specific exercise matters for me.`,
-        [],
-        initData
-      );
-      setWhyAnswer(res.answer);
-    } catch {
-      setWhyAnswer('Could not load explanation right now.');
-    } finally {
-      setWhyLoading(false);
-    }
+  const handleAskCoach = () => {
+    addMessage({
+      role: 'user', type: 'text',
+      content: `Why is "${exercise.name}" in my program?`,
+    });
+    navigate('/coach');
   };
 
   const recommended = formatDayList(exercise.rotation_day_usage?.recommended);
@@ -247,22 +237,15 @@ function ExerciseCard({ exercise, expanded, onToggle, pitcherId, initData }) {
             </div>
           )}
 
-          {/* "Why is this in my program?" */}
+          {/* Ask coach about this exercise */}
           {pitcherId && (
             <div className="pt-1">
-              {whyAnswer ? (
-                <div className="bg-bg-tertiary rounded-lg p-3">
-                  <p className="text-xs text-text-secondary whitespace-pre-wrap">{whyAnswer}</p>
-                </div>
-              ) : (
-                <button
-                  onClick={handleWhy}
-                  disabled={whyLoading}
-                  className="text-xs text-accent-blue disabled:opacity-50"
-                >
-                  {whyLoading ? 'Loading...' : 'Why is this in my program?'}
-                </button>
-              )}
+              <button
+                onClick={handleAskCoach}
+                className="text-xs text-accent-blue"
+              >
+                Ask coach why this is in my program →
+              </button>
             </div>
           )}
         </div>
