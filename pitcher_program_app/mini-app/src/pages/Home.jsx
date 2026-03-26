@@ -93,8 +93,9 @@ export default function Home() {
   const roleLabel = role === 'starter' ? 'Starter' : 'Reliever';
   const hasCheckedInToday = !!(todayEntry?.pre_training?.arm_feel);
 
-  // Brief + stats from today's entry
-  const morningBrief = todayEntry?.morning_brief || todayEntry?.plan_generated?.morning_brief;
+  // Brief + stats — guard all values that render as {text}
+  const rawBrief = todayEntry?.morning_brief || todayEntry?.plan_generated?.morning_brief;
+  const morningBrief = typeof rawBrief === 'string' ? rawBrief : null;
   const sleepHours = todayEntry?.pre_training?.sleep_hours;
   const estDuration = todayEntry?.lifting?.estimated_duration_min || todayEntry?.plan_generated?.estimated_duration_min;
 
@@ -132,7 +133,7 @@ export default function Home() {
   }, [daysUntilOuting]);
 
   return (
-    <div style={{ paddingBottom: 20 }}>
+    <Safe name="HomeRoot"><div style={{ paddingBottom: 20 }}>
       {/* ── 1. Enhanced header band ── */}
       <div style={{ background: 'var(--color-maroon)', padding: '14px 16px 0' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
@@ -319,7 +320,7 @@ export default function Home() {
           </div>
         )}</Safe>
       </div>
-    </div>
+    </div></Safe>
   );
 }
 

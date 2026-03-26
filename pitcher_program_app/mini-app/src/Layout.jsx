@@ -1,6 +1,13 @@
 import { NavLink, Outlet } from 'react-router-dom';
+import { Component } from 'react';
 import { useAppContext } from './hooks/useChatState';
 import CoachFAB from './components/CoachFAB';
+
+class SafeWrap extends Component {
+  constructor(props) { super(props); this.state = { error: null }; }
+  static getDerivedStateFromError(error) { return { error }; }
+  render() { return this.state.error ? null : this.props.children; }
+}
 
 const NAV_ITEMS = [
   { to: '/',        label: 'Home',    icon: '\u2302' },
@@ -19,7 +26,7 @@ export default function Layout() {
       </main>
 
       {/* Coach floating action button */}
-      <CoachFAB showBadge={coachBadge || checkinInProgress} />
+      <SafeWrap><CoachFAB showBadge={coachBadge || checkinInProgress} /></SafeWrap>
 
       <nav style={{
         position: 'fixed', bottom: 0, left: 0, right: 0,
