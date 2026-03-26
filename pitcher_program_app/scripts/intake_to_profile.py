@@ -421,7 +421,7 @@ def create_pitcher_files(profile: dict, additional_notes: str = "") -> str:
     name = profile.get("name", "Unknown")
     role = profile.get("role", "starter")
     injuries = profile.get("injury_history", [])
-    mods = profile.get("active_flags", {}).get("active_modifications", [])
+    mods = (profile.get("active_flags") or {}).get("active_modifications", [])
 
     context = f"# Pitcher Context: {name} ({pitcher_id})\n\n"
     context += "## Profile Summary\n"
