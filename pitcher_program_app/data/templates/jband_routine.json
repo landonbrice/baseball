@@ -1,0 +1,60 @@
+{
+  "template_id": "jband_routine_v1",
+  "description": "Pre-throw and post-throw J-Band + wrist weight routines. Source: Driveline 16-week throwing program.",
+  "pre_throw": {
+    "name": "Pre-Throw Warmup",
+    "description": "J-Band + wrist weight routine performed before every throwing session.",
+    "estimated_duration_min": 8,
+    "phases": [
+      {
+        "phase_name": "J-Band Routine",
+        "description": "Light band resistance — 10 reps each exercise. Focus on smooth, controlled movement.",
+        "exercises": [
+          { "exercise_id": "ex_096", "name": "J-Band Forward Fly", "rx": "1x10", "order": 1 },
+          { "exercise_id": "ex_097", "name": "J-Band Reverse Fly", "rx": "1x10", "order": 2 },
+          { "exercise_id": "ex_098", "name": "J-Band Internal Rotation", "rx": "1x10", "order": 3 },
+          { "exercise_id": "ex_099", "name": "J-Band External Rotation", "rx": "1x10", "order": 4 },
+          { "exercise_id": "ex_100", "name": "J-Band Bicep Curl", "rx": "1x10", "order": 5 },
+          { "exercise_id": "ex_101", "name": "J-Band Tricep Extension", "rx": "1x10", "order": 6 }
+        ]
+      },
+      {
+        "phase_name": "Wrist Weight Routine",
+        "description": "1-2 lb wrist weights — 10 reps each. Less than 10 OK when starting out, prioritize technique.",
+        "exercises": [
+          { "exercise_id": "ex_102", "name": "Wrist Weight Pronation Swings", "rx": "1x10", "order": 1 },
+          { "exercise_id": "ex_103", "name": "Wrist Weight Two-Arm Throws", "rx": "1x10", "order": 2 },
+          { "exercise_id": "ex_104", "name": "Wrist Weight Pivot Pickoffs", "rx": "1x10", "order": 3 },
+          { "exercise_id": "ex_105", "name": "Wrist Weight Cuban Press", "rx": "1x10", "order": 4 }
+        ]
+      }
+    ]
+  },
+  "post_throw": {
+    "name": "Post-Throw Recovery",
+    "description": "J-Band cooldown + upward tosses + band pullaparts after every throwing session.",
+    "estimated_duration_min": 6,
+    "phases": [
+      {
+        "phase_name": "J-Band Cooldown",
+        "description": "1 set of 10 reps each — lighter and slower than pre-throw.",
+        "exercises": [
+          { "exercise_id": "ex_096", "name": "J-Band Forward Fly", "rx": "1x10 (light)", "order": 1 },
+          { "exercise_id": "ex_097", "name": "J-Band Reverse Fly", "rx": "1x10 (light)", "order": 2 },
+          { "exercise_id": "ex_098", "name": "J-Band Internal Rotation", "rx": "1x10 (light)", "order": 3 },
+          { "exercise_id": "ex_099", "name": "J-Band External Rotation", "rx": "1x10 (light)", "order": 4 },
+          { "exercise_id": "ex_100", "name": "J-Band Bicep Curl", "rx": "1x10 (light)", "order": 5 },
+          { "exercise_id": "ex_101", "name": "J-Band Tricep Extension", "rx": "1x10 (light)", "order": 6 }
+        ]
+      },
+      {
+        "phase_name": "Recovery Flush",
+        "description": "Light deceleration work to flush the arm.",
+        "exercises": [
+          { "exercise_id": "ex_120", "name": "Upward Tosses", "rx": "2x15 (2kg black or 1kg green)", "order": 1 },
+          { "exercise_id": "ex_064", "name": "Band Pullaparts", "rx": "2x15", "order": 2 }
+        ]
+      }
+    ]
+  }
+}

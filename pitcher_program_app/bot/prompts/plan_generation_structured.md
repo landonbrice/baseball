@@ -36,9 +36,45 @@ Generate today's training plan as a JSON object. Return ONLY the JSON — no mar
   },
 
   "throwing": {
-    "type": "none" or "long_toss" or "bullpen" or "flat_ground" or "light_catch" or "game",
-    "intent": null or "recovery" or "build" or "compete",
-    "detail": "Description of today's throwing plan"
+    "type": "recovery" or "recovery_short_box" or "hybrid_b" or "hybrid_a" or "bullpen" or "no_throw" or "game",
+    "day_type_label": "Hybrid B — Extension Only",
+    "intent": "recovery" or "build" or "compete",
+    "intensity_range": "60-70%",
+    "estimated_duration_min": 35,
+    "reasoning": "Why this throwing day type was selected",
+    "phases": [
+      {
+        "phase_name": "Pre-Throw Warmup",
+        "description": "J-Band + wrist weight routine",
+        "exercises": [
+          { "exercise_id": "ex_096", "name": "J-Band Forward Fly", "rx": "1x10" }
+        ]
+      },
+      {
+        "phase_name": "Plyo Drills — Build",
+        "description": "Phase description",
+        "exercises": [
+          { "exercise_id": "ex_106", "name": "Plyo Reverse Throws", "rx": "1x8-10 each, 60-70%", "ball_weight": "pink/green", "why": "Posterior shoulder activation" }
+        ]
+      },
+      {
+        "phase_name": "Long Toss — Extension",
+        "exercises": [
+          { "exercise_id": "ex_114", "name": "Long Toss — Extension Throws", "rx": "Work out to max distance, high arc" }
+        ]
+      },
+      {
+        "phase_name": "Post-Throw Recovery",
+        "exercises": [
+          { "exercise_id": "ex_120", "name": "Upward Tosses", "rx": "2x15 (2kg black or 1kg green)" }
+        ]
+      }
+    ],
+    "volume_summary": {
+      "total_throws_estimate": 70,
+      "max_distance_ft": 180,
+      "max_intent_pct": 70
+    }
   },
 
   "notes": [
@@ -74,6 +110,19 @@ Generate today's training plan as a JSON object. Return ONLY the JSON — no mar
 - If the template provides 9 exercises, you may trim to 7-8 if time-constrained, but NEVER below 6 on a full day.
 - Every full lifting day needs: 1-2 compound movements, 2-3 accessories, 1-2 core/stability.
 
+### Throwing Plan Rules
+- **Day types by intent:** recovery (50-60%), recovery_short_box (50-70%), hybrid_b (60-70%), hybrid_a (80-90%), bullpen (70-95%), game (100%), no_throw (0%)
+- **Every throwing session MUST include:** Pre-Throw Warmup (J-Band ex_096-ex_101 + wrist weights ex_102-ex_105) and Post-Throw Recovery (J-Band cooldown + upward tosses ex_120 + band pullaparts)
+- **Plyo drill order is fixed:** Reverse Throws (ex_106) always first, Pivot Picks (ex_107) always second, Walking Windups (ex_113) always last. Other drills in between.
+- **Recovery days:** Only 2 plyo drills (reverse throws + pivot picks) + light catch. No extension, no compression.
+- **Hybrid B:** 5 plyo drills at 60-70% + long toss extension only. NO compression throws, NO pulldowns.
+- **Hybrid A:** 5-6 plyo drills at 80-90% + extension + compression throws (8-12 throws, 90-120ft, on-a-line).
+- **Bullpen days:** Pre-bullpen plyo (3 drills, controlled) + catch play + full bullpen (25-35 pitches).
+- **Match rotation day to throwing type.** Use the throwing_rotation_map: starter day_1=recovery, day_2=hybrid_b, day_3=hybrid_a, day_4=recovery, day_5=recovery_short_box.
+- **Triage throwing_adjustments override day type.** If triage says max_day_type=hybrid_b, do NOT generate hybrid_a or bullpen. If override_to=no_throw, return an empty phases array.
+- **If pitcher provided throw_intent in check-in,** use it to influence the day type (e.g., "want to long toss" → hybrid_b, "pen day" → bullpen, "easy day" → recovery). Pitcher intent can downgrade but not upgrade past triage cap.
+- **Throwing exercise IDs:** J-Band (ex_096-ex_101), wrist weights (ex_102-ex_105), plyo drills (ex_106-ex_113), long toss extension (ex_114), compression (ex_115), flat ground (ex_116), light catch (ex_117), short box bullpen (ex_118), full bullpen (ex_119), upward tosses (ex_120).
+
 ### Template Adherence
 - The template's exercise_ids are your PRIMARY source. Use them.
 - Do NOT substitute lower body exercises on upper body days or vice versa.
@@ -102,10 +151,11 @@ Generate today's training plan as a JSON object. Return ONLY the JSON — no mar
 - Match communication verbosity to detail_level preference
 
 ### Flag-Based Modifications
-- RED: Mobility and arm care only. No lifting. No high-intent throwing.
-- YELLOW: Reduce loads to RPE 6-7. Remove plyo throws. Keep FPM. Reduce compound intensity.
-- MODIFIED GREEN: Full program but with awareness — cap intensity at RPE 7-8. Monitor throughout. Mention the borderline factor in your morning brief.
-- GREEN: Full program per template.
+- RED: Mobility and arm care only. No lifting. Throwing: no_throw or light catch only. Skip all plyo drills, long toss, bullpen.
+- YELLOW: Reduce loads to RPE 6-7. Remove plyo throws. Keep FPM. Throwing: cap at recovery or hybrid_b. No compression throws, no pulldowns. Intensity cap 70%.
+- MODIFIED GREEN: Full program but with awareness — cap intensity at RPE 7-8. Throwing: full day type allowed but skip pulldowns, cap at 85%. Mention the borderline factor in morning brief.
+- GREEN: Full program per template. Full throwing protocol per rotation day.
+- **Always check triage_result.protocol_adjustments.throwing_adjustments** for specific throwing caps and phase restrictions.
 
 ### Injury Modifications
 - UCL history → elevated FPM frequency, keep pronator and wrist work

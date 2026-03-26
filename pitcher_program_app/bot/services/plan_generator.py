@@ -94,7 +94,17 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
 
     # Build template-derived fallback data
     fallback_exercise_blocks = _build_exercise_blocks(today_template, arm_care, plyocare)
-    fallback_throwing_plan = _build_throwing_plan(today_template)
+    pitcher_role = (profile.get("pitching_profile") or {}).get("role_type", "starter")
+    if "reliever" in pitcher_role.lower():
+        pitcher_role = "reliever"
+    else:
+        pitcher_role = "starter"
+    throwing_adjustments = (triage_result.get("protocol_adjustments") or {}).get("throwing_adjustments")
+    throw_intent = (checkin_inputs or {}).get("throw_intent", "")
+    fallback_throwing_plan = _build_throwing_plan(
+        today_template, rotation_day=rotation_day, role=pitcher_role,
+        throwing_adjustments=throwing_adjustments, throw_intent=throw_intent,
+    )
     estimated_duration_min = None
     if today_template.get("lifting"):
         estimated_duration_min = today_template["lifting"].get("duration_min")
@@ -626,12 +636,143 @@ def _build_exercise_blocks(today_template: dict, arm_care: dict, plyocare) -> li
     return blocks
 
 
-def _build_throwing_plan(today_template: dict):
-    """Extract throwing plan from the rotation day template."""
+def _load_throwing_templates():
+    """Load throwing day types, rotation map, and J-Band routine templates."""
+    try:
+        day_types = load_template("throwing_day_types.json")
+        rotation_map = load_template("throwing_rotation_map.json")
+        jband = load_template("jband_routine.json")
+        return day_types, rotation_map, jband
+    except FileNotFoundError as e:
+        logger.warning(f"Throwing template not found: {e}")
+        return None, None, None
+
+
+def _resolve_throwing_phases(day_type_template: dict, jband: dict) -> list:
+    """Resolve template_ref entries in phases to actual exercise lists."""
+    if not day_type_template or not day_type_template.get("phases"):
+        return []
+
+    resolved_phases = []
+    for phase in day_type_template["phases"]:
+        template_ref = phase.get("template_ref")
+        if template_ref and jband:
+            # Resolve jband_routine_v1.pre_throw or jband_routine_v1.post_throw
+            ref_parts = template_ref.split(".")
+            if len(ref_parts) == 2 and ref_parts[0] == "jband_routine_v1":
+                routine_key = ref_parts[1]
+                routine = (jband or {}).get(routine_key)
+                if routine:
+                    # Flatten the J-Band routine phases into individual phases
+                    for sub_phase in routine.get("phases", []):
+                        resolved_phases.append({
+                            "phase_name": sub_phase.get("phase_name", phase.get("phase_name", "")),
+                            "description": sub_phase.get("description", ""),
+                            "exercises": sub_phase.get("exercises", []),
+                        })
+                    continue
+        # Non-ref phase — use directly
+        resolved_phases.append({
+            "phase_name": phase.get("phase_name", ""),
+            "description": phase.get("description", ""),
+            "exercises": phase.get("exercises", []),
+        })
+    return resolved_phases
+
+
+def _build_throwing_plan(today_template: dict, rotation_day: int = None, role: str = "starter",
+                         throwing_adjustments: dict = None, throw_intent: str = ""):
+    """Build a structured throwing plan from templates.
+
+    Returns a dict with type, label, intent, intensity_range, estimated_duration_min,
+    reasoning, phases (list of exercise groups), and volume_summary.
+    Falls back to legacy string mapping if new templates aren't available.
+
+    Applies triage throwing_adjustments (max_day_type, skip_phases, override_to)
+    and respects pitcher throw_intent (can downgrade but not upgrade past triage cap).
+    """
+    day_types, rotation_map, jband = _load_throwing_templates()
+    adj = throwing_adjustments or {}
+
+    # Triage override: force to specific day type (e.g., no_throw for RED)
+    override = adj.get("override_to")
+
+    # Try structured templates first
+    if day_types and rotation_map and rotation_day is not None:
+        role_key = "starter_7day" if role == "starter" else "reliever_3day"
+        role_map = rotation_map.get(role_key, {})
+        day_key = f"day_{rotation_day}"
+        day_info = role_map.get(day_key)
+
+        if day_info:
+            day_type_key = day_info.get("day_type", "no_throw")
+
+            # Apply triage override
+            if override:
+                day_type_key = override
+
+            # Apply triage max_day_type cap (downgrade if needed)
+            max_day_type = adj.get("max_day_type")
+            if max_day_type and not override:
+                day_type_hierarchy = ["no_throw", "recovery", "recovery_short_box", "hybrid_b", "hybrid_a", "bullpen"]
+                current_rank = day_type_hierarchy.index(day_type_key) if day_type_key in day_type_hierarchy else 0
+                max_rank = day_type_hierarchy.index(max_day_type) if max_day_type in day_type_hierarchy else len(day_type_hierarchy)
+                if current_rank > max_rank:
+                    day_type_key = max_day_type
+
+            # Apply pitcher throw_intent (can downgrade only)
+            if throw_intent and not override:
+                intent_map = {
+                    "easy": "recovery", "light": "recovery", "catch": "recovery",
+                    "long toss": "hybrid_b", "extension": "hybrid_b",
+                    "pen": "bullpen", "bullpen": "bullpen",
+                    "flat ground": "hybrid_b", "flatties": "hybrid_b",
+                }
+                for keyword, intent_type in intent_map.items():
+                    if keyword in throw_intent.lower():
+                        intent_hierarchy = ["no_throw", "recovery", "recovery_short_box", "hybrid_b", "hybrid_a", "bullpen"]
+                        intent_rank = intent_hierarchy.index(intent_type) if intent_type in intent_hierarchy else 0
+                        current_rank = intent_hierarchy.index(day_type_key) if day_type_key in intent_hierarchy else 0
+                        # Pitcher intent can downgrade but not upgrade past triage cap
+                        if intent_rank < current_rank:
+                            day_type_key = intent_type
+                        break
+
+            day_type_template = day_types.get("day_types", {}).get(day_type_key)
+
+            if day_type_template:
+                phases = _resolve_throwing_phases(day_type_template, jband)
+
+                # Apply triage skip_phases filter
+                skip_phases = adj.get("skip_phases", [])
+                if skip_phases:
+                    phases = [
+                        p for p in phases
+                        if not any(skip.lower() in p.get("phase_name", "").lower() for skip in skip_phases)
+                    ]
+
+                # Build reasoning including triage modifications
+                reasoning = day_info.get("notes", day_type_template.get("description", ""))
+                if override:
+                    reasoning = f"Triage override: {override}. " + reasoning
+                elif max_day_type and max_day_type != day_type_key:
+                    reasoning = f"Capped at {max_day_type} per triage. " + reasoning
+
+                return {
+                    "type": day_type_key,
+                    "day_type_label": day_type_template.get("label", day_type_key),
+                    "intent": day_type_template.get("intent"),
+                    "intensity_range": adj.get("intensity_cap_pct", day_type_template.get("intensity_range", "")),
+                    "estimated_duration_min": day_type_template.get("estimated_duration_min"),
+                    "reasoning": reasoning,
+                    "phases": phases,
+                    "volume_summary": day_type_template.get("volume_summary", {}),
+                }
+
+    # Legacy fallback: simple string mapping from old rotation template
     throwing = today_template.get("throwing")
     if not throwing or throwing == "none":
         return None
-    # Template stores throwing as a string key
     type_map = {
         "game_outing": ("game", "Game outing"),
         "none_or_light_catch": ("light_catch", "Light catch play only"),
@@ -649,6 +790,12 @@ def get_upcoming_days(pitcher_id: str, current_rotation_day: int, n: int = 3) ->
     """Return full exercise data for the next n rotation days."""
     template = load_template("starter_7day.json")
     exercise_lib = load_exercise_library()
+    profile = load_profile(pitcher_id)
+    pitcher_role = (profile.get("pitching_profile") or {}).get("role_type", "starter")
+    if "reliever" in pitcher_role.lower():
+        pitcher_role = "reliever"
+    else:
+        pitcher_role = "starter"
     upcoming = []
     for i in range(1, n + 1):
         day_num = (current_rotation_day + i) % 7
@@ -679,13 +826,16 @@ def get_upcoming_days(pitcher_id: str, current_rotation_day: int, n: int = 3) ->
                     "exercises": resolved_exercises,
                 })
 
+        # Build structured throwing plan for this upcoming day
+        throwing_plan = _build_throwing_plan(day_data, rotation_day=day_num, role=pitcher_role)
+
         upcoming.append({
             "rotation_day": day_num,
             "label": day_data.get("label", f"Day {day_num}"),
             "training_intent": day_data.get("training_intent", "none"),
             "exercise_preview": ", ".join(exercise_preview_names),
             "duration_min": lifting.get("duration_min") if lifting else None,
-            "throwing": day_data.get("throwing", ""),
+            "throwing": throwing_plan or day_data.get("throwing", ""),
             "blocks": blocks,
         })
     return upcoming

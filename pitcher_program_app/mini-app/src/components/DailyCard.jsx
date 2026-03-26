@@ -19,6 +19,7 @@ export default function DailyCard({ entry, exerciseMap = {}, slugMap = {}, pitch
   const rawCE = entry?.completed_exercises;
   const [completed, setCompleted] = useState((rawCE && !Array.isArray(rawCE)) ? rawCE : {});
   const [expandedWhy, setExpandedWhy] = useState({});
+  const [collapsedPhases, setCollapsedPhases] = useState({});
 
   const handleToggle = useCallback((exerciseId, newState) => {
     if (readOnly) return;
@@ -62,6 +63,14 @@ export default function DailyCard({ entry, exerciseMap = {}, slugMap = {}, pitch
               label={label}
               throwing={data}
               fallbackPlan={plan_generated?.throwing_plan}
+              exerciseMap={exerciseMap}
+              slugMap={slugMap}
+              completed={completed}
+              onToggle={readOnly ? null : handleToggle}
+              expandedWhy={expandedWhy}
+              onToggleWhy={toggleWhy}
+              collapsedPhases={collapsedPhases}
+              onTogglePhase={(phaseKey) => setCollapsedPhases(prev => ({ ...prev, [phaseKey]: !prev[phaseKey] }))}
             />
           );
         }
@@ -171,9 +180,100 @@ function ExerciseBlock({ blockKey, emoji, label, data, fallbackBlocks, hasStruct
 
 // ── Throwing Block ──
 
-function ThrowingBlock({ emoji, label, throwing, fallbackPlan }) {
+function ThrowingBlock({ emoji, label, throwing, fallbackPlan, exerciseMap, slugMap, completed, onToggle, expandedWhy, onToggleWhy, collapsedPhases, onTogglePhase }) {
   const data = throwing || fallbackPlan;
   if (!data) return null;
+
+  const phases = Array.isArray(data.phases) ? data.phases : [];
+  const hasPhases = phases.some(p => p.exercises?.length > 0);
+
+  // If we have structured phases, render the rich view
+  if (hasPhases) {
+    const allExercises = phases.flatMap(p => p.exercises || []);
+    const doneCount = allExercises.filter(ex => completed[ex.exercise_id] === true).length;
+    const totalCount = allExercises.length;
+    const dayLabel = data.day_type_label || data.type?.replace(/_/g, ' ') || '';
+    const intensity = data.intensity_range;
+    const duration = data.estimated_duration_min;
+    const reasoning = data.reasoning;
+    const vol = data.volume_summary;
+
+    return (
+      <div style={{ background: 'var(--color-white)', borderRadius: 12, overflow: 'hidden' }}>
+        {/* Header */}
+        <div style={{ padding: '10px 14px', borderBottom: '0.5px solid var(--color-cream-border)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 14 }}>{emoji}</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-ink-primary)' }}>{label}</span>
+              {dayLabel && <span style={{ fontSize: 11, color: 'var(--color-ink-muted)' }}>{'\u2014 '}{dayLabel}</span>}
+            </div>
+            <span style={{ fontSize: 11, color: doneCount === totalCount && totalCount > 0 ? 'var(--color-flag-green)' : 'var(--color-ink-muted)', fontWeight: 600 }}>
+              {doneCount}/{totalCount}
+            </span>
+          </div>
+          <div style={{ display: 'flex', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
+            {intensity && <PillBadge>{intensity}</PillBadge>}
+            {duration && <PillBadge>{duration} min</PillBadge>}
+            {vol?.total_throws_estimate > 0 && <PillBadge>~{vol.total_throws_estimate} throws</PillBadge>}
+          </div>
+          {reasoning && typeof reasoning === 'string' && (
+            <p style={{ fontSize: 11, color: 'var(--color-ink-muted)', fontStyle: 'italic', lineHeight: 1.5, margin: '4px 0 0' }}>
+              {reasoning}
+            </p>
+          )}
+        </div>
+
+        {/* Phases */}
+        <div style={{ padding: '4px 0' }}>
+          {phases.map((phase, pi) => {
+            const phaseExercises = phase.exercises || [];
+            if (phaseExercises.length === 0) return null;
+            const phaseKey = `throwing_phase_${pi}`;
+            const isCollapsed = !!collapsedPhases[phaseKey];
+            const phaseDone = phaseExercises.filter(ex => completed[ex.exercise_id] === true).length;
+
+            return (
+              <div key={pi} style={{ borderBottom: pi < phases.length - 1 ? '0.5px solid var(--color-cream-border)' : 'none' }}>
+                {/* Phase header */}
+                <div
+                  onClick={() => onTogglePhase(phaseKey)}
+                  style={{
+                    padding: '6px 14px', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    background: 'var(--color-cream-bg)',
+                  }}
+                >
+                  <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-ink-secondary)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                    {isCollapsed ? '\u25B6 ' : '\u25BC '}{phase.phase_name || `Phase ${pi + 1}`}
+                  </span>
+                  <span style={{ fontSize: 10, color: phaseDone === phaseExercises.length && phaseExercises.length > 0 ? 'var(--color-flag-green)' : 'var(--color-ink-faint)' }}>
+                    {phaseDone}/{phaseExercises.length}
+                  </span>
+                </div>
+                {/* Phase exercises */}
+                {!isCollapsed && (
+                  <div style={{ padding: '4px 14px 8px' }}>
+                    <SupersetList
+                      exercises={phaseExercises}
+                      exerciseMap={exerciseMap}
+                      slugMap={slugMap}
+                      completed={completed}
+                      onToggle={onToggle}
+                      expandedWhy={expandedWhy}
+                      onToggleWhy={onToggleWhy}
+                    />
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  // Legacy fallback: simple text display
   const type = data.type || data.details || 'none';
   const detail = data.detail || data.details || '';
   const intent = data.intent;

@@ -1,0 +1,23 @@
+{
+  "template_id": "throwing_rotation_map_v1",
+  "description": "Maps rotation day + pitcher role to a default throwing day type. Used by plan_generator to select the appropriate throwing session template.",
+  "starter_7day": {
+    "day_0": { "day_type": "game", "label": "Game Day", "notes": "No structured throwing — game outing is the session" },
+    "day_1": { "day_type": "recovery", "label": "Recovery", "notes": "Lightest throwing day. Reverse throws + pivot picks only, then light catch." },
+    "day_2": { "day_type": "hybrid_b", "label": "Hybrid B — Extension", "notes": "Full plyo routine at 60-70%, long toss extension only. High training day." },
+    "day_3": { "day_type": "hybrid_a", "label": "Hybrid A — Compression", "notes": "Full plyo at 80-90%, extension + compression throws. Or bullpen day." },
+    "day_4": { "day_type": "recovery", "label": "Recovery", "notes": "Light plyo + catch play. Lower body strength focus in weight room." },
+    "day_5": { "day_type": "recovery_short_box", "label": "Recovery + Short Box", "notes": "Light plyo + short box bullpen (45-50ft). Pre-start feel work." },
+    "day_6": { "day_type": "no_throw", "label": "Rest / Mobility", "notes": "No throwing. Light catch only if pitcher requests." }
+  },
+  "reliever_3day": {
+    "day_0": { "day_type": "game", "label": "Appearance Day", "notes": "Game appearance — no additional throwing" },
+    "day_1": { "day_type": "recovery", "label": "Recovery", "notes": "Recovery plyo + light catch only. Arm flush focus." },
+    "day_2": { "day_type": "hybrid_b", "label": "Ready Day — Hybrid B", "notes": "Full plyo at 60-70%, flat ground or long toss extension. Must be ready to pitch." }
+  },
+  "reliever_3day_alt": {
+    "day_0": { "day_type": "game", "label": "Appearance Day", "notes": "Game appearance" },
+    "day_1": { "day_type": "recovery_short_box", "label": "Recovery + Short Box", "notes": "Recovery plyo + short box bullpen (45-50ft)" },
+    "day_2": { "day_type": "hybrid_b", "label": "Ready Day — Hybrid B", "notes": "Full plyo + extension throws" }
+  }
+}

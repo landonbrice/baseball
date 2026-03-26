@@ -1,0 +1,239 @@
+{
+  "template_id": "throwing_day_types_v1",
+  "description": "Structured throwing session templates by day type. Each day type defines phases with exercises, prescriptions, and effort ranges. Source: Driveline 16-week program + plyocare routines.",
+  "day_types": {
+    "recovery": {
+      "label": "Recovery",
+      "intent": "recovery",
+      "intensity_range": "50-60%",
+      "estimated_duration_min": 20,
+      "description": "Lightest throwing day. Plyo: reverse throws + pivot picks only. Then light catch play. No extension or compression.",
+      "phases": [
+        {
+          "phase_name": "Pre-Throw Warmup",
+          "template_ref": "jband_routine_v1.pre_throw",
+          "include": true
+        },
+        {
+          "phase_name": "Plyo Drills — Recovery",
+          "description": "2 drills only: reverse throws + pivot picks at 50-60%",
+          "exercises": [
+            { "exercise_id": "ex_106", "name": "Plyo Reverse Throws", "rx": "1x8-10 each, 50-60%", "ball_weight": "pink/green", "order": 1 },
+            { "exercise_id": "ex_107", "name": "Plyo Pivot Picks", "rx": "1x8-10 each, 50-60%", "ball_weight": "pink/green", "order": 2 }
+          ]
+        },
+        {
+          "phase_name": "Catch Play",
+          "description": "Easy catch play — blood flow and arm motion only",
+          "exercises": [
+            { "exercise_id": "ex_117", "name": "Light Catch Play", "rx": "20-30 throws, 40-50%, 60-90ft", "order": 1 }
+          ]
+        },
+        {
+          "phase_name": "Post-Throw Recovery",
+          "template_ref": "jband_routine_v1.post_throw",
+          "include": true
+        }
+      ],
+      "volume_summary": { "total_throws_estimate": 50, "max_distance_ft": 90, "max_intent_pct": 60 }
+    },
+
+    "recovery_short_box": {
+      "label": "Recovery + Short Box",
+      "intent": "recovery",
+      "intensity_range": "50-70%",
+      "estimated_duration_min": 25,
+      "description": "Recovery plyo + light short box bullpen (45-50ft). Pre-start feel work or recovery day with mound reps.",
+      "phases": [
+        {
+          "phase_name": "Pre-Throw Warmup",
+          "template_ref": "jband_routine_v1.pre_throw",
+          "include": true
+        },
+        {
+          "phase_name": "Plyo Drills — Recovery",
+          "description": "2 drills only at recovery intensity",
+          "exercises": [
+            { "exercise_id": "ex_106", "name": "Plyo Reverse Throws", "rx": "1x8-10 each, 50-60%", "ball_weight": "pink/green", "order": 1 },
+            { "exercise_id": "ex_107", "name": "Plyo Pivot Picks", "rx": "1x8-10 each, 50-60%", "ball_weight": "pink/green", "order": 2 }
+          ]
+        },
+        {
+          "phase_name": "Catch Play",
+          "exercises": [
+            { "exercise_id": "ex_117", "name": "Light Catch Play", "rx": "20 throws, 50%, 60-75ft", "order": 1 }
+          ]
+        },
+        {
+          "phase_name": "Short Box Bullpen",
+          "description": "Mound reps at 45-50ft — feel and mechanics focus, fastball only",
+          "exercises": [
+            { "exercise_id": "ex_118", "name": "Short Box Bullpen", "rx": "15 pitches, 60-70%, fastball only", "order": 1 }
+          ]
+        },
+        {
+          "phase_name": "Post-Throw Recovery",
+          "template_ref": "jband_routine_v1.post_throw",
+          "include": true
+        }
+      ],
+      "volume_summary": { "total_throws_estimate": 65, "max_distance_ft": 75, "max_intent_pct": 70 }
+    },
+
+    "hybrid_b": {
+      "label": "Hybrid B — Extension Only",
+      "intent": "build",
+      "intensity_range": "60-70%",
+      "estimated_duration_min": 35,
+      "description": "Full plyo routine at 60-70%. Long toss: extension throws only (high arc, increasing distance). No compression throws, no pulldowns.",
+      "phases": [
+        {
+          "phase_name": "Pre-Throw Warmup",
+          "template_ref": "jband_routine_v1.pre_throw",
+          "include": true
+        },
+        {
+          "phase_name": "Plyo Drills — Build",
+          "description": "5 drills at 60-70% effort. Reverse throws + pivot picks + 2 prescribed + walking windups.",
+          "exercises": [
+            { "exercise_id": "ex_106", "name": "Plyo Reverse Throws", "rx": "1x8-10 each, 60-70%", "ball_weight": "pink/green", "order": 1 },
+            { "exercise_id": "ex_107", "name": "Plyo Pivot Picks", "rx": "1x8-10 each, 60-70%", "ball_weight": "green/blue", "order": 2 },
+            { "exercise_id": "ex_108", "name": "Plyo Roll-Ins", "rx": "1x3-5 each, 60-70%", "ball_weight": "green/blue", "order": 3 },
+            { "exercise_id": "ex_109", "name": "Plyo Step Backs", "rx": "1x3-5 each, 60-70%", "ball_weight": "green/blue", "order": 4 },
+            { "exercise_id": "ex_113", "name": "Plyo Walking Windups", "rx": "1x3-5 each, 60-70%", "ball_weight": "green/blue", "order": 5 }
+          ]
+        },
+        {
+          "phase_name": "Long Toss — Extension",
+          "description": "Work out to max distance with high arc throws. No compression — work back in lightly.",
+          "exercises": [
+            { "exercise_id": "ex_114", "name": "Long Toss — Extension Throws", "rx": "Work out to max distance, high arc, then back in lightly", "order": 1 }
+          ]
+        },
+        {
+          "phase_name": "Post-Throw Recovery",
+          "template_ref": "jband_routine_v1.post_throw",
+          "include": true
+        }
+      ],
+      "volume_summary": { "total_throws_estimate": 70, "max_distance_ft": 180, "max_intent_pct": 70 }
+    },
+
+    "hybrid_a": {
+      "label": "Hybrid A — Extension + Compression",
+      "intent": "compete",
+      "intensity_range": "80-90%",
+      "estimated_duration_min": 40,
+      "description": "Full plyo routine at 80-90%. Extension throws to max distance, then compression throws on the way back (8-12 throws, on-a-line, 90-120ft).",
+      "phases": [
+        {
+          "phase_name": "Pre-Throw Warmup",
+          "template_ref": "jband_routine_v1.pre_throw",
+          "include": true
+        },
+        {
+          "phase_name": "Plyo Drills — Compete",
+          "description": "5-6 drills at 80-90% effort.",
+          "exercises": [
+            { "exercise_id": "ex_106", "name": "Plyo Reverse Throws", "rx": "1x8-10 each, 80-90%", "ball_weight": "green/blue", "order": 1 },
+            { "exercise_id": "ex_107", "name": "Plyo Pivot Picks", "rx": "1x8-10 each, 80-90%", "ball_weight": "blue/red", "order": 2 },
+            { "exercise_id": "ex_108", "name": "Plyo Roll-Ins", "rx": "1x3-5 each, 80-90%", "ball_weight": "blue/red", "order": 3 },
+            { "exercise_id": "ex_110", "name": "Plyo Drop Steps", "rx": "1x3-5 each, 80-90%", "ball_weight": "blue/red", "order": 4 },
+            { "exercise_id": "ex_112", "name": "Plyo Rockers", "rx": "1x3-5 each, 80-90%", "ball_weight": "blue/red", "order": 5 },
+            { "exercise_id": "ex_113", "name": "Plyo Walking Windups", "rx": "1x3-5 each, 80-90%", "ball_weight": "blue/red", "order": 6 }
+          ]
+        },
+        {
+          "phase_name": "Long Toss — Extension",
+          "description": "Work out to max distance with high arc throws.",
+          "exercises": [
+            { "exercise_id": "ex_114", "name": "Long Toss — Extension Throws", "rx": "Work out to max distance, high arc", "order": 1 }
+          ]
+        },
+        {
+          "phase_name": "Long Toss — Compression",
+          "description": "Hard, on-a-line throws at 90-120ft. Shuffle approach, head height. Highest arm stress.",
+          "exercises": [
+            { "exercise_id": "ex_115", "name": "Compression Throws", "rx": "8-12 throws, 80-90%, on-a-line at 90-120ft", "order": 1 }
+          ]
+        },
+        {
+          "phase_name": "Post-Throw Recovery",
+          "template_ref": "jband_routine_v1.post_throw",
+          "include": true
+        }
+      ],
+      "volume_summary": { "total_throws_estimate": 80, "max_distance_ft": 200, "max_intent_pct": 90 }
+    },
+
+    "bullpen": {
+      "label": "Bullpen Day",
+      "intent": "compete",
+      "intensity_range": "70-95%",
+      "estimated_duration_min": 40,
+      "description": "Pre-bullpen plyo + full-distance mound work. Pitch development and command focus.",
+      "phases": [
+        {
+          "phase_name": "Pre-Throw Warmup",
+          "template_ref": "jband_routine_v1.pre_throw",
+          "include": true
+        },
+        {
+          "phase_name": "Pre-Bullpen Plyo",
+          "description": "Smooth, controlled plyo work before mound session.",
+          "exercises": [
+            { "exercise_id": "ex_106", "name": "Plyo Reverse Throws", "rx": "1x8-10 each, 60-70%", "ball_weight": "pink/green", "order": 1 },
+            { "exercise_id": "ex_107", "name": "Plyo Pivot Picks", "rx": "1x8-10 each, 60-70%", "ball_weight": "green", "order": 2 },
+            { "exercise_id": "ex_113", "name": "Plyo Walking Windups", "rx": "1x3-5 each, 60-70%", "ball_weight": "green/blue", "order": 3 }
+          ]
+        },
+        {
+          "phase_name": "Catch Play",
+          "description": "Build up to throwing distance",
+          "exercises": [
+            { "exercise_id": "ex_117", "name": "Light Catch Play", "rx": "15-20 throws, build to 90ft", "order": 1 }
+          ]
+        },
+        {
+          "phase_name": "Bullpen Session",
+          "description": "Full-distance mound work — mix fastball and off-speed, simulate innings.",
+          "exercises": [
+            { "exercise_id": "ex_119", "name": "Full Bullpen", "rx": "25-35 pitches, 70-85%, mix repertoire", "order": 1 }
+          ]
+        },
+        {
+          "phase_name": "Post-Throw Recovery",
+          "template_ref": "jband_routine_v1.post_throw",
+          "include": true
+        }
+      ],
+      "volume_summary": { "total_throws_estimate": 75, "max_distance_ft": 60, "max_intent_pct": 95 }
+    },
+
+    "no_throw": {
+      "label": "No Throw / Rest",
+      "intent": "recovery",
+      "intensity_range": "0%",
+      "estimated_duration_min": 0,
+      "description": "No throwing. Warmup routine only (bands, stretching) if desired. Rest day for the arm.",
+      "phases": [],
+      "volume_summary": { "total_throws_estimate": 0, "max_distance_ft": 0, "max_intent_pct": 0 }
+    },
+
+    "game": {
+      "label": "Game Day",
+      "intent": "compete",
+      "intensity_range": "100%",
+      "estimated_duration_min": 0,
+      "description": "Game outing. No additional structured throwing — pre-game warmup handled by game-day routine.",
+      "phases": [
+        {
+          "phase_name": "Pre-Game Warmup",
+          "template_ref": "jband_routine_v1.pre_throw",
+          "include": true
+        }
+      ],
+      "volume_summary": { "total_throws_estimate": 0, "max_distance_ft": 60, "max_intent_pct": 100, "note": "Game pitch count tracked separately" }
+    }
+  }
+}
