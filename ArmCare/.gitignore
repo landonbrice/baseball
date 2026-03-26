@@ -1,0 +1,14 @@
+# macOS system files
+.DS_Store
+**/.DS_Store
+
+# Environment files
+.env
+**/.env
+
+# Ignore video files in Highlights
+Highlights/*.mp4
+Highlights/*.mov
+Highlights/*.MOV
+Highlights/*.mpeg
+Highlights/*.MPEG

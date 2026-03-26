@@ -1,0 +1,117 @@
+{
+  "pitcher_id": "pitcher_benner_001",
+  "telegram_id": null,
+  "telegram_username": "prestonbenner",
+  "name": "Preston Benner",
+  "role": "starter",
+  "rotation_length": 7,
+  "throws": "left",
+  "year": "Freshman",
+  "physical_profile": {
+    "height_in": 72,
+    "weight_lbs": 185,
+    "body_comp_goal": "maintain",
+    "known_mobility_limitations": [],
+    "movement_screen_notes": ""
+  },
+  "injury_history": [
+    {
+      "date": "2024-06",
+      "area": "medial_elbow",
+      "description": "UCL sprain summer 2024. PRP injection and rest healed it. Now doing constant dry needling, massaging, and strengthening to maintain health.",
+      "severity": "moderate",
+      "resolution": "PRP injection + rest. Healed, ongoing maintenance with dry needling/massage/strengthening.",
+      "ongoing_considerations": "Forearm is tight and shoulder/forearm feel fatigued day after starts.",
+      "red_flags": [
+        "Medial elbow pain during throwing",
+        "Forearm tightness that doesn't resolve with warmup"
+      ],
+      "flag_level": "yellow"
+    },
+    {
+      "date": "unknown",
+      "area": "shoulder",
+      "description": "Shoulder impingement/pain. Fatigued day after starts.",
+      "severity": "mild",
+      "resolution": "Ongoing management",
+      "ongoing_considerations": "Fatigue day after starts",
+      "flag_level": "yellow"
+    },
+    {
+      "date": "unknown",
+      "area": "biceps",
+      "description": "Biceps tendon issue reported on intake",
+      "severity": "mild",
+      "resolution": "unknown",
+      "ongoing_considerations": "",
+      "flag_level": "yellow"
+    },
+    {
+      "date": "unknown",
+      "area": "forearm",
+      "description": "Recurring forearm tightness, especially day after starts",
+      "severity": "mild",
+      "resolution": "Managed with dry needling and strengthening",
+      "ongoing_considerations": "Tight forearm day after starts — monitor closely given UCL history",
+      "flag_level": "yellow"
+    }
+  ],
+  "current_training": {
+    "lifting_experience": "advanced",
+    "current_maxes": {
+      "trap_bar_dl": 405,
+      "front_squat": 225,
+      "db_bench": 80,
+      "pullup": "BW+25 x 5"
+    },
+    "preferred_exercises": [],
+    "disliked_or_avoided": [],
+    "current_split": "upper_lower_2x",
+    "lift_timing": "Mornings before class",
+    "time_constraints": "N/A"
+  },
+  "pitching_profile": {
+    "avg_velocity_fb": 0,
+    "pitch_arsenal": [
+      "4-seam fastball",
+      "2-seam / sinker",
+      "Slider",
+      "Curveball",
+      "Splitter"
+    ],
+    "typical_pitch_count": 85,
+    "avg_outing_innings": 0,
+    "mechanical_focus_areas": [
+      "Staying closed for as long as possible and turning hips while shoulders stay back"
+    ],
+    "mechanical_notes": ""
+  },
+  "biometric_integration": {
+    "whoop_connected": false,
+    "baseline_hrv": null,
+    "baseline_rhr": null,
+    "avg_sleep_hours": 6.5
+  },
+  "goals": {
+    "primary": "Better lifting plan tailored toward pitching health + improving strength. Additional velocity is nice but not the focus.",
+    "secondary": "",
+    "tertiary": ""
+  },
+  "preferences": {
+    "notification_time": "07:00",
+    "log_style": "conversational",
+    "detail_level": "moderate",
+    "wants_youtube_links": true
+  },
+  "active_flags": {
+    "current_arm_feel": 4,
+    "current_flag_level": "green",
+    "last_outing_date": null,
+    "last_outing_pitches": null,
+    "days_since_outing": 99,
+    "active_modifications": [
+      "elevated_fpm_volume",
+      "neutral_grip_pressing"
+    ]
+  }
+}

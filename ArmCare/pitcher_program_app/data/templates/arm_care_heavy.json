@@ -1,0 +1,56 @@
+{
+  "template_id": "arm_care_heavy_v1",
+  "name": "Arm Care Heavy",
+  "goal": "Restore strength, activation, and endurance in arm care muscles",
+  "auto_assign_days": ["day_2", "day_3", "day_5"],
+  "prerequisite": "Soft tissue work first as needed",
+  "duration_min": 20,
+  "sequence": [
+    {
+      "block_name": "Activation Openers",
+      "exercises": [
+        {"exercise_id": "ex_081", "name": "Modified Side Plank ER with Pressout + Ball Drop", "prescription": "2x10 ER / 15 ball drops"},
+        {"exercise_id": "ex_028", "name": "Plank to Down Dog (with leg lift)", "prescription": "3x8"},
+        {"exercise_id": "ex_051", "name": "Wall Sit Serratus Scoop", "prescription": "3x10"}
+      ]
+    },
+    {
+      "block_name": "Superset A — Scap Retraction + Tricep/Wrist",
+      "format": "superset",
+      "exercises": [
+        {"exercise_id": "ex_080", "name": "Tall Kneeling Scapular Retraction", "prescription": "2x10", "superset": "A1"},
+        {"exercise_id": "ex_082", "name": "Tricep Kickback to Wrist Curl", "prescription": "3x12", "superset": "A2"}
+      ]
+    },
+    {
+      "block_name": "Superset B — Scap T + Bicep/Pronator",
+      "format": "superset",
+      "exercises": [
+        {"exercise_id": "ex_080", "name": "Tall Kneeling Scapular T", "prescription": "2x10", "superset": "B1"},
+        {"exercise_id": "ex_083", "name": "Bicep Curl Pronator Pressout", "prescription": "3x12", "superset": "B2"}
+      ]
+    },
+    {
+      "block_name": "Scap 9090",
+      "exercises": [
+        {"exercise_id": "ex_080", "name": "Tall Kneeling Scapular 9090", "prescription": "2x10"}
+      ]
+    },
+    {
+      "block_name": "Superset C — Pronation/Supination",
+      "format": "superset",
+      "exercises": [
+        {"exercise_id": "ex_041", "name": "Full Pronation", "prescription": "3x15", "superset": "C1"},
+        {"exercise_id": "ex_041", "name": "Full Supination", "prescription": "3x15", "superset": "C2"}
+      ]
+    },
+    {
+      "block_name": "Finishers",
+      "exercises": [
+        {"exercise_id": "ex_044", "name": "Shaker Ball Series", "prescription": "3 sets your choice"},
+        {"exercise_id": "ex_069", "name": "Fingertip Ball Drops", "prescription": "2x10 drops each finger"}
+      ]
+    }
+  ],
+  "source_notes": "From The Program xlsx — Arm Care Heavy sheet"
+}

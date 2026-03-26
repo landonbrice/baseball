@@ -1,0 +1,470 @@
+{
+  "pitcher_id": "landon_brice",
+  "entries": [
+    {
+      "date": "2026-03-24",
+      "rotation_day": 0,
+      "pre_training": {
+        "arm_feel": 5,
+        "overall_energy": 3,
+        "sleep_hours": 7.0,
+        "flag_level": "green"
+      },
+      "plan_narrative": "Day 0 post-outing, arm feel 5/5. No forearm tightness reported. Today is a lower body power day with light arm care.",
+      "morning_brief": "Day 0 post-outing, arm feel 5/5. No forearm tightness reported. Today is a lower body power day with light arm care.",
+      "arm_care": {
+        "timing": "pre-lift",
+        "exercises": [
+          {
+            "name": "Arm Car Standing",
+            "rx": "1x20 each direction",
+            "superset_group": null,
+            "exercise_id": "ex_064",
+            "note": null
+          },
+          {
+            "name": "Pot Stir",
+            "rx": "1x20-30 swings each direction",
+            "superset_group": null,
+            "exercise_id": "ex_065",
+            "note": null
+          },
+          {
+            "name": "Chair Pose Snow Angel",
+            "rx": "2x10 sec hold into 5 active reps",
+            "superset_group": null,
+            "exercise_id": "ex_077",
+            "note": null
+          },
+          {
+            "name": "Push-Up Plus (High Plank to Yoga Pushup variant)",
+            "rx": "1x10",
+            "superset_group": null,
+            "exercise_id": "ex_028",
+            "note": null
+          },
+          {
+            "name": "Cross-Body Stretch (World's Greatest variant)",
+            "rx": "3 reps each leg",
+            "superset_group": null,
+            "exercise_id": "ex_035",
+            "note": null
+          },
+          {
+            "name": "Scorpion",
+            "rx": "1x8 each side",
+            "superset_group": null,
+            "exercise_id": "ex_085",
+            "note": null
+          },
+          {
+            "name": "Prone T ER Roll",
+            "rx": "2x10",
+            "superset_group": null,
+            "exercise_id": "ex_078",
+            "note": null
+          },
+          {
+            "name": "Weighted PNF",
+            "rx": "2x10 each pattern",
+            "superset_group": null,
+            "exercise_id": "ex_079",
+            "note": null
+          },
+          {
+            "name": "Modified Sleeper Contract-Relax",
+            "rx": "2 rounds: 3 bouts of 10/5 contract/relax",
+            "superset_group": null,
+            "exercise_id": "ex_087",
+            "note": null
+          },
+          {
+            "name": "Elbow Flexed Pronation-Supination",
+            "rx": "2x20",
+            "superset_group": null,
+            "exercise_id": "ex_041",
+            "note": "Elevated FPM volume"
+          },
+          {
+            "name": "Moving Flexor ISO",
+            "rx": "2x10",
+            "superset_group": null,
+            "exercise_id": "ex_072",
+            "note": "Elevated FPM volume"
+          },
+          {
+            "name": "Pronator Pressout",
+            "rx": "2x10",
+            "superset_group": null,
+            "exercise_id": "ex_071",
+            "note": "Elevated FPM volume"
+          },
+          {
+            "name": "Ulnar Nerve Tensioner",
+            "rx": "2x10",
+            "superset_group": null,
+            "exercise_id": "ex_075",
+            "note": null
+          },
+          {
+            "name": "Lat Hang",
+            "rx": "2x30 sec",
+            "superset_group": null,
+            "exercise_id": "ex_086",
+            "note": null
+          }
+        ]
+      },
+      "lifting": {
+        "intent": "power \u2014 lower body emphasis",
+        "estimated_duration_min": 50,
+        "exercises": [
+          {
+            "name": "Lateral Lunge",
+            "exercise_id": "ex_lateral_lunge",
+            "rx": "3x5/side @ 2-3 RIR",
+            "superset_group": null,
+            "note": null
+          },
+          {
+            "name": "Hip Circle",
+            "exercise_id": "ex_hip_circle",
+            "rx": "2x15",
+            "superset_group": null,
+            "note": null
+          },
+          {
+            "name": "Med Ball Rotational Throw",
+            "exercise_id": "ex_med_ball_rotational_throw",
+            "rx": "2x5/side",
+            "superset_group": null,
+            "note": null
+          },
+          {
+            "name": "Broad Jump",
+            "exercise_id": "ex_broad_jump",
+            "rx": "3x3",
+            "superset_group": null,
+            "note": null
+          },
+          {
+            "name": "Front Squat",
+            "exercise_id": "ex_front_squat",
+            "rx": "3x5 @ 2-3 RIR",
+            "superset_group": null,
+            "note": null
+          },
+          {
+            "name": "Romanian Deadlift",
+            "exercise_id": "ex_romanian_deadlift",
+            "rx": "3x8",
+            "superset_group": null,
+            "note": null
+          },
+          {
+            "name": "Nordic Curl",
+            "exercise_id": "ex_nordic_curl",
+            "rx": "3x5",
+            "superset_group": null,
+            "note": null
+          },
+          {
+            "name": "Hip Thrust",
+            "exercise_id": "ex_hip_thrust",
+            "rx": "3x10",
+            "superset_group": null,
+            "note": null
+          },
+          {
+            "name": "Wrist Roller",
+            "exercise_id": "ex_wrist_roller",
+            "rx": "3x up/down",
+            "superset_group": null,
+            "note": null
+          },
+          {
+            "name": "Side Plank",
+            "exercise_id": "ex_side_plank",
+            "rx": "2x30 sec/side",
+            "superset_group": null,
+            "note": null
+          },
+          {
+            "name": "Modified Side Plank ER with Pressout + Ball Drop",
+            "exercise_id": "ex_modified_side_plank_er_pressout_ball_drop",
+            "rx": "2x10 ER reps / 15 ball drops",
+            "superset_group": null,
+            "note": null
+          }
+        ]
+      },
+      "throwing": {
+        "type": "none",
+        "intent": null,
+        "detail": "No throwing today per your preference. Day 0 is for recovery and lower body power."
+      },
+      "notes": [
+        "Pronator/FPM work is elevated today \u2014 non-negotiable for UCL protection.",
+        "Hydration target: 93 oz minimum (half bodyweight in oz).",
+        "Sleep observation: 7.0h last night. Aim for 8-10h tonight for tissue repair.",
+        "Post-lift nutrition: 30g protein + carbs within 30 min to support recovery.",
+        "Active recovery > ice. Use light movement or Marc Pro if available.",
+        "Monitor for any forearm tightness post-lift \u2014 flag immediately if present."
+      ],
+      "soreness_response": null,
+      "plan_generated": {
+        "template_day": "day_0",
+        "exercise_blocks": [
+          {
+            "block_name": "Arm Care (pre-lift)",
+            "exercises": [
+              {
+                "exercise_id": "ex_064",
+                "prescribed": "1x20 each direction"
+              },
+              {
+                "exercise_id": "ex_065",
+                "prescribed": "1x20-30 swings each direction"
+              },
+              {
+                "exercise_id": "ex_077",
+                "prescribed": "2x10 sec hold into 5 active reps"
+              },
+              {
+                "exercise_id": "ex_028",
+                "prescribed": "1x10"
+              },
+              {
+                "exercise_id": "ex_035",
+                "prescribed": "3 reps each leg"
+              },
+              {
+                "exercise_id": "ex_085",
+                "prescribed": "1x8 each side"
+              },
+              {
+                "exercise_id": "ex_078",
+                "prescribed": "2x10"
+              },
+              {
+                "exercise_id": "ex_079",
+                "prescribed": "2x10 each pattern"
+              },
+              {
+                "exercise_id": "ex_087",
+                "prescribed": "2 rounds: 3 bouts of 10/5 contract/relax"
+              },
+              {
+                "exercise_id": "ex_041",
+                "prescribed": "2x20"
+              },
+              {
+                "exercise_id": "ex_072",
+                "prescribed": "2x10"
+              },
+              {
+                "exercise_id": "ex_071",
+                "prescribed": "2x10"
+              },
+              {
+                "exercise_id": "ex_075",
+                "prescribed": "2x10"
+              },
+              {
+                "exercise_id": "ex_086",
+                "prescribed": "2x30 sec"
+              }
+            ]
+          },
+          {
+            "block_name": "Lifting \u2014 power \u2014 lower body emphasis",
+            "exercises": [
+              {
+                "exercise_id": "ex_lateral_lunge",
+                "prescribed": "2x8 each side"
+              },
+              {
+                "exercise_id": "ex_hip_circle",
+                "prescribed": "2x10 each direction"
+              },
+              {
+                "exercise_id": "ex_med_ball_rotational",
+                "prescribed": "3x4 each side, max intent"
+              },
+              {
+                "exercise_id": "ex_broad_jump",
+                "prescribed": "3x3"
+              },
+              {
+                "exercise_id": "ex_001",
+                "prescribed": "3x5 @ 295 lbs"
+              },
+              {
+                "exercise_id": "ex_rdl",
+                "prescribed": "3x8 @ RPE 7"
+              },
+              {
+                "exercise_id": "ex_nordic_curl",
+                "prescribed": "3x5"
+              },
+              {
+                "exercise_id": "ex_002",
+                "prescribed": "3x10 @ RPE 8"
+              },
+              {
+                "exercise_id": "ex_wrist_roller",
+                "prescribed": "2x1 up/down"
+              }
+            ]
+          }
+        ],
+        "throwing_plan": null,
+        "modifications_applied": [
+          "Elevated FPM volume per UCL history flag",
+          "Ongoing: Pronator maintenance is non-negotiable. Forearm tightness is primary warning sign. UCL-area sensation on elbow extension means arm is under stress. Uses Rocksauce pre-throwing."
+        ],
+        "estimated_duration_min": 50
+      },
+      "actual_logged": null,
+      "completed_exercises": {
+        "ex_front_squat": true,
+        "ex_romanian_deadlift": true,
+        "ex_nordic_curl": true,
+        "ex_hip_thrust": true,
+        "ex_041": true,
+        "ex_hip_circle": true,
+        "ex_wrist_roller": true,
+        "ex_lateral_lunge": true,
+        "ex_med_ball_rotational_throw": true
+      },
+      "bot_observations": null
+    },
+    {
+      "date": "2026-03-25",
+      "rotation_day": 0,
+      "pre_training": null,
+      "plan_generated": {
+        "template_day": "plan_plan_003",
+        "exercise_blocks": [],
+        "modifications_applied": [
+          "Applied plan: Upper body \u2014 push emphasis \u2014 heavy_compounds"
+        ]
+      },
+      "completed_exercises": {
+        "ex_weighted_pullup": true,
+        "ex_db_bench": true,
+        "ex_db_row": true,
+        "ex_landmine_press": true,
+        "ex_face_pull": true,
+        "ex_pallof_press": true,
+        "ex_band_er_90": true,
+        "ex_med_ball_overhead_slam": true,
+        "ex_j_band_routine": true,
+        "ex_band_pull_apart": true,
+        "ex_pronator_supinator_band": true
+      },
+      "arm_care": {
+        "timing": "pre-lift",
+        "exercises": [
+          {
+            "name": "J-Band Routine",
+            "rx": "2x10 each direction",
+            "superset_group": null,
+            "exercise_id": "ex_j_band_routine",
+            "note": "UCL-area sensation on elbow extension is a RED flag \u2014 stop if you feel it."
+          },
+          {
+            "name": "Band Pull-Apart",
+            "rx": "2x15 light band",
+            "superset_group": null,
+            "exercise_id": "ex_band_pull_apart",
+            "note": null
+          },
+          {
+            "name": "Pronator/Supinator with Band",
+            "rx": "2x15 each way",
+            "superset_group": null,
+            "exercise_id": "ex_pronator_supinator_band",
+            "note": "Non-negotiable FPM work for your history. Focus on control."
+          }
+        ]
+      },
+      "lifting": {
+        "intent": "strength \u2014 upper body push emphasis",
+        "estimated_duration_min": 45,
+        "exercises": [
+          {
+            "name": "Med Ball Overhead Slam",
+            "rx": "3x5 @ RPE 8",
+            "superset_group": null,
+            "exercise_id": "ex_med_ball_overhead_slam",
+            "note": "Explosive intent. Don't max out."
+          },
+          {
+            "name": "Weighted Pull-Up",
+            "rx": "3x5 @ BW+45 lbs",
+            "superset_group": "A",
+            "exercise_id": "ex_weighted_pullup",
+            "note": "Primary pull strength."
+          },
+          {
+            "name": "DB Bench Press",
+            "rx": "3x8 @ 90 lbs",
+            "superset_group": "A",
+            "exercise_id": "ex_db_bench",
+            "note": "Heavy compound push. Maintain scapular retraction."
+          },
+          {
+            "name": "DB Row",
+            "rx": "3x10 each side @ RPE 7",
+            "superset_group": "B",
+            "exercise_id": "ex_db_row",
+            "note": null
+          },
+          {
+            "name": "Landmine Press",
+            "rx": "3x10 @ RPE 7",
+            "superset_group": "B",
+            "exercise_id": "ex_landmine_press",
+            "note": "Neutral-grip pressing is shoulder-friendly."
+          },
+          {
+            "name": "Face Pull",
+            "rx": "3x15 light band",
+            "superset_group": null,
+            "exercise_id": "ex_face_pull",
+            "note": "Scapular health and external rotation."
+          },
+          {
+            "name": "Pallof Press",
+            "rx": "3x10 each side @ RPE 7",
+            "superset_group": null,
+            "exercise_id": "ex_pallof_press",
+            "note": "Lateral core stability \u2014 critical for your added mod."
+          },
+          {
+            "name": "Band External Rotation at 90\u00b0",
+            "rx": "2x15 light band",
+            "superset_group": null,
+            "exercise_id": "ex_band_er_90",
+            "note": null
+          }
+        ]
+      },
+      "throwing": {
+        "type": "none",
+        "intent": null,
+        "detail": "You're Day 1 post-outing in a return-to-throwing phase. Follow your 14-day ramp plan for throwing progression \u2014 today is not a throwing day."
+      },
+      "notes": [
+        "Pronator work is non-negotiable \u2014 it builds fatigue resistance in the muscles that protect your UCL during high-pitch-count outings.",
+        "Hydration target: \u226593 oz (half your 185 lbs bodyweight). Crucial for tissue recovery.",
+        "You're in a rebuild phase \u2014 prioritize perfect form over max weight. RPE 7-8 is the sweet spot.",
+        "Post-lift nutrition: Consume 20-30g protein within 60 minutes to support muscle repair.",
+        "Monitor forearm tightness closely \u2014 it's your primary warning sign. Flag it immediately if it appears.",
+        "The 2:1 pull-to-push ratio (Pull-Ups + Rows vs. Bench + Landmine) protects shoulder health while building pressing strength."
+      ],
+      "morning_brief": "Applied plan: Upper body \u2014 push emphasis \u2014 heavy_compounds"
+    }
+  ]
+}

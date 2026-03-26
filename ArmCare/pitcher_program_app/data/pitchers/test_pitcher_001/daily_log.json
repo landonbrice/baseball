@@ -1,0 +1,459 @@
+{
+  "pitcher_id": "test_pitcher_001",
+  "entries": [
+    {
+      "date": "2026-02-22",
+      "rotation_day": 3,
+      "days_since_outing": 3,
+      "pre_training": {
+        "arm_feel": 4,
+        "overall_energy": 3,
+        "sleep_hours": 7.9,
+        "flag_level": "green"
+      },
+      "outing": {
+        "pitch_count": 65,
+        "post_arm_feel": 4,
+        "notes": "Good outing"
+      },
+      "plan_generated": {
+        "template_used": "starter_7day_v1",
+        "template_day": "day_3",
+        "exercises_prescribed": [
+          {
+            "exercise_id": "ex_001",
+            "prescribed": "3x5 @ 275"
+          },
+          {
+            "exercise_id": "ex_rdl",
+            "prescribed": "3x8 @ 185"
+          }
+        ]
+      },
+      "bot_observations": {
+        "progression_notes": "Training on track, no concerns",
+        "concern_flags": [],
+        "pattern_notes": "Training on track, no concerns"
+      }
+    },
+    {
+      "date": "2026-02-23",
+      "rotation_day": 4,
+      "days_since_outing": 0,
+      "pre_training": {
+        "arm_feel": 3,
+        "overall_energy": 5,
+        "sleep_hours": 8.0,
+        "flag_level": "green"
+      },
+      "plan_generated": {
+        "template_used": "starter_7day_v1",
+        "template_day": "day_4",
+        "exercises_prescribed": [
+          {
+            "exercise_id": "ex_001",
+            "prescribed": "3x5 @ 275"
+          },
+          {
+            "exercise_id": "ex_rdl",
+            "prescribed": "3x8 @ 185"
+          }
+        ]
+      }
+    },
+    {
+      "date": "2026-02-24",
+      "rotation_day": 5,
+      "days_since_outing": 1,
+      "pre_training": {
+        "arm_feel": 3,
+        "overall_energy": 3,
+        "sleep_hours": 6.1,
+        "flag_level": "green"
+      },
+      "plan_generated": {
+        "template_used": "starter_7day_v1",
+        "template_day": "day_5",
+        "exercises_prescribed": [
+          {
+            "exercise_id": "ex_001",
+            "prescribed": "3x5 @ 275"
+          },
+          {
+            "exercise_id": "ex_rdl",
+            "prescribed": "3x8 @ 185"
+          }
+        ]
+      }
+    },
+    {
+      "date": "2026-02-25",
+      "rotation_day": 6,
+      "days_since_outing": 2,
+      "pre_training": {
+        "arm_feel": 3,
+        "overall_energy": 5,
+        "sleep_hours": 8.1,
+        "flag_level": "green"
+      },
+      "plan_generated": {
+        "template_used": "starter_7day_v1",
+        "template_day": "day_6",
+        "exercises_prescribed": [
+          {
+            "exercise_id": "ex_001",
+            "prescribed": "3x5 @ 275"
+          },
+          {
+            "exercise_id": "ex_rdl",
+            "prescribed": "3x8 @ 185"
+          }
+        ]
+      }
+    },
+    {
+      "date": "2026-02-26",
+      "rotation_day": 0,
+      "days_since_outing": 3,
+      "pre_training": {
+        "arm_feel": 4,
+        "overall_energy": 3,
+        "sleep_hours": 8.4,
+        "flag_level": "green"
+      },
+      "bot_observations": {
+        "progression_notes": "Training on track, no concerns",
+        "concern_flags": [],
+        "pattern_notes": "Training on track, no concerns"
+      }
+    },
+    {
+      "date": "2026-02-27",
+      "rotation_day": 1,
+      "days_since_outing": 4,
+      "pre_training": {
+        "arm_feel": 5,
+        "overall_energy": 3,
+        "sleep_hours": 7.0,
+        "flag_level": "green"
+      },
+      "plan_generated": {
+        "template_used": "starter_7day_v1",
+        "template_day": "day_1",
+        "exercises_prescribed": [
+          {
+            "exercise_id": "ex_001",
+            "prescribed": "3x5 @ 275"
+          },
+          {
+            "exercise_id": "ex_rdl",
+            "prescribed": "3x8 @ 185"
+          }
+        ]
+      }
+    },
+    {
+      "date": "2026-02-28",
+      "rotation_day": 2,
+      "days_since_outing": 5,
+      "pre_training": {
+        "arm_feel": 3,
+        "overall_energy": 3,
+        "sleep_hours": 6.3,
+        "flag_level": "green"
+      },
+      "plan_generated": {
+        "template_used": "starter_7day_v1",
+        "template_day": "day_2",
+        "exercises_prescribed": [
+          {
+            "exercise_id": "ex_001",
+            "prescribed": "3x5 @ 275"
+          },
+          {
+            "exercise_id": "ex_rdl",
+            "prescribed": "3x8 @ 185"
+          }
+        ]
+      },
+      "bot_observations": {
+        "progression_notes": "Arm feel below baseline \u2014 monitoring",
+        "concern_flags": [],
+        "pattern_notes": "Sleep at 6.3h, below target"
+      }
+    },
+    {
+      "date": "2026-03-01",
+      "rotation_day": 3,
+      "days_since_outing": 6,
+      "pre_training": {
+        "arm_feel": 4,
+        "overall_energy": 3,
+        "sleep_hours": 6.8,
+        "flag_level": "green"
+      },
+      "outing": {
+        "pitch_count": 82,
+        "post_arm_feel": 4,
+        "notes": "Good outing"
+      },
+      "plan_generated": {
+        "template_used": "starter_7day_v1",
+        "template_day": "day_3",
+        "exercises_prescribed": [
+          {
+            "exercise_id": "ex_001",
+            "prescribed": "3x5 @ 275"
+          },
+          {
+            "exercise_id": "ex_rdl",
+            "prescribed": "3x8 @ 185"
+          }
+        ]
+      }
+    },
+    {
+      "date": "2026-03-02",
+      "rotation_day": 4,
+      "days_since_outing": 0,
+      "pre_training": {
+        "arm_feel": 5,
+        "overall_energy": 4,
+        "sleep_hours": 6.2,
+        "flag_level": "green"
+      }
+    },
+    {
+      "date": "2026-03-03",
+      "rotation_day": 5,
+      "days_since_outing": 1,
+      "pre_training": {
+        "arm_feel": 2,
+        "overall_energy": 3,
+        "sleep_hours": 5.5,
+        "flag_level": "yellow"
+      },
+      "plan_generated": {
+        "template_used": "starter_7day_v1",
+        "template_day": "day_5",
+        "exercises_prescribed": [
+          {
+            "exercise_id": "ex_001",
+            "prescribed": "3x5 @ 275"
+          },
+          {
+            "exercise_id": "ex_rdl",
+            "prescribed": "3x8 @ 185"
+          }
+        ]
+      }
+    },
+    {
+      "date": "2026-03-04",
+      "rotation_day": 6,
+      "days_since_outing": 2,
+      "pre_training": {
+        "arm_feel": 3,
+        "overall_energy": 4,
+        "sleep_hours": 8.0,
+        "flag_level": "green"
+      }
+    },
+    {
+      "date": "2026-03-05",
+      "rotation_day": 0,
+      "days_since_outing": 3,
+      "pre_training": {
+        "arm_feel": 3,
+        "overall_energy": 4,
+        "sleep_hours": 7.1,
+        "flag_level": "green"
+      },
+      "bot_observations": {
+        "progression_notes": "Arm feel below baseline \u2014 monitoring",
+        "concern_flags": [],
+        "pattern_notes": "Arm feel below baseline \u2014 monitoring"
+      }
+    },
+    {
+      "date": "2026-03-06",
+      "rotation_day": 1,
+      "days_since_outing": 4,
+      "pre_training": {
+        "arm_feel": 4,
+        "overall_energy": 4,
+        "sleep_hours": 7.1,
+        "flag_level": "green"
+      }
+    },
+    {
+      "date": "2026-03-07",
+      "rotation_day": 2,
+      "days_since_outing": 5,
+      "pre_training": {
+        "arm_feel": 3,
+        "overall_energy": 3,
+        "sleep_hours": 7.8,
+        "flag_level": "green"
+      },
+      "plan_generated": {
+        "template_used": "starter_7day_v1",
+        "template_day": "day_2",
+        "exercises_prescribed": [
+          {
+            "exercise_id": "ex_001",
+            "prescribed": "3x5 @ 275"
+          },
+          {
+            "exercise_id": "ex_rdl",
+            "prescribed": "3x8 @ 185"
+          }
+        ]
+      },
+      "bot_observations": {
+        "progression_notes": "Arm feel below baseline \u2014 monitoring",
+        "concern_flags": [],
+        "pattern_notes": "Arm feel below baseline \u2014 monitoring"
+      }
+    },
+    {
+      "date": "2026-03-08",
+      "rotation_day": 3,
+      "days_since_outing": 6,
+      "pre_training": {
+        "arm_feel": 4,
+        "overall_energy": 4,
+        "sleep_hours": 7.4,
+        "flag_level": "green"
+      },
+      "outing": {
+        "pitch_count": 95,
+        "post_arm_feel": 3,
+        "notes": "Deep into game, felt fatigue late"
+      }
+    },
+    {
+      "date": "2026-03-09",
+      "rotation_day": 4,
+      "days_since_outing": 0,
+      "pre_training": {
+        "arm_feel": 3,
+        "overall_energy": 3,
+        "sleep_hours": 6.7,
+        "flag_level": "green"
+      }
+    },
+    {
+      "date": "2026-03-10",
+      "rotation_day": 5,
+      "days_since_outing": 1,
+      "pre_training": {
+        "arm_feel": 3,
+        "overall_energy": 5,
+        "sleep_hours": 6.2,
+        "flag_level": "green"
+      },
+      "bot_observations": {
+        "progression_notes": "Arm feel below baseline \u2014 monitoring",
+        "concern_flags": [],
+        "pattern_notes": "Sleep at 6.2h, below target"
+      }
+    },
+    {
+      "date": "2026-03-11",
+      "rotation_day": 6,
+      "days_since_outing": 2,
+      "pre_training": {
+        "arm_feel": 4,
+        "overall_energy": 4,
+        "sleep_hours": 7.2,
+        "flag_level": "green"
+      },
+      "plan_generated": {
+        "template_used": "starter_7day_v1",
+        "template_day": "day_6",
+        "exercises_prescribed": [
+          {
+            "exercise_id": "ex_001",
+            "prescribed": "3x5 @ 275"
+          },
+          {
+            "exercise_id": "ex_rdl",
+            "prescribed": "3x8 @ 185"
+          }
+        ]
+      },
+      "bot_observations": {
+        "progression_notes": "Training on track, no concerns",
+        "concern_flags": [],
+        "pattern_notes": "Training on track, no concerns"
+      }
+    },
+    {
+      "date": "2026-03-12",
+      "rotation_day": 0,
+      "days_since_outing": 3,
+      "pre_training": {
+        "arm_feel": 5,
+        "overall_energy": 5,
+        "sleep_hours": 7.6,
+        "flag_level": "green"
+      },
+      "plan_generated": {
+        "template_used": "starter_7day_v1",
+        "template_day": "day_0",
+        "exercises_prescribed": [
+          {
+            "exercise_id": "ex_001",
+            "prescribed": "3x5 @ 275"
+          },
+          {
+            "exercise_id": "ex_rdl",
+            "prescribed": "3x8 @ 185"
+          }
+        ]
+      }
+    },
+    {
+      "date": "2026-03-13",
+      "rotation_day": 1,
+      "days_since_outing": 4,
+      "pre_training": {
+        "arm_feel": 4,
+        "overall_energy": 3,
+        "sleep_hours": 6.7,
+        "flag_level": "green"
+      },
+      "plan_generated": {
+        "template_used": "starter_7day_v1",
+        "template_day": "day_1",
+        "exercises_prescribed": [
+          {
+            "exercise_id": "ex_001",
+            "prescribed": "3x5 @ 275"
+          },
+          {
+            "exercise_id": "ex_rdl",
+            "prescribed": "3x8 @ 185"
+          }
+        ]
+      },
+      "bot_observations": {
+        "progression_notes": "Sleep at 6.7h, below target",
+        "concern_flags": [],
+        "pattern_notes": "Sleep at 6.7h, below target"
+      }
+    },
+    {
+      "date": "2026-03-14",
+      "rotation_day": 2,
+      "days_since_outing": 5,
+      "pre_training": {
+        "arm_feel": 3,
+        "overall_energy": 3,
+        "sleep_hours": 8.6,
+        "flag_level": "green"
+      }
+    }
+  ]
+}

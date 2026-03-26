@@ -1,0 +1,25 @@
+{
+  "template_id": "arm_care_light_v1",
+  "name": "Arm Care Light",
+  "goal": "Restore lost range of motion, enhance recovery and healing of tissues through light contraction, higher reps, inducing blood flow",
+  "auto_assign_days": ["day_1", "day_4", "day_6"],
+  "prerequisite": "Soft tissue work first as needed",
+  "duration_min": 15,
+  "sequence": [
+    {"exercise_id": "ex_064", "name": "Arm Car Standing", "prescription": "1x20 each direction"},
+    {"exercise_id": "ex_065", "name": "Pot Stir", "prescription": "1x20-30 swings each direction"},
+    {"exercise_id": "ex_077", "name": "Chair Pose Snow Angel", "prescription": "2x10 sec hold into 5 active reps"},
+    {"exercise_id": "ex_028", "name": "Push-Up Plus (High Plank to Yoga Pushup variant)", "prescription": "1x10"},
+    {"exercise_id": "ex_035", "name": "Cross-Body Stretch (World's Greatest variant)", "prescription": "3 reps each leg"},
+    {"exercise_id": "ex_085", "name": "Scorpion", "prescription": "1x8 each side"},
+    {"exercise_id": "ex_078", "name": "Prone T ER Roll", "prescription": "2x10"},
+    {"exercise_id": "ex_079", "name": "Weighted PNF", "prescription": "2x10 each pattern"},
+    {"exercise_id": "ex_087", "name": "Modified Sleeper Contract-Relax", "prescription": "2 rounds: 3 bouts of 10/5 contract/relax"},
+    {"exercise_id": "ex_041", "name": "Elbow Flexed Pronation-Supination", "prescription": "2x20"},
+    {"exercise_id": "ex_072", "name": "Moving Flexor ISO", "prescription": "2x10"},
+    {"exercise_id": "ex_071", "name": "Pronator Pressout", "prescription": "2x10"},
+    {"exercise_id": "ex_075", "name": "Ulnar Nerve Tensioner", "prescription": "2x10"},
+    {"exercise_id": "ex_086", "name": "Lat Hang", "prescription": "2x30 sec"}
+  ],
+  "source_notes": "From The Program xlsx — Arm Care Light sheet"
+}

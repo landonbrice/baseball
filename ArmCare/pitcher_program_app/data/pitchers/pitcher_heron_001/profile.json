@@ -1,0 +1,119 @@
+{
+  "pitcher_id": "pitcher_heron_001",
+  "telegram_id": 8767680376,
+  "telegram_username": "carterpheron",
+  "name": "Carter Heron",
+  "role": "reliever",
+  "rotation_length": 3,
+  "throws": "right",
+  "year": "Freshman",
+  "physical_profile": {
+    "height_in": 72,
+    "weight_lbs": 185,
+    "body_comp_goal": "maintain",
+    "known_mobility_limitations": [],
+    "movement_screen_notes": ""
+  },
+  "injury_history": [
+    {
+      "date": "2025-03",
+      "area": "medial_elbow",
+      "description": "UCL Tear & Olecranon Stress Fracture. Tommy John Surgery + removal of fractured portion of olecranon, March 18 2025. 1 year post-op. Recovery had setbacks with shoulder pain and elbow flare-up (medial + olecranon pain). Currently throwing relatively pain free with recurring soreness at ~60% intensity.",
+      "severity": "severe",
+      "resolution": "Tommy John surgery + olecranon fragment removal. Active rehab, progressive throwing program.",
+      "ongoing_considerations": "Forearm fatigues at high volumes/intensities. Tricep area pain near olecranon in non-throwing activities post-throw. Shoulder was tight early in throwing but improving.",
+      "red_flags": [
+        "Medial elbow pain during throwing",
+        "Olecranon pain returning",
+        "Shoulder pain during throwing progression",
+        "Any regression in throwing tolerance"
+      ],
+      "flag_level": "yellow"
+    },
+    {
+      "date": "unknown",
+      "area": "shoulder",
+      "description": "Shoulder pain during TJ rehab progression \u2014 currently much improved",
+      "severity": "mild",
+      "resolution": "Improving with rehab",
+      "ongoing_considerations": "Monitor during throwing progression",
+      "flag_level": "yellow"
+    },
+    {
+      "date": "unknown",
+      "area": "lower_back",
+      "description": "Low back issues reported on intake",
+      "severity": "unknown",
+      "resolution": "unknown",
+      "ongoing_considerations": "",
+      "flag_level": "yellow"
+    },
+    {
+      "date": "unknown",
+      "area": "forearm",
+      "description": "Forearm tightness recurring, especially at high throwing volumes",
+      "severity": "mild",
+      "resolution": "Managed through progressive loading",
+      "ongoing_considerations": "Fatigue at high volumes or intensities",
+      "flag_level": "yellow"
+    }
+  ],
+  "current_training": {
+    "lifting_experience": "advanced",
+    "current_maxes": {
+      "trap_bar_dl": 0,
+      "front_squat": 335,
+      "db_bench": 95,
+      "pullup": "8 bodyweight reps"
+    },
+    "preferred_exercises": [],
+    "disliked_or_avoided": [],
+    "current_split": "upper_lower_2x",
+    "lift_timing": "Mornings before class",
+    "time_constraints": ""
+  },
+  "pitching_profile": {
+    "avg_velocity_fb": 0,
+    "pitch_arsenal": [
+      "4-seam fastball",
+      "2-seam / sinker",
+      "Slider",
+      "Changeup"
+    ],
+    "typical_pitch_count": 45,
+    "avg_outing_innings": 0,
+    "mechanical_focus_areas": [
+      "Keeping arm level with the shoulders are foot plant and stay there while rotating, currently struggling with dropping the elbow when I rotated putting extra stress on the elbow"
+    ],
+    "mechanical_notes": ""
+  },
+  "biometric_integration": {
+    "whoop_connected": false,
+    "baseline_hrv": null,
+    "baseline_rhr": null,
+    "avg_sleep_hours": 6.5
+  },
+  "goals": {
+    "primary": "Return back to throwing 100% pain free",
+    "secondary": "",
+    "tertiary": ""
+  },
+  "preferences": {
+    "notification_time": "09:00",
+    "log_style": "conversational",
+    "detail_level": "moderate",
+    "wants_youtube_links": true
+  },
+  "active_flags": {
+    "current_arm_feel": 4,
+    "current_flag_level": "yellow",
+    "last_outing_date": null,
+    "last_outing_pitches": null,
+    "days_since_outing": 99,
+    "active_modifications": [
+      "elevated_fpm_volume",
+      "neutral_grip_pressing",
+      "reduced_axial_loading"
+    ]
+  }
+}
