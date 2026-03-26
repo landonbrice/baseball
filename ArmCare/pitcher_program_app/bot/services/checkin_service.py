@@ -56,10 +56,12 @@ async def process_checkin(
         except Exception as e:
             logger.warning(f"LLM triage refinement failed, using rule-based result: {e}")
 
-    # Persist flag_level and arm_feel
+    # Persist flag_level, arm_feel, and explicit check-in timestamp
+    from datetime import datetime as _dt
     update_active_flags(pitcher_id, {
         "current_flag_level": triage_result["flag_level"],
         "current_arm_feel": arm_feel,
+        "phase": f"checked_in_{_dt.now().strftime('%Y-%m-%d')}",
     })
 
     # Run progression analysis

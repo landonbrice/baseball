@@ -154,3 +154,17 @@ export async function sendChatWithPlan(pitcherId, message, planContext, initData
 export async function applyPlanToToday(pitcherId, planId, initData = null) {
   return postApi(`/api/pitcher/${pitcherId}/apply-plan/${planId}`, {}, initData);
 }
+
+/**
+ * Fetch chat history for cross-platform conversation persistence.
+ */
+export async function fetchChatHistory(pitcherId, initData = null, limit = 30) {
+  return fetchApi(`/api/pitcher/${pitcherId}/chat-history?limit=${limit}`, initData);
+}
+
+/**
+ * Fetch enhanced morning status (arm feel trend, last interaction, schedule).
+ */
+export async function fetchMorningStatus(pitcherId, initData = null) {
+  return fetchApi(`/api/pitcher/${pitcherId}/morning-status`, initData);
+}

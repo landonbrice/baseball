@@ -24,6 +24,7 @@ from bot.services.context_manager import (
     get_pitcher_id_by_telegram,
     increment_days_since_outing,
     update_active_flags,
+    get_recent_entries,
 )
 from bot.utils import build_rating_keyboard, build_completion_keyboard
 
@@ -34,7 +35,7 @@ ARM_REPORT, LIFT_PREF, THROW_INTENT, SCHEDULE, RELIEVER_THREW = range(5)
 
 
 async def start_checkin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Begin the daily check-in flow."""
+    """Begin the daily check-in flow. Adapts opening based on yesterday's data."""
     pitcher_id = get_pitcher_id_by_telegram(update.effective_user.id, update.effective_user.username)
     if not pitcher_id:
         await update.message.reply_text(
@@ -53,6 +54,10 @@ async def start_checkin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     flags = profile.get("active_flags", {})
     days_since = flags.get("days_since_outing", 0)
     role = profile.get("role", "starter")
+    first_name = profile.get("name", "").split()[0] if profile.get("name") else "there"
+
+    # Record check-in start in chat_messages
+    append_context(pitcher_id, "checkin_start", f"Check-in started (day {days_since})")
 
     # 8+ days without outing for starters
     if role == "starter" and days_since > 8:
@@ -75,12 +80,63 @@ async def start_checkin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         )
         return RELIEVER_THREW
 
-    # Open question — free text
-    first_name = profile.get("name", "").split()[0] if profile.get("name") else "there"
-    await update.message.reply_text(
-        f"Morning {first_name}. How's the arm feeling?"
-    )
+    # Build context-aware opening based on yesterday's data
+    greeting = _build_adaptive_greeting(first_name, pitcher_id, flags, days_since, role)
+
+    await update.message.reply_text(greeting)
     return ARM_REPORT
+
+
+def _build_adaptive_greeting(first_name: str, pitcher_id: str, flags: dict, days_since: int, role: str) -> str:
+    """Build a context-aware opening message referencing yesterday's data."""
+    try:
+        recent = get_recent_entries(pitcher_id, n=2)
+    except Exception:
+        recent = []
+
+    # Default greeting
+    base = f"Morning {first_name}."
+
+    # Reference yesterday's arm feel if available
+    if recent:
+        yesterday = recent[-1]
+        yesterday_arm = (yesterday.get("pre_training") or {}).get("arm_feel")
+        yesterday_date = yesterday.get("date", "")
+
+        # Only reference if it was actually yesterday (not days ago)
+        today_str = datetime.now().strftime("%Y-%m-%d")
+        from datetime import timedelta
+        yesterday_str = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+
+        if yesterday_date == yesterday_str and yesterday_arm is not None:
+            if yesterday_arm <= 2:
+                base += f" Yesterday you reported your arm at {yesterday_arm}/5 — how's it feeling today?"
+                return base
+            elif yesterday_arm == 3:
+                base += " Arm was at a 3 yesterday. Any better today?"
+                return base
+            elif yesterday_arm >= 4:
+                base += " How's the arm feeling?"
+                return base
+
+        # Reference skip notes if present
+        if yesterday_date == yesterday_str and yesterday.get("skip_notes"):
+            base += f" You mentioned skipping some stuff yesterday. How's the arm?"
+            return base
+
+    # Day-after-outing awareness
+    if days_since == 1:
+        base += " Day after — how's the arm recovering?"
+        return base
+
+    # Pre-outing awareness
+    next_outing = flags.get("next_outing_days")
+    if next_outing and next_outing <= 1:
+        base += " You've got an outing coming up. How's the arm feeling?"
+        return base
+
+    base += " How's the arm feeling?"
+    return base
 
 
 async def reliever_threw_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:

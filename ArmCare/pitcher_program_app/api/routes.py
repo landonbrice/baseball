@@ -159,18 +159,86 @@ async def get_week_summary(pitcher_id: str, request: Request):
 
 @router.get("/pitcher/{pitcher_id}/morning-status")
 async def morning_status(pitcher_id: str, request: Request):
-    """Check if pitcher has a morning briefing and whether they've checked in today."""
+    """Return unified pitcher state: check-in status, arm feel trend, last interaction, schedule."""
     _require_pitcher_auth(request, pitcher_id)
-    from datetime import datetime
+    from datetime import datetime, date, timedelta
 
     log = load_log(pitcher_id)
-    today = datetime.now().strftime("%Y-%m-%d")
-    today_entry = next((e for e in log.get("entries", []) if e["date"] == today), None)
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    entries = log.get("entries", [])
+    today_entry = next((e for e in entries if e.get("date") == today_str), None)
+
+    # Check-in status — explicit from active_flags phase, or inferred from log
+    checked_in = bool(today_entry and today_entry.get("pre_training", {}).get("arm_feel"))
+
+    # Arm feel trend — last 7 entries with arm_feel data
+    arm_feels = []
+    for e in reversed(entries):
+        af = (e.get("pre_training") or {}).get("arm_feel")
+        if af is not None:
+            arm_feels.append({"date": e.get("date"), "arm_feel": af})
+        if len(arm_feels) >= 7:
+            break
+    arm_feels.reverse()
+
+    # Trend direction
+    trend = "stable"
+    if len(arm_feels) >= 3:
+        recent_avg = sum(a["arm_feel"] for a in arm_feels[-3:]) / 3
+        older_avg = sum(a["arm_feel"] for a in arm_feels[:min(3, len(arm_feels))]) / min(3, len(arm_feels))
+        if recent_avg - older_avg >= 0.5:
+            trend = "improving"
+        elif older_avg - recent_avg >= 0.5:
+            trend = "declining"
+
+    # Last interaction timestamp from chat_messages
+    last_interaction = None
+    try:
+        from bot.services.context_manager import _using_supabase
+        if _using_supabase():
+            from bot.services import db as _db
+            history = _db.get_chat_history(pitcher_id, limit=1)
+            if history:
+                last_interaction = history[-1].get("created_at")
+    except Exception:
+        pass
+
+    # Days until outing from active_flags
+    try:
+        profile = load_profile(pitcher_id)
+        flags = profile.get("active_flags", {})
+    except FileNotFoundError:
+        flags = {}
+
     return {
-        "checked_in_today": bool(today_entry and today_entry.get("pre_training", {}).get("arm_feel")),
+        "checked_in_today": checked_in,
         "has_briefing": bool(today_entry and today_entry.get("morning_brief")),
         "morning_brief": today_entry.get("morning_brief") if today_entry else None,
+        "last_interaction": last_interaction,
+        "arm_feel_trend": arm_feels,
+        "trend_direction": trend,
+        "days_until_outing": flags.get("next_outing_days"),
+        "days_since_outing": flags.get("days_since_outing"),
+        "current_flag_level": flags.get("current_flag_level", "green"),
+        "current_arm_feel": flags.get("current_arm_feel"),
     }
+
+
+@router.get("/pitcher/{pitcher_id}/chat-history")
+async def get_chat_history(pitcher_id: str, request: Request, limit: int = Query(default=30)):
+    """Return recent chat messages for cross-platform conversation persistence."""
+    _require_pitcher_auth(request, pitcher_id)
+
+    try:
+        from bot.services.context_manager import _using_supabase
+        if _using_supabase():
+            from bot.services import db as _db
+            messages = _db.get_chat_history(pitcher_id, limit=limit)
+            return {"messages": messages}
+    except Exception as e:
+        logger.warning(f"Chat history fetch failed: {e}")
+
+    return {"messages": []}
 
 
 @router.post("/pitcher/{pitcher_id}/complete-exercise")
@@ -324,6 +392,21 @@ async def set_next_outing(pitcher_id: str, request: Request):
         raise HTTPException(status_code=404, detail="Pitcher not found")
 
 
+def _persist_chat(pitcher_id: str, user_content: str, bot_messages: list, source: str = "mini_app"):
+    """Persist user message and bot response to chat_messages table."""
+    try:
+        from bot.services.context_manager import _using_supabase
+        if _using_supabase():
+            from bot.services import db as _db
+            if user_content:
+                _db.insert_chat_message(pitcher_id, source, "user", user_content)
+            for m in bot_messages:
+                if m.get("type") == "text" and m.get("content"):
+                    _db.insert_chat_message(pitcher_id, source, "assistant", m["content"])
+    except Exception as e:
+        logger.debug(f"Chat persistence failed (non-critical): {e}")
+
+
 @router.post("/pitcher/{pitcher_id}/chat")
 async def post_chat(pitcher_id: str, request: Request):
     """Unified chat endpoint. Handles structured check-ins, outings, and free-text Q&A.
@@ -391,6 +474,10 @@ async def post_chat(pitcher_id: str, request: Request):
             if result.get("notes"):
                 messages.append({"type": "text", "content": "Anything else you want to know about today's plan?"})
 
+            # Persist to chat_messages
+            checkin_summary = f"Check-in: arm {arm_feel}/5, lift {lift_preference or 'auto'}, throw {throw_intent or 'none'}"
+            _persist_chat(pitcher_id, checkin_summary, messages)
+
             return {
                 "messages": messages,
                 "morning_brief": brief or None,
@@ -412,6 +499,11 @@ async def post_chat(pitcher_id: str, request: Request):
             for alert in result.get("alerts", []):
                 messages.append({"type": "text", "content": f"⚠️ {alert}"})
             messages.append({"type": "status", "content": "rotation_reset"})
+
+            # Persist to chat_messages
+            outing_summary = f"Outing: {pitch_count} pitches, arm feel {post_arm_feel}/5"
+            _persist_chat(pitcher_id, outing_summary, messages)
+
             return {
                 "messages": messages,
                 "flag_level": result.get("flag_level", "green"),
@@ -594,6 +686,9 @@ async def post_chat(pitcher_id: str, request: Request):
             if mod_data:
                 summary += f" | Mod: {', '.join(mod_data.get('changes', [])[:2])}"
             append_context(pitcher_id, "interaction", summary)
+
+            # Persist user question and bot response to chat_messages
+            _persist_chat(pitcher_id, question, messages)
 
             return {"messages": messages}
 

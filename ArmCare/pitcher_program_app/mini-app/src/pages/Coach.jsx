@@ -4,7 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import { useAuth } from '../App';
 import { useAppContext } from '../hooks/useChatState';
 import { usePitcher } from '../hooks/usePitcher';
-import { sendChat, sendChatWithPlan, setNextOuting, savePlan } from '../api';
+import { sendChat, sendChatWithPlan, setNextOuting, savePlan, fetchChatHistory } from '../api';
 
 export default function Coach() {
   const { pitcherId, initData } = useAuth();
@@ -37,6 +37,34 @@ export default function Coach() {
   useEffect(() => {
     clearCoachBadge();
   }, [clearCoachBadge]);
+
+  // Load conversation history from Supabase on first open (cross-platform persistence)
+  const [historyLoaded, setHistoryLoaded] = useState(false);
+  useEffect(() => {
+    if (!pitcherId || historyLoaded || messages.length > 0) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetchChatHistory(pitcherId, initData, 20);
+        if (cancelled || !res.messages?.length) return;
+        const restored = res.messages
+          .filter(m => m.role === 'user' || m.role === 'assistant')
+          .map(m => ({
+            role: m.role === 'user' ? 'user' : 'bot',
+            type: 'text',
+            content: m.content,
+          }));
+        if (restored.length > 0) {
+          setMessages(restored);
+        }
+      } catch (e) {
+        // Non-critical — just start with empty chat
+      } finally {
+        if (!cancelled) setHistoryLoaded(true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [pitcherId, initData, historyLoaded, messages.length]);
 
   // Auto-open with welcome for new pitchers
   useEffect(() => {
