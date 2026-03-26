@@ -48,32 +48,100 @@ export default function Home() {
 
   const flags = profile?.active_flags || {};
 
-  // SECTION A: just test the header
   const firstName = String((profile?.name || 'Dashboard').split(' ')[0]);
   const role = String(profile?.role || 'starter');
+  const roleLabel = role === 'starter' ? 'Starter' : 'Reliever';
+  const flagLevel = String(flags.current_flag_level || 'green');
+  const armFeel = typeof flags.current_arm_feel === 'number' ? flags.current_arm_feel : null;
+  const isNewPitcher = !entries.length && !flags.last_outing_date;
+  const hasCheckedIn = !!((todayEntry?.pre_training || {}).arm_feel);
+  const isViewingPast = selectedDate && selectedDate !== todayStr;
+
+  const rawBrief = todayEntry?.morning_brief || (todayEntry?.plan_generated || {}).morning_brief;
+  const morningBrief = typeof rawBrief === 'string' ? rawBrief : null;
+  const sleepHours = typeof (todayEntry?.pre_training || {}).sleep_hours === 'number' ? todayEntry.pre_training.sleep_hours : null;
+  const rawDur = (todayEntry?.lifting || {}).estimated_duration_min || (todayEntry?.plan_generated || {}).estimated_duration_min;
+  const estDuration = typeof rawDur === 'number' ? rawDur : null;
+
+  const flagDot = flagLevel === 'green' ? '#1D9E75' : flagLevel === 'yellow' ? '#BA7517' : '#A32D2D';
+
+  // DEBUG: log what morningBrief actually is before guard
+  const debugBrief = todayEntry?.morning_brief;
+  const debugPgBrief = (todayEntry?.plan_generated || {}).morning_brief;
 
   return (
     <div style={{ paddingBottom: 20 }}>
-      <p style={{ padding: '8px 12px', fontSize: 9, color: '#999' }}>v6 bisect</p>
+      <p style={{ padding: '8px 12px', fontSize: 9, color: '#999' }}>{'v7 brief+banner test'}</p>
 
-      {/* SECTION A: Header */}
+      {/* DEBUG: show types */}
+      <div style={{ padding: '4px 12px', fontSize: 9, color: '#666', background: '#f0f0f0' }}>
+        <div>{'morningBrief type: ' + typeof morningBrief + ' val: ' + String(morningBrief)?.slice(0, 40)}</div>
+        <div>{'raw entry.morning_brief type: ' + typeof debugBrief}</div>
+        <div>{'raw pg.morning_brief type: ' + typeof debugPgBrief}</div>
+        <div>{'flagLevel type: ' + typeof flagLevel + ' val: ' + flagLevel}</div>
+        <div>{'hasCheckedIn: ' + String(hasCheckedIn)}</div>
+        <div>{'isNewPitcher: ' + String(isNewPitcher)}</div>
+      </div>
+
+      {/* Header */}
       <div style={{ background: '#5c1020', padding: '14px 16px 12px' }}>
         <div style={{ fontSize: 9, color: '#e8a0aa' }}>{'UChicago Baseball'}</div>
         <div style={{ fontSize: 20, fontWeight: 800, color: '#fff' }}>
-          {firstName}
+          {firstName}{' '}<span style={{ fontSize: 13, fontWeight: 600 }}>{roleLabel}</span>
         </div>
-        <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)' }}>{role}</div>
       </div>
 
-      {/* SECTION B: Components with real data (proven working in v5) */}
+      {/* SUSPECT 1: Check-in banner */}
+      {!isNewPitcher && !hasCheckedIn && (
+        <div onClick={() => navigate('/coach')} style={{ margin: '8px 12px 0', border: '1.5px solid #e8a0aa', background: 'rgba(92,16,32,0.05)', borderRadius: 12, padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}>
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#2a1a18' }}>{'Morning check-in'}</div>
+            <div style={{ fontSize: 10, color: '#b0a89e', marginTop: 2 }}>{"Check in to get today's personalized plan"}</div>
+          </div>
+          <div style={{ background: '#5c1020', borderRadius: 8, padding: '6px 14px', fontSize: 11, fontWeight: 700, color: '#fff' }}>{'Check In'}</div>
+        </div>
+      )}
+
+      {/* SUSPECT 2: Brief card */}
+      {(morningBrief || !todayEntry) && (
+        <div style={{ margin: '8px 12px 0', background: '#fdf8f8', borderLeft: '3px solid #5c1020', borderRadius: '0 10px 10px 0', padding: '10px 14px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+            <div style={{ width: 6, height: 6, borderRadius: '50%', background: flagDot }} />
+            <span style={{ fontSize: 9, color: '#b0a89e', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>
+              {String(flagLevel) + ' \u00B7 ' + (todayEntry ? 'full session' : 'check in to start')}
+            </span>
+          </div>
+          {morningBrief != null && <p style={{ fontSize: 11, color: '#6b5f58', lineHeight: 1.6, fontStyle: 'italic', margin: 0 }}>{String(morningBrief)}</p>}
+          {todayEntry && (
+            <div style={{ display: 'flex', marginTop: 8, borderTop: '0.5px solid #e4dfd8', paddingTop: 8 }}>
+              <StatCol label="arm" value={armFeel != null ? armFeel + '/5' : '\u2013'} />
+              <div style={{ width: 0.5, background: '#e4dfd8' }} />
+              <StatCol label="sleep" value={sleepHours != null ? sleepHours + 'h' : '\u2013'} />
+              <div style={{ width: 0.5, background: '#e4dfd8' }} />
+              <StatCol label="est." value={estDuration != null ? estDuration + 'm' : '\u2013'} />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Components (proven working) */}
       <div style={{ padding: '0 12px' }}>
-        <WeekStrip week={weekSummary.data?.week || []} selectedDate={selectedDate} onDayClick={(d) => setSelectedDate(prev => prev === d ? null : d)} />
-        <div style={{ marginTop: 8 }}><DailyCard entry={displayEntry || todayEntry} exerciseMap={exerciseMap} slugMap={slugMap} pitcherId={pitcherId} initData={initData} readOnly={true} /></div>
+        <div style={{ marginTop: 8 }}><WeekStrip week={weekSummary.data?.week || []} selectedDate={selectedDate} onDayClick={(d) => setSelectedDate(prev => prev === d ? null : d)} /></div>
+        <div style={{ marginTop: 8 }}><DailyCard entry={displayEntry || todayEntry} exerciseMap={exerciseMap} slugMap={slugMap} pitcherId={pitcherId} initData={initData} readOnly={!!isViewingPast} /></div>
         <UpcomingDays upcoming={upcoming.data?.upcoming} exerciseMap={exerciseMap} />
         <TrendChart entries={entries} />
         <InsightsCard observations={progression?.observations} trendWeeks={Array.isArray(trendData.data?.weeks) ? trendData.data.weeks : []} />
         {staffPulse.data && <div style={{ marginTop: 12 }}><StaffPulse data={staffPulse.data} /></div>}
       </div>
+    </div>
+  );
+}
+
+function StatCol({ label, value }) {
+  return (
+    <div style={{ flex: 1, textAlign: 'center' }}>
+      <div style={{ fontSize: 13, fontWeight: 600, color: '#2a1a18' }}>{String(value)}</div>
+      <div style={{ fontSize: 8, color: '#b0a89e', marginTop: 1, textTransform: 'uppercase' }}>{String(label)}</div>
     </div>
   );
 }
