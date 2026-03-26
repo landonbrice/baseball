@@ -191,7 +191,7 @@ async def start_checkin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 
     # Increment rotation day (skip for return-to-throwing phase)
     profile = load_profile(pitcher_id)
-    phase = profile.get("active_flags", {}).get("phase", "")
+    phase = (profile.get("active_flags") or {}).get("phase", "")
     if not phase.startswith("return_to_throwing"):
         increment_days_since_outing(pitcher_id)
         profile = load_profile(pitcher_id)
@@ -613,7 +613,7 @@ async def _generate_plan_and_respond(message, context) -> int:
 
     # Default sleep to profile baseline
     profile = load_profile(pitcher_id)
-    sleep_hours = profile.get("biometric_integration", {}).get("avg_sleep_hours") or 7.0
+    sleep_hours = (profile.get("biometric_integration") or {}).get("avg_sleep_hours") or 7.0
 
     try:
         result = await process_checkin(

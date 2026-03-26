@@ -104,7 +104,7 @@ async def get_upcoming(pitcher_id: str, request: Request):
         profile = load_profile(pitcher_id)
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Pitcher not found")
-    current_day = profile.get("active_flags", {}).get("days_since_outing", 0)
+    current_day = (profile.get("active_flags") or {}).get("days_since_outing", 0)
     upcoming = get_upcoming_days(pitcher_id, current_day)
     return {"upcoming": upcoming}
 
@@ -268,7 +268,7 @@ async def post_checkin(pitcher_id: str, request: Request):
 
     # Increment rotation day (skip for return-to-throwing phase)
     profile_check = load_profile(pitcher_id)
-    if profile_check.get("active_flags", {}).get("phase") != "return_to_throwing":
+    if (profile_check.get("active_flags") or {}).get("phase") != "return_to_throwing":
         increment_days_since_outing(pitcher_id)
 
     try:
@@ -439,9 +439,9 @@ async def post_chat(pitcher_id: str, request: Request):
 
             # Default sleep from profile baseline
             profile_chk = load_profile(pitcher_id)
-            sleep_hours = data.get("sleep_hours") or profile_chk.get("biometric_integration", {}).get("avg_sleep_hours") or 7.0
+            sleep_hours = data.get("sleep_hours") or (profile_chk.get("biometric_integration") or {}).get("avg_sleep_hours") or 7.0
 
-            if profile_chk.get("active_flags", {}).get("phase") != "return_to_throwing":
+            if (profile_chk.get("active_flags") or {}).get("phase") != "return_to_throwing":
                 increment_days_since_outing(pitcher_id)
 
             # Update schedule if next_pitch_days specified
@@ -772,7 +772,7 @@ async def apply_plan_to_today(pitcher_id: str, plan_id: str, request: Request):
     if today_entry is None:
         today_entry = {
             "date": today,
-            "rotation_day": load_profile(pitcher_id).get("active_flags", {}).get("days_since_outing", 0),
+            "rotation_day": (load_profile(pitcher_id).get("active_flags") or {}).get("days_since_outing", 0),
             "pre_training": None,
             "plan_generated": {},
             "completed_exercises": {},

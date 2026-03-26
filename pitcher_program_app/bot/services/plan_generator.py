@@ -34,7 +34,7 @@ def load_exercise_library() -> dict:
 
 def get_rotation_day(pitcher_profile: dict) -> int:
     """Calculate current rotation day from active_flags."""
-    return pitcher_profile.get("active_flags", {}).get("days_since_outing", 0)
+    return (pitcher_profile.get("active_flags") or {}).get("days_since_outing", 0)
 
 
 async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: dict = None) -> dict:
@@ -54,7 +54,7 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
     recent_logs = get_recent_entries(pitcher_id, n=7)
     rotation_day = get_rotation_day(profile)
     rotation_length = profile.get("rotation_length", 7)
-    phase = profile.get("active_flags", {}).get("phase")
+    phase = (profile.get("active_flags") or {}).get("phase")
     # Clamp to valid rotation range
     if rotation_day >= rotation_length:
         rotation_day = rotation_day % rotation_length
@@ -453,7 +453,7 @@ def _build_pitcher_context(profile: dict, context_md: str) -> str:
         parts.append(f"Usual lift timing: {training['lift_timing']}")
 
     # Mechanical focus (context, not coaching)
-    mech = profile.get("pitching_profile", {}).get("mechanical_focus_areas", [])
+    mech = (profile.get("pitching_profile") or {}).get("mechanical_focus_areas", [])
     if mech:
         parts.append(f"Mechanical focus areas (context only): {', '.join(mech)}")
 

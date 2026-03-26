@@ -252,7 +252,7 @@ async def _send_morning_checkin(context) -> None:
     # Build rotation day preview
     try:
         profile = load_profile(pitcher_id)
-        rotation_day = profile.get("active_flags", {}).get("days_since_outing", 0)
+        rotation_day = (profile.get("active_flags") or {}).get("days_since_outing", 0)
         from bot.services.plan_generator import load_template
         template = load_template("starter_7day.json")
         day_key = f"day_{rotation_day}"
@@ -342,7 +342,7 @@ def _ensure_pitcher_jobs(application: Application, pitcher_id: str, profile: dic
     if existing:
         return
 
-    time_str = profile.get("preferences", {}).get("notification_time", "08:00")
+    time_str = (profile.get("preferences") or {}).get("notification_time", "08:00")
     try:
         hour, minute = map(int, time_str.split(":"))
     except (ValueError, AttributeError):
@@ -384,7 +384,7 @@ def _schedule_jobs(application: Application) -> None:
                     continue
 
                 # Parse notification time (default 08:00)
-                time_str = profile.get("preferences", {}).get("notification_time", "08:00")
+                time_str = (profile.get("preferences") or {}).get("notification_time", "08:00")
                 hour, minute = map(int, time_str.split(":"))
                 notify_time = dt_time(hour=hour, minute=minute)
 

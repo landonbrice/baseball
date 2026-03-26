@@ -58,7 +58,7 @@ async def process_outing(
     relevant_research = retrieve_research_for_plan(profile)
 
     # Build outing data string
-    typical = profile.get("pitching_profile", {}).get("typical_pitch_count", 85)
+    typical = (profile.get("pitching_profile") or {}).get("typical_pitch_count", 85)
     outing_data = (
         f"Date: {today}\n"
         f"Pitch count: {pitch_count} (typical: {typical})\n"
@@ -162,7 +162,7 @@ def _build_outing_context(profile: dict, pitcher_id: str) -> str:
     parts = [
         f"Name: {profile.get('name', 'Unknown')}",
         f"Role: {profile.get('role', 'starter')}",
-        f"Typical pitch count: {profile.get('pitching_profile', {}).get('typical_pitch_count', 'N/A')}",
+        f"Typical pitch count: {(profile.get('pitching_profile') or {}).get('typical_pitch_count', 'N/A')}",
     ]
 
     if injury:

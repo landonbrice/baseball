@@ -129,7 +129,7 @@ def _build_qa_context(profile: dict, pitcher_id: str) -> str:
     goals = profile.get("goals", {})
     if goals.get("primary"):
         parts.append(f"Primary goal: {goals['primary']}")
-    detail = profile.get("preferences", {}).get("detail_level")
+    detail = (profile.get("preferences") or {}).get("detail_level")
     if detail:
         parts.append(f"Communication preference: {detail}")
 

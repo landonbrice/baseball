@@ -180,7 +180,7 @@ def retrieve_research_for_plan(pitcher_profile: dict, max_chars: int = 12000) ->
             loaded[filename] = content
 
     # Also load based on active modifications
-    mods = pitcher_profile.get("active_flags", {}).get("active_modifications", [])
+    mods = (pitcher_profile.get("active_flags") or {}).get("active_modifications", [])
     mod_keywords = set()
     for mod in mods:
         mod_lower = mod.lower()

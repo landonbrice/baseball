@@ -73,7 +73,7 @@ async def process_checkin(
     # Load profile and clamp unreasonable days_since_outing
     profile = load_profile(pitcher_id)
     rotation_length = profile.get("rotation_length", 7)
-    if profile.get("active_flags", {}).get("days_since_outing", 0) > rotation_length * 2:
+    if (profile.get("active_flags") or {}).get("days_since_outing", 0) > rotation_length * 2:
         update_active_flags(pitcher_id, {"days_since_outing": rotation_length - 1})
         profile = load_profile(pitcher_id)
 
@@ -98,7 +98,7 @@ async def process_checkin(
             triage_result["reasoning"] += " Pitcher flagged concern about arm feel — upgraded to yellow."
 
     # LLM-driven triage refinement for ambiguous cases
-    if triage_result.get("protocol_adjustments", {}).get("needs_llm_triage"):
+    if (triage_result.get("protocol_adjustments") or {}).get("needs_llm_triage"):
         try:
             llm_refinement = await llm_triage_refinement(
                 arm_feel, sleep_hours, energy, profile, pitcher_id
@@ -144,7 +144,7 @@ async def process_checkin(
     plan_result = await generate_plan(pitcher_id, triage_result, checkin_inputs=checkin_inputs)
 
     # Build and append log entry
-    rotation_day = profile.get("active_flags", {}).get("days_since_outing", 0)
+    rotation_day = (profile.get("active_flags") or {}).get("days_since_outing", 0)
     bot_observations = progression.get("observations") or None
 
     entry = {
@@ -182,11 +182,11 @@ async def process_checkin(
     # Write rich session note to context
     flag = triage_result["flag_level"].upper()
     lifting_summary = ""
-    if plan_result and plan_result.get("lifting", {}).get("exercises"):
+    if plan_result and (plan_result.get("lifting") or {}).get("exercises"):
         names = [ex.get("name", "") for ex in plan_result["lifting"]["exercises"][:5]]
         lifting_summary = f"Lift: {', '.join(names)}"
     throwing_summary = ""
-    if plan_result and plan_result.get("throwing", {}).get("type", "none") != "none":
+    if plan_result and (plan_result.get("throwing") or {}).get("type", "none") != "none":
         throwing_summary = f"Throwing: {plan_result['throwing'].get('type', '')}"
     mods = plan_result.get("modifications_applied", []) if plan_result else []
     mods_str = f" Mods: {', '.join(mods[:3])}" if mods else ""
