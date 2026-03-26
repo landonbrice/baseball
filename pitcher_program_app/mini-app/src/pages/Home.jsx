@@ -80,8 +80,9 @@ export default function Home() {
   const sleepHours = todayEntry?.pre_training?.sleep_hours;
   const estDuration = todayEntry?.lifting?.estimated_duration_min || todayEntry?.plan_generated?.estimated_duration_min;
 
-  // Session progress
-  const completed = todayEntry?.completed_exercises || {};
+  // Session progress — guard: completed_exercises can be [] or {} from Supabase
+  const rawCompleted = todayEntry?.completed_exercises;
+  const completed = (rawCompleted && !Array.isArray(rawCompleted)) ? rawCompleted : {};
   const allExercises = [
     ...(todayEntry?.arm_care?.exercises || todayEntry?.plan_generated?.arm_care?.exercises || []),
     ...(todayEntry?.lifting?.exercises || todayEntry?.plan_generated?.lifting?.exercises || []),

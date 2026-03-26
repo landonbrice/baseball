@@ -18,7 +18,9 @@ function resolveExercise(exerciseId, exerciseMap, slugMap) {
 
 export default function DailyCard({ entry, exerciseMap = {}, slugMap = {}, pitcherId, initData, readOnly = false }) {
   const [activeTab, setActiveTab] = useState('arm_care');
-  const [completed, setCompleted] = useState(entry?.completed_exercises || {});
+  // Guard: completed_exercises can be [] or {} from Supabase — normalize to object
+  const rawCE = entry?.completed_exercises;
+  const [completed, setCompleted] = useState((rawCE && !Array.isArray(rawCE)) ? rawCE : {});
   const [expandedWhy, setExpandedWhy] = useState({});
 
   const handleToggle = useCallback((exerciseId, newState) => {
@@ -44,7 +46,9 @@ export default function DailyCard({ entry, exerciseMap = {}, slugMap = {}, pitch
   const armCare = entry.arm_care || plan_generated?.arm_care;
   const lifting = entry.lifting || plan_generated?.lifting;
   const throwing = entry.throwing || plan_generated?.throwing;
-  const notes = entry.notes || plan_generated?.notes || [];
+  // Guard: notes can be {} (object) or [] (array) from Supabase — normalize to array
+  const rawNotes = entry.notes || plan_generated?.notes;
+  const notes = Array.isArray(rawNotes) ? rawNotes : [];
   const hasStructured = !!(armCare?.exercises?.length || lifting?.exercises?.length);
   const fallbackBlocks = plan_generated?.exercise_blocks || [];
 

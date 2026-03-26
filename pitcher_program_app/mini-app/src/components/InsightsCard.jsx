@@ -18,7 +18,10 @@ const CATEGORY_COLORS = {
 };
 
 export default function InsightsCard({ observations = [], trendWeeks = [] }) {
-  if (!observations.length && trendWeeks.length < 2) return null;
+  // Guard: ensure observations is an array of strings
+  const safeObs = Array.isArray(observations) ? observations.filter(o => typeof o === 'string') : [];
+  const safeWeeks = Array.isArray(trendWeeks) ? trendWeeks : [];
+  if (!safeObs.length && safeWeeks.length < 2) return null;
 
   return (
     <div style={{
@@ -36,16 +39,16 @@ export default function InsightsCard({ observations = [], trendWeeks = [] }) {
       </div>
 
       {/* 4-week trend chart */}
-      {trendWeeks.length >= 2 && (
+      {safeWeeks.length >= 2 && (
         <div style={{ marginBottom: 12 }}>
-          <TrendInsightChart weeks={trendWeeks} />
+          <TrendInsightChart weeks={safeWeeks} />
         </div>
       )}
 
       {/* Text insights */}
-      {observations.length > 0 && (
+      {safeObs.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {observations.map((obs, i) => {
+          {safeObs.map((obs, i) => {
             const category = categorizeInsight(obs);
             const dotColor = CATEGORY_COLORS[category];
             return (

@@ -65,9 +65,9 @@ export default function StaffPulse({ data }) {
                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                   color: checkedIn ? 'var(--color-ink-primary)' : 'var(--color-ink-muted)',
                 }}>
-                  {p.name}
+                  {p.first_name || p.name}
                 </span>
-                {p.role && (
+                {(p.role) && (
                   <span style={{
                     fontSize: 9, fontWeight: 600, textTransform: 'uppercase',
                     padding: '1px 6px', borderRadius: 6,
@@ -77,11 +77,11 @@ export default function StaffPulse({ data }) {
                     {p.role}
                   </span>
                 )}
-                {p.rotation && (
+                {(p.rotation_info || p.rotation) && (
                   <span style={{
                     fontSize: 10, color: 'var(--color-ink-muted)', flexShrink: 0,
                   }}>
-                    {p.rotation}
+                    {p.rotation_info || p.rotation}
                   </span>
                 )}
               </div>
