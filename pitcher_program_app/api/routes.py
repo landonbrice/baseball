@@ -140,7 +140,8 @@ async def get_week_summary(pitcher_id: str, request: Request):
         flag_level = None
         had_outing = False
         if entry:
-            flag_level = entry.get("pre_training", {}).get("flag_level")
+            pt = entry.get("pre_training") or {}
+            flag_level = pt.get("flag_level")
             had_outing = entry.get("outing") is not None
 
         result.append({
@@ -169,7 +170,7 @@ async def morning_status(pitcher_id: str, request: Request):
     today_entry = next((e for e in entries if e.get("date") == today_str), None)
 
     # Check-in status — explicit from active_flags phase, or inferred from log
-    checked_in = bool(today_entry and today_entry.get("pre_training", {}).get("arm_feel"))
+    checked_in = bool(today_entry and (today_entry.get("pre_training") or {}).get("arm_feel"))
 
     # Arm feel trend — last 7 entries with arm_feel data
     arm_feels = []
