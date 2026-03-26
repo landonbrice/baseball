@@ -1,6 +1,24 @@
-import { useMemo, useCallback, useState } from 'react';
+import { useMemo, useCallback, useState, Component } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../App';
+
+// Debug wrapper — isolates crashes to individual sections
+class Safe extends Component {
+  constructor(props) { super(props); this.state = { error: null }; }
+  static getDerivedStateFromError(error) { return { error }; }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ padding: 8, margin: '4px 0', background: '#fff0f0', borderRadius: 8, border: '1px solid #f5c6cb' }}>
+          <p style={{ fontSize: 10, color: '#A32D2D', margin: 0 }}>
+            [{this.props.name}] {String(this.state.error)}
+          </p>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 import { useAppContext } from '../hooks/useChatState';
 import { usePitcher } from '../hooks/usePitcher';
 import { useApi } from '../hooks/useApi';
@@ -129,7 +147,7 @@ export default function Home() {
           </div>
           {/* Arm feel + sparkline */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Sparkline data={sparkline} outingIndices={outingDayIndices} />
+            <Safe name="Sparkline"><Sparkline data={sparkline} outingIndices={outingDayIndices} /></Safe>
             <div style={{ background: 'rgba(255,255,255,0.12)', borderRadius: 10, padding: '5px 10px', textAlign: 'center' }}>
               <div style={{ fontSize: 16, fontWeight: 800, color: '#fff', lineHeight: 1.1 }}>{armFeel ?? '\u2013'}</div>
               <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.45)', marginTop: 1 }}>arm</div>
@@ -155,7 +173,7 @@ export default function Home() {
               </span>
             )}
           </div>
-          <StreakBadge streak={currentStreak} weekDots={weekDots} />
+          <Safe name="StreakBadge"><StreakBadge streak={currentStreak} weekDots={weekDots} /></Safe>
         </div>
       </div>
 
@@ -192,18 +210,18 @@ export default function Home() {
       {/* ── 3. Session progress ── */}
       {totalEx > 0 && !isViewingPast && hasCheckedInToday && (
         <div style={{ padding: '8px 12px 0' }}>
-          <SessionProgress doneCount={doneEx} totalCount={totalEx} />
+          <Safe name="SessionProgress"><SessionProgress doneCount={doneEx} totalCount={totalEx} /></Safe>
         </div>
       )}
 
       {/* ── 4. Week strip ── */}
       {!isNewPitcher && (
         <div style={{ padding: '8px 12px 0' }}>
-          <WeekStrip
+          <Safe name="WeekStrip"><WeekStrip
             week={weekSummary.data?.week || []}
             selectedDate={selectedDate}
             onDayClick={handleDayClick}
-          />
+          /></Safe>
         </div>
       )}
 
@@ -273,14 +291,14 @@ export default function Home() {
                   tap info for why
                 </p>
               )}
-              <DailyCard
+              <Safe name="DailyCard"><DailyCard
                 entry={displayEntry}
                 exerciseMap={exerciseMap}
                 slugMap={slugMap}
                 pitcherId={pitcherId}
                 initData={initData}
                 readOnly={!!isViewingPast}
-              />
+              /></Safe>
             </div>
           </>
         )}
@@ -289,17 +307,17 @@ export default function Home() {
         <UpcomingDays upcoming={upcoming.data?.upcoming} exerciseMap={exerciseMap} />
 
         {/* Arm feel trend */}
-        {entries.length > 0 && <TrendChart entries={entries} />}
+        <Safe name="TrendChart">{entries.length > 0 && <TrendChart entries={entries} />}</Safe>
 
         {/* ── 6. Weekly insight + trend chart ── */}
-        <InsightsCard observations={progression?.observations} trendWeeks={trendWeeks} />
+        <Safe name="InsightsCard"><InsightsCard observations={progression?.observations} trendWeeks={trendWeeks} /></Safe>
 
         {/* ── 7. Staff pulse ── */}
-        {staffPulse.data && (
+        <Safe name="StaffPulse">{staffPulse.data && (
           <div style={{ marginTop: 12 }}>
             <StaffPulse data={staffPulse.data} />
           </div>
-        )}
+        )}</Safe>
       </div>
     </div>
   );

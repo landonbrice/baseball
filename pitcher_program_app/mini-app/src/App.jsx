@@ -13,17 +13,24 @@ import Plans from './pages/Plans';
 import PlanDetail from './pages/PlanDetail';
 
 class ErrorBoundary extends Component {
-  constructor(props) { super(props); this.state = { error: null }; }
+  constructor(props) { super(props); this.state = { error: null, errorInfo: null }; }
   static getDerivedStateFromError(error) { return { error }; }
-  componentDidCatch(error, info) { console.error('App crash:', error, info); }
+  componentDidCatch(error, info) {
+    this.setState({ errorInfo: info });
+    console.error('App crash:', error, info?.componentStack);
+  }
   render() {
     if (this.state.error) {
+      const stack = this.state.errorInfo?.componentStack || '';
+      const crashedIn = stack.split('\n').filter(l => l.trim()).slice(0, 5).join('\n');
       return (
-        <div style={{ padding: 24, textAlign: 'center' }}>
-          <p style={{ fontSize: 14, color: '#A32D2D', marginBottom: 8 }}>Something went wrong</p>
-          <p style={{ fontSize: 11, color: '#6b5f58', marginBottom: 12 }}>{this.state.error?.message}</p>
-          <button onClick={() => { this.setState({ error: null }); window.location.reload(); }}
-            style={{ padding: '8px 16px', background: '#5c1020', color: '#fff', border: 'none', borderRadius: 8, fontSize: 12 }}>
+        <div style={{ padding: 16, textAlign: 'left', fontFamily: 'monospace', fontSize: 11 }}>
+          <p style={{ fontSize: 14, color: '#A32D2D', marginBottom: 8, fontFamily: 'system-ui' }}>Crash Report</p>
+          <p style={{ color: '#6b5f58', marginBottom: 4 }}>Error: {String(this.state.error)}</p>
+          <p style={{ color: '#6b5f58', marginBottom: 8 }}>Message: {this.state.error?.message}</p>
+          {crashedIn && <pre style={{ fontSize: 9, color: '#999', whiteSpace: 'pre-wrap', marginBottom: 12 }}>{crashedIn}</pre>}
+          <button onClick={() => { this.setState({ error: null, errorInfo: null }); window.location.reload(); }}
+            style={{ padding: '8px 16px', background: '#5c1020', color: '#fff', border: 'none', borderRadius: 8, fontSize: 12, fontFamily: 'system-ui' }}>
             Reload
           </button>
         </div>
