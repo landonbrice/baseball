@@ -63,18 +63,56 @@ export default function Home() {
   const estDuration = typeof rawDur === 'number' ? rawDur : null;
   const flagDot = flagLevel === 'green' ? '#1D9E75' : flagLevel === 'yellow' ? '#BA7517' : '#A32D2D';
 
-  // v9a: v7 base + JUST the isNewPitcher/isViewingPast conditionals + entries.length guard on TrendChart
+  const rawCE = todayEntry?.completed_exercises;
+  const completed = (rawCE && typeof rawCE === 'object' && !Array.isArray(rawCE)) ? rawCE : {};
+  const allEx = [
+    ...((todayEntry?.arm_care || {}).exercises || (todayEntry?.plan_generated?.arm_care || {}).exercises || []),
+    ...((todayEntry?.lifting || {}).exercises || (todayEntry?.plan_generated?.lifting || {}).exercises || []),
+  ];
+  const totalEx = allEx.length;
+  const doneEx = allEx.filter(ex => completed[ex.exercise_id] === true).length;
+  const sparkline = Array.isArray(trendData.data?.sparkline) ? trendData.data.sparkline : [];
+  const outingIdx = Array.isArray(trendData.data?.outing_day_indices) ? trendData.data.outing_day_indices : [];
+  const streak = typeof trendData.data?.current_streak === 'number' ? trendData.data.current_streak : 0;
+  const weekDots = Array.isArray(weekSummary.data?.week) ? weekSummary.data.week.map(d => !!d.flag_level) : [];
+  const daysUntil = typeof flags.next_outing_days === 'number' ? flags.next_outing_days : null;
+  const nextLabel = daysUntil == null ? null : daysUntil === 0 ? 'Today' : daysUntil === 1 ? 'Tomorrow' : new Date(Date.now() + daysUntil * 86400000).toLocaleDateString('en-US', { weekday: 'long' });
+
   return (
     <div style={{ paddingBottom: 20 }}>
-      <p style={{ padding: '4px 12px', fontSize: 9, color: '#999' }}>{'v9a: conditionals test'}</p>
+      <p style={{ padding: '4px 12px', fontSize: 9, color: '#999' }}>{'v9b: header additions'}</p>
 
-      {/* Header (same as v7 — simple, no sparkline/streak) */}
-      <div style={{ background: '#5c1020', padding: '14px 16px 12px' }}>
-        <div style={{ fontSize: 9, color: '#e8a0aa' }}>{'UChicago Baseball'}</div>
-        <div style={{ fontSize: 20, fontWeight: 800, color: '#fff' }}>
-          {firstName}{' '}<span style={{ fontSize: 13, fontWeight: 600 }}>{roleLabel}</span>
+      {/* Header WITH sparkline, arm feel, footer row */}
+      <div style={{ background: '#5c1020', padding: '14px 16px 0' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+          <div>
+            <div style={{ fontSize: 9, color: '#e8a0aa', letterSpacing: '0.06em' }}>{'UChicago Baseball'}</div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: '#fff', letterSpacing: '-0.5px' }}>
+              {firstName}{' '}<span style={{ fontSize: 13, fontWeight: 600 }}>{roleLabel}</span>
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Sparkline data={sparkline} outingIndices={outingIdx} />
+            <div style={{ background: 'rgba(255,255,255,0.12)', borderRadius: 10, padding: '5px 10px', textAlign: 'center' }}>
+              <div style={{ fontSize: 16, fontWeight: 800, color: '#fff', lineHeight: 1.1 }}>{armFeel != null ? String(armFeel) : '\u2013'}</div>
+              <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.45)', marginTop: 1 }}>{'arm'}</div>
+            </div>
+          </div>
+        </div>
+        {/* Footer row */}
+        <div style={{ borderTop: '0.5px solid rgba(255,255,255,0.12)', padding: '8px 0 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 16 }}>
+            {nextLabel != null && <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)' }}>{'Next: '}<strong style={{ color: '#fff' }}>{String(nextLabel)}</strong></span>}
+            {totalEx > 0 && <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)' }}>{String(totalEx) + ' exercises'}</span>}
+          </div>
+          <StreakBadge streak={streak} weekDots={weekDots} />
         </div>
       </div>
+
+      {/* SessionProgress */}
+      {totalEx > 0 && hasCheckedIn && (
+        <div style={{ padding: '8px 12px 0' }}><SessionProgress doneCount={doneEx} totalCount={totalEx} /></div>
+      )}
 
       {/* Check-in banner (same as v7) */}
       {!isNewPitcher && !hasCheckedIn && (
