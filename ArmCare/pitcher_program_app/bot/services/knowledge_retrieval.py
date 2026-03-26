@@ -375,10 +375,7 @@ async def classify_and_generate_research(question: str):
         global _research_cache
         _research_cache = {}
 
-        # Sync the new file
-        from scripts.data_sync import mark_dirty
-        mark_dirty(save_path)
-        mark_dirty(index_path)
+        # data_sync disabled — Supabase is source of truth
 
         return content
     except Exception as e:

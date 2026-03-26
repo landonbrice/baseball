@@ -1,7 +1,7 @@
 # Pitcher Training Intelligence — Claude Init
 
-> Last updated: 2026-03-25
-> Sprint status: Active — Supabase migration + UX overhaul (see PROJECT_VISION.md for full plan)
+> Last updated: 2026-03-26
+> Sprint status: Phases 1-4 complete. Supabase live, coaching UX shipped, visible compounding deployed. Phase 5 (polish + adoption) next.
 
 ## What This Is
 
@@ -53,7 +53,7 @@ Update docs, fix broken flows, in-person onboarding with 2-3 pitchers, team moni
 | API | FastAPI / Uvicorn | Railway (same service, Procfile) |
 | LLM | DeepSeek (OpenAI-compatible wrapper) | DeepSeek API |
 | Mini App | React 18 / Vite / Tailwind CSS | Vercel |
-| Data | **Migrating:** JSON files → Supabase (Postgres) | Supabase (target) / Railway filesystem (current) |
+| Data | Supabase (Postgres) | Supabase |
 
 **Deployment URLs:**
 - API: `https://baseball-production-9d28.up.railway.app`
@@ -74,7 +74,8 @@ pitcher_program_app/
 │   │   ├── post_outing.py        # /outing ConversationHandler (pitch count → arm feel → tightness → UCL → notes)
 │   │   └── qa.py                 # Free-text Q&A with dual LLM routing (fast vs reasoning)
 │   ├── services/
-│   │   ├── context_manager.py    # Profile/log/context CRUD, pitcher lookup, plan persistence — MIGRATING TO SUPABASE
+│   │   ├── db.py                 # Supabase client, all CRUD operations
+│   │   ├── context_manager.py    # Profile/log/context CRUD — Supabase-backed with JSON fallback
 │   │   ├── checkin_service.py    # Check-in → triage → plan generation pipeline
 │   │   ├── outing_service.py     # Outing → recovery protocol pipeline
 │   │   ├── triage.py             # Rule-based readiness triage (green/yellow/red), injury-aware
@@ -101,7 +102,7 @@ pitcher_program_app/
 │   ├── src/
 │   │   ├── App.jsx / Layout.jsx  # Router, auth context, TelegramWebApp init, morning badge check
 │   │   ├── hooks/                # useApi, usePitcher, useTelegram, useChatState
-│   │   ├── components/           # DailyCard, WeekStrip, TrendChart, ChatBar, FlagBadge, PlanBuilder (12 total)
+│   │   ├── components/           # DailyCard, WeekStrip, TrendChart, SessionProgress, Sparkline, StreakBadge, StaffPulse, CoachFAB, TrendInsightChart, ExerciseWhy, etc. (19 total)
 │   │   └── pages/                # Home, Coach, Plans, PlanDetail, ExerciseLibrary, LogHistory, Profile (7 total)
 │   └── .env.production           # VITE_API_URL
 │
@@ -124,9 +125,7 @@ pitcher_program_app/
 `get_pitcher_id_by_telegram(telegram_id, username)` — matches by telegram_id first, falls back to telegram_username with auto-backfill on first message.
 
 ### Context System
-**Current (being migrated):** context.md per pitcher with persistent facts + recent interactions (15 most recent, truncated to 12000 chars for LLM calls).
-
-**Target:** Query recent `chat_messages` + `daily_entries` + `active_flags` from Supabase directly. No more maintaining a text file.
+Supabase-backed. `context_manager.py` queries recent `chat_messages` + `daily_entries` + `active_flags` from Supabase to build LLM context. JSON filesystem fallback available via `USE_JSON_FALLBACK=true`.
 
 ### Triage → Plan Pipeline
 1. Rule-based triage (`triage.py`) → green/yellow/red + modifications
@@ -146,6 +145,8 @@ pitcher_program_app/
 **Actions:** `POST /checkin`, `/outing`, `/chat` (unified), `/set-next-outing`, `/complete-exercise`
 **Plans:** `GET/POST /plans`, `/plans/{id}/activate`, `/deactivate`, `/apply-plan/{id}`, `/generate-plan`
 **Library:** `/api/exercises`, `/api/exercises/slugs`
+**Team:** `/api/staff/pulse`
+**Trends:** `/api/pitcher/{id}/trend`, `/api/pitcher/{id}/chat-history`
 
 ### Scheduled Jobs
 - Morning check-in at pitcher's `notification_time`
@@ -176,8 +177,8 @@ pitcher_program_app/
 |----------|----------|---------|-------------|
 | TELEGRAM_BOT_TOKEN | yes | — | From @BotFather |
 | DEEPSEEK_API_KEY | yes | — | DeepSeek API key |
-| SUPABASE_URL | yes (new) | — | Supabase project URL |
-| SUPABASE_SERVICE_KEY | yes (new) | — | Supabase service role key |
+| SUPABASE_URL | yes | — | Supabase project URL |
+| SUPABASE_SERVICE_KEY | yes | — | Supabase service role key |
 | MINI_APP_URL | no | — | Vercel mini-app URL |
 | LLM_PROVIDER | no | deepseek | Provider name |
 | LLM_MODEL | no | deepseek-chat | Model identifier |
@@ -201,14 +202,28 @@ python -m api.main
 cd mini-app && npm install && npm run dev
 ```
 
+## Supabase Schema
+
+Project: `pitcher-training-intel` (us-east-1)
+
+| Table | Purpose |
+|-------|---------|
+| `pitchers` | Pitcher profiles — id, name, role, physical/pitching/training/biometric JSONB fields |
+| `injury_history` | Per-pitcher injury records with severity, area, flag_level, red_flags |
+| `active_flags` | Current state per pitcher — arm_feel, flag_level, days_since_outing, modifications |
+| `daily_entries` | Daily training logs — pre_training, plan_generated, actual_logged, completed_exercises |
+| `exercises` | Exercise library (95 exercises) — prescription, tags, contraindications, youtube_url |
+| `templates` | Training templates (9) — rotation day structure, exercise blocks |
+| `saved_plans` | Pitcher-specific saved/generated plans with plan_data JSONB |
+| `chat_messages` | Cross-platform conversation persistence — source (telegram/mini_app), role, content |
+| `weekly_summaries` | Aggregated weekly data for long-term tracking |
+
 ## Known Issues & Tech Debt
 
-- Railway filesystem is ephemeral — data loss risk on redeploy (Supabase migration fixes this)
-- context.md rebuild logic is complex — Supabase queries will replace it
 - Exercise library has YouTube link gaps (see `unmatched_youtube.csv`)
-- Conversation history lost on mini app reload (chat_messages table fixes this)
-- Bot and mini app don't share real-time conversation state (unified chat_messages fixes this)
-- No concurrent write protection for JSON files (Supabase transactions fix this)
+- Templates reference exercise IDs that must exist in library — no validation
+- WHOOP API integration is a stub (schema fields exist, no API calls)
+- `data_sync.py` still exists but is disabled — can be removed entirely
 
 ## Bot Scope Boundaries
 
