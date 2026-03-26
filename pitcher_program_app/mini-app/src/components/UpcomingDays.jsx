@@ -70,7 +70,7 @@ export default function UpcomingDays({ upcoming = [], exerciseMap = {} }) {
                                   muscles_primary: ex.muscles_primary || libEx.muscles_primary,
                                   youtube_url: ex.youtube_url || libEx.youtube_url,
                                 }}
-                                prescribed={ex.prescribed}
+                                prescribed={ex.rx || ex.prescribed || ''}
                               />
                             );
                           })}

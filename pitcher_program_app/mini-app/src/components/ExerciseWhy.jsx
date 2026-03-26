@@ -12,7 +12,7 @@ export default function ExerciseWhy({ why, expanded, onToggle }) {
       borderRadius: '0 4px 4px 0',
       marginTop: 4,
     }}>
-      {why}
+      {typeof why === 'string' ? why : ''}
     </div>
   );
 }

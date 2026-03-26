@@ -119,7 +119,7 @@ export default function DailyCard({ entry, exerciseMap = {}, slugMap = {}, pitch
             <p style={{ fontSize: 13, color: 'var(--color-ink-primary)' }}>
               {entry.outing.pitch_count} pitches · Post feel: {entry.outing.arm_feel ?? entry.outing.post_arm_feel}/5
             </p>
-            {entry.outing.notes && <p style={{ fontSize: 11, color: 'var(--color-ink-muted)', marginTop: 4 }}>{entry.outing.notes}</p>}
+            {entry.outing.notes && <p style={{ fontSize: 11, color: 'var(--color-ink-muted)', marginTop: 4 }}>{Array.isArray(entry.outing.notes) ? entry.outing.notes.join('; ') : String(entry.outing.notes)}</p>}
           </div>
         </div>
       )}
@@ -130,7 +130,7 @@ export default function DailyCard({ entry, exerciseMap = {}, slugMap = {}, pitch
 // ── Block reasoning ──
 
 function BlockReasoning({ reasoning }) {
-  if (!reasoning) return null;
+  if (!reasoning || typeof reasoning !== 'string') return null;
   return (
     <p style={{
       fontSize: 11, color: 'var(--color-ink-muted)', fontStyle: 'italic',
@@ -210,7 +210,7 @@ function TabNotes({ notes }) {
       {notes.map((note, i) => (
         <li key={i} style={{ display: 'flex', gap: 8, fontSize: 13, color: 'var(--color-ink-secondary)', marginBottom: 8 }}>
           <span style={{ color: 'var(--color-ink-muted)', flexShrink: 0 }}>·</span>
-          <span>{note}</span>
+          <span>{typeof note === 'string' ? note : JSON.stringify(note)}</span>
         </li>
       ))}
     </ul>
@@ -247,10 +247,12 @@ function SupersetList({ exercises, exerciseMap, slugMap, completed, onToggle, ex
             const exerciseObj = lib || { name: ex.name || ex.exercise_id, youtube_url: '', muscles_primary: [], pitching_relevance: '' };
             const isCompleted = completed[ex.exercise_id] === true;
             const label = g.letter ? `${g.letter}${ei + 1}` : null;
-            const isFpm = (ex.note || '').toLowerCase().includes('elevated') || (ex.note || '').toLowerCase().includes('fpm');
+            const noteStr = typeof ex.note === 'string' ? ex.note : '';
+            const isFpm = noteStr.toLowerCase().includes('elevated') || noteStr.toLowerCase().includes('fpm');
 
-            // Build "why" from exercise data or library
-            const why = ex.why || exerciseObj.pitching_relevance || '';
+            // Build "why" from exercise data or library — why may not exist in data yet
+            const rawWhy = ex.why || exerciseObj.pitching_relevance || '';
+            const why = typeof rawWhy === 'string' ? rawWhy : '';
 
             return (
               <ExerciseItem
@@ -259,7 +261,7 @@ function SupersetList({ exercises, exerciseMap, slugMap, completed, onToggle, ex
                 exercise={exerciseObj}
                 rx={ex.rx || ex.prescribed || ''}
                 prescription={ex.prescription || ''}
-                note={ex.note}
+                note={noteStr}
                 label={label}
                 completed={isCompleted}
                 isFpm={isFpm}
@@ -278,7 +280,8 @@ function SupersetList({ exercises, exerciseMap, slugMap, completed, onToggle, ex
 
 // ── Exercise item with info button and expandable why ──
 
-function ExerciseItem({ exerciseId, exercise, rx, prescription, note, label, completed, isFpm, why, whyExpanded, onToggle, onToggleWhy }) {
+function ExerciseItem({ exerciseId, exercise, rx, prescription, note: rawNote, label, completed, isFpm, why, whyExpanded, onToggle, onToggleWhy }) {
+  const note = typeof rawNote === 'string' ? rawNote : '';
   const rowStyle = {
     display: 'flex', alignItems: 'center', gap: 10, padding: '6px 4px',
     borderRadius: 8,
@@ -382,7 +385,7 @@ function FallbackBlock({ block, exerciseMap, slugMap, completed, onToggle, expan
             key={i}
             exerciseId={ex.exercise_id}
             exercise={exerciseObj}
-            rx={ex.prescribed}
+            rx={ex.rx || ex.prescribed || ''}
             prescription=""
             note={null}
             label={null}

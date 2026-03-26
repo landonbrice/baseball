@@ -81,7 +81,14 @@ export default function StaffPulse({ data }) {
                   <span style={{
                     fontSize: 10, color: 'var(--color-ink-muted)', flexShrink: 0,
                   }}>
-                    {p.rotation_info || p.rotation}
+                    {String(p.rotation_info || p.rotation)}
+                  </span>
+                )}
+                {p.days_since_outing != null && p.days_since_outing < 99 && (
+                  <span style={{
+                    fontSize: 9, color: 'var(--color-ink-faint)', flexShrink: 0,
+                  }}>
+                    {p.days_since_outing}d ago
                   </span>
                 )}
               </div>

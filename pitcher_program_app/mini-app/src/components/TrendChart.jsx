@@ -26,7 +26,7 @@ export default function TrendChart({ entries = [], days = 28 }) {
     );
   }
 
-  const feels = withFeel.map(e => e.pre_training.arm_feel);
+  const feels = withFeel.map(e => e.pre_training?.arm_feel ?? 3);
   const minFeel = 1;
   const maxFeel = 5;
   const range = maxFeel - minFeel;
