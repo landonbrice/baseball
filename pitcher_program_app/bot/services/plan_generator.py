@@ -706,6 +706,7 @@ def _build_throwing_plan(today_template: dict, rotation_day: int = None, role: s
 
         if day_info:
             day_type_key = day_info.get("day_type", "no_throw")
+            original_day_type_key = day_type_key
 
             # Apply triage override
             if override:
@@ -758,6 +759,10 @@ def _build_throwing_plan(today_template: dict, rotation_day: int = None, role: s
                 elif max_day_type and max_day_type != day_type_key:
                     reasoning = f"Capped at {max_day_type} per triage. " + reasoning
 
+                # Track whether triage or intent modified the plan
+                triage_modified = (day_type_key != original_day_type_key)
+                original_label = day_types.get("day_types", {}).get(original_day_type_key, {}).get("label", original_day_type_key)
+
                 return {
                     "type": day_type_key,
                     "day_type_label": day_type_template.get("label", day_type_key),
@@ -767,6 +772,8 @@ def _build_throwing_plan(today_template: dict, rotation_day: int = None, role: s
                     "reasoning": reasoning,
                     "phases": phases,
                     "volume_summary": day_type_template.get("volume_summary", {}),
+                    "triage_modified": triage_modified,
+                    "original_day_type": original_label if triage_modified else None,
                 }
 
     # Legacy fallback: simple string mapping from old rotation template

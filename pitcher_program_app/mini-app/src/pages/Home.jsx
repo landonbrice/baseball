@@ -7,6 +7,7 @@ import { useApi } from '../hooks/useApi';
 import WeekStrip from '../components/WeekStrip';
 import DailyCard from '../components/DailyCard';
 import UpcomingDays from '../components/UpcomingDays';
+import ThrowingWeekPreview from '../components/ThrowingWeekPreview';
 import InsightsCard from '../components/InsightsCard';
 import SessionProgress from '../components/SessionProgress';
 import Sparkline from '../components/Sparkline';
@@ -184,6 +185,12 @@ export default function Home() {
               <span style={{ fontSize: 10, color: 'var(--color-ink-muted)' }}>{showUpcoming ? '\u25BE' : '\u25B8'}</span>
             </button>
             {showUpcoming && <UpcomingDays upcoming={upcoming.data.upcoming} exerciseMap={exerciseMap} />}
+          </div>
+        )}
+
+        {upcoming.data?.upcoming?.length > 0 && (
+          <div style={{ marginTop: 12 }}>
+            <ThrowingWeekPreview days={upcoming.data.upcoming} />
           </div>
         )}
 

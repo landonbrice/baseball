@@ -1,6 +1,10 @@
 import { useState, useCallback } from 'react';
 import { toggleExercise } from '../api';
 import ExerciseWhy from './ExerciseWhy';
+import { BallDots, BallColorLegend } from './BallDots';
+import WhyCard from './WhyCard';
+import PostThrowFeel from './PostThrowFeel';
+import { submitThrowFeel } from '../api';
 
 function resolveExercise(exerciseId, exerciseMap, slugMap) {
   if (exerciseMap[exerciseId]) return exerciseMap[exerciseId];
@@ -71,6 +75,10 @@ export default function DailyCard({ entry, exerciseMap = {}, slugMap = {}, pitch
               onToggleWhy={toggleWhy}
               collapsedPhases={collapsedPhases}
               onTogglePhase={(phaseKey) => setCollapsedPhases(prev => ({ ...prev, [phaseKey]: !prev[phaseKey] }))}
+              entry={entry}
+              pitcherId={pitcherId}
+              initData={initData}
+              readOnly={readOnly}
             />
           );
         }
@@ -180,7 +188,7 @@ function ExerciseBlock({ blockKey, emoji, label, data, fallbackBlocks, hasStruct
 
 // ── Throwing Block ──
 
-function ThrowingBlock({ emoji, label, throwing, fallbackPlan, exerciseMap, slugMap, completed, onToggle, expandedWhy, onToggleWhy, collapsedPhases, onTogglePhase }) {
+function ThrowingBlock({ emoji, label, throwing, fallbackPlan, exerciseMap, slugMap, completed, onToggle, expandedWhy, onToggleWhy, collapsedPhases, onTogglePhase, entry, pitcherId, initData, readOnly }) {
   const data = throwing || fallbackPlan;
   if (!data) return null;
 
@@ -199,7 +207,15 @@ function ThrowingBlock({ emoji, label, throwing, fallbackPlan, exerciseMap, slug
     const vol = data.volume_summary;
 
     return (
-      <div style={{ background: 'var(--color-white)', borderRadius: 12, overflow: 'hidden' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {data.triage_modified && (
+          <WhyCard
+            reasoning={reasoning}
+            originalDayType={data.original_day_type}
+            currentDayType={dayLabel}
+          />
+        )}
+        <div style={{ background: 'var(--color-white)', borderRadius: 12, overflow: 'hidden' }}>
         {/* Header */}
         <div style={{ padding: '10px 14px', borderBottom: '0.5px solid var(--color-cream-border)' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -217,7 +233,7 @@ function ThrowingBlock({ emoji, label, throwing, fallbackPlan, exerciseMap, slug
             {duration && <PillBadge>{duration} min</PillBadge>}
             {vol?.total_throws_estimate > 0 && <PillBadge>~{vol.total_throws_estimate} throws</PillBadge>}
           </div>
-          {reasoning && typeof reasoning === 'string' && (
+          {reasoning && typeof reasoning === 'string' && !data.triage_modified && (
             <p style={{ fontSize: 11, color: 'var(--color-ink-muted)', fontStyle: 'italic', lineHeight: 1.5, margin: '4px 0 0' }}>
               {reasoning}
             </p>
@@ -269,6 +285,23 @@ function ThrowingBlock({ emoji, label, throwing, fallbackPlan, exerciseMap, slug
             );
           })}
         </div>
+
+        {/* Ball color legend — show when any exercise has ball_weight */}
+        {allExercises.some(ex => ex.ball_weight) && (
+          <div style={{ borderTop: '0.5px solid var(--color-cream-border)' }}>
+            <BallColorLegend />
+          </div>
+        )}
+      </div>
+
+      {/* Post-throw feel capture — appears when all throwing exercises are done */}
+      {!readOnly && totalCount > 0 && doneCount === totalCount && (
+        <PostThrowFeel
+          preThrowFeel={(entry?.pre_training || {}).arm_feel}
+          existingValue={data.post_throw_feel}
+          onCapture={(feel) => submitThrowFeel(pitcherId, entry?.date, feel, initData)}
+        />
+      )}
       </div>
     );
   }
@@ -373,6 +406,7 @@ function SupersetList({ exercises, exerciseMap, slugMap, completed, onToggle, ex
                 whyExpanded={!!expandedWhy[ex.exercise_id]}
                 onToggle={onToggle ? () => onToggle(ex.exercise_id, !isCompleted) : null}
                 onToggleWhy={() => onToggleWhy(ex.exercise_id)}
+                ballWeight={ex.ball_weight}
               />
             );
           })}
@@ -384,7 +418,7 @@ function SupersetList({ exercises, exerciseMap, slugMap, completed, onToggle, ex
 
 // ── Exercise item ──
 
-function ExerciseItem({ exerciseId, exercise, rx, prescription, note: rawNote, label, completed, isFpm, why, whyExpanded, onToggle, onToggleWhy }) {
+function ExerciseItem({ exerciseId, exercise, rx, prescription, note: rawNote, label, completed, isFpm, why, whyExpanded, onToggle, onToggleWhy, ballWeight }) {
   const note = typeof rawNote === 'string' ? rawNote : '';
   const rowStyle = {
     display: 'flex', alignItems: 'center', gap: 10, padding: '6px 4px',
@@ -427,6 +461,7 @@ function ExerciseItem({ exerciseId, exercise, rx, prescription, note: rawNote, l
             fontWeight: isFpm && !completed ? 600 : 400,
           }}>
             {exercise.name || 'Unknown exercise'}
+            <BallDots weight={ballWeight} />
           </p>
           <div style={{ fontSize: 11, color: isFpm && !completed ? 'var(--color-maroon)' : 'var(--color-ink-muted)', marginTop: 2 }}>
             {isFpm && !completed && <span>{'priority \u00B7 '}</span>}

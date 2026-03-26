@@ -437,6 +437,33 @@ def update_exercise_completion(pitcher_id: str, date: str, exercise_id: str, com
     _json_save_log(pitcher_id, log)
 
 
+def update_throwing_feel(pitcher_id: str, date: str, post_throw_feel: int) -> None:
+    """Store post-throw arm feel rating in a specific day's throwing data."""
+    if _using_supabase():
+        entry = _db.get_daily_entry(pitcher_id, date)
+        if entry:
+            throwing = entry.get("throwing") or {}
+            if isinstance(throwing, str):
+                throwing = {"type": throwing}
+            throwing["post_throw_feel"] = post_throw_feel
+            _db.upsert_daily_entry(pitcher_id, {
+                "date": date,
+                "throwing": throwing,
+            })
+        return
+
+    log = _json_load_log(pitcher_id)
+    for entry in log["entries"]:
+        if entry["date"] == date:
+            throwing = entry.get("throwing") or {}
+            if isinstance(throwing, str):
+                throwing = {"type": throwing}
+            throwing["post_throw_feel"] = post_throw_feel
+            entry["throwing"] = throwing
+            break
+    _json_save_log(pitcher_id, log)
+
+
 def load_saved_plans(pitcher_id: str) -> list:
     """Load saved plans for a pitcher."""
     if _using_supabase():

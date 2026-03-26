@@ -13,7 +13,7 @@ from bot.services.context_manager import (
     load_profile, load_log, save_log, load_context, update_exercise_completion,
     append_context, increment_days_since_outing, load_saved_plans,
     save_plan, deactivate_plan, update_active_flags, get_recent_entries,
-    get_pitcher_dir, activate_plan, update_plan_data,
+    get_pitcher_dir, activate_plan, update_plan_data, update_throwing_feel,
 )
 from bot.services.progression import analyze_progression
 from bot.services.plan_generator import get_upcoming_days
@@ -254,6 +254,22 @@ async def complete_exercise(pitcher_id: str, request: Request):
         raise HTTPException(status_code=400, detail="date and exercise_id required")
     update_exercise_completion(pitcher_id, date, exercise_id, completed)
     return {"status": "ok"}
+
+
+@router.post("/pitcher/{pitcher_id}/throw-feel")
+async def post_throw_feel(pitcher_id: str, request: Request):
+    """Log post-throw arm feel rating for a throwing session."""
+    _require_pitcher_auth(request, pitcher_id)
+    body = await request.json()
+    date = body.get("date")
+    post_throw_feel = body.get("post_throw_feel")
+    if not date or post_throw_feel is None:
+        raise HTTPException(status_code=400, detail="date and post_throw_feel required")
+    post_throw_feel = int(post_throw_feel)
+    if not 1 <= post_throw_feel <= 5:
+        raise HTTPException(status_code=400, detail="post_throw_feel must be 1-5")
+    update_throwing_feel(pitcher_id, date, post_throw_feel)
+    return {"status": "ok", "post_throw_feel": post_throw_feel}
 
 
 @router.post("/pitcher/{pitcher_id}/checkin")

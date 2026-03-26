@@ -44,6 +44,13 @@ export async function toggleExercise(pitcherId, date, exerciseId, completed, ini
 }
 
 /**
+ * Submit post-throw arm feel rating (1-5).
+ */
+export async function submitThrowFeel(pitcherId, date, postThrowFeel, initData) {
+  return postApi(`/api/pitcher/${pitcherId}/throw-feel`, { date, post_throw_feel: postThrowFeel }, initData);
+}
+
+/**
  * POST to the data API with optional auth header.
  */
 export async function postApi(path, body, initData = null) {
