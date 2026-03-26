@@ -25,7 +25,7 @@ class ErrorBoundary extends Component {
       const crashedIn = stack.split('\n').filter(l => l.trim()).slice(0, 5).join('\n');
       return (
         <div style={{ padding: 16, textAlign: 'left', fontFamily: 'monospace', fontSize: 11 }}>
-          <p style={{ fontSize: 14, color: '#A32D2D', marginBottom: 8, fontFamily: 'system-ui' }}>Crash Report</p>
+          <p style={{ fontSize: 14, color: '#A32D2D', marginBottom: 8, fontFamily: 'system-ui' }}>Crash Report v2</p>
           <p style={{ color: '#6b5f58', marginBottom: 4 }}>Error: {String(this.state.error)}</p>
           <p style={{ color: '#6b5f58', marginBottom: 8 }}>Message: {this.state.error?.message}</p>
           {crashedIn && <pre style={{ fontSize: 9, color: '#999', whiteSpace: 'pre-wrap', marginBottom: 12 }}>{crashedIn}</pre>}
