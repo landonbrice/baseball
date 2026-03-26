@@ -1,10 +1,4 @@
-const INSIGHT_ICONS = {
-  trend: '📈',
-  sleep: '💤',
-  concern: '⚠️',
-  positive: '💪',
-  default: '📋',
-};
+import TrendInsightChart from './TrendInsightChart';
 
 function categorizeInsight(text) {
   const lower = text.toLowerCase();
@@ -15,24 +9,62 @@ function categorizeInsight(text) {
   return 'default';
 }
 
-export default function InsightsCard({ observations = [] }) {
-  if (!observations.length) return null;
+const CATEGORY_COLORS = {
+  trend: 'var(--color-maroon)',
+  sleep: 'var(--color-ink-muted)',
+  concern: 'var(--color-flag-yellow)',
+  positive: 'var(--color-flag-green)',
+  default: 'var(--color-ink-muted)',
+};
+
+export default function InsightsCard({ observations = [], trendWeeks = [] }) {
+  if (!observations.length && trendWeeks.length < 2) return null;
 
   return (
-    <div className="bg-bg-secondary rounded-xl p-4">
-      <h3 className="text-sm font-semibold text-text-primary mb-3">Insights</h3>
-      <div className="space-y-2">
-        {observations.map((obs, i) => {
-          const category = categorizeInsight(obs);
-          const icon = INSIGHT_ICONS[category];
-          return (
-            <div key={i} className="flex gap-2 items-start">
-              <span className="text-xs mt-0.5">{icon}</span>
-              <p className="text-xs text-text-secondary leading-relaxed">{obs}</p>
-            </div>
-          );
-        })}
+    <div style={{
+      background: 'var(--color-white)',
+      borderRadius: 12,
+      padding: 14,
+      marginTop: 12,
+    }}>
+      {/* Section header */}
+      <div style={{
+        fontSize: 9, fontWeight: 700, color: 'var(--color-maroon)',
+        textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10,
+      }}>
+        Weekly Insight
       </div>
+
+      {/* 4-week trend chart */}
+      {trendWeeks.length >= 2 && (
+        <div style={{ marginBottom: 12 }}>
+          <TrendInsightChart weeks={trendWeeks} />
+        </div>
+      )}
+
+      {/* Text insights */}
+      {observations.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {observations.map((obs, i) => {
+            const category = categorizeInsight(obs);
+            const dotColor = CATEGORY_COLORS[category];
+            return (
+              <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                <div style={{
+                  width: 5, height: 5, borderRadius: '50%',
+                  background: dotColor, flexShrink: 0, marginTop: 5,
+                }} />
+                <p style={{
+                  fontSize: 11, color: 'var(--color-ink-secondary)',
+                  lineHeight: 1.6, margin: 0,
+                }}>
+                  {obs}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

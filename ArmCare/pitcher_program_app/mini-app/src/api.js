@@ -168,3 +168,17 @@ export async function fetchChatHistory(pitcherId, initData = null, limit = 30) {
 export async function fetchMorningStatus(pitcherId, initData = null) {
   return fetchApi(`/api/pitcher/${pitcherId}/morning-status`, initData);
 }
+
+/**
+ * Fetch staff pulse — team check-in status, roles, rotation info.
+ */
+export async function fetchStaffPulse(initData = null) {
+  return fetchApi('/api/staff/pulse', initData);
+}
+
+/**
+ * Fetch 4-week arm feel trend data for insight chart.
+ */
+export async function fetchTrend(pitcherId, initData = null) {
+  return fetchApi(`/api/pitcher/${pitcherId}/trend`, initData);
+}

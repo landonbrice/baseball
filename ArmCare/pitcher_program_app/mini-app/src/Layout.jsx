@@ -1,10 +1,10 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import { useAppContext } from './hooks/useChatState';
+import CoachFAB from './components/CoachFAB';
 
 const NAV_ITEMS = [
   { to: '/',        label: 'Home',    icon: '\u2302' },
-  { to: '/coach',   label: 'Coach',   icon: '\u25C9' },
-  { to: '/plans',   label: 'Plans',   icon: '\u25A4' },
+  { to: '/plans',   label: 'Program', icon: '\u25A4' },
   { to: '/log',     label: 'History', icon: '\u25A6' },
   { to: '/profile', label: 'Profile', icon: '\u25CB' },
 ];
@@ -18,11 +18,15 @@ export default function Layout() {
         <Outlet />
       </main>
 
+      {/* Coach floating action button */}
+      <CoachFAB showBadge={coachBadge || checkinInProgress} />
+
       <nav style={{
         position: 'fixed', bottom: 0, left: 0, right: 0,
         background: 'var(--color-white)',
         borderTop: '0.5px solid var(--color-cream-border)',
         paddingBottom: 'env(safe-area-inset-bottom, 0)',
+        zIndex: 10,
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center', height: 56, maxWidth: 480, margin: '0 auto' }}>
           {NAV_ITEMS.map(({ to, label, icon }) => (
@@ -46,26 +50,8 @@ export default function Layout() {
                   <span style={{
                     fontSize: 16,
                     color: isActive ? 'var(--color-maroon)' : 'var(--color-ink-faint)',
-                    position: 'relative',
                   }}>
                     {icon}
-                    {/* Coach badge indicators */}
-                    {to === '/coach' && coachBadge && !isActive && (
-                      <span style={{
-                        position: 'absolute', top: -3, right: -4,
-                        width: 7, height: 7, borderRadius: '50%',
-                        background: 'var(--color-maroon)',
-                        border: '1.5px solid var(--color-cream-bg)',
-                      }} />
-                    )}
-                    {to === '/coach' && checkinInProgress && !isActive && (
-                      <span style={{
-                        position: 'absolute', top: -3, right: -4,
-                        width: 7, height: 7, borderRadius: '50%',
-                        background: '#BA7517',
-                        border: '1.5px solid var(--color-cream-bg)',
-                      }} />
-                    )}
                   </span>
                   <span style={{
                     fontSize: 10,

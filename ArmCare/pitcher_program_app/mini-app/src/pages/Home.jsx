@@ -1,4 +1,5 @@
 import { useMemo, useCallback, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../App';
 import { useAppContext } from '../hooks/useChatState';
 import { usePitcher } from '../hooks/usePitcher';
@@ -8,10 +9,15 @@ import DailyCard from '../components/DailyCard';
 import TrendChart from '../components/TrendChart';
 import UpcomingDays from '../components/UpcomingDays';
 import InsightsCard from '../components/InsightsCard';
+import SessionProgress from '../components/SessionProgress';
+import Sparkline from '../components/Sparkline';
+import StreakBadge from '../components/StreakBadge';
+import StaffPulse from '../components/StaffPulse';
 
 export default function Home() {
   const { pitcherId, initData } = useAuth();
   const { globalRefreshKey } = useAppContext();
+  const navigate = useNavigate();
 
   const suffix = globalRefreshKey ? `?_r=${globalRefreshKey}` : '';
   const { profile, log, progression, loading, error } = usePitcher(pitcherId, initData, suffix);
@@ -19,6 +25,8 @@ export default function Home() {
   const slugs = useApi('/api/exercises/slugs', initData);
   const upcoming = useApi(pitcherId ? `/api/pitcher/${pitcherId}/upcoming${suffix}` : null, initData);
   const weekSummary = useApi(pitcherId ? `/api/pitcher/${pitcherId}/week-summary${suffix}` : null, initData);
+  const trendData = useApi(pitcherId ? `/api/pitcher/${pitcherId}/trend${suffix}` : null, initData);
+  const staffPulse = useApi('/api/staff/pulse', initData);
 
   const exerciseMap = useMemo(() => {
     if (!exercises.data?.exercises) return {};
@@ -60,10 +68,12 @@ export default function Home() {
   const dayssinceOuting = flags.days_since_outing ?? 0;
   const rotationLength = profile?.rotation_length || 7;
   const daysUntilOuting = flags.next_outing_days;
-  const rotationPct = Math.min(100, (dayssinceOuting / rotationLength) * 100);
   const firstName = (profile?.name || 'Dashboard').split(' ')[0];
   const flagLevel = flags.current_flag_level || 'green';
   const isNewPitcher = !entries.length && !flags.last_outing_date;
+  const role = profile?.role || 'starter';
+  const roleLabel = role === 'starter' ? 'Starter' : 'Reliever';
+  const hasCheckedInToday = !!(todayEntry?.pre_training?.arm_feel);
 
   // Brief + stats from today's entry
   const morningBrief = todayEntry?.morning_brief || todayEntry?.plan_generated?.morning_brief;
@@ -78,49 +88,122 @@ export default function Home() {
   ];
   const totalEx = allExercises.length;
   const doneEx = allExercises.filter(ex => completed[ex.exercise_id] === true).length;
-  const donePct = totalEx > 0 ? Math.round((doneEx / totalEx) * 100) : 0;
 
   const flagDot = flagLevel === 'green' ? 'var(--color-flag-green)'
                : flagLevel === 'yellow' ? 'var(--color-flag-yellow)'
                : 'var(--color-flag-red)';
 
+  // Trend data
+  const sparkline = trendData.data?.sparkline || [];
+  const outingDayIndices = trendData.data?.outing_day_indices || [];
+  const currentStreak = trendData.data?.current_streak || 0;
+  const trendWeeks = trendData.data?.weeks || [];
+
+  // Week dots for streak badge (from weekSummary)
+  const weekDots = (weekSummary.data?.week || []).map(d => !!d.flag_level);
+
+  // Next outing day name
+  const nextOutingLabel = useMemo(() => {
+    if (daysUntilOuting == null) return null;
+    if (daysUntilOuting === 0) return 'Today';
+    if (daysUntilOuting === 1) return 'Tomorrow';
+    const d = new Date();
+    d.setDate(d.getDate() + daysUntilOuting);
+    return d.toLocaleDateString('en-US', { weekday: 'long' });
+  }, [daysUntilOuting]);
+
   return (
     <div style={{ paddingBottom: 20 }}>
-      {/* ── Maroon header band ── */}
-      <div style={{ background: 'var(--color-maroon)', padding: '14px 16px 12px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+      {/* ── 1. Enhanced header band ── */}
+      <div style={{ background: 'var(--color-maroon)', padding: '14px 16px 0' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
           <div>
-            <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.45)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 3 }}>
-              Day {dayssinceOuting} · {profile?.role || 'starter'} · {rotationLength}-day
+            <div style={{ fontSize: 9, color: 'var(--color-rose-blush)', letterSpacing: '0.06em' }}>
+              UChicago Baseball
             </div>
             <div style={{ fontSize: 20, fontWeight: 800, color: '#fff', letterSpacing: '-0.5px' }}>
               {firstName}
+              <span style={{ fontSize: 13, fontWeight: 600, marginLeft: 6 }}>{roleLabel}</span>
             </div>
           </div>
-          {/* Arm feel ring */}
-          <div style={{ background: 'rgba(255,255,255,0.12)', borderRadius: 10, padding: '5px 10px', textAlign: 'center' }}>
-            <div style={{ fontSize: 16, fontWeight: 800, color: '#fff', lineHeight: 1.1 }}>{armFeel ?? '–'}</div>
-            <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.45)', marginTop: 1 }}>arm</div>
+          {/* Arm feel + sparkline */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Sparkline data={sparkline} outingIndices={outingDayIndices} />
+            <div style={{ background: 'rgba(255,255,255,0.12)', borderRadius: 10, padding: '5px 10px', textAlign: 'center' }}>
+              <div style={{ fontSize: 16, fontWeight: 800, color: '#fff', lineHeight: 1.1 }}>{armFeel ?? '\u2013'}</div>
+              <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.45)', marginTop: 1 }}>arm</div>
+            </div>
           </div>
         </div>
-        {/* Rotation progress bar */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-          <div style={{ flex: 1, height: 3, background: 'rgba(255,255,255,0.12)', borderRadius: 2, overflow: 'hidden' }}>
-            <div style={{ width: `${rotationPct}%`, height: '100%', background: 'var(--color-rose-blush)', borderRadius: 2 }} />
+
+        {/* Footer row: next outing, session info, streak */}
+        <div style={{
+          borderTop: '0.5px solid rgba(255,255,255,0.12)',
+          padding: '8px 0 12px',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        }}>
+          <div style={{ display: 'flex', gap: 16 }}>
+            {nextOutingLabel && (
+              <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)' }}>
+                Next: <strong style={{ color: '#fff' }}>{nextOutingLabel}</strong>
+              </span>
+            )}
+            {totalEx > 0 && (
+              <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)' }}>
+                {totalEx} exercises{estDuration ? ` \u00B7 ~${estDuration}m` : ''}
+              </span>
+            )}
           </div>
-          {daysUntilOuting != null && (
-            <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)' }}>outing in {daysUntilOuting}d</span>
-          )}
+          <StreakBadge streak={currentStreak} weekDots={weekDots} />
         </div>
       </div>
 
-      {/* ── Week strip ── */}
+      {/* ── 2. Check-in banner (if not checked in) ── */}
+      {!isNewPitcher && !hasCheckedInToday && (
+        <div
+          onClick={() => navigate('/coach')}
+          style={{
+            margin: '8px 12px 0',
+            border: '1.5px solid var(--color-rose-blush)',
+            background: 'rgba(92,16,32,0.05)',
+            borderRadius: 12, padding: '10px 14px',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            cursor: 'pointer',
+          }}
+        >
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-ink-primary)' }}>
+              Morning check-in
+            </div>
+            <div style={{ fontSize: 10, color: 'var(--color-ink-muted)', marginTop: 2 }}>
+              Check in to get today's personalized plan
+            </div>
+          </div>
+          <div style={{
+            background: 'var(--color-maroon)', borderRadius: 8,
+            padding: '6px 14px', fontSize: 11, fontWeight: 700, color: '#fff',
+          }}>
+            Check In
+          </div>
+        </div>
+      )}
+
+      {/* ── 3. Session progress ── */}
+      {totalEx > 0 && !isViewingPast && hasCheckedInToday && (
+        <div style={{ padding: '8px 12px 0' }}>
+          <SessionProgress doneCount={doneEx} totalCount={totalEx} />
+        </div>
+      )}
+
+      {/* ── 4. Week strip ── */}
       {!isNewPitcher && (
-        <WeekStrip
-          week={weekSummary.data?.week || []}
-          selectedDate={selectedDate}
-          onDayClick={handleDayClick}
-        />
+        <div style={{ padding: '8px 12px 0' }}>
+          <WeekStrip
+            week={weekSummary.data?.week || []}
+            selectedDate={selectedDate}
+            onDayClick={handleDayClick}
+          />
+        </div>
       )}
 
       <div style={{ padding: '0 12px' }}>
@@ -159,7 +242,6 @@ export default function Home() {
                 padding: '10px 14px',
                 marginTop: 12,
               }}>
-                {/* Flag + label */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
                   <div style={{ width: 6, height: 6, borderRadius: '50%', background: flagDot }} />
                   <span style={{ fontSize: 9, color: 'var(--color-ink-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>
@@ -171,21 +253,25 @@ export default function Home() {
                     {morningBrief}
                   </p>
                 )}
-                {/* Stat row */}
                 {todayEntry && (
                   <div style={{ display: 'flex', marginTop: 8, borderTop: '0.5px solid var(--color-cream-border)', paddingTop: 8 }}>
-                    <StatCol label="arm" value={armFeel != null ? `${armFeel}/5` : '–'} />
+                    <StatCol label="arm" value={armFeel != null ? `${armFeel}/5` : '\u2013'} />
                     <div style={{ width: 0.5, background: 'var(--color-cream-border)' }} />
-                    <StatCol label="sleep" value={sleepHours != null ? `${sleepHours}h` : '–'} />
+                    <StatCol label="sleep" value={sleepHours != null ? `${sleepHours}h` : '\u2013'} />
                     <div style={{ width: 0.5, background: 'var(--color-cream-border)' }} />
-                    <StatCol label="est. duration" value={estDuration ? `${estDuration}m` : '–'} />
+                    <StatCol label="est. duration" value={estDuration ? `${estDuration}m` : '\u2013'} />
                   </div>
                 )}
               </div>
             )}
 
-            {/* ── Daily plan card ── */}
+            {/* ── 5. Today's plan card ── */}
             <div style={{ marginTop: 12 }}>
+              {!hasCheckedInToday && todayEntry && (
+                <p style={{ fontSize: 9, color: 'var(--color-ink-faint)', textAlign: 'right', marginBottom: 4 }}>
+                  tap info for why
+                </p>
+              )}
               <DailyCard
                 entry={displayEntry}
                 exerciseMap={exerciseMap}
@@ -195,19 +281,6 @@ export default function Home() {
                 readOnly={!!isViewingPast}
               />
             </div>
-
-            {/* ── Session progress bar ── */}
-            {totalEx > 0 && !isViewingPast && (
-              <div style={{ marginTop: 12 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <span style={{ fontSize: 10, color: 'var(--color-ink-secondary)' }}>{doneEx} / {totalEx} done</span>
-                  <span style={{ fontSize: 10, color: 'var(--color-maroon)', fontWeight: 600 }}>{donePct}%</span>
-                </div>
-                <div style={{ height: 2, background: 'var(--color-cream-border)', borderRadius: 1, overflow: 'hidden' }}>
-                  <div style={{ width: `${donePct}%`, height: '100%', background: 'var(--color-maroon)', borderRadius: 1, transition: 'width 0.3s' }} />
-                </div>
-              </div>
-            )}
           </>
         )}
 
@@ -217,10 +290,16 @@ export default function Home() {
         {/* Arm feel trend */}
         {entries.length > 0 && <TrendChart entries={entries} />}
 
-        {/* Insights */}
-        <InsightsCard observations={progression?.observations} />
-      </div>
+        {/* ── 6. Weekly insight + trend chart ── */}
+        <InsightsCard observations={progression?.observations} trendWeeks={trendWeeks} />
 
+        {/* ── 7. Staff pulse ── */}
+        {staffPulse.data && (
+          <div style={{ marginTop: 12 }}>
+            <StaffPulse data={staffPulse.data} />
+          </div>
+        )}
+      </div>
     </div>
   );
 }

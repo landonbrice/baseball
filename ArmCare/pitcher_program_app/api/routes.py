@@ -963,3 +963,184 @@ async def get_slug_map():
         if "slug" in ex:
             slug_map[ex["slug"]] = ex["id"]
     return slug_map
+
+
+# ---------------------------------------------------------------------------
+# Staff / Team endpoints
+# ---------------------------------------------------------------------------
+
+@router.get("/staff/pulse")
+async def staff_pulse():
+    """Team check-in status — public staff view (no auth required).
+
+    Returns which pitchers have checked in today, their rotation info, and role.
+    """
+    from datetime import date as _date
+
+    from bot.services import db as _db
+
+    today_str = _date.today().isoformat()
+
+    all_pitchers = _db.list_pitchers()
+
+    # Exclude test accounts
+    pitchers = [p for p in all_pitchers if p.get("pitcher_id") != "test_pitcher_001"]
+
+    pitcher_results = []
+    checked_in_count = 0
+
+    for p in pitchers:
+        pid = p.get("pitcher_id", "")
+        first_name = p.get("first_name", pid)
+
+        # Determine role
+        role_raw = (p.get("role") or "").lower()
+        if role_raw in ("reliever", "rp", "closer", "cl"):
+            role = "RP"
+        else:
+            role = "SP"
+
+        # Get active flags for rotation info
+        flags = _db.get_active_flags(pid)
+        days_since = flags.get("days_since_outing")
+
+        if role == "SP":
+            if days_since is not None:
+                rotation_info = "Day %d" % int(days_since)
+            else:
+                rotation_info = "Day 0"
+        else:
+            # Relievers: Day 0 or 1 means "Day after", otherwise "Available"
+            if days_since is not None and int(days_since) <= 1:
+                rotation_info = "Day after"
+            else:
+                rotation_info = "Available"
+
+        # Check if pitcher has a daily entry for today
+        today_entry = _db.get_daily_entries(pid, limit=1)
+        checked_in = False
+        if today_entry and today_entry[0].get("date") == today_str:
+            entry = today_entry[0]
+            # Consider checked-in if the entry has pre_training arm_feel
+            pre = entry.get("pre_training")
+            if isinstance(pre, dict) and pre.get("arm_feel") is not None:
+                checked_in = True
+            elif entry.get("arm_feel") is not None:
+                checked_in = True
+
+        if checked_in:
+            checked_in_count += 1
+
+        pitcher_results.append({
+            "first_name": first_name,
+            "checked_in": checked_in,
+            "rotation_info": rotation_info,
+            "role": role,
+        })
+
+    return {
+        "checked_in_count": checked_in_count,
+        "total_pitchers": len(pitchers),
+        "pitchers": pitcher_results,
+    }
+
+
+@router.get("/pitcher/{pitcher_id}/trend")
+async def pitcher_trend(pitcher_id: str, request: Request):
+    """4-week arm feel trend for a pitcher.
+
+    Returns weekly aggregations, a sparkline of recent arm_feel values,
+    outing-day markers, and current consecutive check-in streak.
+    """
+    _require_pitcher_auth(request, pitcher_id)
+
+    from datetime import date as _date, timedelta
+
+    from bot.services import db as _db
+
+    entries = _db.get_daily_entries(pitcher_id, limit=30)
+
+    # Entries come newest-first; reverse for chronological order
+    entries.sort(key=lambda e: e.get("date", ""))
+
+    today_str = _date.today().isoformat()
+
+    # --- Sparkline (last 15 arm_feel values) ---
+    arm_feel_entries = []
+    for e in entries:
+        af = None
+        pre = e.get("pre_training")
+        if isinstance(pre, dict):
+            af = pre.get("arm_feel")
+        if af is None:
+            af = e.get("arm_feel")
+        if af is not None:
+            arm_feel_entries.append({"date": e.get("date"), "arm_feel": af, "entry": e})
+
+    sparkline_data = arm_feel_entries[-15:] if len(arm_feel_entries) > 15 else arm_feel_entries
+    sparkline = [d["arm_feel"] for d in sparkline_data]
+
+    # --- Outing day indices (which sparkline positions had an outing) ---
+    outing_day_indices = []
+    for idx, d in enumerate(sparkline_data):
+        entry = d["entry"]
+        if entry.get("outing") is not None:
+            outing_day_indices.append(idx)
+
+    # --- Current streak (consecutive days with a check-in ending at today) ---
+    current_streak = 0
+    check_dates = set()
+    for e in entries:
+        d = e.get("date")
+        if d:
+            # Count as checked-in if there is pre_training arm_feel or arm_feel
+            pre = e.get("pre_training")
+            has_checkin = False
+            if isinstance(pre, dict) and pre.get("arm_feel") is not None:
+                has_checkin = True
+            elif e.get("arm_feel") is not None:
+                has_checkin = True
+            if has_checkin:
+                check_dates.add(d)
+
+    day = _date.today()
+    while day.isoformat() in check_dates:
+        current_streak += 1
+        day = day - timedelta(days=1)
+
+    # --- Weeks (group by ISO week, compute avg/high/low arm_feel) ---
+    week_buckets = {}  # type: dict
+    for d in arm_feel_entries:
+        entry_date = _date.fromisoformat(d["date"])
+        iso_year, iso_week, _ = entry_date.isocalendar()
+        key = (iso_year, iso_week)
+        if key not in week_buckets:
+            # Monday of this ISO week
+            monday = entry_date - timedelta(days=entry_date.weekday())
+            week_buckets[key] = {
+                "start_date": monday.isoformat(),
+                "values": [],
+            }
+        week_buckets[key]["values"].append(d["arm_feel"])
+
+    # Sort by week key and take last 4 weeks
+    sorted_keys = sorted(week_buckets.keys())[-4:]
+    weeks = []
+    for i, key in enumerate(sorted_keys, start=1):
+        bucket = week_buckets[key]
+        vals = bucket["values"]
+        weeks.append({
+            "week_label": "Wk %d" % i,
+            "start_date": bucket["start_date"],
+            "avg": round(sum(vals) / len(vals), 1),
+            "high": max(vals),
+            "low": min(vals),
+            "days_logged": len(vals),
+        })
+
+    return {
+        "weeks": weeks,
+        "sparkline": sparkline,
+        "outing_day_indices": outing_day_indices,
+        "current_streak": current_streak,
+    }
