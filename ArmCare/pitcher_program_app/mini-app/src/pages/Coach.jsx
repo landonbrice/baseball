@@ -151,48 +151,42 @@ export default function Coach() {
     }
   };
 
-  // ── Check-in flow ──
-  const startCheckin = () => {
-    setCheckinInProgress(true);
-    setCheckinFlow({ step: 'arm_report' });
-    const firstName = profile?.name?.split(' ')[0] || 'there';
-    setMessages(prev => [...prev, { role: 'bot', type: 'text', content: `Morning ${firstName}. How's the arm feeling?` }]);
+  // ── Smart defaults ──
+  const daysSince = flags.days_since_outing ?? 99;
+  const isRecoveryDay = daysSince <= 1;
+  const scheduleKnown = flags.next_outing_days != null && flags.next_outing_days > 0;
+
+  const quickClassify = (text) => {
+    const lower = text.toLowerCase();
+    if (['great', 'perfect', 'amazing', 'feels good', 'no issues'].some(w => lower.includes(w))) return { feel: 5, ack: "Good to hear." };
+    if (['sharp', 'shooting', 'numb', 'tingling'].some(w => lower.includes(w))) return { feel: 1, ack: "Noted \u2014 we'll keep things light and protective today." };
+    if (['terrible', 'really bad', 'awful'].some(w => lower.includes(w))) return { feel: 2, ack: "Noted \u2014 we'll keep things light today." };
+    if (['tight', 'sore', 'stiff', 'tender'].some(w => lower.includes(w))) return { feel: 3, ack: "Got it \u2014 I'll factor that into your plan." };
+    if (['good', 'fine', 'solid', 'normal', 'decent'].some(w => lower.includes(w))) return { feel: 4, ack: "Arm's feeling solid." };
+    const num = parseInt(text);
+    if (num >= 1 && num <= 5) {
+      if (num <= 2) return { feel: num, ack: "Noted \u2014 we'll keep things light today." };
+      if (num === 3) return { feel: 3, ack: "Got it \u2014 I'll factor that in." };
+      return { feel: num, ack: "Arm's feeling solid." };
+    }
+    return { feel: null, ack: "Got it." };
   };
 
-  const handleArmReport = (text) => {
-    setMessages(prev => [...prev, { role: 'user', type: 'text', content: text }]);
-    setCheckinFlow({ step: 'lift_pref', arm_report: text });
-    setMessages(prev => [...prev, { role: 'bot', type: 'text', content: 'What are you thinking for a lift today?' }]);
-  };
-
-  const handleLiftPref = (pref, label) => {
-    setMessages(prev => [...prev, { role: 'user', type: 'text', content: label }]);
-    setCheckinFlow(prev => ({ ...prev, step: 'throw_intent', lift_preference: pref }));
-    setMessages(prev => [...prev, { role: 'bot', type: 'text', content: 'Throwing today?' }]);
-  };
-
-  const handleThrowIntent = (intent, label) => {
-    setMessages(prev => [...prev, { role: 'user', type: 'text', content: label }]);
-    setCheckinFlow(prev => ({ ...prev, step: 'schedule', throw_intent: intent }));
-    setMessages(prev => [...prev, { role: 'bot', type: 'text', content: 'When do you pitch next?' }]);
-  };
-
-  const handleSchedule = async (days, label) => {
-    setMessages(prev => [...prev, { role: 'user', type: 'text', content: label }]);
-    const flowData = { ...checkinFlow };
+  // ── Finalize check-in — send to API ──
+  const finalizeCheckin = async (flowData) => {
     setCheckinFlow(null);
     setLoading(true);
     setMessages(prev => [...prev, { role: 'bot', type: 'text', content: 'Building your plan...' }]);
     try {
       const res = await sendChat(pitcherId, {
-        arm_report: flowData.arm_report,
-        arm_feel: null,
-        lift_preference: flowData.lift_preference,
-        throw_intent: flowData.throw_intent,
-        next_pitch_days: days,
+        arm_report: flowData.arm_report || '',
+        arm_feel: flowData.arm_feel || null,
+        lift_preference: flowData.lift_preference || 'auto',
+        throw_intent: flowData.throw_intent || 'none',
+        next_pitch_days: flowData.next_pitch_days ?? (scheduleKnown ? flags.next_outing_days : null),
       }, 'checkin', initData);
       setMessages(prev => {
-        const without = prev.slice(0, -1); // remove "Building your plan..."
+        const without = prev.slice(0, -1);
         return [...without, ...processResponse(res)];
       });
     } catch {
@@ -201,6 +195,97 @@ export default function Coach() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // ── Check-in flow ──
+  const startCheckin = () => {
+    setCheckinInProgress(true);
+    setCheckinFlow({ step: 'arm_report' });
+    const firstName = profile?.name?.split(' ')[0] || 'there';
+    const greeting = isRecoveryDay
+      ? `Morning ${firstName}. Day after \u2014 how's the arm recovering?`
+      : `Morning ${firstName}. How's the arm feeling?`;
+    setMessages(prev => [...prev, { role: 'bot', type: 'text', content: greeting }]);
+  };
+
+  const handleArmReport = (text) => {
+    setMessages(prev => [...prev, { role: 'user', type: 'text', content: text }]);
+    const { feel, ack } = quickClassify(text);
+    const flowData = { arm_report: text, arm_feel: feel };
+
+    // Smart default: recovery day → skip to schedule or plan
+    if (isRecoveryDay) {
+      flowData.lift_preference = 'rest';
+      flowData.throw_intent = 'none';
+      if (scheduleKnown) {
+        setMessages(prev => [...prev, { role: 'bot', type: 'text', content: ack + ' Recovery day \u2014 building your plan.' }]);
+        finalizeCheckin(flowData);
+        return;
+      }
+      setCheckinFlow({ ...flowData, step: 'schedule' });
+      setMessages(prev => [...prev, { role: 'bot', type: 'text', content: ack + ' Recovery day. When do you pitch next?' }]);
+      return;
+    }
+
+    // Smart default: arm feel 1-2 → rest day
+    if (feel != null && feel <= 2) {
+      flowData.lift_preference = 'rest';
+      flowData.throw_intent = 'none';
+      if (scheduleKnown) {
+        setMessages(prev => [...prev, { role: 'bot', type: 'text', content: ack + ' Rest day \u2014 building your recovery plan.' }]);
+        finalizeCheckin(flowData);
+        return;
+      }
+      setCheckinFlow({ ...flowData, step: 'schedule' });
+      setMessages(prev => [...prev, { role: 'bot', type: 'text', content: ack + ' When do you pitch next?' }]);
+      return;
+    }
+
+    // Normal flow: ack + lift preference
+    setCheckinFlow({ ...flowData, step: 'lift_pref' });
+    setMessages(prev => [...prev, { role: 'bot', type: 'text', content: ack + ' What are you thinking for a lift?' }]);
+  };
+
+  const handleLiftPref = (pref, label) => {
+    setMessages(prev => [...prev, { role: 'user', type: 'text', content: label }]);
+    const updated = { ...checkinFlow, lift_preference: pref };
+
+    // Smart default: rest day → skip throw intent
+    if (pref === 'rest') {
+      updated.throw_intent = 'none';
+      if (scheduleKnown) {
+        setMessages(prev => [...prev, { role: 'bot', type: 'text', content: 'Rest day \u2014 building your plan.' }]);
+        finalizeCheckin(updated);
+        return;
+      }
+      setCheckinFlow({ ...updated, step: 'schedule' });
+      setMessages(prev => [...prev, { role: 'bot', type: 'text', content: 'When do you pitch next?' }]);
+      return;
+    }
+
+    setCheckinFlow({ ...updated, step: 'throw_intent' });
+    setMessages(prev => [...prev, { role: 'bot', type: 'text', content: 'Throwing today?' }]);
+  };
+
+  const handleThrowIntent = (intent, label) => {
+    setMessages(prev => [...prev, { role: 'user', type: 'text', content: label }]);
+    const updated = { ...checkinFlow, throw_intent: intent };
+
+    // Smart default: skip schedule if already known
+    if (scheduleKnown) {
+      setMessages(prev => [...prev, { role: 'bot', type: 'text', content: 'Got it.' }]);
+      finalizeCheckin(updated);
+      return;
+    }
+
+    setCheckinFlow({ ...updated, step: 'schedule' });
+    setMessages(prev => [...prev, { role: 'bot', type: 'text', content: 'When do you pitch next?' }]);
+  };
+
+  const handleSchedule = async (days, label) => {
+    setMessages(prev => [...prev, { role: 'user', type: 'text', content: label }]);
+    const flowData = { ...checkinFlow, next_pitch_days: days > 0 ? days : null };
+    await finalizeCheckin(flowData);
   };
 
   // ── Outing flow ──

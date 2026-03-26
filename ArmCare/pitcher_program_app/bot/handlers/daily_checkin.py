@@ -1,11 +1,17 @@
 """Daily check-in flow using ConversationHandler.
 
-Guided open check-in: arm report (free text) → lift preference → throw intent → schedule → plan.
+Phase 3: Coaching-quality conversation. Same data gathered, but the bot
+responds to what you say before asking the next question. Smart defaults
+skip steps when data is already known.
+
+Flow (full): arm report → acknowledgment + lift pref → throw intent → schedule → plan
+Flow (day-after): arm report → acknowledgment → confirm recovery day → plan
+Flow (schedule known): arm report → acknowledgment + lift pref → throw intent → plan
 """
 
 import logging
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ContextTypes,
@@ -34,6 +40,143 @@ logger = logging.getLogger(__name__)
 ARM_REPORT, LIFT_PREF, THROW_INTENT, SCHEDULE, RELIEVER_THREW = range(5)
 
 
+# ---------------------------------------------------------------------------
+# Helpers — smart defaults and context awareness
+# ---------------------------------------------------------------------------
+
+def _get_yesterday_entry(pitcher_id):
+    """Return yesterday's log entry if it exists."""
+    try:
+        recent = get_recent_entries(pitcher_id, n=3)
+        if not recent:
+            return None
+        yesterday_str = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+        for e in reversed(recent):
+            if e.get("date") == yesterday_str:
+                return e
+        return None
+    except Exception:
+        return None
+
+
+def _get_soreness_areas(yesterday_entry):
+    """Extract specific soreness areas from yesterday's entry."""
+    if not yesterday_entry:
+        return []
+    notes = (yesterday_entry.get("pre_training") or {}).get("soreness_notes", "")
+    if not notes:
+        return []
+    areas = []
+    area_keywords = {
+        "forearm": "forearm", "elbow": "elbow", "medial": "medial elbow",
+        "shoulder": "shoulder", "bicep": "bicep", "lat": "lat",
+        "ucl": "UCL area", "scap": "scapula", "back": "back",
+    }
+    notes_lower = notes.lower()
+    for keyword, label in area_keywords.items():
+        if keyword in notes_lower:
+            areas.append(label)
+    return areas
+
+
+def _is_recovery_day(days_since, role):
+    """Return True if this is a recovery day (day 0-1 post-outing)."""
+    return days_since <= 1
+
+
+def _schedule_already_known(flags):
+    """Return True if next outing is already set and recent."""
+    next_days = flags.get("next_outing_days")
+    return next_days is not None and next_days > 0
+
+
+def _build_arm_acknowledgment(arm_feel, arm_report, days_since, concern_areas=None):
+    """Build a coaching response to the arm feel report before asking the next question."""
+    if arm_feel is None:
+        arm_feel = 4  # fallback
+
+    # Day-after-outing gets special treatment
+    if days_since <= 1:
+        if arm_feel >= 4:
+            return "Good recovery. We'll keep it light today — recovery flush and blood flow."
+        elif arm_feel == 3:
+            return "Day-after at a 3 — that's normal. Recovery focus, nothing heavy."
+        else:
+            return "That's lower than we'd like day-after. Let's prioritize recovery and keep an eye on it."
+
+    # Severe concern — immediate coaching response
+    if arm_feel <= 2:
+        if concern_areas:
+            areas = ", ".join(concern_areas[:2])
+            return f"Noted the {areas} concern. We'll go easy today — I'm flagging this."
+        return "Noted — we'll keep things light and protective today."
+
+    # Mild concern with specific areas
+    if arm_feel == 3:
+        if concern_areas:
+            areas = ", ".join(concern_areas[:2])
+            return f"Got it — some {areas} stuff going on. I'll factor that into your plan."
+        return "Got it — I'll factor that in. We'll be smart about it."
+
+    # Feeling good
+    if arm_feel >= 4:
+        if arm_report and any(w in arm_report.lower() for w in ["great", "perfect", "amazing", "100"]):
+            return "Good to hear."
+        return "Arm's feeling solid."
+
+    return "Got it."
+
+
+def _build_adaptive_greeting(first_name, pitcher_id, flags, days_since, role):
+    """Build a context-aware opening message referencing yesterday's data."""
+    base = f"Morning {first_name}."
+
+    yesterday = _get_yesterday_entry(pitcher_id)
+
+    # Reference specific soreness from yesterday
+    if yesterday:
+        areas = _get_soreness_areas(yesterday)
+        if areas:
+            return base + f" Yesterday you mentioned some {areas[0]} stuff — how's that feeling today?"
+
+        yesterday_arm = (yesterday.get("pre_training") or {}).get("arm_feel")
+        if yesterday_arm is not None:
+            if yesterday_arm <= 2:
+                return base + f" Yesterday you reported your arm at {yesterday_arm}/5 — how's it feeling today?"
+            elif yesterday_arm == 3:
+                return base + " Arm was at a 3 yesterday. Any better today?"
+
+        if yesterday.get("skip_notes"):
+            return base + " You mentioned skipping some stuff yesterday. How's the arm?"
+
+    # Day-after-outing
+    if days_since == 1:
+        return base + " Day after — how's the arm recovering?"
+
+    # Pre-outing
+    next_outing = flags.get("next_outing_days")
+    if next_outing and next_outing <= 1:
+        return base + " You've got an outing coming up. How's the arm feeling?"
+
+    # Check for active injury flags in profile
+    try:
+        profile = load_profile(pitcher_id)
+        injuries = profile.get("injury_history", [])
+        active_injuries = [i for i in injuries if i.get("flag_level") in ("yellow", "red")]
+        if active_injuries:
+            area = active_injuries[0].get("area", "").replace("_", " ")
+            if area:
+                return base + f" How's the {area} feeling today?"
+    except Exception:
+        pass
+
+    return base + " How's the arm feeling?"
+
+
+# ---------------------------------------------------------------------------
+# Conversation handlers
+# ---------------------------------------------------------------------------
+
 async def start_checkin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Begin the daily check-in flow. Adapts opening based on yesterday's data."""
     pitcher_id = get_pitcher_id_by_telegram(update.effective_user.id, update.effective_user.username)
@@ -48,7 +191,8 @@ async def start_checkin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 
     # Increment rotation day (skip for return-to-throwing phase)
     profile = load_profile(pitcher_id)
-    if profile.get("active_flags", {}).get("phase") != "return_to_throwing":
+    phase = profile.get("active_flags", {}).get("phase", "")
+    if not phase.startswith("return_to_throwing"):
         increment_days_since_outing(pitcher_id)
         profile = load_profile(pitcher_id)
     flags = profile.get("active_flags", {})
@@ -56,7 +200,13 @@ async def start_checkin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     role = profile.get("role", "starter")
     first_name = profile.get("name", "").split()[0] if profile.get("name") else "there"
 
-    # Record check-in start in chat_messages
+    # Store context for smart defaults later
+    context.user_data["days_since"] = days_since
+    context.user_data["role"] = role
+    context.user_data["flags"] = flags
+    context.user_data["schedule_known"] = _schedule_already_known(flags)
+
+    # Record check-in start
     append_context(pitcher_id, "checkin_start", f"Check-in started (day {days_since})")
 
     # 8+ days without outing for starters
@@ -80,63 +230,10 @@ async def start_checkin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         )
         return RELIEVER_THREW
 
-    # Build context-aware opening based on yesterday's data
+    # Context-aware opening
     greeting = _build_adaptive_greeting(first_name, pitcher_id, flags, days_since, role)
-
     await update.message.reply_text(greeting)
     return ARM_REPORT
-
-
-def _build_adaptive_greeting(first_name: str, pitcher_id: str, flags: dict, days_since: int, role: str) -> str:
-    """Build a context-aware opening message referencing yesterday's data."""
-    try:
-        recent = get_recent_entries(pitcher_id, n=2)
-    except Exception:
-        recent = []
-
-    # Default greeting
-    base = f"Morning {first_name}."
-
-    # Reference yesterday's arm feel if available
-    if recent:
-        yesterday = recent[-1]
-        yesterday_arm = (yesterday.get("pre_training") or {}).get("arm_feel")
-        yesterday_date = yesterday.get("date", "")
-
-        # Only reference if it was actually yesterday (not days ago)
-        today_str = datetime.now().strftime("%Y-%m-%d")
-        from datetime import timedelta
-        yesterday_str = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
-
-        if yesterday_date == yesterday_str and yesterday_arm is not None:
-            if yesterday_arm <= 2:
-                base += f" Yesterday you reported your arm at {yesterday_arm}/5 — how's it feeling today?"
-                return base
-            elif yesterday_arm == 3:
-                base += " Arm was at a 3 yesterday. Any better today?"
-                return base
-            elif yesterday_arm >= 4:
-                base += " How's the arm feeling?"
-                return base
-
-        # Reference skip notes if present
-        if yesterday_date == yesterday_str and yesterday.get("skip_notes"):
-            base += f" You mentioned skipping some stuff yesterday. How's the arm?"
-            return base
-
-    # Day-after-outing awareness
-    if days_since == 1:
-        base += " Day after — how's the arm recovering?"
-        return base
-
-    # Pre-outing awareness
-    next_outing = flags.get("next_outing_days")
-    if next_outing and next_outing <= 1:
-        base += " You've got an outing coming up. How's the arm feeling?"
-        return base
-
-    base += " How's the arm feeling?"
-    return base
 
 
 async def reliever_threw_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -159,24 +256,83 @@ async def reliever_threw_callback(update: Update, context: ContextTypes.DEFAULT_
 
 
 async def arm_report_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Handle arm feel — accepts free text or a number 1-5."""
-    text = update.message.text.strip()
+    """Handle arm feel report. Acknowledges before asking the next question.
 
-    # If it's a plain number 1-5, use directly
+    Smart defaults:
+    - Day 0-1 post-outing: auto-set recovery, skip to schedule/plan
+    - Arm feel 1-2: auto-set rest day, skip throw intent
+    """
+    text = update.message.text.strip()
+    days_since = context.user_data.get("days_since", 99)
+    flags = context.user_data.get("flags", {})
+
+    # Parse arm feel
+    arm_feel = None
+    arm_report = ""
+    concern_areas = []
     try:
         num = int(text)
         if 1 <= num <= 5:
-            context.user_data["arm_feel"] = num
-            context.user_data["arm_report"] = ""
+            arm_feel = num
         else:
-            context.user_data["arm_report"] = text
-            context.user_data["arm_feel"] = None  # classify later
+            arm_report = text
     except ValueError:
-        # Free text — store for LLM classification
-        context.user_data["arm_report"] = text
-        context.user_data["arm_feel"] = None
+        arm_report = text
 
-    # Move to lift preference
+    # Quick-classify free text for acknowledgment (full LLM classification happens at plan gen)
+    if arm_feel is None and arm_report:
+        arm_feel, concern_areas = _quick_classify(arm_report)
+
+    context.user_data["arm_feel"] = arm_feel
+    context.user_data["arm_report"] = arm_report
+    context.user_data["concern_areas"] = concern_areas
+
+    # Build coaching acknowledgment
+    ack = _build_arm_acknowledgment(arm_feel, arm_report, days_since, concern_areas)
+
+    # --- SMART DEFAULT: Recovery day (day 0-1 post-outing) ---
+    if _is_recovery_day(days_since, context.user_data.get("role", "starter")):
+        context.user_data["lift_preference"] = "rest"
+        context.user_data["throw_intent"] = "none"
+
+        if _schedule_already_known(flags):
+            # Skip everything — go straight to plan
+            await update.message.reply_text(ack + " Recovery day — I'll build your plan.")
+            return await _generate_plan_and_respond(update.message, context)
+        else:
+            # Just need schedule
+            keyboard = InlineKeyboardMarkup([
+                [
+                    InlineKeyboardButton("Tomorrow", callback_data="schedule_1"),
+                    InlineKeyboardButton("2 days", callback_data="schedule_2"),
+                    InlineKeyboardButton("3+ days", callback_data="schedule_3"),
+                    InlineKeyboardButton("Not sure", callback_data="schedule_0"),
+                ],
+            ])
+            await update.message.reply_text(ack + " Recovery day. When do you pitch next?", reply_markup=keyboard)
+            return SCHEDULE
+
+    # --- SMART DEFAULT: Arm feel 1-2 → rest day, skip throw ---
+    if arm_feel is not None and arm_feel <= 2:
+        context.user_data["lift_preference"] = "rest"
+        context.user_data["throw_intent"] = "none"
+
+        if _schedule_already_known(flags):
+            await update.message.reply_text(ack + " Rest day — building your recovery plan.")
+            return await _generate_plan_and_respond(update.message, context)
+        else:
+            keyboard = InlineKeyboardMarkup([
+                [
+                    InlineKeyboardButton("Tomorrow", callback_data="schedule_1"),
+                    InlineKeyboardButton("2 days", callback_data="schedule_2"),
+                    InlineKeyboardButton("3+ days", callback_data="schedule_3"),
+                    InlineKeyboardButton("Not sure", callback_data="schedule_0"),
+                ],
+            ])
+            await update.message.reply_text(ack + " When do you pitch next?", reply_markup=keyboard)
+            return SCHEDULE
+
+    # --- NORMAL FLOW: Acknowledge + ask lift preference ---
     keyboard = InlineKeyboardMarkup([
         [
             InlineKeyboardButton("Upper", callback_data="lift_upper"),
@@ -189,10 +345,39 @@ async def arm_report_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         ],
     ])
     await update.message.reply_text(
-        "Got it. What are you thinking for a lift today?",
+        ack + " What are you thinking for a lift?",
         reply_markup=keyboard,
     )
     return LIFT_PREF
+
+
+def _quick_classify(arm_report):
+    """Fast rule-based classification for acknowledgment. Full LLM runs later."""
+    report_lower = arm_report.lower()
+    areas = []
+
+    # Extract concern areas
+    area_keywords = {
+        "forearm": "forearm", "elbow": "elbow", "medial": "medial elbow",
+        "shoulder": "shoulder", "bicep": "bicep", "ucl": "UCL area",
+        "lat": "lat", "scap": "scapula",
+    }
+    for keyword, label in area_keywords.items():
+        if keyword in report_lower:
+            areas.append(label)
+
+    if any(w in report_lower for w in ["great", "perfect", "amazing", "100", "feel good", "feels good", "no issues"]):
+        return 5, []
+    if any(w in report_lower for w in ["sharp", "shooting", "numb", "tingling", "swelling", "can't"]):
+        return 1, areas or ["immediate_concern"]
+    if any(w in report_lower for w in ["terrible", "really bad", "awful"]):
+        return 2, areas or ["significant_concern"]
+    if any(w in report_lower for w in ["tight", "sore", "stiff", "tender"]):
+        return 3, areas or ["mild_concern"]
+    if any(w in report_lower for w in ["good", "fine", "solid", "normal", "decent", "ok", "okay", "alright"]):
+        return 4, []
+
+    return None, areas  # Unknown — will be LLM-classified later
 
 
 async def lift_pref_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -203,8 +388,30 @@ async def lift_pref_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
     pref = query.data.replace("lift_", "")
     context.user_data["lift_preference"] = pref
 
-    pref_labels = {"upper": "Upper body", "lower": "Lower body", "full": "Full body", "rest": "Rest day", "auto": "I'll pick"}
+    pref_labels = {
+        "upper": "Upper body", "lower": "Lower body", "full": "Full body",
+        "rest": "Rest day", "auto": "I'll pick",
+    }
     await query.edit_message_text(f"Lift: {pref_labels.get(pref, pref)}.")
+
+    # --- SMART DEFAULT: Skip throw intent if rest day ---
+    if pref == "rest":
+        context.user_data["throw_intent"] = "none"
+        flags = context.user_data.get("flags", {})
+        if _schedule_already_known(flags):
+            await query.message.reply_text("Rest day — building your plan.")
+            return await _generate_plan_and_respond(query.message, context)
+        else:
+            keyboard = InlineKeyboardMarkup([
+                [
+                    InlineKeyboardButton("Tomorrow", callback_data="schedule_1"),
+                    InlineKeyboardButton("2 days", callback_data="schedule_2"),
+                    InlineKeyboardButton("3+ days", callback_data="schedule_3"),
+                    InlineKeyboardButton("Not sure", callback_data="schedule_0"),
+                ],
+            ])
+            await query.message.reply_text("When do you pitch next?", reply_markup=keyboard)
+            return SCHEDULE
 
     keyboard = InlineKeyboardMarkup([
         [
@@ -217,10 +424,7 @@ async def lift_pref_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
             InlineKeyboardButton("No", callback_data="throw_none"),
         ],
     ])
-    await query.message.reply_text(
-        "Throwing today?",
-        reply_markup=keyboard,
-    )
+    await query.message.reply_text("Throwing today?", reply_markup=keyboard)
     return THROW_INTENT
 
 
@@ -237,6 +441,14 @@ async def throw_intent_callback(update: Update, context: ContextTypes.DEFAULT_TY
         label = "No throwing"
     await query.edit_message_text(f"Throwing: {label}.")
 
+    # --- SMART DEFAULT: Skip schedule if already known ---
+    flags = context.user_data.get("flags", {})
+    if _schedule_already_known(flags):
+        next_days = flags.get("next_outing_days")
+        context.user_data["next_pitch_days"] = next_days
+        await query.message.reply_text("Building your plan...")
+        return await _generate_plan_and_respond(query.message, context)
+
     keyboard = InlineKeyboardMarkup([
         [
             InlineKeyboardButton("Tomorrow", callback_data="schedule_1"),
@@ -245,15 +457,12 @@ async def throw_intent_callback(update: Update, context: ContextTypes.DEFAULT_TY
             InlineKeyboardButton("Not sure", callback_data="schedule_0"),
         ],
     ])
-    await query.message.reply_text(
-        "When do you pitch next?",
-        reply_markup=keyboard,
-    )
+    await query.message.reply_text("When do you pitch next?", reply_markup=keyboard)
     return SCHEDULE
 
 
 async def schedule_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Handle schedule selection, classify arm, run triage, generate plan."""
+    """Handle schedule selection, then generate plan."""
     query = update.callback_query
     await query.answer()
 
@@ -266,7 +475,11 @@ async def schedule_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         await query.edit_message_text("Next pitch: not sure.")
 
     await query.message.reply_text("Building your plan...")
+    return await _generate_plan_and_respond(query.message, context)
 
+
+async def _generate_plan_and_respond(message, context) -> int:
+    """Shared plan generation + response delivery. Called from multiple exit points."""
     pitcher_id = context.user_data["pitcher_id"]
     arm_report = context.user_data.get("arm_report", "")
     arm_feel = context.user_data.get("arm_feel")
@@ -274,14 +487,14 @@ async def schedule_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     throw_intent = context.user_data.get("throw_intent", "none")
     next_pitch_days = context.user_data.get("next_pitch_days")
 
-    # Classify arm report if free text was given
+    # Full LLM classification if quick-classify didn't resolve
     if arm_feel is None and arm_report:
         arm_feel, concern_areas = await _classify_arm_report(arm_report)
         context.user_data["arm_feel"] = arm_feel
     elif arm_feel is None:
-        arm_feel = 4  # default if nothing provided
+        arm_feel = 4
 
-    # Update schedule/rotation if pitcher specified next pitch
+    # Update schedule/rotation if specified
     if next_pitch_days and next_pitch_days > 0:
         profile = load_profile(pitcher_id)
         rotation = profile.get("rotation_length", 7)
@@ -291,7 +504,7 @@ async def schedule_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             "next_outing_days": next_pitch_days,
         })
 
-    # Default sleep to profile baseline (WHOOP integration will replace this)
+    # Default sleep to profile baseline
     profile = load_profile(pitcher_id)
     sleep_hours = profile.get("biometric_integration", {}).get("avg_sleep_hours") or 7.0
 
@@ -307,10 +520,10 @@ async def schedule_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         # Send triage + brief
         flag = result["flag_level"].upper()
         brief = result.get("morning_brief") or result.get("triage_reasoning", "")
-        await query.message.reply_text(f"{flag} flag. {brief}")
+        await message.reply_text(f"{flag} flag. {brief}")
 
         for alert in result["alerts"]:
-            await query.message.reply_text(f"⚠️ {alert}")
+            await message.reply_text(f"⚠️ {alert}")
 
         # Dashboard link
         from bot.config import MINI_APP_URL
@@ -319,20 +532,20 @@ async def schedule_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             keyboard = InlineKeyboardMarkup([
                 [InlineKeyboardButton("Open full plan", web_app=WebAppInfo(url=MINI_APP_URL))]
             ])
-            await query.message.reply_text(
+            await message.reply_text(
                 "Your plan is ready. Tap below for the full breakdown.",
                 reply_markup=keyboard,
             )
         else:
             reply_markup = build_completion_keyboard()
-            await query.message.reply_text(result["plan_narrative"], reply_markup=reply_markup)
+            await message.reply_text(result["plan_narrative"], reply_markup=reply_markup)
 
         if result["weekly_summary"]:
-            await query.message.reply_text(result["weekly_summary"])
+            await message.reply_text(result["weekly_summary"])
 
     except Exception as e:
         logger.error(f"Error in check-in flow: {e}", exc_info=True)
-        await query.message.reply_text(
+        await message.reply_text(
             "Something went wrong generating your plan. Try /checkin again, "
             "or let your coach know."
         )
@@ -340,19 +553,14 @@ async def schedule_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     return ConversationHandler.END
 
 
-async def _classify_arm_report(arm_report: str) -> tuple[int, list[str]]:
-    """Classify free-text arm report into arm_feel (1-5) and concern areas."""
-    report_lower = arm_report.lower()
+async def _classify_arm_report(arm_report):
+    """Classify free-text arm report into arm_feel (1-5) and concern areas via LLM."""
+    # Try quick classification first
+    arm_feel, areas = _quick_classify(arm_report)
+    if arm_feel is not None:
+        return arm_feel, areas
 
-    # Quick rule-based for obvious cases
-    if any(w in report_lower for w in ["great", "perfect", "amazing", "100", "feel good", "feels good", "no issues"]):
-        return 5, []
-    if any(w in report_lower for w in ["sharp", "shooting", "numb", "tingling", "swelling", "can't"]):
-        return 1, ["immediate_concern"]
-    if any(w in report_lower for w in ["terrible", "really bad", "awful"]):
-        return 2, ["significant_concern"]
-
-    # For nuanced reports, use LLM classification
+    # LLM classification for nuanced reports
     try:
         from bot.services.llm import call_llm
         response = await call_llm(
@@ -366,12 +574,7 @@ async def _classify_arm_report(arm_report: str) -> tuple[int, list[str]]:
         return int(data.get("arm_feel", 4)), data.get("areas", [])
     except Exception as e:
         logger.warning(f"Arm report classification failed, defaulting to 4: {e}")
-        # Default to 4 with mild concern if they mentioned specific areas
-        concern = []
-        if any(w in report_lower for w in ["tight", "sore", "forearm", "elbow", "shoulder"]):
-            concern = ["mild_concern"]
-            return 3, concern
-        return 4, []
+        return 4, areas
 
 
 async def plan_completion_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -432,7 +635,7 @@ async def skip_details_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     await update.message.reply_text("Got it — noted for your log.")
 
 
-def _update_log_completion(pitcher_id: str, action: str) -> None:
+def _update_log_completion(pitcher_id, action):
     """Update the most recent log entry with completion status."""
     log = load_log(pitcher_id)
     today = datetime.now().strftime("%Y-%m-%d")
