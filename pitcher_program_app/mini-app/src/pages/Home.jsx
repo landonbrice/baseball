@@ -80,9 +80,7 @@ export default function Home() {
 
   return (
     <div style={{ paddingBottom: 20 }}>
-      <p style={{ padding: '4px 12px', fontSize: 9, color: '#999' }}>{'v9b: header additions'}</p>
-
-      {/* Header WITH sparkline, arm feel, footer row */}
+      {/* Header */}
       <div style={{ background: '#5c1020', padding: '14px 16px 0' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
           <div>
