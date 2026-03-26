@@ -327,9 +327,9 @@ function ExerciseItem({ exerciseId, exercise, rx, prescription, note: rawNote, l
           </p>
           {/* Full prescription on its own line */}
           <p style={{ fontSize: 11, color: isFpm && !completed ? 'var(--color-maroon)' : 'var(--color-ink-muted)', margin: 0 }}>
-            {isFpm && !completed && <span>priority \u00B7 </span>}
+            {isFpm && !completed && <span>{'priority \u00B7 '}</span>}
             {fullRx}
-            {note && !isFpm && <span style={{ color: 'var(--color-maroon)' }}> \u00B7 {note}</span>}
+            {note && !isFpm && <span style={{ color: 'var(--color-maroon)' }}>{' \u00B7 '}{note}</span>}
           </p>
         </div>
 

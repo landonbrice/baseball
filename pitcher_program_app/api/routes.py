@@ -992,7 +992,8 @@ async def staff_pulse():
 
     for p in pitchers:
         pid = p.get("pitcher_id", "")
-        first_name = p.get("first_name", pid)
+        full_name = p.get("name") or pid
+        first_name = full_name.split()[0] if full_name else pid
 
         # Determine role
         role_raw = (p.get("role") or "").lower()

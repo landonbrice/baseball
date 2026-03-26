@@ -218,12 +218,56 @@ Project: `pitcher-training-intel` (us-east-1)
 | `chat_messages` | Cross-platform conversation persistence — source (telegram/mini_app), role, content |
 | `weekly_summaries` | Aggregated weekly data for long-term tracking |
 
+## Deployment
+
+### Architecture
+```
+GitHub (landonbrice/baseball)
+  └─ pitcher_program_app/          ← Railway root
+       ├─ bot/ + api/              ← Python backend (Railway)
+       ├─ mini-app/                ← React frontend (Vercel)
+       └─ data/                    ← JSON fallback (read-only, Supabase is primary)
+```
+
+### Railway (Bot + API)
+- **Service:** Single process via `Procfile: web: python -m bot.run`
+- **Root directory:** `pitcher_program_app` (or repo root with `cd pitcher_program_app`)
+- **Auto-deploy:** On push to `main`
+- **Required env vars:** `TELEGRAM_BOT_TOKEN`, `DEEPSEEK_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`
+- **Optional env vars:** `MINI_APP_URL`, `DISABLE_AUTH` (dev only)
+
+### Vercel (Mini App)
+- **Root directory:** `pitcher_program_app/mini-app`
+- **Framework:** Vite (auto-detected)
+- **Build:** `npm run build` → `dist/`
+- **Auto-deploy:** On push to `main`
+- **Env vars:** `VITE_API_URL=https://baseball-production-9d28.up.railway.app` (set in `.env.production`)
+
+### Supabase (Database)
+- **Project:** `pitcher-training-intel` (us-east-1, free tier)
+- **URL:** `https://beyolhukpbvvoxvjnwtd.supabase.co`
+- **Migrations:** Applied via Supabase MCP or dashboard SQL editor
+- **Migration script:** `python -m scripts.migrate_to_supabase` (idempotent, safe to re-run)
+- **Backup:** Supabase handles persistence. JSON files in `data/` are read-only fallback.
+
+### Deploy Checklist
+1. Push to `main` → Railway + Vercel auto-deploy
+2. If adding new Supabase tables/columns → apply migration first via MCP or dashboard
+3. If changing env vars → update in Railway dashboard, trigger redeploy
+4. Verify: bot responds to `/checkin`, API health at `/api/staff/pulse`, mini-app loads in Telegram
+
+### Data Safety
+- **Supabase is source of truth.** JSON files are read-only fallback (`USE_JSON_FALLBACK=true`).
+- **`data_sync.py` is disabled.** No more auto-push to GitHub on writes.
+- **JSONB guard pattern:** Always use `(x.get("field") or {}).get()` in Python, `Array.isArray()`/`typeof` in React. See `mini-app/src/utils/sanitize.js`.
+
 ## Known Issues & Tech Debt
 
 - Exercise library has YouTube link gaps (see `unmatched_youtube.csv`)
 - Templates reference exercise IDs that must exist in library — no validation
 - WHOOP API integration is a stub (schema fields exist, no API calls)
 - `data_sync.py` still exists but is disabled — can be removed entirely
+- Bot `/checkin` may hang if DeepSeek API is slow — needs timeout on LLM calls
 
 ## Bot Scope Boundaries
 
