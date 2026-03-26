@@ -128,10 +128,27 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
 
     # Use reasoning model for RTT pitchers or complex injury profiles
     use_reasoning = phase == "return_to_throwing" or flag_level == "red"
-    if use_reasoning:
-        raw = await call_llm_reasoning(system_prompt, user_prompt, max_tokens=4000)
-    else:
-        raw = await call_llm(system_prompt, user_prompt, max_tokens=2000)
+    try:
+        if use_reasoning:
+            raw = await call_llm_reasoning(system_prompt, user_prompt, max_tokens=4000)
+        else:
+            raw = await call_llm(system_prompt, user_prompt, max_tokens=2000)
+    except (TimeoutError, Exception) as e:
+        logger.warning(f"LLM call failed for plan generation ({type(e).__name__}: {e}), using template fallback")
+        return {
+            "narrative": f"Your Day {rotation_day} plan is ready (built from your template).",
+            "morning_brief": f"Day {rotation_day} — plan generated from template due to slow AI response.",
+            "arm_care": None,
+            "lifting": None,
+            "throwing": None,
+            "notes": ["Plan was generated from your template. Check back later for a fully personalized version."],
+            "soreness_response": None,
+            "exercise_blocks": fallback_exercise_blocks,
+            "throwing_plan": fallback_throwing_plan,
+            "estimated_duration_min": estimated_duration_min,
+            "modifications_applied": triage_result.get("modifications", []),
+            "template_day": day_key,
+        }
 
     # Parse structured JSON from LLM response
     plan = _parse_plan_json(raw)

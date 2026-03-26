@@ -450,11 +450,22 @@ async def post_chat(pitcher_id: str, request: Request):
                 new_day = max(0, rotation - int(next_pitch_days))
                 update_active_flags(pitcher_id, {"days_since_outing": new_day, "next_outing_days": int(next_pitch_days)})
 
-            result = await process_checkin(
-                pitcher_id, int(arm_feel), float(sleep_hours),
-                arm_report=arm_report, lift_preference=lift_preference,
-                throw_intent=throw_intent, next_pitch_days=next_pitch_days,
-            )
+            try:
+                result = await process_checkin(
+                    pitcher_id, int(arm_feel), float(sleep_hours),
+                    arm_report=arm_report, lift_preference=lift_preference,
+                    throw_intent=throw_intent, next_pitch_days=next_pitch_days,
+                )
+            except Exception as checkin_err:
+                logger.error(f"Check-in processing error for {pitcher_id}: {checkin_err}")
+                return {
+                    "messages": [
+                        {"type": "text", "content": "Plan generation is running slow. Your check-in data has been saved."},
+                        {"type": "status", "content": "plan_loaded"},
+                    ],
+                    "morning_brief": None,
+                    "flag_level": "green",
+                }
 
             messages = []
             flag = result["flag_level"].upper()
