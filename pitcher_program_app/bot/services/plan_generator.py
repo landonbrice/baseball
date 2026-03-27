@@ -196,16 +196,25 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
                 ],
             })
 
+        # Use structured template for throwing (phased exercises) instead of LLM text.
+        # Merge any useful LLM detail/reasoning into the structured plan.
+        structured_throwing = fallback_throwing_plan
+        if structured_throwing and throwing_data:
+            llm_detail = throwing_data.get("detail") or throwing_data.get("details") or ""
+            if llm_detail and isinstance(structured_throwing, dict):
+                existing_reasoning = structured_throwing.get("reasoning", "")
+                structured_throwing["reasoning"] = f"{existing_reasoning} {llm_detail}".strip() if existing_reasoning else llm_detail
+
         return {
             "narrative": narrative,
             "morning_brief": morning_brief,
             "arm_care": arm_care_data,
             "lifting": lifting_data,
-            "throwing": throwing_data,
+            "throwing": structured_throwing or throwing_data,
             "notes": notes,
             "soreness_response": soreness_response,
             "exercise_blocks": exercise_blocks,
-            "throwing_plan": throwing_data if throwing_data.get("type") != "none" else None,
+            "throwing_plan": structured_throwing or (throwing_data if throwing_data.get("type") != "none" else None),
             "estimated_duration_min": lifting_data.get("estimated_duration_min", estimated_duration_min),
             "modifications_applied": triage_result.get("modifications", []),
             "template_day": day_key,

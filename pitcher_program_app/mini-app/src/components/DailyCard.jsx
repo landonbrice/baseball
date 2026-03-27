@@ -45,10 +45,18 @@ export default function DailyCard({ entry, exerciseMap = {}, slugMap = {}, pitch
   }
 
   const { plan_generated } = entry;
+  // Prefer structured throwing_plan (with phases) over flat entry.throwing
+  const resolveThrowingData = () => {
+    const tp = plan_generated?.throwing_plan;
+    if (tp && Array.isArray(tp.phases) && tp.phases.some(p => p.exercises?.length > 0)) return tp;
+    const et = entry.throwing;
+    if (et && Array.isArray(et.phases) && et.phases.some(p => p.exercises?.length > 0)) return et;
+    return et || plan_generated?.throwing;
+  };
   const blockData = {
     arm_care: entry.arm_care || plan_generated?.arm_care,
     lifting: entry.lifting || plan_generated?.lifting,
-    throwing: entry.throwing || plan_generated?.throwing,
+    throwing: resolveThrowingData(),
   };
   const rawNotes = entry.notes || plan_generated?.notes;
   const notes = Array.isArray(rawNotes) ? rawNotes : [];

@@ -186,8 +186,21 @@ async def process_checkin(
         names = [ex.get("name", "") for ex in plan_result["lifting"]["exercises"][:5]]
         lifting_summary = f"Lift: {', '.join(names)}"
     throwing_summary = ""
-    if plan_result and (plan_result.get("throwing") or {}).get("type", "none") != "none":
-        throwing_summary = f"Throwing: {plan_result['throwing'].get('type', '')}"
+    throwing_data = (plan_result.get("throwing") or {}) if plan_result else {}
+    if throwing_data.get("type", "none") != "none" and throwing_data.get("type") != "no_throw":
+        day_label = throwing_data.get("day_type_label") or throwing_data.get("type", "")
+        vol = (throwing_data.get("volume_summary") or {}).get("total_throws_estimate")
+        intensity = throwing_data.get("intensity_range", "")
+        parts = [f"Throwing: {day_label}"]
+        if intensity:
+            parts.append(f"({intensity})")
+        if vol:
+            parts.append(f"~{vol} throws")
+        phases = throwing_data.get("phases") or []
+        phase_names = [p.get("phase_name", "") for p in phases if p.get("exercises")]
+        if phase_names:
+            parts.append(f"[{' -> '.join(phase_names)}]")
+        throwing_summary = " ".join(parts)
     mods = plan_result.get("modifications_applied", []) if plan_result else []
     mods_str = f" Mods: {', '.join(mods[:3])}" if mods else ""
 
