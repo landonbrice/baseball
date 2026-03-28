@@ -12,7 +12,7 @@ import logging
 import os
 from datetime import datetime
 
-from bot.config import PITCHERS_DIR
+from bot.config import PITCHERS_DIR, CHICAGO_TZ
 
 logger = logging.getLogger(__name__)
 
@@ -258,7 +258,7 @@ def append_context(pitcher_id: str, update_type: str, content: str) -> None:
 
     # Filesystem fallback (original logic)
     path = os.path.join(get_pitcher_dir(pitcher_id), "context.md")
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
+    timestamp = datetime.now(CHICAGO_TZ).strftime("%Y-%m-%d %H:%M")
     entry = f"- [{timestamp}] ({update_type}) {content}\n"
     with open(path, "a") as f:
         f.write(entry)
@@ -290,7 +290,7 @@ def append_log_entry(pitcher_id: str, entry: dict) -> None:
     """Append a new entry to a pitcher's daily log."""
     if _using_supabase():
         if not entry.get("date"):
-            entry["date"] = datetime.now().strftime("%Y-%m-%d")
+            entry["date"] = datetime.now(CHICAGO_TZ).strftime("%Y-%m-%d")
         row = dict(entry)
         row.pop("id", None)
         row.pop("created_at", None)

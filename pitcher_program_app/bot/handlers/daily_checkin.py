@@ -189,12 +189,9 @@ async def start_checkin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     context.user_data["pitcher_id"] = pitcher_id
     context.user_data["conversation_history"] = []
 
-    # Increment rotation day (skip for return-to-throwing phase)
+    # Read current rotation state (increment deferred until successful check-in)
     profile = load_profile(pitcher_id)
     phase = (profile.get("active_flags") or {}).get("phase", "")
-    if not phase.startswith("return_to_throwing"):
-        increment_days_since_outing(pitcher_id)
-        profile = load_profile(pitcher_id)
     flags = profile.get("active_flags", {})
     days_since = flags.get("days_since_outing", 0)
     role = profile.get("role", "starter")
@@ -628,11 +625,27 @@ async def _generate_plan_and_respond(message, context) -> int:
             arm_clarification=arm_clarification,
         )
 
+        # Increment rotation day only after successful check-in
+        profile = load_profile(pitcher_id)
+        phase = (profile.get("active_flags") or {}).get("phase", "")
+        if not phase.startswith("return_to_throwing"):
+            increment_days_since_outing(pitcher_id)
+
         # Remove the "generating" message
         try:
             await status_msg.delete()
         except Exception:
             pass
+
+        # Handle plan generation failure (check-in data saved, but no plan)
+        if not result.get("plan_narrative") and not result.get("morning_brief"):
+            flag = result["flag_level"].upper()
+            await message.reply_text(
+                f"{flag} flag. Your check-in data has been saved.\n\n"
+                "Plan generation had a hiccup — your exercises are based on your template today. "
+                "You can try /checkin again for a personalized plan, or open the mini app."
+            )
+            return ConversationHandler.END
 
         # Send triage + brief
         flag = result["flag_level"].upper()
@@ -660,16 +673,6 @@ async def _generate_plan_and_respond(message, context) -> int:
         if result["weekly_summary"]:
             await message.reply_text(result["weekly_summary"])
 
-    except TimeoutError:
-        logger.error(f"LLM timeout during check-in for {pitcher_id}")
-        try:
-            await status_msg.delete()
-        except Exception:
-            pass
-        await message.reply_text(
-            "Plan generation is taking longer than usual. Your check-in data has been saved.\n\n"
-            "Try /checkin again in a minute, or open the mini app for your last plan."
-        )
     except Exception as e:
         logger.error(f"Error in check-in flow: {e}", exc_info=True)
         try:
@@ -677,8 +680,8 @@ async def _generate_plan_and_respond(message, context) -> int:
         except Exception:
             pass
         await message.reply_text(
-            "Something went wrong generating your plan. Try /checkin again, "
-            "or let your coach know."
+            "There was an issue generating your plan. Your check-in data may not have been saved.\n\n"
+            "Try /checkin again, or open the mini app for your last plan."
         )
 
     return ConversationHandler.END

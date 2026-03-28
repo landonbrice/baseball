@@ -39,8 +39,11 @@ export default function Home() {
   const [showUpcoming, setShowUpcoming] = useState(false);
 
   const entries = log?.entries || [];
-  const todayStr = new Date().toISOString().split('T')[0];
-  const todayEntry = entries.find(e => e.date === todayStr) || entries[entries.length - 1];
+  const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+  const exactTodayEntry = entries.find(e => e.date === todayStr);
+  const todayEntry = exactTodayEntry || entries[entries.length - 1];
+  const isShowingStaleEntry = !exactTodayEntry && !!todayEntry;
+  const checkinSavedButNoPlan = exactTodayEntry && !exactTodayEntry.plan_narrative && !!exactTodayEntry.pre_training;
   const displayEntry = useMemo(() => {
     if (!selectedDate) return todayEntry;
     return entries.find(e => e.date === selectedDate) || null;
@@ -133,6 +136,20 @@ export default function Home() {
             </div>
           </div>
           <div style={{ background: '#5c1020', borderRadius: 8, padding: '6px 14px', fontSize: 11, fontWeight: 700, color: '#fff' }}>{'Check In'}</div>
+        </div>
+      )}
+
+      {/* Stale plan warning */}
+      {isShowingStaleEntry && !selectedDate && (
+        <div onClick={() => navigate('/coach')} style={{ margin: '8px 12px 0', background: '#fff3cd', border: '1px solid #ffc107', borderRadius: 8, padding: '8px 12px', fontSize: 11, color: '#856404', cursor: 'pointer' }}>
+          {'Showing plan from '}{todayEntry.date}{'. Check in to get today\u2019s plan \u2192'}
+        </div>
+      )}
+
+      {/* Partial check-in (data saved but plan generation failed) */}
+      {checkinSavedButNoPlan && !selectedDate && (
+        <div onClick={() => navigate('/coach')} style={{ margin: '8px 12px 0', background: '#d4edda', border: '1px solid #28a745', borderRadius: 8, padding: '8px 12px', fontSize: 11, color: '#155724', cursor: 'pointer' }}>
+          {'Check-in saved. Plan generation had an issue \u2014 showing template exercises. Tap to retry \u2192'}
         </div>
       )}
 

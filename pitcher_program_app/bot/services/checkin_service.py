@@ -3,6 +3,7 @@
 import logging
 from datetime import datetime
 
+from bot.config import CHICAGO_TZ
 from bot.services.triage import triage
 from bot.services.triage_llm import llm_triage_refinement
 from bot.services.plan_generator import generate_plan
@@ -110,11 +111,12 @@ async def process_checkin(
             logger.warning(f"LLM triage refinement failed, using rule-based result: {e}")
 
     # Persist flag_level, arm_feel, and explicit check-in timestamp
-    from datetime import datetime as _dt
+    chicago_now = datetime.now(CHICAGO_TZ)
+    today_str = chicago_now.strftime("%Y-%m-%d")
     update_active_flags(pitcher_id, {
         "current_flag_level": triage_result["flag_level"],
         "current_arm_feel": arm_feel,
-        "phase": f"checked_in_{_dt.now().strftime('%Y-%m-%d')}",
+        "phase": f"checked_in_{today_str}",
     })
 
     # Run progression analysis
@@ -126,6 +128,33 @@ async def process_checkin(
 
     # Build recent history context (Refinement 3)
     recent_history = _build_recent_history_context(pitcher_id, n=5)
+
+    # Save partial entry BEFORE plan generation so check-in data persists
+    # even if LLM/plan generation fails
+    rotation_day = (profile.get("active_flags") or {}).get("days_since_outing", 0)
+    bot_observations = progression.get("observations") or None
+    partial_entry = {
+        "date": today_str,
+        "rotation_day": rotation_day,
+        "pre_training": {
+            "arm_feel": arm_feel,
+            "overall_energy": energy,
+            "sleep_hours": sleep_hours,
+            "flag_level": triage_result["flag_level"],
+        },
+        "plan_narrative": None,
+        "morning_brief": None,
+        "arm_care": None,
+        "lifting": None,
+        "throwing": None,
+        "notes": [],
+        "soreness_response": None,
+        "plan_generated": None,
+        "actual_logged": None,
+        "completed_exercises": {},
+        "bot_observations": bot_observations,
+    }
+    append_log_entry(pitcher_id, partial_entry)
 
     # Generate plan with check-in inputs + history
     checkin_inputs = {}
@@ -141,14 +170,16 @@ async def process_checkin(
         checkin_inputs["arm_clarification"] = arm_clarification
     if recent_history:
         checkin_inputs["recent_history"] = recent_history
-    plan_result = await generate_plan(pitcher_id, triage_result, checkin_inputs=checkin_inputs)
 
-    # Build and append log entry
-    rotation_day = (profile.get("active_flags") or {}).get("days_since_outing", 0)
-    bot_observations = progression.get("observations") or None
+    try:
+        plan_result = await generate_plan(pitcher_id, triage_result, checkin_inputs=checkin_inputs)
+    except Exception as e:
+        logger.error(f"Plan generation failed for {pitcher_id}: {e}", exc_info=True)
+        plan_result = None
 
+    # Build full entry and upsert (same date = updates the partial entry)
     entry = {
-        "date": datetime.now().strftime("%Y-%m-%d"),
+        "date": today_str,
         "rotation_day": rotation_day,
         "pre_training": {
             "arm_feel": arm_feel,

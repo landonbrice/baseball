@@ -1,4 +1,5 @@
 import os
+from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -27,6 +28,9 @@ KNOWLEDGE_DIR = os.path.join(DATA_DIR, "knowledge")
 CONTEXT_WINDOW_CHARS = 12000  # ~3000 tokens, full context.md untruncated for 12 pitchers
 
 DISABLE_AUTH = os.getenv("DISABLE_AUTH", "").lower() == "true"
+
+# Timezone — all pitchers are in Chicago
+CHICAGO_TZ = ZoneInfo("America/Chicago")
 
 # Supabase
 SUPABASE_URL = os.getenv("SUPABASE_URL", "")
