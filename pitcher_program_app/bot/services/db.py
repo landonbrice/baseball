@@ -112,10 +112,20 @@ def get_daily_entry(pitcher_id: str, date: str) -> dict:
     return resp.data[0] if resp.data else None
 
 
+# Columns that exist in daily_entries table — prevents PostgREST 400 on unknown fields
+_DAILY_ENTRY_COLUMNS = {
+    "pitcher_id", "date", "rotation_day", "days_since_outing", "pre_training",
+    "plan_narrative", "morning_brief", "plan_generated", "actual_logged",
+    "bot_observations", "arm_care", "lifting", "throwing", "notes",
+    "completed_exercises", "soreness_response",
+}
+
+
 def upsert_daily_entry(pitcher_id: str, entry: dict) -> None:
     """Insert or update a daily entry (upsert on pitcher_id + date)."""
-    entry["pitcher_id"] = pitcher_id
-    get_client().table("daily_entries").upsert(entry, on_conflict="pitcher_id,date").execute()
+    row = {k: v for k, v in entry.items() if k in _DAILY_ENTRY_COLUMNS}
+    row["pitcher_id"] = pitcher_id
+    get_client().table("daily_entries").upsert(row, on_conflict="pitcher_id,date").execute()
 
 
 # ---------------------------------------------------------------------------
