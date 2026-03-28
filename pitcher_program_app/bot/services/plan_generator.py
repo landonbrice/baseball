@@ -164,78 +164,85 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
     plan = _parse_plan_json(raw)
 
     if plan:
-        plan = _validate_plan(plan, today_template, rotation_day)
+        try:
+            plan = _validate_plan(plan, today_template, rotation_day)
 
-        # Structured plan parsed successfully
-        morning_brief = plan.get("morning_brief", "")
-        arm_care_data = plan.get("arm_care") or {}
-        lifting_data = plan.get("lifting") or {}
-        throwing_data = plan.get("throwing") or {}
-        notes = plan.get("notes", [])
-        soreness_response = plan.get("soreness_response")
+            # Structured plan parsed successfully
+            morning_brief = plan.get("morning_brief", "")
+            arm_care_data = plan.get("arm_care") or {}
+            lifting_data = plan.get("lifting") or {}
+            throwing_data = plan.get("throwing") or {}
+            notes = plan.get("notes") or []
+            soreness_response = plan.get("soreness_response")
 
-        # Build narrative from structured data for backward compat
-        narrative = morning_brief
+            # Build narrative from structured data for backward compat
+            narrative = morning_brief
 
-        # Build exercise_blocks from structured data for backward compat
-        exercise_blocks = []
-        if arm_care_data.get("exercises"):
-            exercise_blocks.append({
-                "block_name": f"Arm Care ({arm_care_data.get('timing', 'pre-lift')})",
-                "exercises": [
-                    {"exercise_id": ex.get("exercise_id", ""), "prescribed": ex.get("rx", "")}
-                    for ex in arm_care_data["exercises"]
-                ],
-            })
-        if lifting_data.get("exercises"):
-            exercise_blocks.append({
-                "block_name": f"Lifting — {lifting_data.get('intent', '')}",
-                "exercises": [
-                    {"exercise_id": ex.get("exercise_id", ""), "prescribed": ex.get("rx", "")}
-                    for ex in lifting_data["exercises"]
-                ],
-            })
+            # Build exercise_blocks from structured data for backward compat
+            exercise_blocks = []
+            arm_exercises = arm_care_data.get("exercises") if isinstance(arm_care_data, dict) else None
+            if arm_exercises and isinstance(arm_exercises, list):
+                exercise_blocks.append({
+                    "block_name": f"Arm Care ({arm_care_data.get('timing', 'pre-lift')})",
+                    "exercises": [
+                        {"exercise_id": ex.get("exercise_id", ""), "prescribed": ex.get("rx", "")}
+                        for ex in arm_exercises if isinstance(ex, dict)
+                    ],
+                })
+            lift_exercises = lifting_data.get("exercises") if isinstance(lifting_data, dict) else None
+            if lift_exercises and isinstance(lift_exercises, list):
+                exercise_blocks.append({
+                    "block_name": f"Lifting — {lifting_data.get('intent', '')}",
+                    "exercises": [
+                        {"exercise_id": ex.get("exercise_id", ""), "prescribed": ex.get("rx", "")}
+                        for ex in lift_exercises if isinstance(ex, dict)
+                    ],
+                })
 
-        # Use structured template for throwing (phased exercises) instead of LLM text.
-        # Merge any useful LLM detail/reasoning into the structured plan.
-        structured_throwing = fallback_throwing_plan
-        if structured_throwing and throwing_data:
-            llm_detail = throwing_data.get("detail") or throwing_data.get("details") or ""
-            if llm_detail and isinstance(structured_throwing, dict):
-                existing_reasoning = structured_throwing.get("reasoning", "")
-                structured_throwing["reasoning"] = f"{existing_reasoning} {llm_detail}".strip() if existing_reasoning else llm_detail
+            # Use structured template for throwing (phased exercises) instead of LLM text.
+            # Merge any useful LLM detail/reasoning into the structured plan.
+            structured_throwing = fallback_throwing_plan
+            if structured_throwing and isinstance(throwing_data, dict):
+                llm_detail = throwing_data.get("detail") or throwing_data.get("details") or ""
+                if llm_detail and isinstance(structured_throwing, dict):
+                    existing_reasoning = structured_throwing.get("reasoning", "")
+                    structured_throwing["reasoning"] = f"{existing_reasoning} {llm_detail}".strip() if existing_reasoning else llm_detail
 
-        return {
-            "narrative": narrative,
-            "morning_brief": morning_brief,
-            "arm_care": arm_care_data,
-            "lifting": lifting_data,
-            "throwing": structured_throwing or throwing_data,
-            "notes": notes,
-            "soreness_response": soreness_response,
-            "exercise_blocks": exercise_blocks,
-            "throwing_plan": structured_throwing or (throwing_data if (throwing_data or {}).get("type") != "none" else None),
-            "estimated_duration_min": (lifting_data or {}).get("estimated_duration_min", estimated_duration_min),
-            "modifications_applied": triage_result.get("modifications", []),
-            "template_day": day_key,
-        }
-    else:
-        # Fallback: LLM returned unparseable text — use it as narrative
-        logger.warning("LLM returned non-JSON plan, using as narrative with template blocks")
-        return {
-            "narrative": raw,
-            "morning_brief": None,
-            "arm_care": None,
-            "lifting": None,
-            "throwing": fallback_throwing_plan,
-            "notes": [],
-            "soreness_response": None,
-            "exercise_blocks": fallback_exercise_blocks,
-            "throwing_plan": fallback_throwing_plan,
-            "estimated_duration_min": estimated_duration_min,
-            "modifications_applied": triage_result.get("modifications", []),
-            "template_day": day_key,
-        }
+            return {
+                "narrative": narrative,
+                "morning_brief": morning_brief,
+                "arm_care": arm_care_data,
+                "lifting": lifting_data,
+                "throwing": structured_throwing or throwing_data,
+                "notes": notes,
+                "soreness_response": soreness_response,
+                "exercise_blocks": exercise_blocks,
+                "throwing_plan": structured_throwing,
+                "estimated_duration_min": (lifting_data or {}).get("estimated_duration_min", estimated_duration_min),
+                "modifications_applied": triage_result.get("modifications", []),
+                "template_day": day_key,
+            }
+        except Exception as e:
+            logger.warning(f"Error assembling LLM plan ({type(e).__name__}: {e}), using template fallback")
+            # Fall through to template fallback below
+
+    # Fallback: LLM returned unparseable text, or plan assembly crashed
+    if not plan:
+        logger.warning("LLM returned non-JSON plan, using template fallback")
+    return {
+        "narrative": raw if raw else f"Your Day {rotation_day} plan is ready (built from your template).",
+        "morning_brief": f"Day {rotation_day} plan from template.",
+        "arm_care": None,
+        "lifting": None,
+        "throwing": fallback_throwing_plan,
+        "notes": ["Plan was generated from your template."],
+        "soreness_response": None,
+        "exercise_blocks": fallback_exercise_blocks,
+        "throwing_plan": fallback_throwing_plan,
+        "estimated_duration_min": estimated_duration_min,
+        "modifications_applied": triage_result.get("modifications", []),
+        "template_day": day_key,
+    }
 
 
 def _parse_plan_json(raw: str):
@@ -304,10 +311,12 @@ _DAY_BODY_FOCUS = {
 
 def _validate_plan(plan: dict, template: dict, rotation_day: int) -> dict:
     """Post-LLM validation: enforce exercise minimums and body-part adherence."""
-    lifting = plan.get("lifting", {})
-    if not lifting:
+    lifting = plan.get("lifting") or {}
+    if not lifting or not isinstance(lifting, dict):
         return plan
-    exercises = lifting.get("exercises", [])
+    exercises = lifting.get("exercises") or []
+    if not isinstance(exercises, list):
+        return plan
 
     # Full lifting days (2, 3, 4) need at least 6 exercises
     full_days = {2, 3, 4}
@@ -318,14 +327,14 @@ def _validate_plan(plan: dict, template: dict, rotation_day: int) -> dict:
             for ex in block.get("exercises", []):
                 template_exercises.append(ex)
 
-        existing_ids = {ex.get("exercise_id", "") for ex in exercises}
+        existing_ids = {ex.get("exercise_id", "") for ex in exercises if isinstance(ex, dict)}
         for tex in template_exercises:
             if len(exercises) >= 7:
                 break
-            if tex["exercise_id"] not in existing_ids:
+            if tex.get("exercise_id", "") not in existing_ids:
                 exercises.append({
                     "name": tex.get("exercise_id", "").replace("ex_", "").replace("_", " ").title(),
-                    "exercise_id": tex["exercise_id"],
+                    "exercise_id": tex.get("exercise_id", ""),
                     "rx": _PRESCRIPTION_DEFAULTS.get(tex.get("prescription_mode", "strength"), "3x8"),
                     "superset_group": None,
                     "note": "Added from template",
