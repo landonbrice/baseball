@@ -168,9 +168,9 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
 
         # Structured plan parsed successfully
         morning_brief = plan.get("morning_brief", "")
-        arm_care_data = plan.get("arm_care", {})
-        lifting_data = plan.get("lifting", {})
-        throwing_data = plan.get("throwing", {})
+        arm_care_data = plan.get("arm_care") or {}
+        lifting_data = plan.get("lifting") or {}
+        throwing_data = plan.get("throwing") or {}
         notes = plan.get("notes", [])
         soreness_response = plan.get("soreness_response")
 
@@ -215,7 +215,7 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
             "soreness_response": soreness_response,
             "exercise_blocks": exercise_blocks,
             "throwing_plan": structured_throwing or (throwing_data if (throwing_data or {}).get("type") != "none" else None),
-            "estimated_duration_min": lifting_data.get("estimated_duration_min", estimated_duration_min),
+            "estimated_duration_min": (lifting_data or {}).get("estimated_duration_min", estimated_duration_min),
             "modifications_applied": triage_result.get("modifications", []),
             "template_day": day_key,
         }
