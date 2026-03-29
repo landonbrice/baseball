@@ -1,7 +1,7 @@
 # Pitcher Training Intelligence — Claude Init
 
 > Last updated: 2026-03-28
-> Sprint status: Phases 1-4 complete. Phase 5 in progress — check-in pipeline hardened, timezone bugs fixed, rotation tracking corrected for extended time off.
+> Sprint status: Phases 1-5 complete. Next: WHOOP integration (see WHOOP_INTEGRATION_PLAN.md) + The Ledger (modification history).
 
 ## What This Is
 
@@ -148,25 +148,45 @@ All dates use `CHICAGO_TZ` (from `bot/config.py`). Server-side: `datetime.now(CH
 ### DB Column Whitelist
 `db.py` uses `_DAILY_ENTRY_COLUMNS` whitelist to strip unknown fields before upsert, preventing PostgREST 400 errors from schema mismatches.
 
+### Weekly Coaching Narrative
+- `generate_weekly_narrative(pitcher_id)` in `progression.py` — LLM-generated Sunday evening
+- `build_week_snapshot()` collects arm feel, sleep, exercise completion, throwing, modifications
+- Stored in `weekly_summaries` table, served via `/api/pitcher/{id}/weekly-narrative`
+- Displayed in `InsightsCard` on Home with maroon accent border
+- Falls back to stats-only summary if LLM fails
+
+### Toast Notifications (Mini-App)
+- `useToast` hook + `ToastProvider` in `hooks/useToast.jsx`
+- Success toasts: plan generated, outing logged, plan activated/applied
+- Error toasts: exercise save failed, plan update failed
+- Auto-dismiss after 3.5 seconds
+
+### WHOOP Integration (Planned)
+See `WHOOP_INTEGRATION_PLAN.md` for full technical plan. Not yet implemented.
+- Per-pitcher OAuth PKCE linking via Supabase `whoop_tokens` table
+- Daily 6am pull: recovery, HRV, sleep, strain → `whoop_daily` table
+- Feeds into triage (HRV thresholds), plan generation (LLM context), weekly narrative
+
 ### Dual LLM Routing
-- `call_llm()` — fast model (deepseek-chat) for simple Q&A, check-in responses
+- `call_llm()` — fast model (deepseek-chat) for simple Q&A, check-in responses, weekly narrative
 - `call_llm_reasoning()` — reasoning model (deepseek-reasoner) for multi-day protocols, complex recovery plans
 - Keyword detection in qa.py routes to appropriate model
 
 ### API Endpoints (routes.py)
 **Auth:** `/api/auth/resolve`
-**Data:** `/api/pitcher/{id}/profile`, `/log`, `/progression`, `/upcoming`, `/week-summary`, `/morning-status`
+**Data:** `/api/pitcher/{id}/profile`, `/log`, `/progression`, `/upcoming`, `/week-summary`, `/morning-status`, `/weekly-narrative`
 **Actions:** `POST /checkin`, `/outing`, `/chat` (unified), `/set-next-outing`, `/complete-exercise`
 **Plans:** `GET/POST /plans`, `/plans/{id}/activate`, `/deactivate`, `/apply-plan/{id}`, `/generate-plan`
 **Library:** `/api/exercises`, `/api/exercises/slugs`
 **Team:** `/api/staff/pulse`
 **Trends:** `/api/pitcher/{id}/trend`, `/api/pitcher/{id}/chat-history`
 
-### Scheduled Jobs
+### Scheduled Jobs (all from Supabase, not filesystem)
 - Morning check-in at pitcher's `notification_time`
 - 6pm follow-up if unanswered
-- Sunday 6pm weekly summary
+- Sunday 6pm weekly narrative + summary
 - `/gamestart` → 2hr delayed outing reminder
+- (Planned) 6am daily WHOOP pull for linked pitchers
 
 ## Current Pitchers
 
