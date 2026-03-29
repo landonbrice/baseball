@@ -26,6 +26,7 @@ export default function Home() {
   const upcoming = useApi(pitcherId ? `/api/pitcher/${pitcherId}/upcoming${suffix}` : null, initData);
   const weekSummary = useApi(pitcherId ? `/api/pitcher/${pitcherId}/week-summary${suffix}` : null, initData);
   const trendData = useApi(pitcherId ? `/api/pitcher/${pitcherId}/trend${suffix}` : null, initData);
+  const narrativeData = useApi(pitcherId ? `/api/pitcher/${pitcherId}/weekly-narrative${suffix}` : null, initData);
   const staffPulse = useApi('/api/staff/pulse', initData);
 
   const exerciseMap = useMemo(() => {
@@ -211,7 +212,13 @@ export default function Home() {
           </div>
         )}
 
-        <InsightsCard observations={progression?.observations} trendWeeks={Array.isArray(trendData.data?.weeks) ? trendData.data.weeks : []} />
+        <InsightsCard
+          observations={progression?.observations}
+          trendWeeks={Array.isArray(trendData.data?.weeks) ? trendData.data.weeks : []}
+          narrative={narrativeData.data?.narrative}
+          narrativeHeadline={narrativeData.data?.headline}
+          narrativeWeek={narrativeData.data?.week_start}
+        />
         {staffPulse.data && <div style={{ marginTop: 12 }}><StaffPulse data={staffPulse.data} /></div>}
       </div>
     </div>

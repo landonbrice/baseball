@@ -295,7 +295,7 @@ async def _send_evening_followup(context) -> None:
 async def _send_weekly_summary(context) -> None:
     """Send Sunday evening weekly summary to all pitchers."""
     from bot.services.db import list_pitchers
-    from bot.services.progression import analyze_progression
+    from bot.services.progression import analyze_progression, generate_weekly_narrative
 
     try:
         pitchers = list_pitchers()
@@ -310,10 +310,18 @@ async def _send_weekly_summary(context) -> None:
             continue
 
         try:
-            progression = analyze_progression(pitcher_id)
-            summary = progression.get("weekly_summary")
-            if summary:
-                await context.bot.send_message(chat_id=chat_id, text=summary)
+            # Try LLM narrative first, fall back to stats summary
+            result = await generate_weekly_narrative(pitcher_id)
+            if result and result.get("narrative"):
+                headline = result.get("headline", "")
+                text = f"📊 {headline}\n\n{result['narrative']}" if headline else result["narrative"]
+                await context.bot.send_message(chat_id=chat_id, text=text)
+            else:
+                # Fallback to stats-only summary
+                progression = analyze_progression(pitcher_id)
+                summary = progression.get("weekly_summary")
+                if summary:
+                    await context.bot.send_message(chat_id=chat_id, text=summary)
         except Exception as e:
             logger.error(f"Error sending weekly summary to {pitcher_id}: {e}")
 

@@ -1,7 +1,8 @@
 """Progression tracking. Analyzes arm feel trends, sleep patterns, and recovery curves."""
 
+import json
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from bot.config import CHICAGO_TZ
 from bot.services.context_manager import load_log, load_profile
 
@@ -250,3 +251,226 @@ def _generate_weekly_summary(pitcher_id: str, entries: list):
         pass
 
     return "\n".join(parts)
+
+
+# ---------------------------------------------------------------------------
+# Weekly Coaching Narrative (LLM-generated)
+# ---------------------------------------------------------------------------
+
+def build_week_snapshot(pitcher_id: str) -> dict:
+    """Build a structured data snapshot of the pitcher's week for narrative generation."""
+    profile = load_profile(pitcher_id)
+    log = load_log(pitcher_id)
+    entries = log.get("entries", [])
+
+    # Filter to last 7 days
+    today = datetime.now(CHICAGO_TZ).date()
+    week_ago = today - timedelta(days=7)
+    week_entries = [
+        e for e in entries
+        if e.get("date") and e["date"] >= week_ago.isoformat()
+    ]
+
+    # Previous week for comparison
+    two_weeks_ago = today - timedelta(days=14)
+    prev_week_entries = [
+        e for e in entries
+        if e.get("date") and two_weeks_ago.isoformat() <= e["date"] < week_ago.isoformat()
+    ]
+
+    # Training entries (have pre_training data)
+    training = [e for e in week_entries if e.get("pre_training") and (e["pre_training"] or {}).get("arm_feel") is not None]
+    prev_training = [e for e in prev_week_entries if e.get("pre_training") and (e["pre_training"] or {}).get("arm_feel") is not None]
+
+    # Arm feel
+    feels = [e["pre_training"]["arm_feel"] for e in training]
+    prev_feels = [e["pre_training"]["arm_feel"] for e in prev_training]
+
+    arm_feel = {}
+    if feels:
+        arm_feel = {
+            "avg": round(sum(feels) / len(feels), 1),
+            "high": max(feels),
+            "low": min(feels),
+            "values": feels,
+            "trend": "improving" if len(feels) >= 3 and feels[-1] > feels[0] else
+                     "declining" if len(feels) >= 3 and feels[-1] < feels[0] else "stable",
+        }
+
+    # Sleep
+    sleeps = [e["pre_training"]["sleep_hours"] for e in training if (e["pre_training"] or {}).get("sleep_hours") is not None]
+    prev_sleeps = [e["pre_training"]["sleep_hours"] for e in prev_training if (e["pre_training"] or {}).get("sleep_hours") is not None]
+    sleep_data = {}
+    if sleeps:
+        sleep_data = {
+            "avg": round(sum(sleeps) / len(sleeps), 1),
+            "nights_under_6": sum(1 for s in sleeps if s < 6),
+        }
+
+    # Throwing
+    throwing_days = []
+    for e in week_entries:
+        t = e.get("throwing") or {}
+        if t and t.get("type") and t["type"] not in ("none", "no_throw"):
+            vol = (t.get("volume_summary") or {}).get("total_throws_estimate")
+            throwing_days.append({
+                "date": e["date"],
+                "type": t["type"],
+                "throws": vol,
+                "post_feel": t.get("post_throw_feel"),
+            })
+
+    # Exercise completion
+    total_exercises = 0
+    completed_count = 0
+    skipped = []
+    for e in week_entries:
+        ce = e.get("completed_exercises") or {}
+        if isinstance(ce, dict):
+            for ex_id, done in ce.items():
+                total_exercises += 1
+                if done:
+                    completed_count += 1
+                else:
+                    skipped.append(ex_id)
+
+    # Count skipped exercise frequency
+    skip_counts = {}
+    for ex_id in skipped:
+        skip_counts[ex_id] = skip_counts.get(ex_id, 0) + 1
+    skipped_summary = [f"{ex_id} ({count}x)" for ex_id, count in sorted(skip_counts.items(), key=lambda x: -x[1])[:5]]
+
+    # Modifications applied this week
+    mods = set()
+    for e in week_entries:
+        pg = e.get("plan_generated") or {}
+        for m in (pg.get("modifications_applied") or []):
+            mods.add(m)
+
+    # Flag levels
+    flag_counts = {"green": 0, "yellow": 0, "red": 0}
+    for e in training:
+        fl = (e["pre_training"] or {}).get("flag_level", "green")
+        flag_counts[fl] = flag_counts.get(fl, 0) + 1
+
+    # Previous week comparison
+    comparison = {}
+    if prev_feels and feels:
+        comparison["arm_feel_avg_change"] = round(sum(feels)/len(feels) - sum(prev_feels)/len(prev_feels), 1)
+    if prev_sleeps and sleeps:
+        comparison["sleep_avg_change"] = round(sum(sleeps)/len(sleeps) - sum(prev_sleeps)/len(prev_sleeps), 1)
+
+    # Pitcher context
+    injuries = profile.get("injury_history", [])
+    injury_summary = [
+        {"area": i.get("area", ""), "ongoing": i.get("ongoing_considerations", i.get("resolution", ""))}
+        for i in injuries if i.get("area")
+    ]
+    flags = profile.get("active_flags", {})
+    goals = profile.get("goals", {})
+
+    return {
+        "pitcher": {
+            "name": profile.get("name", pitcher_id),
+            "role": profile.get("role", "starter"),
+            "rotation_length": profile.get("rotation_length", 7),
+            "injury_history": injury_summary,
+            "active_modifications": flags.get("active_modifications", []),
+            "goals": goals,
+        },
+        "week": {
+            "dates": f"{week_ago.isoformat()} to {today.isoformat()}",
+            "checkins": len(training),
+            "arm_feel": arm_feel,
+            "sleep": sleep_data,
+            "throwing": throwing_days,
+            "exercise_completion": {
+                "total": total_exercises,
+                "completed": completed_count,
+                "rate": round(completed_count / total_exercises, 2) if total_exercises else 0,
+            },
+            "skipped_exercises": skipped_summary,
+            "modifications_applied": list(mods),
+            "flag_levels": flag_counts,
+            "previous_week_comparison": comparison,
+        },
+    }
+
+
+async def generate_weekly_narrative(pitcher_id: str) -> dict | None:
+    """Generate an LLM coaching narrative from the week's data.
+
+    Returns dict with 'narrative' and 'headline' keys, or None if not enough data.
+    Stores result in weekly_summaries table.
+    """
+    from bot.services.llm import call_llm, load_prompt
+    from bot.services.context_manager import load_profile
+    from bot.services import db as _db
+
+    snapshot = build_week_snapshot(pitcher_id)
+    if snapshot["week"]["checkins"] < 1:
+        return None
+
+    try:
+        prompt_template = load_prompt("weekly_narrative.md")
+    except FileNotFoundError:
+        logger.warning("weekly_narrative.md prompt not found, skipping narrative generation")
+        return None
+
+    system_prompt = (
+        "You are a pitching coach reviewing your pitcher's week. "
+        "You know their injury history, training patterns, and goals. "
+        "Write like a coach who's been watching them — direct, specific, encouraging but honest."
+    )
+
+    user_prompt = prompt_template.replace("{week_data}", json.dumps(snapshot, indent=2))
+
+    try:
+        raw = await call_llm(system_prompt, user_prompt, max_tokens=500)
+    except Exception as e:
+        logger.error(f"Weekly narrative LLM call failed for {pitcher_id}: {e}")
+        return None
+
+    # Parse JSON response
+    result = _parse_narrative(raw)
+    if not result:
+        return None
+
+    # Store in weekly_summaries
+    today = datetime.now(CHICAGO_TZ).date()
+    week_start = (today - timedelta(days=today.weekday())).isoformat()  # Monday of this week
+    try:
+        _db.upsert_weekly_summary(pitcher_id, week_start, {
+            "narrative": result["narrative"],
+            "headline": result.get("headline", ""),
+            "generated_at": datetime.now(CHICAGO_TZ).isoformat(),
+        })
+    except Exception as e:
+        logger.error(f"Failed to store weekly narrative for {pitcher_id}: {e}")
+
+    return result
+
+
+def _parse_narrative(raw: str) -> dict | None:
+    """Parse narrative JSON from LLM response."""
+    import re
+    text = raw.strip()
+
+    # Strip markdown fences
+    fence = re.search(r"```(?:json)?\s*\n?(.*?)```", text, re.DOTALL)
+    if fence:
+        text = fence.group(1).strip()
+
+    try:
+        parsed = json.loads(text)
+        if isinstance(parsed, dict) and "narrative" in parsed:
+            return parsed
+    except json.JSONDecodeError:
+        pass
+
+    # If not JSON, treat the whole response as the narrative
+    if len(text) > 20:
+        return {"narrative": text, "headline": ""}
+
+    logger.warning(f"Could not parse weekly narrative: {raw[:200]}")
+    return None

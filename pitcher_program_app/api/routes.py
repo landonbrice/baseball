@@ -1085,6 +1085,23 @@ async def staff_pulse():
     }
 
 
+@router.get("/pitcher/{pitcher_id}/weekly-narrative")
+async def get_weekly_narrative(pitcher_id: str, request: Request):
+    """Return the most recent weekly coaching narrative."""
+    _require_pitcher_auth(request, pitcher_id)
+    from bot.services import db as _db
+    summaries = _db.get_weekly_summaries(pitcher_id, limit=1)
+    if not summaries:
+        return {"narrative": None, "headline": None, "week_start": None}
+    latest = summaries[0]
+    summary = latest.get("summary") or {}
+    return {
+        "narrative": summary.get("narrative"),
+        "headline": summary.get("headline"),
+        "week_start": latest.get("week_start"),
+    }
+
+
 @router.get("/pitcher/{pitcher_id}/trend")
 async def pitcher_trend(pitcher_id: str, request: Request):
     """4-week arm feel trend for a pitcher.

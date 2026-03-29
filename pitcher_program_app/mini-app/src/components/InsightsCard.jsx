@@ -19,13 +19,12 @@ const CATEGORY_STYLES = {
   default: { dot: 'var(--color-ink-muted)', bg: 'transparent' },
 };
 
-export default function InsightsCard({ observations = [], trendWeeks = [] }) {
+export default function InsightsCard({ observations = [], trendWeeks = [], narrative, narrativeHeadline, narrativeWeek }) {
   const safeObs = Array.isArray(observations) ? observations.filter(o => typeof o === 'string') : [];
   const safeWeeks = Array.isArray(trendWeeks) ? trendWeeks : [];
-
-  // Always show the card — with data or with a placeholder
   const hasChart = safeWeeks.length >= 2;
   const hasObs = safeObs.length > 0;
+  const hasNarrative = narrative && typeof narrative === 'string';
 
   return (
     <div style={{
@@ -50,6 +49,40 @@ export default function InsightsCard({ observations = [], trendWeeks = [] }) {
           </span>
         )}
       </div>
+
+      {/* LLM Coaching Narrative */}
+      {hasNarrative && (
+        <div style={{
+          background: 'rgba(92,16,32,0.04)',
+          borderLeft: '3px solid var(--color-maroon)',
+          borderRadius: '0 8px 8px 0',
+          padding: '12px 14px',
+          marginBottom: 12,
+        }}>
+          {narrativeHeadline && (
+            <div style={{
+              fontSize: 12, fontWeight: 700, color: 'var(--color-ink-primary)',
+              marginBottom: 4,
+            }}>
+              {narrativeHeadline}
+            </div>
+          )}
+          <p style={{
+            fontSize: 12, color: 'var(--color-ink-secondary)',
+            lineHeight: 1.65, margin: 0,
+          }}>
+            {narrative}
+          </p>
+          {narrativeWeek && (
+            <div style={{
+              fontSize: 9, color: 'var(--color-ink-muted)',
+              marginTop: 8, textTransform: 'uppercase', letterSpacing: '0.04em',
+            }}>
+              Week of {narrativeWeek}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* 4-week trend chart */}
       {hasChart && (
@@ -84,7 +117,7 @@ export default function InsightsCard({ observations = [], trendWeeks = [] }) {
             );
           })}
         </div>
-      ) : (
+      ) : !hasNarrative && (
         <p style={{
           fontSize: 11, color: 'var(--color-ink-muted)',
           lineHeight: 1.5, margin: 0, textAlign: 'center', padding: '8px 0',
