@@ -5,7 +5,6 @@ Includes scheduled morning check-ins and weekly alerts via APScheduler.
 """
 
 import logging
-import os
 import sys
 from datetime import datetime, time as dt_time
 from zoneinfo import ZoneInfo
@@ -20,7 +19,7 @@ from telegram.ext import (
     MessageHandler,
     filters,
 )
-from bot.config import TELEGRAM_BOT_TOKEN, MINI_APP_URL, PITCHERS_DIR
+from bot.config import TELEGRAM_BOT_TOKEN, MINI_APP_URL
 from bot.handlers.daily_checkin import get_checkin_handler, plan_completion_callback, skip_details_handler
 from bot.handlers.post_outing import get_outing_handler
 from bot.handlers.qa import handle_question
@@ -189,35 +188,28 @@ ADMIN_TELEGRAM_IDS = [8589499360]  # Landon
 
 
 async def backup_command(update: Update, context) -> None:
-    """Handle /backup — admin only. Show data status."""
+    """Handle /backup — admin only. Show data status from Supabase."""
     if update.effective_user.id not in ADMIN_TELEGRAM_IDS:
         await update.message.reply_text("Admin only.")
         return
 
-    pitcher_count = 0
-    total_entries = 0
-    pitchers_with_id = 0
-    for entry in os.listdir(PITCHERS_DIR):
-        profile_path = os.path.join(PITCHERS_DIR, entry, "profile.json")
-        if not os.path.exists(profile_path):
-            continue
-        pitcher_count += 1
-        import json as _json
-        with open(profile_path) as f:
-            profile = _json.load(f)
-        if profile.get("telegram_id"):
-            pitchers_with_id += 1
-        log_path = os.path.join(PITCHERS_DIR, entry, "daily_log.json")
-        if os.path.exists(log_path):
-            with open(log_path) as f:
-                log = _json.load(f)
-            total_entries += len(log.get("entries", []))
+    try:
+        from bot.services.db import list_pitchers, get_daily_entries
+        pitchers = list_pitchers()
+        pitcher_count = len(pitchers)
+        pitchers_with_id = sum(1 for p in pitchers if p.get("telegram_id"))
+        total_entries = 0
+        for p in pitchers:
+            entries = get_daily_entries(p["pitcher_id"], limit=100)
+            total_entries += len(entries)
+    except Exception as e:
+        await update.message.reply_text(f"Error reading from Supabase: {e}")
+        return
 
     await update.message.reply_text(
-        f"Data status:\n"
+        f"Data status (Supabase):\n"
         f"  Pitchers: {pitcher_count} ({pitchers_with_id} with telegram_id)\n"
-        f"  Total log entries: {total_entries}\n\n"
-        f"Run 'bash scripts/backup_data.sh' from local to pull this data."
+        f"  Total log entries: {total_entries}\n"
     )
 
 
@@ -302,29 +294,28 @@ async def _send_evening_followup(context) -> None:
 
 async def _send_weekly_summary(context) -> None:
     """Send Sunday evening weekly summary to all pitchers."""
-    from bot.services.context_manager import load_profile
+    from bot.services.db import list_pitchers
     from bot.services.progression import analyze_progression
 
-    if not os.path.exists(PITCHERS_DIR):
+    try:
+        pitchers = list_pitchers()
+    except Exception as e:
+        logger.error(f"Failed to load pitchers for weekly summary: {e}")
         return
 
-    for entry in os.listdir(PITCHERS_DIR):
-        profile_path = os.path.join(PITCHERS_DIR, entry, "profile.json")
-        if not os.path.exists(profile_path):
+    for pitcher in pitchers:
+        pitcher_id = pitcher["pitcher_id"]
+        chat_id = pitcher.get("telegram_id")
+        if not chat_id:
             continue
 
         try:
-            profile = load_profile(entry)
-            chat_id = profile.get("telegram_id")
-            if not chat_id:
-                continue
-
-            progression = analyze_progression(entry)
+            progression = analyze_progression(pitcher_id)
             summary = progression.get("weekly_summary")
             if summary:
                 await context.bot.send_message(chat_id=chat_id, text=summary)
         except Exception as e:
-            logger.error(f"Error sending weekly summary to {entry}: {e}")
+            logger.error(f"Error sending weekly summary to {pitcher_id}: {e}")
 
 
 def _ensure_pitcher_jobs(application: Application, pitcher_id: str, profile: dict) -> None:
@@ -366,52 +357,60 @@ def _ensure_pitcher_jobs(application: Application, pitcher_id: str, profile: dic
 
 
 def _schedule_jobs(application: Application) -> None:
-    """Set up scheduled jobs for morning check-ins and weekly summaries."""
+    """Set up scheduled jobs for morning check-ins and weekly summaries.
+
+    Reads pitcher data from Supabase (not filesystem) so newly added
+    pitchers get notifications without needing JSON files on Railway.
+    """
     job_queue = application.job_queue
     if job_queue is None:
         logger.warning("JobQueue not available — scheduled jobs disabled")
         return
 
-    # Schedule morning check-ins for each pitcher
-    if os.path.exists(PITCHERS_DIR):
-        import json
-        for entry in os.listdir(PITCHERS_DIR):
-            profile_path = os.path.join(PITCHERS_DIR, entry, "profile.json")
-            if not os.path.exists(profile_path):
-                continue
+    # Schedule morning check-ins for each pitcher from Supabase
+    try:
+        from bot.services.db import list_pitchers
+        pitchers = list_pitchers()
+    except Exception as e:
+        logger.error(f"Failed to load pitchers from Supabase for scheduling: {e}")
+        pitchers = []
+
+    scheduled_count = 0
+    for pitcher in pitchers:
+        pitcher_id = pitcher["pitcher_id"]
+        chat_id = pitcher.get("telegram_id")
+        if not chat_id:
+            continue
+
+        try:
+            # Parse notification time (default 08:00) — all times in Chicago
+            prefs = pitcher.get("preferences") or {}
+            time_str = prefs.get("notification_time", "08:00")
             try:
-                with open(profile_path, "r") as f:
-                    profile = json.load(f)
-                chat_id = profile.get("telegram_id")
-                if not chat_id:
-                    continue
+                hour, minute = map(int, time_str.split(":"))
+            except (ValueError, AttributeError):
+                hour, minute = 8, 0
+            notify_time = dt_time(hour=hour, minute=minute, tzinfo=CHICAGO_TZ)
 
-                # Parse notification time (default 08:00) — all times in Chicago
-                time_str = (profile.get("preferences") or {}).get("notification_time", "08:00")
-                try:
-                    hour, minute = map(int, time_str.split(":"))
-                except (ValueError, AttributeError):
-                    hour, minute = 8, 0
-                notify_time = dt_time(hour=hour, minute=minute, tzinfo=CHICAGO_TZ)
+            job_queue.run_daily(
+                _send_morning_checkin,
+                time=notify_time,
+                data={"pitcher_id": pitcher_id, "chat_id": chat_id},
+                name=f"morning_checkin_{pitcher_id}",
+            )
 
-                job_queue.run_daily(
-                    _send_morning_checkin,
-                    time=notify_time,
-                    data={"pitcher_id": entry, "chat_id": chat_id},
-                    name=f"morning_checkin_{entry}",
-                )
-                logger.info(f"Scheduled morning check-in for {entry} at {time_str} Chicago")
+            # 6pm follow-up if check-in unanswered (Chicago time)
+            job_queue.run_daily(
+                _send_evening_followup,
+                time=dt_time(hour=18, minute=0, tzinfo=CHICAGO_TZ),
+                data={"pitcher_id": pitcher_id, "chat_id": chat_id},
+                name=f"evening_followup_{pitcher_id}",
+            )
+            scheduled_count += 1
+        except Exception as e:
+            logger.error(f"Error scheduling job for {pitcher_id}: {e}")
 
-                # 6pm follow-up if check-in unanswered (Chicago time)
-                job_queue.run_daily(
-                    _send_evening_followup,
-                    time=dt_time(hour=18, minute=0, tzinfo=CHICAGO_TZ),
-                    data={"pitcher_id": entry, "chat_id": chat_id},
-                    name=f"evening_followup_{entry}",
-                )
-                logger.info(f"Scheduled 6pm Chicago follow-up for {entry}")
-            except Exception as e:
-                logger.error(f"Error scheduling job for {entry}: {e}")
+    logger.info(f"Scheduled morning + evening jobs for {scheduled_count} pitchers (from Supabase)")
 
     # Schedule Sunday 6pm weekly summary (Chicago time)
     job_queue.run_daily(
