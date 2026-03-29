@@ -369,7 +369,35 @@ def build_week_snapshot(pitcher_id: str) -> dict:
     flags = profile.get("active_flags", {})
     goals = profile.get("goals", {})
 
-    return {
+    # WHOOP weekly averages (if pitcher is linked)
+    whoop_week = None
+    try:
+        from bot.services.db import get_whoop_daily_range
+        rows = get_whoop_daily_range(pitcher_id, days=7)
+        if rows:
+            recoveries = [r["recovery_score"] for r in rows if r.get("recovery_score") is not None]
+            hrvs = [r["hrv_rmssd"] for r in rows if r.get("hrv_rmssd") is not None]
+            sleep_perfs = [r["sleep_performance"] for r in rows if r.get("sleep_performance") is not None]
+            if recoveries or hrvs:
+                hrv_trend = "stable"
+                if len(hrvs) >= 4:
+                    first_half = sum(hrvs[:len(hrvs)//2]) / (len(hrvs)//2)
+                    second_half = sum(hrvs[len(hrvs)//2:]) / (len(hrvs) - len(hrvs)//2)
+                    if second_half > first_half * 1.05:
+                        hrv_trend = "improving"
+                    elif second_half < first_half * 0.95:
+                        hrv_trend = "declining"
+                whoop_week = {
+                    "avg_recovery": round(sum(recoveries) / len(recoveries), 1) if recoveries else None,
+                    "avg_hrv": round(sum(hrvs) / len(hrvs), 1) if hrvs else None,
+                    "hrv_trend": hrv_trend,
+                    "avg_sleep_performance": round(sum(sleep_perfs) / len(sleep_perfs), 1) if sleep_perfs else None,
+                    "days_with_data": len(rows),
+                }
+    except Exception as e:
+        logger.warning("WHOOP weekly data skipped for %s: %s", pitcher_id, e)
+
+    snapshot = {
         "pitcher": {
             "name": profile.get("name", pitcher_id),
             "role": profile.get("role", "starter"),
@@ -395,6 +423,9 @@ def build_week_snapshot(pitcher_id: str) -> dict:
             "previous_week_comparison": comparison,
         },
     }
+    if whoop_week:
+        snapshot["week"]["whoop"] = whoop_week
+    return snapshot
 
 
 async def generate_weekly_narrative(pitcher_id: str) -> dict | None:

@@ -76,11 +76,27 @@ async def process_checkin(
     profile = load_profile(pitcher_id)
     rotation_length = profile.get("rotation_length", 7)
 
+    # Pull WHOOP biometrics if pitcher is linked (optional enhancement)
+    whoop_data = None
+    try:
+        from bot.services.whoop import is_linked, pull_whoop_data
+        if is_linked(pitcher_id):
+            whoop_data = pull_whoop_data(pitcher_id)
+            # Use WHOOP sleep hours if self-reported is the default
+            if whoop_data and whoop_data.get("sleep_hours") and sleep_hours == 7.0:
+                sleep_hours = whoop_data["sleep_hours"]
+    except Exception as e:
+        logger.warning("WHOOP pull skipped for %s: %s", pitcher_id, e)
+
     triage_result = triage(
         arm_feel=arm_feel,
         sleep_hours=sleep_hours,
         pitcher_profile=profile,
         energy=energy,
+        whoop_recovery=whoop_data.get("recovery_score") if whoop_data else None,
+        whoop_hrv=whoop_data.get("hrv_rmssd") if whoop_data else None,
+        whoop_hrv_7day_avg=whoop_data.get("hrv_7day_avg") if whoop_data else None,
+        whoop_sleep_perf=whoop_data.get("sleep_performance") if whoop_data else None,
     )
 
     # Apply arm clarification to triage (Refinement 2)
@@ -168,6 +184,15 @@ async def process_checkin(
         checkin_inputs["arm_clarification"] = arm_clarification
     if recent_history:
         checkin_inputs["recent_history"] = recent_history
+    if whoop_data:
+        checkin_inputs["whoop_biometrics"] = {
+            "recovery": whoop_data.get("recovery_score"),
+            "hrv": whoop_data.get("hrv_rmssd"),
+            "hrv_7day_avg": whoop_data.get("hrv_7day_avg"),
+            "sleep_perf": whoop_data.get("sleep_performance"),
+            "sleep_hours": whoop_data.get("sleep_hours"),
+            "strain": whoop_data.get("yesterday_strain"),
+        }
 
     try:
         plan_result = await generate_plan(pitcher_id, triage_result, checkin_inputs=checkin_inputs)

@@ -1201,3 +1201,54 @@ async def pitcher_trend(pitcher_id: str, request: Request):
         "outing_day_indices": outing_day_indices,
         "current_streak": current_streak,
     }
+
+
+# ---------------------------------------------------------------------------
+# WHOOP OAuth Callback
+# ---------------------------------------------------------------------------
+
+@router.get("/pitcher/{pitcher_id}/whoop-today")
+async def whoop_today(pitcher_id: str, request: Request):
+    """Return today's WHOOP data for a pitcher, or linked=false if not connected."""
+    _require_pitcher_auth(request, pitcher_id)
+    from bot.services.whoop import is_linked, get_today_whoop
+    from bot.services.db import get_whoop_daily_range
+
+    if not is_linked(pitcher_id):
+        return {"linked": False, "data": None, "averages": None}
+
+    data = get_today_whoop(pitcher_id)
+    avg_data = None
+    if data:
+        rows = get_whoop_daily_range(pitcher_id, days=7)
+        recoveries = [r["recovery_score"] for r in rows if r.get("recovery_score") is not None]
+        strains = [r["yesterday_strain"] for r in rows if r.get("yesterday_strain") is not None]
+        sleeps = [r["sleep_hours"] for r in rows if r.get("sleep_hours") is not None]
+        avg_data = {
+            "avg_recovery": round(sum(recoveries) / len(recoveries), 1) if recoveries else None,
+            "avg_strain": round(sum(strains) / len(strains), 1) if strains else None,
+            "avg_sleep_hours": round(sum(sleeps) / len(sleeps), 1) if sleeps else None,
+        }
+
+    return {"linked": True, "data": data, "averages": avg_data}
+
+
+@router.get("/whoop/callback")
+async def whoop_callback(code: str = Query(...), state: str = Query(...)):
+    """Handle WHOOP OAuth redirect — exchange code for tokens."""
+    from bot.services.whoop import exchange_code
+    from fastapi.responses import HTMLResponse
+
+    try:
+        pitcher_id = exchange_code(code, state)
+        return HTMLResponse(
+            "<html><body style='font-family:system-ui;text-align:center;padding:60px'>"
+            "<h2>WHOOP Connected!</h2>"
+            f"<p>Linked to <b>{pitcher_id}</b>. You can close this tab.</p>"
+            "</body></html>"
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error("WHOOP callback failed: %s", e)
+        raise HTTPException(status_code=500, detail="Failed to connect WHOOP. Try again.")

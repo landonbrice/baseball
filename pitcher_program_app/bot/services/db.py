@@ -239,3 +239,61 @@ def get_template(template_id: str) -> dict:
 def get_templates() -> list:
     resp = get_client().table("templates").select("*").execute()
     return resp.data or []
+
+
+# ---------------------------------------------------------------------------
+# WHOOP Tokens
+# ---------------------------------------------------------------------------
+
+def get_whoop_tokens(pitcher_id: str) -> dict | None:
+    """Return WHOOP tokens for a pitcher, or None if not linked."""
+    resp = get_client().table("whoop_tokens").select("*").eq("pitcher_id", pitcher_id).execute()
+    return resp.data[0] if resp.data else None
+
+
+def upsert_whoop_tokens(pitcher_id: str, tokens: dict) -> None:
+    """Insert or update WHOOP tokens for a pitcher."""
+    tokens["pitcher_id"] = pitcher_id
+    get_client().table("whoop_tokens").upsert(tokens, on_conflict="pitcher_id").execute()
+
+
+def delete_whoop_tokens(pitcher_id: str) -> None:
+    """Remove WHOOP tokens (unlink)."""
+    get_client().table("whoop_tokens").delete().eq("pitcher_id", pitcher_id).execute()
+
+
+def list_whoop_linked_pitchers() -> list:
+    """Return pitcher_ids that have WHOOP tokens."""
+    resp = get_client().table("whoop_tokens").select("pitcher_id").execute()
+    return [r["pitcher_id"] for r in (resp.data or [])]
+
+
+# ---------------------------------------------------------------------------
+# WHOOP Daily
+# ---------------------------------------------------------------------------
+
+def get_whoop_daily(pitcher_id: str, date: str) -> dict | None:
+    """Return WHOOP daily data for a specific date, or None."""
+    resp = (get_client().table("whoop_daily")
+            .select("*")
+            .eq("pitcher_id", pitcher_id)
+            .eq("date", date)
+            .execute())
+    return resp.data[0] if resp.data else None
+
+
+def upsert_whoop_daily(pitcher_id: str, data: dict) -> None:
+    """Insert or update WHOOP daily data (upsert on pitcher_id + date)."""
+    data["pitcher_id"] = pitcher_id
+    get_client().table("whoop_daily").upsert(data, on_conflict="pitcher_id,date").execute()
+
+
+def get_whoop_daily_range(pitcher_id: str, days: int = 7) -> list:
+    """Return recent WHOOP daily rows, newest first."""
+    resp = (get_client().table("whoop_daily")
+            .select("*")
+            .eq("pitcher_id", pitcher_id)
+            .order("date", desc=True)
+            .limit(days)
+            .execute())
+    return resp.data or []

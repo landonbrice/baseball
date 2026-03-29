@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../App';
 import { useAppContext } from '../hooks/useChatState';
 import { usePitcher } from '../hooks/usePitcher';
+import { useApi } from '../hooks/useApi';
 import FlagBadge from '../components/FlagBadge';
 
 export default function Profile() {
@@ -9,6 +10,7 @@ export default function Profile() {
   const navigate = useNavigate();
   const { addMessage } = useAppContext();
   const { profile, loading } = usePitcher(pitcherId, initData);
+  const whoopStatus = useApi(pitcherId ? `/api/pitcher/${pitcherId}/whoop-today` : null, initData);
 
   if (loading) {
     return <ProfileSkeleton />;
@@ -79,6 +81,25 @@ export default function Profile() {
       <Section title="Goals">
         <Row label="Primary" value={profile.goals?.primary || '—'} />
         {profile.goals?.secondary && <Row label="Secondary" value={profile.goals.secondary} />}
+      </Section>
+
+      {/* WHOOP */}
+      <Section title="Biometrics">
+        {whoopStatus?.data?.linked ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#28a745' }} />
+            <span className="text-xs text-text-secondary">WHOOP Connected</span>
+          </div>
+        ) : (
+          <div>
+            <p className="text-xs text-text-muted mb-2">
+              Connect your WHOOP to get real biometric data in your daily triage and training plans.
+            </p>
+            <p className="text-xs text-text-muted">
+              Send <strong>/whoop</strong> in the Telegram chat to link your account.
+            </p>
+          </div>
+        )}
       </Section>
 
       {/* Injury History */}

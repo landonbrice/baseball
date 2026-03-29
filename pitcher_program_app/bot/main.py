@@ -125,6 +125,78 @@ async def setday(update: Update, context) -> None:
     await update.message.reply_text(f"Rotation day set to Day {day}.")
 
 
+async def whoop_command(update: Update, context) -> None:
+    """Handle /whoop — link WHOOP or show today's data."""
+    from bot.services.context_manager import get_pitcher_id_by_telegram
+    from bot.services.whoop import is_linked, build_auth_url, get_today_whoop, pull_whoop_data, WHOOPAuthRequired
+
+    pitcher_id = get_pitcher_id_by_telegram(update.effective_user.id, update.effective_user.username)
+    if not pitcher_id:
+        await update.message.reply_text("I don't have a profile for you yet.")
+        return
+
+    if not is_linked(pitcher_id):
+        try:
+            url = build_auth_url(pitcher_id)
+            await update.message.reply_text(
+                "Connect your WHOOP to get real biometric data in your daily triage.\n\n"
+                f"Open this link to authorize:\n{url}"
+            )
+        except WHOOPAuthRequired as e:
+            await update.message.reply_text(str(e))
+        return
+
+    # Already linked — show today's data
+    try:
+        data = get_today_whoop(pitcher_id)
+        if not data:
+            data = pull_whoop_data(pitcher_id)
+        if data:
+            lines = ["WHOOP — Today's Data:"]
+            if data.get("recovery_score") is not None:
+                lines.append(f"  Recovery: {data['recovery_score']}%")
+            if data.get("hrv_rmssd") is not None:
+                hrv_line = f"  HRV: {data['hrv_rmssd']:.1f}ms"
+                if data.get("hrv_7day_avg"):
+                    hrv_line += f" (7d avg: {data['hrv_7day_avg']:.1f}ms)"
+                lines.append(hrv_line)
+            if data.get("sleep_performance") is not None:
+                sleep_line = f"  Sleep: {data['sleep_performance']}%"
+                if data.get("sleep_hours"):
+                    sleep_line += f" ({data['sleep_hours']}h)"
+                lines.append(sleep_line)
+            if data.get("yesterday_strain") is not None:
+                lines.append(f"  Strain: {data['yesterday_strain']:.1f}")
+            await update.message.reply_text("\n".join(lines))
+        else:
+            await update.message.reply_text("WHOOP is connected but no data available yet for today.")
+    except WHOOPAuthRequired:
+        url = build_auth_url(pitcher_id)
+        await update.message.reply_text(
+            "Your WHOOP connection expired. Re-authorize here:\n" + url
+        )
+    except Exception as e:
+        logger.error("WHOOP data pull failed for %s: %s", pitcher_id, e)
+        await update.message.reply_text("Couldn't pull WHOOP data right now. Try again later.")
+
+
+async def reauth_whoop(update: Update, context) -> None:
+    """Handle /reauth — force re-link WHOOP."""
+    from bot.services.context_manager import get_pitcher_id_by_telegram
+    from bot.services.whoop import build_auth_url, WHOOPAuthRequired
+
+    pitcher_id = get_pitcher_id_by_telegram(update.effective_user.id, update.effective_user.username)
+    if not pitcher_id:
+        await update.message.reply_text("I don't have a profile for you yet.")
+        return
+
+    try:
+        url = build_auth_url(pitcher_id)
+        await update.message.reply_text(f"Re-authorize WHOOP here:\n{url}")
+    except WHOOPAuthRequired as e:
+        await update.message.reply_text(str(e))
+
+
 async def gamestart(update: Update, context) -> None:
     """Handle /gamestart — schedule a 2hr post-outing reminder."""
     from bot.services.context_manager import get_pitcher_id_by_telegram
@@ -259,6 +331,23 @@ async def _send_morning_checkin(context) -> None:
         if throwing and throwing != "none" and throwing != "none_or_light_catch":
             preview += f"\nThrowing: {throwing.replace('_', ' ')}"
 
+        # Append WHOOP data if available (from 6am pull)
+        try:
+            from bot.services.whoop import get_today_whoop
+            wd = get_today_whoop(pitcher_id)
+            if wd:
+                parts = []
+                if wd.get("recovery_score") is not None:
+                    parts.append(f"Recovery {wd['recovery_score']}%")
+                if wd.get("hrv_rmssd") is not None:
+                    parts.append(f"HRV {wd['hrv_rmssd']:.0f}ms")
+                if wd.get("sleep_performance") is not None:
+                    parts.append(f"Sleep {wd['sleep_performance']}%")
+                if parts:
+                    preview += f"\nWHOOP: {' | '.join(parts)}"
+        except Exception:
+            pass
+
         msg = f"{preview}\n\nHow's the arm? (1-5)\nOr type /checkin for the full flow."
     except Exception:
         msg = "Morning check-in time. How's the arm today? (1-5)\n\nOr type /checkin to start the full flow."
@@ -364,6 +453,36 @@ def _ensure_pitcher_jobs(application: Application, pitcher_id: str, profile: dic
     logger.info(f"Dynamically scheduled jobs for {pitcher_id} at {time_str} Chicago time")
 
 
+async def _pull_all_whoop(context) -> None:
+    """Daily 6am job: pull WHOOP data for all linked pitchers."""
+    from bot.services.db import list_whoop_linked_pitchers, get_pitcher
+    from bot.services.whoop import pull_whoop_data, WHOOPAuthRequired
+
+    linked = list_whoop_linked_pitchers()
+    if not linked:
+        return
+
+    for pitcher_id in linked:
+        try:
+            pull_whoop_data(pitcher_id)
+            logger.info("WHOOP data pulled for %s", pitcher_id)
+        except WHOOPAuthRequired:
+            # Notify pitcher to re-link
+            try:
+                pitcher = get_pitcher(pitcher_id)
+                chat_id = pitcher.get("telegram_id")
+                if chat_id:
+                    await context.bot.send_message(
+                        chat_id=chat_id,
+                        text="Your WHOOP connection has expired. Use /whoop to reconnect.",
+                    )
+            except Exception:
+                pass
+            logger.warning("WHOOP auth expired for %s", pitcher_id)
+        except Exception as e:
+            logger.error("WHOOP pull failed for %s: %s", pitcher_id, e)
+
+
 def _schedule_jobs(application: Application) -> None:
     """Set up scheduled jobs for morning check-ins and weekly summaries.
 
@@ -429,6 +548,14 @@ def _schedule_jobs(application: Application) -> None:
     )
     logger.info("Scheduled Sunday 6pm Chicago weekly summary")
 
+    # Daily 6am WHOOP pull for all linked pitchers
+    job_queue.run_daily(
+        _pull_all_whoop,
+        time=dt_time(hour=6, minute=0, tzinfo=CHICAGO_TZ),
+        name="daily_whoop_pull",
+    )
+    logger.info("Scheduled daily 6am WHOOP pull")
+
 
 async def post_init(application: Application) -> None:
     """Set bot commands and schedule jobs after startup."""
@@ -469,6 +596,8 @@ def main() -> None:
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("status", status))
     application.add_handler(CommandHandler("setday", setday))
+    application.add_handler(CommandHandler("whoop", whoop_command))
+    application.add_handler(CommandHandler("reauth", reauth_whoop))
     application.add_handler(CommandHandler("gamestart", gamestart))
     application.add_handler(CommandHandler("dashboard", dashboard))
     application.add_handler(CommandHandler("backup", backup_command))

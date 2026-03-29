@@ -153,9 +153,30 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
 
     # Inject check-in inputs if available
     if checkin_inputs:
+        # Format WHOOP biometrics as a dedicated block
+        whoop_bio = checkin_inputs.pop("whoop_biometrics", None)
         inputs_text = "\n".join(
             f"{k.replace('_', ' ').title()}: {v}" for k, v in checkin_inputs.items() if v
         )
+        if whoop_bio:
+            parts = []
+            if whoop_bio.get("recovery") is not None:
+                parts.append(f"Recovery: {whoop_bio['recovery']}%")
+            if whoop_bio.get("hrv") is not None:
+                hrv_str = f"HRV: {whoop_bio['hrv']:.1f}ms"
+                if whoop_bio.get("hrv_7day_avg"):
+                    delta = (whoop_bio["hrv"] - whoop_bio["hrv_7day_avg"]) / whoop_bio["hrv_7day_avg"] * 100
+                    hrv_str += f" (7d avg: {whoop_bio['hrv_7day_avg']:.1f}ms, {delta:+.0f}%)"
+                parts.append(hrv_str)
+            if whoop_bio.get("sleep_perf") is not None:
+                sleep_str = f"Sleep: {whoop_bio['sleep_perf']}%"
+                if whoop_bio.get("sleep_hours"):
+                    sleep_str += f" ({whoop_bio['sleep_hours']}h actual)"
+                parts.append(sleep_str)
+            if whoop_bio.get("strain") is not None:
+                parts.append(f"Strain yesterday: {whoop_bio['strain']:.1f}")
+            if parts:
+                inputs_text += "\n\n## Biometric Data (WHOOP)\n" + " | ".join(parts)
         user_prompt = user_prompt.replace("{checkin_inputs}", inputs_text)
     else:
         user_prompt = user_prompt.replace("{checkin_inputs}", "No check-in inputs provided.")

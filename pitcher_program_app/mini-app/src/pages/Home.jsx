@@ -14,6 +14,7 @@ import Sparkline from '../components/Sparkline';
 import StreakBadge from '../components/StreakBadge';
 import StaffPulse from '../components/StaffPulse';
 import FlagBadge from '../components/FlagBadge';
+import WhoopCard from '../components/WhoopCard';
 
 export default function Home() {
   const { pitcherId, initData } = useAuth();
@@ -28,6 +29,7 @@ export default function Home() {
   const trendData = useApi(pitcherId ? `/api/pitcher/${pitcherId}/trend${suffix}` : null, initData);
   const narrativeData = useApi(pitcherId ? `/api/pitcher/${pitcherId}/weekly-narrative${suffix}` : null, initData);
   const staffPulse = useApi('/api/staff/pulse', initData);
+  const whoopData = useApi(pitcherId ? `/api/pitcher/${pitcherId}/whoop-today${suffix}` : null, initData);
 
   const exerciseMap = useMemo(() => {
     if (!exercises.data?.exercises) return {};
@@ -121,6 +123,13 @@ export default function Home() {
           <StreakBadge streak={streak} weekDots={weekDots} />
         </div>
       </div>
+
+      {/* WHOOP Biometrics — only for linked pitchers with data */}
+      {whoopData?.data?.linked && whoopData?.data?.data && (
+        <div style={{ padding: '8px 12px 0' }}>
+          <WhoopCard data={whoopData.data.data} averages={whoopData.data.averages} />
+        </div>
+      )}
 
       {/* SessionProgress */}
       {totalEx > 0 && hasCheckedIn && (

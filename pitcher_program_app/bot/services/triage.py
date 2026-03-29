@@ -18,6 +18,8 @@ logger = logging.getLogger(__name__)
 def triage(
     arm_feel: int, sleep_hours: float, pitcher_profile: dict,
     energy: int = None, whoop_recovery: float = None,
+    whoop_hrv: float = None, whoop_hrv_7day_avg: float = None,
+    whoop_sleep_perf: int = None,
     forearm_tightness: str = None, ucl_sensation: bool = False,
     pitch_count: int = None,
 ) -> dict:
@@ -28,7 +30,10 @@ def triage(
         sleep_hours: Hours of sleep last night
         pitcher_profile: Full pitcher profile dict
         energy: Optional 1-5 energy rating
-        whoop_recovery: Optional WHOOP recovery percentage
+        whoop_recovery: Optional WHOOP recovery percentage (0-100)
+        whoop_hrv: Optional WHOOP HRV rMSSD in ms
+        whoop_hrv_7day_avg: Optional 7-day HRV rolling average in ms
+        whoop_sleep_perf: Optional WHOOP sleep performance percentage (0-100)
         forearm_tightness: None, "mild", "moderate", "significant"
         ucl_sensation: Whether UCL-area sensation is present
         pitch_count: Pitch count (for post-outing triage)
@@ -127,6 +132,16 @@ def triage(
         yellow_triggers += 1
         trigger_reasons.append(f"WHOOP recovery {whoop_recovery}%")
 
+    if whoop_hrv is not None and whoop_hrv_7day_avg is not None and whoop_hrv_7day_avg > 0:
+        hrv_drop_pct = (whoop_hrv_7day_avg - whoop_hrv) / whoop_hrv_7day_avg * 100
+        if hrv_drop_pct > 15:
+            yellow_triggers += 1
+            trigger_reasons.append(f"HRV {whoop_hrv:.0f}ms, {hrv_drop_pct:.0f}% below 7d avg")
+
+    if whoop_sleep_perf is not None and whoop_sleep_perf < 50:
+        yellow_triggers += 1
+        trigger_reasons.append(f"WHOOP sleep performance {whoop_sleep_perf}%")
+
     # Grip drop (from active flags)
     if active_flags.get("grip_drop_reported"):
         yellow_triggers += 1
@@ -187,6 +202,14 @@ def triage(
 
     if whoop_recovery is not None and 33 <= whoop_recovery < 50:
         modified_green_reasons.append(f"moderate WHOOP recovery ({whoop_recovery}%)")
+
+    if whoop_hrv is not None and whoop_hrv_7day_avg is not None and whoop_hrv_7day_avg > 0:
+        hrv_drop_pct = (whoop_hrv_7day_avg - whoop_hrv) / whoop_hrv_7day_avg * 100
+        if 10 <= hrv_drop_pct <= 15:
+            modified_green_reasons.append(f"HRV slightly below avg ({hrv_drop_pct:.0f}% drop)")
+
+    if whoop_sleep_perf is not None and 50 <= whoop_sleep_perf < 70:
+        modified_green_reasons.append(f"moderate sleep performance ({whoop_sleep_perf}%)")
 
     if modified_green_reasons:
         modifications.append("Modified green — proceed with awareness")

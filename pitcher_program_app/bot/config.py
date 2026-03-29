@@ -32,6 +32,14 @@ DISABLE_AUTH = os.getenv("DISABLE_AUTH", "").lower() == "true"
 # Timezone — all pitchers are in Chicago
 CHICAGO_TZ = ZoneInfo("America/Chicago")
 
+# WHOOP OAuth
+WHOOP_CLIENT_ID = os.getenv("WHOOP_CLIENT_ID", "")
+WHOOP_CLIENT_SECRET = os.getenv("WHOOP_CLIENT_SECRET", "")
+WHOOP_REDIRECT_URI = os.getenv(
+    "WHOOP_REDIRECT_URI",
+    "https://baseball-production-9d28.up.railway.app/api/whoop/callback",
+)
+
 # Supabase
 SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY", "")
