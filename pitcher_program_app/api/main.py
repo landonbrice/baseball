@@ -38,23 +38,23 @@ app.add_middleware(
 
 app.include_router(router)
 
-from bot.config import PITCHERS_DIR, TELEGRAM_BOT_TOKEN, DEEPSEEK_API_KEY, MINI_APP_URL, DISABLE_AUTH
+from bot.config import TELEGRAM_BOT_TOKEN, DEEPSEEK_API_KEY, MINI_APP_URL, DISABLE_AUTH
 
 
 @app.get("/health")
 async def health():
-    pitcher_count = 0
-    pitchers_dir_exists = os.path.exists(PITCHERS_DIR)
-    if pitchers_dir_exists:
-        pitcher_count = sum(
-            1 for e in os.listdir(PITCHERS_DIR)
-            if os.path.isdir(os.path.join(PITCHERS_DIR, e))
-        )
+    try:
+        from bot.services.db import list_pitchers
+        pitcher_count = len(list_pitchers())
+        supabase_ok = True
+    except Exception:
+        pitcher_count = 0
+        supabase_ok = False
     return {
         "status": "ok",
         "mini_app_url_set": bool(MINI_APP_URL),
         "disable_auth": DISABLE_AUTH,
-        "pitchers_dir_exists": pitchers_dir_exists,
+        "supabase_connected": supabase_ok,
         "pitcher_count": pitcher_count,
         "bot_token_set": bool(TELEGRAM_BOT_TOKEN),
         "deepseek_key_set": bool(DEEPSEEK_API_KEY),
