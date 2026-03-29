@@ -107,6 +107,7 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
             logger.warning("Plyocare routines template not found")
 
     # Build template-derived fallback data
+    day_key = f"day_{rotation_day}"
     fallback_exercise_blocks = _build_exercise_blocks(today_template, arm_care, plyocare)
     pitcher_role = (profile.get("pitching_profile") or {}).get("role_type", "starter")
     if "reliever" in pitcher_role.lower():
@@ -189,7 +190,7 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
         if use_reasoning:
             raw = await call_llm_reasoning(system_prompt, user_prompt, max_tokens=4000)
         else:
-            raw = await call_llm(system_prompt, user_prompt, max_tokens=2000)
+            raw = await call_llm(system_prompt, user_prompt, max_tokens=3000)
     except (TimeoutError, Exception) as e:
         logger.warning(f"LLM call failed for plan generation ({type(e).__name__}: {e}), using template fallback")
         return {
