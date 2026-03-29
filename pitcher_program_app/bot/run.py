@@ -85,6 +85,7 @@ async def main() -> None:
 
     # ── Start both concurrently ──
     await application.initialize()
+    await post_init(application)  # post_init only auto-fires via run_polling(), not manual start
     await application.start()
     await application.updater.start_polling(allowed_updates=Update.ALL_TYPES)
     logger.info("Telegram bot polling started")
