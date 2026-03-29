@@ -71,12 +71,10 @@ async def process_checkin(
     weekly_summary, plan_narrative, exercise_blocks, throwing_plan,
     estimated_duration_min, modifications_applied, template_day, rotation_day.
     """
-    # Load profile and clamp unreasonable days_since_outing
+    # Load profile (no longer clamping days_since_outing — plan_generator
+    # handles extended time off by using lift preference for template selection)
     profile = load_profile(pitcher_id)
     rotation_length = profile.get("rotation_length", 7)
-    if (profile.get("active_flags") or {}).get("days_since_outing", 0) > rotation_length * 2:
-        update_active_flags(pitcher_id, {"days_since_outing": rotation_length - 1})
-        profile = load_profile(pitcher_id)
 
     triage_result = triage(
         arm_feel=arm_feel,

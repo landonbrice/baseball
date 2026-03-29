@@ -54,30 +54,44 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
     recent_logs = get_recent_entries(pitcher_id, n=7)
     rotation_day = get_rotation_day(profile)
     rotation_length = profile.get("rotation_length", 7)
-    phase = (profile.get("active_flags") or {}).get("phase")
-    # Clamp to valid rotation range
-    if rotation_day >= rotation_length:
-        rotation_day = rotation_day % rotation_length
+    phase = (profile.get("active_flags") or {}).get("phase", "")
+    lift_pref = (checkin_inputs or {}).get("lift_preference", "")
     flag_level = triage_result["flag_level"]
+
+    # Preference-to-template mapping
+    pref_to_day = {
+        "lower": "day_2",   # Lower Body — Power Focus
+        "upper": "day_3",   # Upper Body — Pull Emphasis
+        "full": "day_2",    # Use lower power as full body base
+        "rest": "day_6",    # Rest day — arm care and mobility only
+        "auto": None,       # Use rotation-based template
+    }
 
     # Load templates
     rotation_template = load_template("starter_7day.json")
-    day_key = f"day_{rotation_day}"
-    today_template = rotation_template["days"].get(day_key, {})
 
-    # Return-to-throwing pitchers: use lift preference to pick template,
-    # or fall back to recovery/light if no preference given
-    if not today_template or phase == "return_to_throwing":
-        lift_pref = (checkin_inputs or {}).get("lift_preference", "")
-        pref_to_day = {
-            "lower": "day_2",   # Lower Body — Power Focus
-            "upper": "day_3",   # Upper Body — Pull Emphasis
-            "full": "day_2",    # Use lower power as full body base
-            "rest": "day_1",    # Recovery
-            "auto": "day_1",    # Let rotation decide, default recovery
-        }
-        template_day = pref_to_day.get(lift_pref, "day_1")
-        today_template = rotation_template["days"].get(template_day, today_template)
+    # Determine which template to use:
+    # 1. Rest day always wins — arm care/mobility only regardless of rotation
+    # 2. Extended time off (past rotation cycle) or return-to-throwing: use lift preference
+    # 3. Normal rotation: use rotation day
+    use_preference = (
+        lift_pref == "rest"
+        or phase.startswith("return_to_throwing")
+        or rotation_day >= rotation_length
+        or not rotation_template["days"].get(f"day_{rotation_day}", {})
+    )
+
+    if use_preference and pref_to_day.get(lift_pref) is not None:
+        template_day = pref_to_day[lift_pref]
+        today_template = rotation_template["days"].get(template_day, {})
+        # Keep actual rotation_day for context but note the override
+        rotation_day = int(template_day.split("_")[1]) if "_" in template_day else rotation_day
+    elif rotation_day >= rotation_length:
+        # Extended time off, no specific preference — use mid-rotation template
+        rotation_day = rotation_day % rotation_length
+        today_template = rotation_template["days"].get(f"day_{rotation_day}", {})
+    else:
+        today_template = rotation_template["days"].get(f"day_{rotation_day}", {})
 
     # Arm care template
     arm_care_type = triage_result["protocol_adjustments"]["arm_care_template"]
@@ -122,7 +136,17 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
 
     user_prompt = prompt_template.replace("{relevant_research}", relevant_research or "No specific research loaded.")
     user_prompt = user_prompt.replace("{pitcher_context}", pitcher_context)
-    user_prompt = user_prompt.replace("{rotation_day}", f"Day {rotation_day} ({today_template.get('label', 'Unknown')})")
+    actual_days_since = (profile.get("active_flags") or {}).get("days_since_outing", rotation_day)
+    if actual_days_since > rotation_length:
+        rotation_context = (
+            f"Day {rotation_day} template ({today_template.get('label', 'Unknown')}), "
+            f"but pitcher is actually {actual_days_since} days since last outing "
+            f"(past normal {rotation_length}-day rotation). "
+            f"Lift preference: {lift_pref or 'auto'}."
+        )
+    else:
+        rotation_context = f"Day {rotation_day} ({today_template.get('label', 'Unknown')})"
+    user_prompt = user_prompt.replace("{rotation_day}", rotation_context)
     user_prompt = user_prompt.replace("{triage_result}", json.dumps(triage_result, indent=2))
     user_prompt = user_prompt.replace("{templates}", templates_context)
     user_prompt = user_prompt.replace("{recent_logs}", json.dumps(recent_logs, indent=2))

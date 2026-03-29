@@ -139,6 +139,10 @@ Generate today's training plan as a JSON object. Return ONLY the JSON — no mar
 - Core/stability: ~3 min
 - 7 exercises with 2 supersets = ~42-48 min. That's the sweet spot.
 
+### Lift Preference Override
+- If `lift_preference` is **"rest"**: Return ONLY arm care and mobility. The `lifting` object should have `"intent": "rest — arm care and mobility only"` with an **empty exercises array** `[]`. The pitcher explicitly asked for no lifting today — respect that completely. Still include throwing if rotation day calls for it.
+- If `lift_preference` is "lower", "upper", or "full": the template has already been matched to their preference. Follow the template.
+
 ### Pitcher Goals & Phase
 - Read the pitcher's primary goal and current phase from context
 - If phase is "return to throwing": the pitcher is building back, NOT shutting down. They should still get real training sessions with appropriate modifications:
