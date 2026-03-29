@@ -642,12 +642,24 @@ def _build_exercise_blocks(today_template: dict, arm_care: dict, plyocare) -> li
     """Build structured exercise_blocks from template data for the daily log."""
     blocks = []
 
+    # Load valid exercise IDs for validation
+    valid_ids = set()
+    try:
+        from bot.services.db import get_exercises
+        valid_ids = {e["id"] for e in get_exercises()}
+    except Exception:
+        pass  # Skip validation if DB unavailable
+
     # Lifting blocks from rotation template
     lifting = today_template.get("lifting")
     if lifting and lifting.get("blocks"):
         for block in lifting["blocks"]:
             exercises = []
             for ex in block.get("exercises", []):
+                ex_id = ex.get("exercise_id", "")
+                if valid_ids and ex_id not in valid_ids:
+                    logger.warning("Template exercise ID %s not in library, skipping", ex_id)
+                    continue
                 prescribed = _PRESCRIPTION_DEFAULTS.get(ex.get("prescription_mode", ""), "")
                 if ex.get("notes"):
                     prescribed = ex["notes"] if not prescribed else f"{prescribed} — {ex['notes']}"
@@ -663,13 +675,14 @@ def _build_exercise_blocks(today_template: dict, arm_care: dict, plyocare) -> li
                     if parts:
                         prescribed = " ".join(parts)
                 exercises.append({
-                    "exercise_id": ex["exercise_id"],
+                    "exercise_id": ex_id,
                     "prescribed": prescribed,
                 })
-            blocks.append({
-                "block_name": block["block_name"],
-                "exercises": exercises,
-            })
+            if exercises:
+                blocks.append({
+                    "block_name": block["block_name"],
+                    "exercises": exercises,
+                })
 
     # Arm care block
     arm_care_seq = arm_care.get("sequence", [])

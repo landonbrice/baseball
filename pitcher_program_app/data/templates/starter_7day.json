@@ -33,16 +33,16 @@
           {
             "block_name": "Arm Care",
             "exercises": [
-              { "exercise_id": "ex_002", "prescription_mode": "endurance", "notes": "Light, high rep — blood flow to FPM" },
-              { "exercise_id": "ex_wrist_flexion", "prescription_mode": "endurance" },
-              { "exercise_id": "ex_band_er_ir", "prescription_mode": "endurance" }
+              { "exercise_id": "ex_041", "prescription_mode": "endurance", "notes": "Light, high rep — blood flow to FPM" },
+              { "exercise_id": "ex_039", "prescription_mode": "endurance" },
+              { "exercise_id": "ex_032", "prescription_mode": "endurance" }
             ]
           },
           {
             "block_name": "Light Movement",
             "exercises": [
-              { "exercise_id": "ex_goblet_squat", "prescription_mode": "hypertrophy", "override": { "sets": 2, "reps": "10", "intensity": "light" } },
-              { "exercise_id": "ex_band_pull_apart", "prescription_mode": "endurance" }
+              { "exercise_id": "ex_007", "prescription_mode": "hypertrophy", "override": { "sets": 2, "reps": "10", "intensity": "light" } },
+              { "exercise_id": "ex_036", "prescription_mode": "endurance" }
             ]
           }
         ]
@@ -68,30 +68,30 @@
           {
             "block_name": "Dynamic Warmup",
             "exercises": [
-              { "exercise_id": "ex_lateral_lunge", "prescription_mode": "warmup" },
-              { "exercise_id": "ex_hip_circle", "prescription_mode": "warmup" }
+              { "exercise_id": "ex_009", "prescription_mode": "warmup" },
+              { "exercise_id": "ex_095", "prescription_mode": "warmup" }
             ]
           },
           {
             "block_name": "Power",
             "exercises": [
-              { "exercise_id": "ex_med_ball_rotational", "prescription_mode": "power", "notes": "3-4 sets x 4-6 throws each side, max intent" },
-              { "exercise_id": "ex_broad_jump", "prescription_mode": "power" }
+              { "exercise_id": "ex_014", "prescription_mode": "power", "notes": "3-4 sets x 4-6 throws each side, max intent" },
+              { "exercise_id": "ex_018", "prescription_mode": "power" }
             ]
           },
           {
             "block_name": "Strength",
             "exercises": [
               { "exercise_id": "ex_001", "prescription_mode": "strength", "notes": "Primary lower body compound" },
-              { "exercise_id": "ex_rdl", "prescription_mode": "hypertrophy" }
+              { "exercise_id": "ex_005", "prescription_mode": "hypertrophy" }
             ]
           },
           {
             "block_name": "Accessories + Arm Care",
             "exercises": [
-              { "exercise_id": "ex_nordic_curl", "prescription_mode": "strength" },
-              { "exercise_id": "ex_002", "prescription_mode": "strength" },
-              { "exercise_id": "ex_wrist_roller", "prescription_mode": "endurance" }
+              { "exercise_id": "ex_013", "prescription_mode": "strength" },
+              { "exercise_id": "ex_041", "prescription_mode": "strength" },
+              { "exercise_id": "ex_039", "prescription_mode": "endurance" }
             ]
           }
         ]
@@ -111,30 +111,30 @@
           {
             "block_name": "Power",
             "exercises": [
-              { "exercise_id": "ex_med_ball_overhead_slam", "prescription_mode": "power" }
+              { "exercise_id": "ex_016", "prescription_mode": "power" }
             ]
           },
           {
             "block_name": "Strength — Pull Dominant",
             "exercises": [
-              { "exercise_id": "ex_weighted_pullup", "prescription_mode": "strength" },
-              { "exercise_id": "ex_db_row", "prescription_mode": "hypertrophy" },
-              { "exercise_id": "ex_face_pull", "prescription_mode": "endurance" }
+              { "exercise_id": "ex_019", "prescription_mode": "strength" },
+              { "exercise_id": "ex_020", "prescription_mode": "hypertrophy" },
+              { "exercise_id": "ex_023", "prescription_mode": "endurance" }
             ]
           },
           {
             "block_name": "Push (Conservative)",
             "exercises": [
-              { "exercise_id": "ex_db_bench", "prescription_mode": "hypertrophy", "notes": "Moderate load — maintain pressing strength without overloading anterior shoulder" },
-              { "exercise_id": "ex_landmine_press", "prescription_mode": "hypertrophy" }
+              { "exercise_id": "ex_025", "prescription_mode": "hypertrophy", "notes": "Moderate load — maintain pressing strength without overloading anterior shoulder" },
+              { "exercise_id": "ex_026", "prescription_mode": "hypertrophy" }
             ]
           },
           {
             "block_name": "Arm Care + Core",
             "exercises": [
-              { "exercise_id": "ex_pallof_press", "prescription_mode": "strength" },
-              { "exercise_id": "ex_band_er_90", "prescription_mode": "endurance" },
-              { "exercise_id": "ex_002", "prescription_mode": "strength" }
+              { "exercise_id": "ex_045", "prescription_mode": "strength" },
+              { "exercise_id": "ex_032", "prescription_mode": "endurance" },
+              { "exercise_id": "ex_041", "prescription_mode": "strength" }
             ]
           }
         ]
@@ -154,22 +154,22 @@
           {
             "block_name": "Power",
             "exercises": [
-              { "exercise_id": "ex_lateral_bound", "prescription_mode": "power" }
+              { "exercise_id": "ex_017", "prescription_mode": "power" }
             ]
           },
           {
             "block_name": "Strength",
             "exercises": [
-              { "exercise_id": "ex_front_squat", "prescription_mode": "strength" },
-              { "exercise_id": "ex_hip_thrust", "prescription_mode": "hypertrophy" }
+              { "exercise_id": "ex_002", "prescription_mode": "strength" },
+              { "exercise_id": "ex_003", "prescription_mode": "hypertrophy" }
             ]
           },
           {
             "block_name": "Accessories",
             "exercises": [
-              { "exercise_id": "ex_split_squat", "prescription_mode": "hypertrophy" },
-              { "exercise_id": "ex_calf_raise", "prescription_mode": "hypertrophy" },
-              { "exercise_id": "ex_002", "prescription_mode": "endurance" }
+              { "exercise_id": "ex_004", "prescription_mode": "hypertrophy" },
+              { "exercise_id": "ex_063", "prescription_mode": "hypertrophy" },
+              { "exercise_id": "ex_041", "prescription_mode": "endurance" }
             ]
           }
         ]
@@ -189,23 +189,23 @@
           {
             "block_name": "Activation",
             "exercises": [
-              { "exercise_id": "ex_band_pull_apart", "prescription_mode": "warmup" },
-              { "exercise_id": "ex_push_up_plus", "prescription_mode": "warmup" },
-              { "exercise_id": "ex_ytw", "prescription_mode": "endurance" }
+              { "exercise_id": "ex_036", "prescription_mode": "warmup" },
+              { "exercise_id": "ex_028", "prescription_mode": "warmup" },
+              { "exercise_id": "ex_029", "prescription_mode": "endurance" }
             ]
           },
           {
             "block_name": "Light Strength",
             "exercises": [
-              { "exercise_id": "ex_db_row", "prescription_mode": "hypertrophy", "override": { "sets": 2, "intensity": "moderate" } },
-              { "exercise_id": "ex_landmine_press", "prescription_mode": "hypertrophy", "override": { "sets": 2 } }
+              { "exercise_id": "ex_020", "prescription_mode": "hypertrophy", "override": { "sets": 2, "intensity": "moderate" } },
+              { "exercise_id": "ex_026", "prescription_mode": "hypertrophy", "override": { "sets": 2 } }
             ]
           },
           {
             "block_name": "Arm Care",
             "exercises": [
-              { "exercise_id": "ex_002", "prescription_mode": "endurance" },
-              { "exercise_id": "ex_band_er_ir", "prescription_mode": "endurance" }
+              { "exercise_id": "ex_041", "prescription_mode": "endurance" },
+              { "exercise_id": "ex_032", "prescription_mode": "endurance" }
             ]
           }
         ]
