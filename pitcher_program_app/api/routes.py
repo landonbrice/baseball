@@ -8,7 +8,7 @@ from functools import lru_cache
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
-from bot.config import KNOWLEDGE_DIR, CONTEXT_WINDOW_CHARS, DISABLE_AUTH
+from bot.config import KNOWLEDGE_DIR, CONTEXT_WINDOW_CHARS, DISABLE_AUTH, CHICAGO_TZ
 from bot.services.context_manager import (
     load_profile, load_log, save_log, load_context, update_exercise_completion,
     append_context, increment_days_since_outing, load_saved_plans,
@@ -165,7 +165,7 @@ async def morning_status(pitcher_id: str, request: Request):
     from datetime import datetime, date, timedelta
 
     log = load_log(pitcher_id)
-    today_str = datetime.now().strftime("%Y-%m-%d")
+    today_str = datetime.now(CHICAGO_TZ).strftime("%Y-%m-%d")
     entries = log.get("entries", [])
     today_entry = next((e for e in entries if e.get("date") == today_str), None)
 

@@ -1,7 +1,7 @@
 # Pitcher Training Intelligence — Claude Init
 
-> Last updated: 2026-03-26
-> Sprint status: Phases 1-4 complete. Supabase live, coaching UX shipped, visible compounding deployed. Phase 5 (polish + adoption) next.
+> Last updated: 2026-03-28
+> Sprint status: Phases 1-4 complete. Phase 5 in progress — check-in pipeline hardened, timezone bugs fixed, rotation tracking corrected for extended time off.
 
 ## What This Is
 
@@ -130,9 +130,23 @@ Supabase-backed. `context_manager.py` queries recent `chat_messages` + `daily_en
 ### Triage → Plan Pipeline
 1. Rule-based triage (`triage.py`) → green/yellow/red + modifications
 2. Ambiguous cases → LLM refinement (`triage_llm.py`)
-3. Templates + triage + context → LLM → structured JSON protocol
-4. Fallback to template-derived blocks if LLM fails
-5. Results persist to active_flags
+3. **Partial entry saved to Supabase BEFORE plan generation** (check-in data persists even if LLM fails)
+4. Templates + triage + context → LLM → structured JSON protocol
+5. Fallback to template-derived blocks if LLM fails
+6. Full entry upserted (same date = updates partial), results persist to active_flags
+7. `days_since_outing` incremented AFTER successful check-in (not before)
+
+### Template Selection
+- Normal rotation: `days_since_outing % rotation_length` → template day
+- Extended time off (past rotation cycle): uses `lift_preference` to pick template
+- `lift_preference = "rest"` → day_6 template (arm care + mobility only, no lifting) for ALL pitchers
+- Return-to-throwing: always uses lift preference
+
+### Timezone
+All dates use `CHICAGO_TZ` (from `bot/config.py`). Server-side: `datetime.now(CHICAGO_TZ)`. Client-side: `toLocaleDateString('en-CA', { timeZone: 'America/Chicago' })`.
+
+### DB Column Whitelist
+`db.py` uses `_DAILY_ENTRY_COLUMNS` whitelist to strip unknown fields before upsert, preventing PostgREST 400 errors from schema mismatches.
 
 ### Dual LLM Routing
 - `call_llm()` — fast model (deepseek-chat) for simple Q&A, check-in responses

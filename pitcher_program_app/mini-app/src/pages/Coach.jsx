@@ -25,7 +25,7 @@ export default function Coach() {
   const suffix = globalRefreshKey ? `?_r=${globalRefreshKey}` : '';
   const { profile, log } = usePitcher(pitcherId, initData, suffix);
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
   const entries = log?.entries || [];
   const todayEntry = entries.find(e => e.date === todayStr);
   const hasCheckedIn = !!todayEntry?.pre_training?.arm_feel;

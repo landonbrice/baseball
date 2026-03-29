@@ -2,6 +2,7 @@
 
 import logging
 from datetime import datetime
+from bot.config import CHICAGO_TZ
 from bot.services.context_manager import load_log, load_profile
 
 logger = logging.getLogger(__name__)
@@ -44,7 +45,7 @@ def analyze_progression(pitcher_id: str) -> dict:
 
     # Weekly summary on Sundays
     weekly_summary = None
-    if datetime.now().weekday() == 6:  # Sunday
+    if datetime.now(CHICAGO_TZ).weekday() == 6:  # Sunday
         weekly_summary = _generate_weekly_summary(pitcher_id, training_entries)
 
     return {

@@ -489,7 +489,7 @@ def save_plan(pitcher_id: str, plan: dict) -> dict:
             "pitcher_id": pitcher_id,
             "plan_data": plan,
             "active": plan.pop("active", True),
-            "date_created": plan.pop("created_date", None) or datetime.now().strftime("%Y-%m-%d"),
+            "date_created": plan.pop("created_date", None) or datetime.now(CHICAGO_TZ).strftime("%Y-%m-%d"),
             "rotation_day": plan.pop("rotation_day", None),
             "template_used": plan.pop("template_used", None),
         }
@@ -506,7 +506,7 @@ def save_plan(pitcher_id: str, plan: dict) -> dict:
     if "active" not in plan:
         plan["active"] = True
     if "created_date" not in plan:
-        plan["created_date"] = datetime.now().strftime("%Y-%m-%d")
+        plan["created_date"] = datetime.now(CHICAGO_TZ).strftime("%Y-%m-%d")
     plans.append(plan)
     path = os.path.join(get_pitcher_dir(pitcher_id), "saved_plans.json")
     with open(path, "w") as f:

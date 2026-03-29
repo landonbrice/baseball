@@ -12,6 +12,7 @@ Flow (schedule known): arm report → acknowledgment + lift pref → throw inten
 import logging
 import json
 from datetime import datetime, timedelta
+from bot.config import CHICAGO_TZ
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ContextTypes,
@@ -50,7 +51,7 @@ def _get_yesterday_entry(pitcher_id):
         recent = get_recent_entries(pitcher_id, n=3)
         if not recent:
             return None
-        yesterday_str = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+        yesterday_str = (datetime.now(CHICAGO_TZ) - timedelta(days=1)).strftime("%Y-%m-%d")
         for e in reversed(recent):
             if e.get("date") == yesterday_str:
                 return e
@@ -758,7 +759,7 @@ async def skip_details_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 
     if pitcher_id and details:
         log = load_log(pitcher_id)
-        today = datetime.now().strftime("%Y-%m-%d")
+        today = datetime.now(CHICAGO_TZ).strftime("%Y-%m-%d")
         for entry in reversed(log.get("entries", [])):
             if entry.get("date") == today:
                 entry["skip_notes"] = details
@@ -772,7 +773,7 @@ async def skip_details_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 def _update_log_completion(pitcher_id, action):
     """Update the most recent log entry with completion status."""
     log = load_log(pitcher_id)
-    today = datetime.now().strftime("%Y-%m-%d")
+    today = datetime.now(CHICAGO_TZ).strftime("%Y-%m-%d")
     for entry in reversed(log.get("entries", [])):
         if entry.get("date") == today:
             entry["actual_logged"] = "all_done" if action == "plan_done" else "skipped_some"

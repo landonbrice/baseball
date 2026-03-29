@@ -4,6 +4,7 @@ import json
 import logging
 from datetime import datetime
 
+from bot.config import CHICAGO_TZ
 from bot.services.llm import call_llm, call_llm_reasoning, load_prompt
 from bot.services.triage import triage
 from bot.services.knowledge_retrieval import retrieve_research_for_plan
@@ -29,7 +30,7 @@ async def process_outing(
     Returns dict with: recovery_plan, flag_level, alerts, rotation_reset, outing_date.
     """
     profile = load_profile(pitcher_id)
-    today = datetime.now().strftime("%Y-%m-%d")
+    today = datetime.now(CHICAGO_TZ).strftime("%Y-%m-%d")
 
     # Update active flags
     update_active_flags(pitcher_id, {

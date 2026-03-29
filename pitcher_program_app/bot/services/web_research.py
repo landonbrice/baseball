@@ -3,7 +3,7 @@
 import os
 import logging
 from datetime import datetime
-from bot.config import KNOWLEDGE_DIR
+from bot.config import KNOWLEDGE_DIR, CHICAGO_TZ
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +66,7 @@ def _log_unanswered(question: str, pitcher_id: str) -> None:
     os.makedirs(KNOWLEDGE_DIR, exist_ok=True)
     path = os.path.join(KNOWLEDGE_DIR, "unanswered_questions.md")
 
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
+    timestamp = datetime.now(CHICAGO_TZ).strftime("%Y-%m-%d %H:%M")
     entry = f"- [{timestamp}] ({pitcher_id}) {question}\n"
 
     try:
