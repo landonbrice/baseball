@@ -3,6 +3,7 @@
  *
  * Large recovery ring on left, 3 satellite metric rings stacked on right.
  * Only renders when data is available (conditional in Home.jsx).
+ * Hides individual metrics when null — shows "processing" note if only strain available.
  */
 
 function Ring({ size, value, max, color, bgColor = '#e8e4de', strokeWidth }) {
@@ -47,6 +48,8 @@ export default function WhoopCard({ data, averages }) {
   const avgStrain = averages?.avg_strain;
   const avgSleepHrs = averages?.avg_sleep_hours;
 
+  const hasCore = recovery != null || hrv != null || sleepPerf != null;
+
   // HRV delta
   let hrvDelta = null;
   if (hrv != null && hrv7d != null && hrv7d > 0) {
@@ -63,82 +66,92 @@ export default function WhoopCard({ data, averages }) {
     }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 14 }}>
-        <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#28a745' }} />
+        <div style={{ width: 7, height: 7, borderRadius: '50%', background: hasCore ? '#28a745' : '#e8a317' }} />
         <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.2, color: '#666', textTransform: 'uppercase' }}>
           Biometrics · Today
         </span>
+        {!hasCore && (
+          <span style={{ fontSize: 9, color: '#999', marginLeft: 'auto' }}>
+            Recovery & sleep processing...
+          </span>
+        )}
       </div>
 
       {/* Body */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-        {/* Recovery hero ring */}
-        <div style={{ textAlign: 'center', flexShrink: 0 }}>
-          <div style={{ position: 'relative', width: 80, height: 80 }}>
-            <Ring size={80} value={recovery} max={100} color={recoveryColor(recovery)} />
-            <div style={{
-              position: 'absolute', top: 0, left: 0, width: 80, height: 80,
-              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <span style={{ fontSize: 22, fontWeight: 800, color: '#2a1a18', lineHeight: 1 }}>
-                {recovery != null ? recovery : '–'}
-              </span>
-              <span style={{ fontSize: 7, fontWeight: 700, letterSpacing: 1, color: '#888', textTransform: 'uppercase', marginTop: 2 }}>
-                Recovery
-              </span>
+        {/* Recovery hero ring — show if recovery available, otherwise compact */}
+        {recovery != null && (
+          <div style={{ textAlign: 'center', flexShrink: 0 }}>
+            <div style={{ position: 'relative', width: 80, height: 80 }}>
+              <Ring size={80} value={recovery} max={100} color={recoveryColor(recovery)} />
+              <div style={{
+                position: 'absolute', top: 0, left: 0, width: 80, height: 80,
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <span style={{ fontSize: 22, fontWeight: 800, color: '#2a1a18', lineHeight: 1 }}>
+                  {recovery}
+                </span>
+                <span style={{ fontSize: 7, fontWeight: 700, letterSpacing: 1, color: '#888', textTransform: 'uppercase', marginTop: 2 }}>
+                  Recovery
+                </span>
+              </div>
             </div>
+            {avgRecovery != null && (
+              <div style={{ fontSize: 10, color: '#999', marginTop: 4 }}>avg {avgRecovery}</div>
+            )}
           </div>
-          {avgRecovery != null && (
-            <div style={{ fontSize: 10, color: '#999', marginTop: 4 }}>avg {avgRecovery}</div>
-          )}
-        </div>
+        )}
 
-        {/* Satellite metrics */}
+        {/* Satellite metrics — only show rows with data */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, flex: 1 }}>
-          {/* HRV */}
-          <MetricRow
-            label="HRV"
-            value={hrv != null ? Math.round(hrv) : null}
-            ringColor="#4285f4"
-            ringValue={hrv} ringMax={hrv7d ? hrv7d * 1.5 : 100}
-            sub={hrv7d != null ? (
-              <>
-                <span>7d avg {Math.round(hrv7d)}ms</span>
-                {hrvDelta != null && (
-                  <span style={{ color: hrvDelta >= 0 ? '#28a745' : '#dc3545', fontWeight: 600, marginLeft: 4 }}>
-                    {hrvDelta >= 0 ? '+' : ''}{hrvDelta}%
-                  </span>
-                )}
-              </>
-            ) : null}
-          />
+          {hrv != null && (
+            <MetricRow
+              label="HRV"
+              value={Math.round(hrv)}
+              ringColor="#4285f4"
+              ringValue={hrv} ringMax={hrv7d ? hrv7d * 1.5 : 100}
+              sub={hrv7d != null ? (
+                <>
+                  <span>7d avg {Math.round(hrv7d)}ms</span>
+                  {hrvDelta != null && (
+                    <span style={{ color: hrvDelta >= 0 ? '#28a745' : '#dc3545', fontWeight: 600, marginLeft: 4 }}>
+                      {hrvDelta >= 0 ? '+' : ''}{hrvDelta}%
+                    </span>
+                  )}
+                </>
+              ) : null}
+            />
+          )}
 
-          {/* Sleep */}
-          <MetricRow
-            label="Sleep"
-            value={sleepPerf}
-            ringColor="#9c27b0"
-            ringValue={sleepPerf} ringMax={100}
-            sub={
-              <>
-                {sleepHrs != null && <span>{sleepHrs}h actual</span>}
-                {sleepHrs != null && avgSleepHrs != null && <span style={{ marginLeft: 4 }}>· avg {avgSleepHrs}h</span>}
-              </>
-            }
-          />
+          {sleepPerf != null && (
+            <MetricRow
+              label="Sleep"
+              value={sleepPerf}
+              ringColor="#9c27b0"
+              ringValue={sleepPerf} ringMax={100}
+              sub={
+                <>
+                  {sleepHrs != null && <span>{sleepHrs}h actual</span>}
+                  {sleepHrs != null && avgSleepHrs != null && <span style={{ marginLeft: 4 }}>· avg {avgSleepHrs}h</span>}
+                </>
+              }
+            />
+          )}
 
-          {/* Strain */}
-          <MetricRow
-            label="Strain"
-            value={strain != null ? strain.toFixed(1) : null}
-            ringColor="#e8a317"
-            ringValue={strain} ringMax={21}
-            sub={
-              <>
-                <span>yesterday</span>
-                {avgStrain != null && <span style={{ marginLeft: 4 }}>· avg {avgStrain}</span>}
-              </>
-            }
-          />
+          {strain != null && (
+            <MetricRow
+              label="Strain"
+              value={strain.toFixed(1)}
+              ringColor="#e8a317"
+              ringValue={strain} ringMax={21}
+              sub={
+                <>
+                  <span>yesterday</span>
+                  {avgStrain != null && <span style={{ marginLeft: 4 }}>· avg {avgStrain}</span>}
+                </>
+              }
+            />
+          )}
         </div>
       </div>
     </div>
@@ -155,7 +168,7 @@ function MetricRow({ label, value, ringColor, ringValue, ringMax, sub }) {
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           <span style={{ fontSize: 11, fontWeight: 700, color: '#2a1a18' }}>
-            {value != null ? value : '–'}
+            {value}
           </span>
         </div>
       </div>

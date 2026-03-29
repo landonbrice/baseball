@@ -154,9 +154,11 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
     # Inject check-in inputs if available
     if checkin_inputs:
         # Format WHOOP biometrics as a dedicated block
-        whoop_bio = checkin_inputs.pop("whoop_biometrics", None)
+        whoop_bio = checkin_inputs.get("whoop_biometrics")
         inputs_text = "\n".join(
-            f"{k.replace('_', ' ').title()}: {v}" for k, v in checkin_inputs.items() if v
+            f"{k.replace('_', ' ').title()}: {v}"
+            for k, v in checkin_inputs.items()
+            if v and k != "whoop_biometrics"
         )
         if whoop_bio:
             parts = []

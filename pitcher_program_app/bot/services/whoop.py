@@ -235,10 +235,17 @@ def pull_whoop_data(pitcher_id: str) -> dict | None:
     from bot.config import CHICAGO_TZ
     today = datetime.now(CHICAGO_TZ).date().isoformat()
 
-    # Return cached if already pulled today
+    # Return cached if already pulled today AND core metrics are present
     cached = db.get_whoop_daily(pitcher_id, today)
     if cached:
-        return cached
+        has_core = any([
+            cached.get("recovery_score") is not None,
+            cached.get("hrv_rmssd") is not None,
+            cached.get("sleep_performance") is not None,
+        ])
+        if has_core:
+            return cached
+        # Core metrics missing — re-pull (WHOOP may have processed them since last pull)
 
     # Pull from WHOOP API (let WHOOPAuthRequired propagate)
     recovery = sleep = cycles = None
@@ -277,6 +284,13 @@ def pull_whoop_data(pitcher_id: str) -> dict | None:
         "hrv_7day_avg": get_hrv_7day_avg(pitcher_id),
         "raw_data": {"recovery": recovery, "sleep": sleep, "cycles": cycles},
     }
+
+    # Merge with existing cached data (keep non-null values from prior pull)
+    if cached:
+        for key in ("recovery_score", "hrv_rmssd", "sleep_performance", "sleep_hours", "yesterday_strain", "hrv_7day_avg"):
+            if result.get(key) is None and cached.get(key) is not None:
+                result[key] = cached[key]
+        result["raw_data"] = {**(cached.get("raw_data") or {}), **(result.get("raw_data") or {})}
 
     db.upsert_whoop_daily(pitcher_id, result)
     return result
