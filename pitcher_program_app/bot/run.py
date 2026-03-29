@@ -31,7 +31,7 @@ from bot.handlers.post_outing import get_outing_handler
 from bot.handlers.qa import handle_question
 from bot.main import (
     start, help_command, status, setday, gamestart, dashboard,
-    backup_command, whoop_command, reauth_whoop, post_init, _text_dispatcher,
+    backup_command, whoop_command, reauth_whoop, test_notify, post_init, _text_dispatcher,
 )
 from api.main import app
 from scripts.seed_volume import seed_if_empty
@@ -75,6 +75,7 @@ async def main() -> None:
     application.add_handler(CommandHandler("setday", setday))
     application.add_handler(CommandHandler("whoop", whoop_command))
     application.add_handler(CommandHandler("reauth", reauth_whoop))
+    application.add_handler(CommandHandler("testnotify", test_notify))
     application.add_handler(CommandHandler("gamestart", gamestart))
     application.add_handler(CommandHandler("dashboard", dashboard))
     application.add_handler(CommandHandler("backup", backup_command))

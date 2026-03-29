@@ -180,6 +180,21 @@ async def whoop_command(update: Update, context) -> None:
         await update.message.reply_text("Couldn't pull WHOOP data right now. Try again later.")
 
 
+async def test_notify(update: Update, context) -> None:
+    """Handle /testnotify — manually trigger morning check-in notification."""
+    from bot.services.context_manager import get_pitcher_id_by_telegram
+    pitcher_id = get_pitcher_id_by_telegram(update.effective_user.id, update.effective_user.username)
+    if not pitcher_id:
+        await update.message.reply_text("No profile found.")
+        return
+    # Simulate the scheduled job by creating a fake job context
+    class FakeJob:
+        def __init__(self, data):
+            self.data = data
+    context.job = FakeJob({"pitcher_id": pitcher_id, "chat_id": update.effective_chat.id})
+    await _send_morning_checkin(context)
+
+
 async def reauth_whoop(update: Update, context) -> None:
     """Handle /reauth — force re-link WHOOP."""
     from bot.services.context_manager import get_pitcher_id_by_telegram
@@ -599,6 +614,7 @@ def main() -> None:
     application.add_handler(CommandHandler("setday", setday))
     application.add_handler(CommandHandler("whoop", whoop_command))
     application.add_handler(CommandHandler("reauth", reauth_whoop))
+    application.add_handler(CommandHandler("testnotify", test_notify))
     application.add_handler(CommandHandler("gamestart", gamestart))
     application.add_handler(CommandHandler("dashboard", dashboard))
     application.add_handler(CommandHandler("backup", backup_command))
