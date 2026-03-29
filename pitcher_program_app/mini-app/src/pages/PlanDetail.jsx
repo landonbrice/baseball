@@ -3,6 +3,7 @@ import { useAuth } from '../App';
 import { useAppContext } from '../hooks/useChatState';
 import { useApi } from '../hooks/useApi';
 import { deactivatePlan, activatePlan, applyPlanToToday } from '../api';
+import { useToast } from '../hooks/useToast';
 import DailyCard from '../components/DailyCard';
 
 export default function PlanDetail() {
@@ -65,6 +66,7 @@ export default function PlanDetail() {
     completed_exercises: {},
   };
 
+  const { showToast } = useToast();
   const hasExercises = plan.lifting?.exercises?.length || plan.arm_care?.exercises?.length;
 
   const handleToggleActive = async () => {
@@ -75,15 +77,19 @@ export default function PlanDetail() {
         await activatePlan(pitcherId, planId, initData);
       }
       refetch();
-    } catch { /* silent */ }
+      showToast(plan.active ? 'Plan deactivated' : 'Plan activated', 'success');
+    } catch {
+      showToast('Failed to update plan', 'error');
+    }
   };
 
   const handleAddToToday = async () => {
     try {
       await applyPlanToToday(pitcherId, planId, initData);
+      showToast('Plan applied to today', 'success');
       navigate('/');
-    } catch (e) {
-      console.error('Failed to apply plan:', e);
+    } catch {
+      showToast('Failed to apply plan', 'error');
     }
   };
 

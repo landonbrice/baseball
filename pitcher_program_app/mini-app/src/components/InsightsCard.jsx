@@ -2,26 +2,30 @@ import TrendInsightChart from './TrendInsightChart';
 
 function categorizeInsight(text) {
   const lower = text.toLowerCase();
+  if (lower.includes('declining') || lower.includes('concern') || lower.includes('dip') || lower.includes('below')) return 'concern';
   if (lower.includes('sleep')) return 'sleep';
+  if (lower.includes('trending up') || lower.includes('strong') || lower.includes('excellent') || lower.includes('stable') || lower.includes('good range') || lower.includes('compounding')) return 'positive';
   if (lower.includes('trend') || lower.includes('average') || lower.includes('averaging')) return 'trend';
-  if (lower.includes('concern') || lower.includes('dip') || lower.includes('below')) return 'concern';
-  if (lower.includes('positive') || lower.includes('stable') || lower.includes('good')) return 'positive';
+  if (lower.includes('check-in') || lower.includes('logged')) return 'progress';
   return 'default';
 }
 
-const CATEGORY_COLORS = {
-  trend: 'var(--color-maroon)',
-  sleep: 'var(--color-ink-muted)',
-  concern: 'var(--color-flag-yellow)',
-  positive: 'var(--color-flag-green)',
-  default: 'var(--color-ink-muted)',
+const CATEGORY_STYLES = {
+  concern: { dot: '#ef4444', bg: 'rgba(239,68,68,0.06)' },
+  sleep: { dot: 'var(--color-ink-muted)', bg: 'transparent' },
+  positive: { dot: '#16a34a', bg: 'rgba(22,163,74,0.06)' },
+  trend: { dot: 'var(--color-maroon)', bg: 'transparent' },
+  progress: { dot: 'var(--color-maroon)', bg: 'rgba(92,16,32,0.04)' },
+  default: { dot: 'var(--color-ink-muted)', bg: 'transparent' },
 };
 
 export default function InsightsCard({ observations = [], trendWeeks = [] }) {
-  // Guard: ensure observations is an array of strings
   const safeObs = Array.isArray(observations) ? observations.filter(o => typeof o === 'string') : [];
   const safeWeeks = Array.isArray(trendWeeks) ? trendWeeks : [];
-  if (!safeObs.length && safeWeeks.length < 2) return null;
+
+  // Always show the card — with data or with a placeholder
+  const hasChart = safeWeeks.length >= 2;
+  const hasObs = safeObs.length > 0;
 
   return (
     <div style={{
@@ -34,28 +38,41 @@ export default function InsightsCard({ observations = [], trendWeeks = [] }) {
       <div style={{
         fontSize: 9, fontWeight: 700, color: 'var(--color-maroon)',
         textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10,
+        display: 'flex', alignItems: 'center', gap: 6,
       }}>
-        Weekly Insight
+        <span>Weekly Insight</span>
+        {hasChart && (
+          <span style={{
+            fontSize: 8, fontWeight: 600, color: 'var(--color-ink-muted)',
+            textTransform: 'none', letterSpacing: 0,
+          }}>
+            {safeWeeks.length} week{safeWeeks.length !== 1 ? 's' : ''} of data
+          </span>
+        )}
       </div>
 
       {/* 4-week trend chart */}
-      {safeWeeks.length >= 2 && (
+      {hasChart && (
         <div style={{ marginBottom: 12 }}>
           <TrendInsightChart weeks={safeWeeks} />
         </div>
       )}
 
       {/* Text insights */}
-      {safeObs.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      {hasObs ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {safeObs.map((obs, i) => {
             const category = categorizeInsight(obs);
-            const dotColor = CATEGORY_COLORS[category];
+            const styles = CATEGORY_STYLES[category];
             return (
-              <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+              <div key={i} style={{
+                display: 'flex', gap: 8, alignItems: 'flex-start',
+                background: styles.bg, borderRadius: 8,
+                padding: styles.bg !== 'transparent' ? '8px 10px' : '2px 0',
+              }}>
                 <div style={{
-                  width: 5, height: 5, borderRadius: '50%',
-                  background: dotColor, flexShrink: 0, marginTop: 5,
+                  width: 6, height: 6, borderRadius: '50%',
+                  background: styles.dot, flexShrink: 0, marginTop: 5,
                 }} />
                 <p style={{
                   fontSize: 11, color: 'var(--color-ink-secondary)',
@@ -67,6 +84,13 @@ export default function InsightsCard({ observations = [], trendWeeks = [] }) {
             );
           })}
         </div>
+      ) : (
+        <p style={{
+          fontSize: 11, color: 'var(--color-ink-muted)',
+          lineHeight: 1.5, margin: 0, textAlign: 'center', padding: '8px 0',
+        }}>
+          Check in daily to build your weekly insights. Trends appear after 3+ days of data.
+        </p>
       )}
     </div>
   );

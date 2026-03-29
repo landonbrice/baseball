@@ -5,6 +5,7 @@ import { useAuth } from '../App';
 import { useAppContext } from '../hooks/useChatState';
 import { usePitcher } from '../hooks/usePitcher';
 import { sendChat, sendChatWithPlan, setNextOuting, savePlan, fetchChatHistory } from '../api';
+import { useToast } from '../hooks/useToast';
 
 export default function Coach() {
   const { pitcherId, initData } = useAuth();
@@ -15,6 +16,7 @@ export default function Coach() {
     consumePlanContext,
   } = useAppContext();
 
+  const { showToast } = useToast();
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [checkinFlow, setCheckinFlow] = useState(null);
@@ -93,6 +95,7 @@ export default function Coach() {
         if (m.content === 'plan_loaded') {
           setCheckinInProgress(false);
           setCheckinCompleted(true);
+          showToast('Plan generated', 'success');
           newMsgs.push({
             role: 'bot',
             type: 'plan_ready',
@@ -100,11 +103,13 @@ export default function Coach() {
             flagLevel: res.flag_level || 'green',
           });
         } else if (m.content === 'plan_updated') {
+          showToast('Plan updated', 'success');
           newMsgs.push({
             role: 'bot', type: 'text',
             content: 'Plan updated — your changes are live on Home.',
           });
         } else if (m.content === 'rotation_reset') {
+          showToast('Outing logged', 'success');
           newMsgs.push({
             role: 'bot', type: 'text',
             content: 'Outing logged. Rotation reset — recovery plan is on Home.',
@@ -206,10 +211,29 @@ export default function Coach() {
     setCheckinInProgress(true);
     setCheckinFlow({ step: 'arm_report' });
     const firstName = profile?.name?.split(' ')[0] || 'there';
+    const flags = profile?.active_flags || {};
+    const daysSince = flags.days_since_outing ?? 0;
+    const rotationLen = profile?.rotation_length ?? 7;
+    const nextOuting = flags.next_outing_days;
+
+    const newMsgs = [];
+
+    // Extended time off acknowledgment
+    if (daysSince > rotationLen) {
+      if (nextOuting && nextOuting > 0) {
+        newMsgs.push({ role: 'bot', type: 'text', content:
+          `Day ${daysSince} since your last outing \u2014 next one in ~${nextOuting} days. Training based on that timeline.` });
+      } else {
+        newMsgs.push({ role: 'bot', type: 'text', content:
+          `You're ${daysSince} days out from your last outing with no upcoming date set. I'll build today's plan from your lift preference. Set a date in the schedule step when you know it.` });
+      }
+    }
+
     const greeting = isRecoveryDay
       ? `Morning ${firstName}. Day after \u2014 how's the arm recovering?`
       : `Morning ${firstName}. How's the arm feeling?`;
-    setMessages(prev => [...prev, { role: 'bot', type: 'text', content: greeting }]);
+    newMsgs.push({ role: 'bot', type: 'text', content: greeting });
+    setMessages(prev => [...prev, ...newMsgs]);
   };
 
   const handleArmReport = (text) => {

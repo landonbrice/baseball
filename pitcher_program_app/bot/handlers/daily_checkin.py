@@ -207,12 +207,21 @@ async def start_checkin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     # Record check-in start
     append_context(pitcher_id, "checkin_start", f"Check-in started (day {days_since})")
 
-    # 8+ days without outing for starters
-    if role == "starter" and days_since > 8:
-        await update.message.reply_text(
-            f"It's been {days_since} days since your last logged outing. "
-            "Did you pitch recently? If so, use /outing to log it."
-        )
+    # Extended time off — dynamic acknowledgment
+    rotation_length = profile.get("rotation_length", 7)
+    next_outing = flags.get("next_outing_days")
+    if days_since > rotation_length:
+        if next_outing and next_outing > 0:
+            await update.message.reply_text(
+                f"Day {days_since} since your last outing — next one in ~{next_outing} days. "
+                "Training based on that timeline today."
+            )
+        else:
+            await update.message.reply_text(
+                f"You're {days_since} days out from your last outing with no upcoming date set. "
+                "I'll build today's plan based on your lift preference.\n\n"
+                "When you know your next outing, use the schedule step to set it."
+            )
 
     # Reliever "Did you throw?" branch
     if role == "reliever":

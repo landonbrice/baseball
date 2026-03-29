@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { useTelegram } from './hooks/useTelegram';
 import { resolveAuth, fetchApi } from './api';
 import { AppProvider, useAppContext } from './hooks/useChatState.jsx';
+import { ToastProvider } from './hooks/useToast.jsx';
 import Layout from './Layout';
 import Home from './pages/Home';
 import Coach from './pages/Coach';
@@ -92,20 +93,22 @@ export default function App() {
     <ErrorBoundary>
       <AuthContext.Provider value={{ pitcherId, initData }}>
         <AppProvider>
-          <MorningBadgeCheck pitcherId={pitcherId} initData={initData} />
-          <BrowserRouter>
-            <Routes>
-              <Route element={<Layout />}>
-                <Route index element={<Home />} />
-                <Route path="coach" element={<Coach />} />
-                <Route path="plans" element={<Plans />} />
-                <Route path="plans/:planId" element={<PlanDetail />} />
-                <Route path="log" element={<LogHistory />} />
-                <Route path="exercises" element={<ExerciseLibrary />} />
-                <Route path="profile" element={<Profile />} />
-              </Route>
-            </Routes>
-          </BrowserRouter>
+          <ToastProvider>
+            <MorningBadgeCheck pitcherId={pitcherId} initData={initData} />
+            <BrowserRouter>
+              <Routes>
+                <Route element={<Layout />}>
+                  <Route index element={<Home />} />
+                  <Route path="coach" element={<Coach />} />
+                  <Route path="plans" element={<Plans />} />
+                  <Route path="plans/:planId" element={<PlanDetail />} />
+                  <Route path="log" element={<LogHistory />} />
+                  <Route path="exercises" element={<ExerciseLibrary />} />
+                  <Route path="profile" element={<Profile />} />
+                </Route>
+              </Routes>
+            </BrowserRouter>
+          </ToastProvider>
         </AppProvider>
       </AuthContext.Provider>
     </ErrorBoundary>

@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { toggleExercise } from '../api';
+import { useToast } from '../hooks/useToast';
 import ExerciseWhy from './ExerciseWhy';
 import { BallDots, BallColorLegend } from './BallDots';
 import WhyCard from './WhyCard';
@@ -20,6 +21,7 @@ const BLOCKS = [
 ];
 
 export default function DailyCard({ entry, exerciseMap = {}, slugMap = {}, pitcherId, initData, readOnly = false }) {
+  const { showToast } = useToast();
   const rawCE = entry?.completed_exercises;
   const [completed, setCompleted] = useState((rawCE && !Array.isArray(rawCE)) ? rawCE : {});
   const [expandedWhy, setExpandedWhy] = useState({});
@@ -29,8 +31,11 @@ export default function DailyCard({ entry, exerciseMap = {}, slugMap = {}, pitch
     if (readOnly) return;
     setCompleted(prev => ({ ...prev, [exerciseId]: newState }));
     toggleExercise(pitcherId, entry?.date, exerciseId, newState, initData)
-      .catch(() => setCompleted(prev => ({ ...prev, [exerciseId]: !newState })));
-  }, [pitcherId, entry?.date, initData, readOnly]);
+      .catch(() => {
+        setCompleted(prev => ({ ...prev, [exerciseId]: !newState }));
+        showToast('Failed to save exercise', 'error');
+      });
+  }, [pitcherId, entry?.date, initData, readOnly, showToast]);
 
   const toggleWhy = useCallback((exerciseId) => {
     setExpandedWhy(prev => ({ ...prev, [exerciseId]: !prev[exerciseId] }));

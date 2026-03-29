@@ -43,6 +43,22 @@ def analyze_progression(pitcher_id: str) -> dict:
     observations.extend(recovery_obs)
     flags.extend(recovery_flags)
 
+    # Consistency observation
+    checkin_count = len(training_entries)
+    if checkin_count >= 7:
+        observations.append(
+            f"{checkin_count} check-ins logged. The data is compounding — "
+            "every day builds a clearer picture of your patterns."
+        )
+    elif checkin_count >= 3:
+        observations.append(
+            f"{checkin_count} check-ins so far. A few more days and weekly trend analysis unlocks."
+        )
+    elif checkin_count >= 1:
+        observations.append(
+            "First check-ins logged. Keep going — insights start appearing after 3-5 days of data."
+        )
+
     # Weekly summary on Sundays
     weekly_summary = None
     if datetime.now(CHICAGO_TZ).weekday() == 6:  # Sunday
@@ -56,26 +72,26 @@ def analyze_progression(pitcher_id: str) -> dict:
 
 
 def _analyze_arm_feel_trend(entries: list) -> tuple[list[str], list[str]]:
-    """Check for declining arm feel trends.
-
-    Flags:
-    - 3+ day strict decline
-    - Average < 3.0 over last 5 days
-    """
+    """Analyze arm feel trends — both positive and negative."""
     observations = []
     flags = []
 
-    recent = entries[-5:]
+    recent = entries[-7:]
     feels = [e["pre_training"]["arm_feel"] for e in recent]
 
     if len(feels) >= 3:
-        # Check for strict 3+ day decline
         last_three = feels[-3:]
+        # Declining trend
         if all(last_three[i] > last_three[i + 1] for i in range(len(last_three) - 1)):
             flags.append("arm_feel_declining")
             observations.append(
                 f"Arm feel has declined 3 days straight ({' → '.join(str(f) for f in last_three)}). "
                 "Worth monitoring — talk to your trainer if it continues."
+            )
+        # Improving trend
+        elif all(last_three[i] <= last_three[i + 1] for i in range(len(last_three) - 1)) and last_three[-1] >= 4:
+            observations.append(
+                f"Arm feel trending up ({' → '.join(str(f) for f in last_three)}). Recovery is tracking well."
             )
 
     if len(feels) >= 5:
@@ -86,17 +102,28 @@ def _analyze_arm_feel_trend(entries: list) -> tuple[list[str], list[str]]:
                 f"Your 5-day arm feel average is {avg:.1f}/5. "
                 "That's below where we'd like it. Consider backing off intensity."
             )
+        elif avg >= 4.0:
+            observations.append(
+                f"Arm feel averaging {avg:.1f}/5 over your last {len(feels)} check-ins. Strong and consistent."
+            )
+        elif avg >= 3.0:
+            observations.append(
+                f"Arm feel averaging {avg:.1f}/5 — solid baseline. Consistency here is what builds durability."
+            )
+
+    # Stability observation — low variance is good
+    if len(feels) >= 5:
+        variance = sum((f - sum(feels)/len(feels))**2 for f in feels) / len(feels)
+        if variance < 0.5 and sum(feels)/len(feels) >= 3.5:
+            observations.append(
+                "Arm feel has been very stable recently. That consistency matters more than any single day."
+            )
 
     return observations, flags
 
 
 def _analyze_sleep_pattern(entries: list) -> tuple[list[str], list[str]]:
-    """Check for poor sleep patterns.
-
-    Flags:
-    - Average < 6.5h over last 5 days
-    - 3+ nights under 6h in last 7 entries
-    """
+    """Analyze sleep patterns — both positive and negative."""
     observations = []
     flags = []
 
@@ -110,14 +137,22 @@ def _analyze_sleep_pattern(entries: list) -> tuple[list[str], list[str]]:
     if not sleep_hours:
         return observations, flags
 
-    # Average check (last 5)
     last_five = sleep_hours[-5:] if len(sleep_hours) >= 5 else sleep_hours
     avg = sum(last_five) / len(last_five)
+
     if avg < 6.5:
         flags.append("sleep_low_avg")
         observations.append(
-            f"Your recent sleep average is {avg:.1f}h. "
+            f"Sleep averaging {avg:.1f}h recently. "
             "Below 6.5h consistently impacts recovery and arm health."
+        )
+    elif avg >= 8.0:
+        observations.append(
+            f"Sleep averaging {avg:.1f}h — excellent. This is your biggest recovery advantage."
+        )
+    elif avg >= 7.0:
+        observations.append(
+            f"Sleep averaging {avg:.1f}h — good range for recovery."
         )
 
     # Frequency check
