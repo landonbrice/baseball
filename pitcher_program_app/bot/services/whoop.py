@@ -11,7 +11,7 @@ from datetime import date, datetime, timedelta, timezone
 from urllib.parse import urlencode
 import base64
 
-import requests
+import httpx
 
 from bot.config import WHOOP_CLIENT_ID, WHOOP_CLIENT_SECRET, WHOOP_REDIRECT_URI
 from bot.services import db
@@ -86,14 +86,14 @@ def exchange_code(code: str, state: str) -> str:
     pitcher_id = pending["pitcher_id"]
     verifier = pending["verifier"]
 
-    resp = requests.post(WHOOP_TOKEN_URL, data={
+    resp = httpx.post(WHOOP_TOKEN_URL, data={
         "grant_type": "authorization_code",
         "code": code,
         "redirect_uri": WHOOP_REDIRECT_URI,
         "client_id": WHOOP_CLIENT_ID,
         "client_secret": WHOOP_CLIENT_SECRET,
         "code_verifier": verifier,
-    }, timeout=15)
+    }, timeout=15.0)
     resp.raise_for_status()
 
     token_data = resp.json()
@@ -125,12 +125,12 @@ def _token_expired(tokens: dict) -> bool:
 
 
 def _refresh_access_token(pitcher_id: str, tokens: dict) -> dict:
-    resp = requests.post(WHOOP_TOKEN_URL, data={
+    resp = httpx.post(WHOOP_TOKEN_URL, data={
         "grant_type": "refresh_token",
         "refresh_token": tokens["refresh_token"],
         "client_id": WHOOP_CLIENT_ID,
         "client_secret": WHOOP_CLIENT_SECRET,
-    }, timeout=15)
+    }, timeout=15.0)
     resp.raise_for_status()
 
     new_data = resp.json()
@@ -172,11 +172,11 @@ def get_access_token(pitcher_id: str) -> str:
 
 def _api_get(pitcher_id: str, endpoint: str, params=None) -> dict:
     token = get_access_token(pitcher_id)
-    resp = requests.get(
+    resp = httpx.get(
         f"{WHOOP_API_BASE}{endpoint}",
         headers={"Authorization": f"Bearer {token}"},
         params=params,
-        timeout=15,
+        timeout=15.0,
     )
     resp.raise_for_status()
     return resp.json()

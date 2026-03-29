@@ -565,6 +565,7 @@ async def post_init(application: Application) -> None:
         BotCommand("status", "Current flags and rotation day"),
         BotCommand("setday", "Set rotation day manually"),
         BotCommand("gamestart", "Start game — get outing reminder in 2hrs"),
+        BotCommand("whoop", "Link WHOOP or view today's biometrics"),
         BotCommand("dashboard", "Open training dashboard"),
         BotCommand("help", "What I can do"),
     ]
