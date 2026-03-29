@@ -30,7 +30,9 @@ export default function Coach() {
   const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
   const entries = log?.entries || [];
   const todayEntry = entries.find(e => e.date === todayStr);
-  const hasCheckedIn = !!todayEntry?.pre_training?.arm_feel;
+  const hasCheckedIn = !!(todayEntry?.pre_training?.arm_feel &&
+    (todayEntry?.plan_narrative || todayEntry?.plan_generated?.exercise_blocks?.length));
+  const checkedInNoPlan = !!(todayEntry?.pre_training?.arm_feel && !hasCheckedIn);
   const rawBrief = todayEntry?.morning_brief || todayEntry?.plan_generated?.morning_brief;
   const morningBrief = typeof rawBrief === 'string' ? rawBrief : null;
   const isNewPitcher = profile && !profile.active_flags?.last_outing_date && !todayEntry;
@@ -102,6 +104,10 @@ export default function Coach() {
             content: res.morning_brief || 'Your plan is ready.',
             flagLevel: res.flag_level || 'green',
           });
+        } else if (m.content === 'plan_failed') {
+          setCheckinInProgress(false);
+          setCheckinCompleted(false);
+          showToast('Plan generation failed — tap "Retry plan"', 'error');
         } else if (m.content === 'plan_updated') {
           showToast('Plan updated', 'success');
           newMsgs.push({
@@ -406,10 +412,35 @@ export default function Coach() {
     }
   };
 
+  // ── Retry plan (re-triggers triage + plan gen with saved check-in data) ──
+  const retryPlan = async () => {
+    setLoading(true);
+    addMessage({ role: 'user', type: 'text', content: 'Retry plan generation' });
+    try {
+      const res = await sendChat(pitcherId, initData, {
+        type: 'checkin',
+        arm_feel: todayEntry.pre_training.arm_feel,
+        sleep_hours: todayEntry.pre_training.sleep_hours,
+        energy: todayEntry.pre_training.overall_energy || 3,
+      });
+      processResponse(res);
+      for (const m of res.messages || []) {
+        if (m.type === 'text') addMessage({ role: 'bot', type: 'text', content: m.content });
+      }
+    } catch {
+      addMessage({ role: 'bot', type: 'text', content: 'Plan retry failed. Try again or check in from Telegram.' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // ── Quick action pills ──
   const quickActions = [];
-  if (!hasCheckedIn && !checkinFlow) {
+  if (!hasCheckedIn && !checkinFlow && !checkedInNoPlan) {
     quickActions.push({ label: 'Check in', action: startCheckin });
+  }
+  if (checkedInNoPlan) {
+    quickActions.push({ label: 'Retry plan', action: retryPlan });
   }
   if (!outingFlow) {
     quickActions.push({ label: 'Log outing', action: startOuting });

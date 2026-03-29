@@ -479,10 +479,6 @@ async def post_chat(pitcher_id: str, request: Request):
                     "flag_level": "green",
                 }
 
-            # Increment rotation day only after successful check-in
-            if (profile_chk.get("active_flags") or {}).get("phase") != "return_to_throwing":
-                increment_days_since_outing(pitcher_id)
-
             messages = []
             flag = result["flag_level"].upper()
 
@@ -490,11 +486,14 @@ async def post_chat(pitcher_id: str, request: Request):
             if not result.get("plan_narrative") and not result.get("morning_brief"):
                 messages.append({"type": "text", "content":
                     f"{flag} flag. Your check-in data has been saved. "
-                    "Plan generation had an issue — your plan will show template exercises. "
-                    "Try checking in again for a personalized plan."})
-                messages.append({"type": "status", "content": "plan_loaded"})
+                    "Plan generation had an issue. Tap \"Retry plan\" to try again."})
+                messages.append({"type": "status", "content": "plan_failed"})
                 _persist_chat(pitcher_id, f"Check-in: arm {arm_feel}/5 (plan gen failed)", messages)
                 return {"messages": messages, "morning_brief": None, "flag_level": result.get("flag_level", "green")}
+
+            # Increment rotation day only after successful plan generation
+            if (profile_chk.get("active_flags") or {}).get("phase") != "return_to_throwing":
+                increment_days_since_outing(pitcher_id)
 
             messages.append({"type": "text", "content": f"{flag} flag. {result.get('triage_reasoning', '')}"})
 
