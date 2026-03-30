@@ -6,7 +6,7 @@ Includes scheduled morning check-ins and weekly alerts via APScheduler.
 
 import logging
 import sys
-from datetime import datetime, time as dt_time
+from datetime import datetime, time as dt_time, timedelta
 from zoneinfo import ZoneInfo
 
 CHICAGO_TZ = ZoneInfo("America/Chicago")
