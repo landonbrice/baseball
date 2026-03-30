@@ -1,186 +1,364 @@
-import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../App';
 import { useAppContext } from '../hooks/useChatState';
-import { usePitcher } from '../hooks/usePitcher';
 import { useApi } from '../hooks/useApi';
-import DailyCard from '../components/DailyCard';
+import SeasonTimeline from '../components/SeasonTimeline';
+import SleepScatter from '../components/SleepScatter';
 
-const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const MAROON = '#5c1020';
+const YELLOW = '#BA7517';
+const GREEN = '#1D9E75';
+const INK = '#2a1a18';
+const INK2 = '#6b5f58';
+const MUTED = '#b0a89e';
+const BG = '#f5f1eb';
+const BORDER = '#e4dfd8';
 
-function armFeelCellColor(feel) {
-  if (feel >= 4) return 'bg-flag-green/30 text-flag-green';
-  if (feel === 3) return 'bg-flag-yellow/20 text-flag-yellow';
-  if (feel === 2) return 'bg-flag-red/30 text-flag-red';
-  if (feel === 1) return 'bg-flag-red/50 text-flag-red';
-  return 'bg-bg-tertiary text-text-muted';
+function armFeelColor(feel) {
+  if (feel >= 4) return GREEN;
+  if (feel === 3) return YELLOW;
+  return '#A32D2D';
+}
+
+function armFeelBadge(feel) {
+  if (feel >= 4) return { bg: '#EAF3DE', color: '#27500A' };
+  if (feel === 3) return { bg: '#FFF3D6', color: '#7A5A00' };
+  return { bg: '#FDDEDE', color: '#8B1A1A' };
+}
+
+function formatDate(dateStr) {
+  const d = new Date(dateStr + 'T12:00:00');
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function formatWeekLabel(weekStart) {
+  const d = new Date(weekStart + 'T12:00:00');
+  return 'Week of ' + d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
 export default function LogHistory() {
   const { pitcherId, initData } = useAuth();
   const navigate = useNavigate();
   const { addMessage } = useAppContext();
-  const { log, loading } = usePitcher(pitcherId, initData);
-  const exercises = useApi('/api/exercises', initData);
-  const slugs = useApi('/api/exercises/slugs', initData);
-  const [selectedEntry, setSelectedEntry] = useState(null);
 
-  const entries = log?.entries || [];
-
-  const exerciseMap = useMemo(() => {
-    if (!exercises.data?.exercises) return {};
-    const map = {};
-    for (const ex of exercises.data.exercises) map[ex.id] = ex;
-    return map;
-  }, [exercises.data]);
-
-  const slugMap = useMemo(() => slugs.data || {}, [slugs.data]);
-
-  // Group entries by month
-  const months = useMemo(() => {
-    const map = new Map();
-    for (const entry of entries) {
-      const d = new Date(entry.date + 'T00:00:00');
-      const key = `${d.getFullYear()}-${d.getMonth()}`;
-      if (!map.has(key)) {
-        map.set(key, { year: d.getFullYear(), month: d.getMonth(), entries: [] });
-      }
-      map.get(key).entries.push(entry);
-    }
-    return [...map.values()].reverse();
-  }, [entries]);
-
-  if (loading) {
-    return <HistorySkeleton />;
-  }
-
-  return (
-    <div className="p-4 space-y-4 pb-28">
-      <h1 className="text-lg font-bold text-text-primary">Log History</h1>
-
-      {months.length === 0 && (
-        <p className="text-text-muted text-sm">No log entries yet. Start with /checkin in the bot.</p>
-      )}
-
-      {months.map(({ year, month, entries: monthEntries }) => (
-        <div key={`${year}-${month}`}>
-          <h2 className="text-sm font-semibold text-text-secondary mb-2">
-            {MONTHS[month]} {year}
-          </h2>
-          <CalendarGrid
-            year={year}
-            month={month}
-            entries={monthEntries}
-            onSelect={setSelectedEntry}
-            selectedDate={selectedEntry?.date}
-          />
-        </div>
-      ))}
-
-      {/* Day detail panel with full DailyCard */}
-      {selectedEntry && (
-        <div className="fixed inset-x-0 bottom-0 bg-bg-secondary rounded-t-2xl p-4 pb-24 border-t border-bg-tertiary shadow-lg max-h-[70vh] overflow-y-auto z-50">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-text-primary">{selectedEntry.date}</h3>
-            <button onClick={() => setSelectedEntry(null)} className="text-text-muted text-lg px-2">x</button>
-          </div>
-          <DailyCard
-            entry={selectedEntry}
-            exerciseMap={exerciseMap}
-            slugMap={slugMap}
-            pitcherId={pitcherId}
-            initData={initData}
-            readOnly={true}
-          />
-          <div
-            onClick={() => {
-              const flag = selectedEntry.pre_training?.flag_level || 'green';
-              const feel = selectedEntry.pre_training?.arm_feel;
-              addMessage({
-                role: 'user', type: 'text',
-                content: `Tell me about my ${selectedEntry.date} session — I was ${flag} flag${feel ? `, arm feel ${feel}/5` : ''}. Why did I get that plan?`,
-              });
-              setSelectedEntry(null);
-              navigate('/coach');
-            }}
-            style={{
-              marginTop: 10, background: 'var(--color-maroon)', borderRadius: 10,
-              padding: '9px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              cursor: 'pointer',
-            }}
-          >
-            <span style={{ fontSize: 11, fontWeight: 700, color: '#fff' }}>Ask coach about this day</span>
-            <span style={{ color: '#e8a0aa' }}>{'\u2192'}</span>
-          </div>
-        </div>
-      )}
-
-    </div>
+  const { data, loading } = useApi(
+    pitcherId ? `/api/pitcher/${pitcherId}/season-summary` : null,
+    initData,
   );
-}
 
-function CalendarGrid({ year, month, entries, onSelect, selectedDate }) {
-  const entryMap = useMemo(() => {
-    const map = {};
-    for (const e of entries) map[e.date] = e;
-    return map;
-  }, [entries]);
-
-  // Build calendar grid
-  const firstDay = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-  const cells = [];
-  for (let i = 0; i < firstDay; i++) cells.push(null);
-  for (let d = 1; d <= daysInMonth; d++) {
-    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-    cells.push({ day: d, entry: entryMap[dateStr], dateStr });
+  function askCoach(prompt) {
+    addMessage({ role: 'user', type: 'text', content: prompt });
+    navigate('/coach');
   }
 
-  return (
-    <div>
-      <div className="grid grid-cols-7 gap-1 mb-1">
-        {['S','M','T','W','T','F','S'].map((d, i) => (
-          <div key={i} className="text-[10px] text-text-muted text-center">{d}</div>
-        ))}
-      </div>
-      <div className="grid grid-cols-7 gap-1">
-        {cells.map((cell, i) => {
-          if (!cell) return <div key={i} />;
-          const feel = cell.entry?.pre_training?.arm_feel;
-          const isSelected = cell.dateStr === selectedDate;
-          const hasOuting = !!cell.entry?.outing;
+  if (loading) return <SeasonSkeleton />;
+  if (!data) return <EmptyState />;
 
-          return (
-            <button
-              key={i}
-              onClick={() => cell.entry && onSelect(cell.entry)}
-              className={`relative aspect-square rounded-md flex items-center justify-center text-xs font-medium transition-colors ${
-                feel != null ? armFeelCellColor(feel) : 'bg-bg-secondary text-text-muted'
-              } ${isSelected ? 'ring-2 ring-accent-blue' : ''} ${
-                cell.entry ? 'cursor-pointer' : 'cursor-default'
-              }`}
-            >
-              {cell.day}
-              {hasOuting && (
-                <div className="absolute bottom-0.5 w-1 h-1 rounded-full bg-accent-blue" />
+  const { pitcher_name, season_label, total_checkins, stats, timeline,
+    rotation_signature, outings, sleep_correlation, weekly_narratives } = data;
+
+  return (
+    <div style={{ background: BG, minHeight: '100vh', paddingBottom: 100 }}>
+
+      {/* ── Header ── */}
+      <div style={{ background: MAROON, padding: '14px 16px 12px' }}>
+        <div style={{ fontSize: 20, fontWeight: 800, color: '#fff', letterSpacing: -0.4 }}>Season</div>
+        <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.45)', marginTop: 2 }}>
+          {pitcher_name} · {season_label} · {total_checkins} check-in{total_checkins !== 1 ? 's' : ''}
+        </div>
+      </div>
+
+      <div style={{ height: 8 }} />
+
+      {/* ── Summary stat cards ── */}
+      <div style={{ padding: '0 12px 8px', display: 'flex', gap: 8 }}>
+        <StatCard value={stats.avg_arm_feel ?? '—'} label="avg arm feel" color={MAROON} />
+        <StatCard value={stats.avg_sleep ? `${stats.avg_sleep}h` : '—'} label="avg sleep" color={INK} />
+        <StatCard value={stats.total_starts} label={stats.total_starts === 1 ? 'start logged' : 'starts logged'} color={INK} />
+        <StatCard value={stats.current_streak} label="day streak" color={GREEN} />
+      </div>
+
+      {/* ── Season arm feel timeline ── */}
+      {timeline.length >= 2 && (
+        <Card label="Season arm feel timeline">
+          <SeasonTimeline timeline={timeline} />
+        </Card>
+      )}
+
+      {/* ── Rotation signature ── */}
+      {rotation_signature && (
+        <Card label="Your rotation signature">
+          <div style={{ fontSize: 10, color: INK2, lineHeight: 1.5, marginBottom: 10 }}>
+            Average arm feel per day of your rotation, across all starts this season.
+          </div>
+          <RotationBars
+            bars={rotation_signature.bars}
+            bestDay={rotation_signature.best_day}
+            lowDays={rotation_signature.low_days}
+          />
+          {rotation_signature.insight && (
+            <div style={{
+              background: '#fdf8f8', borderRadius: 8, padding: '8px 10px',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8,
+            }}>
+              <div style={{ fontSize: 10, color: '#4a2228', lineHeight: 1.4 }}>{rotation_signature.insight}</div>
+              {rotation_signature.ask_prompt && (
+                <div
+                  onClick={() => askCoach(rotation_signature.ask_prompt)}
+                  style={{ fontSize: 9, color: MAROON, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', marginLeft: 8 }}
+                >
+                  Ask ↗
+                </div>
               )}
-            </button>
-          );
-        })}
-      </div>
+            </div>
+          )}
+        </Card>
+      )}
+
+      {/* ── Starts this season ── */}
+      {outings.length > 0 && (
+        <Card label="Starts this season">
+          {outings.map((o, idx) => (
+            <OutingCard
+              key={o.date}
+              outing={o}
+              opacity={idx === 0 ? 1 : idx === 1 ? 0.75 : 0.6}
+              isLast={idx === outings.length - 1}
+              onAsk={askCoach}
+            />
+          ))}
+        </Card>
+      )}
+
+      {/* ── Weekly coaching notes ── */}
+      {weekly_narratives.length > 0 && (
+        <Card label="Weekly coaching notes">
+          {weekly_narratives.map((n, idx) => (
+            <div
+              key={n.week_start}
+              style={{
+                borderLeft: idx === 0 ? `3px solid ${MAROON}` : `2px solid ${BORDER}`,
+                borderRadius: '0 8px 8px 0',
+                background: idx === 0 ? 'rgba(92,16,32,0.04)' : 'transparent',
+                padding: idx === 0 ? '10px 12px' : '8px 10px',
+                marginBottom: idx < weekly_narratives.length - 1 ? 10 : 0,
+                opacity: idx === 0 ? 1 : idx === 1 ? 0.7 : 0.5,
+              }}
+            >
+              <div style={{
+                fontSize: idx === 0 ? 10 : 9, fontWeight: 700,
+                color: idx === 0 ? INK : INK2, marginBottom: idx === 0 ? 3 : 2,
+              }}>
+                {formatWeekLabel(n.week_start)}
+              </div>
+              <div style={{ fontSize: 10, color: idx === 0 ? '#4a2228' : INK2, lineHeight: 1.65, fontStyle: 'italic' }}>
+                "{n.narrative}"
+              </div>
+            </div>
+          ))}
+        </Card>
+      )}
+
+      {/* ── Sleep vs arm feel ── */}
+      {sleep_correlation && (
+        <Card label="Sleep vs arm feel" last>
+          <div style={{ fontSize: 10, color: INK2, lineHeight: 1.5, marginBottom: 10 }}>
+            {sleep_correlation.insight}
+          </div>
+          <SleepScatter points={sleep_correlation.points} />
+          {sleep_correlation.ask_prompt && (
+            <div
+              onClick={() => askCoach(sleep_correlation.ask_prompt)}
+              style={{
+                marginTop: 10, background: BG, borderRadius: 8, padding: '7px 10px',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                cursor: 'pointer', border: `0.5px solid ${BORDER}`,
+              }}
+            >
+              <span style={{ fontSize: 10, color: MAROON, fontWeight: 700 }}>Ask coach to analyze this pattern</span>
+              <span style={{ color: '#e8a0aa', fontSize: 13 }}>↗</span>
+            </div>
+          )}
+        </Card>
+      )}
     </div>
   );
 }
 
-function HistorySkeleton() {
+/* ── Sub-components ── */
+
+function Card({ label, children, last }) {
   return (
-    <div className="p-4 space-y-4 animate-pulse">
-      <div className="h-6 bg-bg-secondary rounded w-1/3" />
-      <div className="grid grid-cols-7 gap-1">
-        {[...Array(35)].map((_, i) => (
-          <div key={i} className="aspect-square bg-bg-secondary rounded-md" />
+    <div style={{
+      background: '#fff', borderRadius: 12, padding: 14,
+      margin: `0 12px ${last ? 20 : 10}px`,
+    }}>
+      <div style={{
+        fontSize: 9, fontWeight: 700, color: MAROON,
+        letterSpacing: '0.07em', textTransform: 'uppercase', marginBottom: 10,
+      }}>
+        {label}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function StatCard({ value, label, color }) {
+  return (
+    <div style={{
+      flex: 1, background: '#fff', borderRadius: 10, padding: '10px 12px', textAlign: 'center',
+    }}>
+      <div style={{ fontSize: 20, fontWeight: 800, color }}>{value}</div>
+      <div style={{ fontSize: 8, color: MUTED, marginTop: 1 }}>{label}</div>
+    </div>
+  );
+}
+
+function RotationBars({ bars, bestDay, lowDays }) {
+  const validBars = bars.filter(b => b.avg_feel !== null);
+  if (validBars.length === 0) return null;
+  const maxFeel = Math.max(...validBars.map(b => b.avg_feel));
+  const maxH = 52;
+
+  return (
+    <div style={{ display: 'flex', gap: 3, alignItems: 'flex-end', height: 60, marginBottom: 6 }}>
+      {bars.map(b => {
+        if (b.avg_feel === null) {
+          return (
+            <div key={b.day} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+              <div style={{ fontSize: 8, color: MUTED }}>—</div>
+              <div style={{ width: '100%', background: '#eee', borderRadius: '3px 3px 0 0', height: 4 }} />
+              <div style={{ fontSize: 8, color: MUTED }}>{b.day}</div>
+            </div>
+          );
+        }
+        const isBest = b.day === bestDay;
+        const isLow = lowDays.includes(b.day);
+        const barColor = isLow ? YELLOW : MAROON;
+        const h = (b.avg_feel / maxFeel) * maxH;
+        const opacity = isBest ? 1 : isLow ? 0.7 : 0.65 + (b.avg_feel / maxFeel) * 0.3;
+
+        return (
+          <div key={b.day} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+            <div style={{ fontSize: 8, fontWeight: isBest ? 800 : 700, color: barColor }}>{b.avg_feel}</div>
+            <div style={{
+              width: '100%', background: barColor, borderRadius: '3px 3px 0 0',
+              height: h, opacity,
+              border: isBest ? `1.5px solid ${MAROON}` : 'none',
+            }} />
+            <div style={{
+              fontSize: 8,
+              color: isBest ? MAROON : MUTED,
+              fontWeight: isBest ? 700 : 400,
+            }}>
+              {b.day}{isBest ? ' ★' : ''}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function OutingCard({ outing, opacity, isLast, onAsk }) {
+  const badge = armFeelBadge(outing.post_arm_feel);
+
+  return (
+    <div style={{
+      borderBottom: isLast ? 'none' : `0.5px solid ${BORDER}`,
+      paddingBottom: isLast ? 0 : 10,
+      marginBottom: isLast ? 0 : 10,
+      opacity,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 6 }}>
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: INK }}>{formatDate(outing.date)}</div>
+          <div style={{ fontSize: 9, color: MUTED, marginTop: 1 }}>
+            {outing.pitch_count ? `${outing.pitch_count} pitches · ` : ''}
+            post-arm {outing.post_arm_feel}/5
+          </div>
+        </div>
+        {outing.post_arm_feel != null && (
+          <div style={{
+            background: badge.bg, borderRadius: 6, padding: '2px 7px',
+            fontSize: 9, fontWeight: 700, color: badge.color,
+          }}>
+            {outing.post_arm_feel}/5
+          </div>
+        )}
+      </div>
+
+      {outing.recovery.length > 0 && (
+        <>
+          <div style={{ fontSize: 9, color: INK2, marginBottom: 6 }}>Recovery curve after outing:</div>
+          <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+            {outing.recovery.map((r, idx) => (
+              <RecoveryDot key={r.day} r={r} isLast={idx === outing.recovery.length - 1} />
+            ))}
+          </div>
+        </>
+      )}
+
+      {outing.insight && (
+        <div style={{ marginTop: 8, fontSize: 9, color: INK2, fontStyle: 'italic' }}>{outing.insight}</div>
+      )}
+
+      {opacity === 1 && outing.ask_prompt && (
+        <div
+          onClick={() => onAsk(outing.ask_prompt)}
+          style={{ marginTop: 6, fontSize: 9, color: MAROON, fontWeight: 700, cursor: 'pointer' }}
+        >
+          Ask coach about this start ↗
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RecoveryDot({ r, isLast }) {
+  const color = armFeelColor(r.arm_feel);
+  return (
+    <>
+      <div style={{ textAlign: 'center' }}>
+        <div style={{ fontSize: 9, fontWeight: 700, color }}>{r.arm_feel}</div>
+        <div style={{ width: 28, height: 3, background: color, borderRadius: 2, margin: '2px auto' }} />
+        <div style={{ fontSize: 8, color: MUTED }}>{r.day}</div>
+      </div>
+      {!isLast && <div style={{ flex: 1, height: 1, background: BORDER }} />}
+    </>
+  );
+}
+
+function SeasonSkeleton() {
+  return (
+    <div style={{ background: BG, minHeight: '100vh' }}>
+      <div style={{ background: MAROON, padding: '14px 16px 20px' }}>
+        <div style={{ width: 80, height: 20, background: 'rgba(255,255,255,0.15)', borderRadius: 6 }} />
+        <div style={{ width: 160, height: 10, background: 'rgba(255,255,255,0.08)', borderRadius: 4, marginTop: 6 }} />
+      </div>
+      <div style={{ padding: '16px 12px', display: 'flex', gap: 8 }}>
+        {[1,2,3,4].map(i => (
+          <div key={i} style={{ flex: 1, background: '#fff', borderRadius: 10, padding: 14, height: 56 }} />
         ))}
+      </div>
+      {[200, 120, 160].map((h, i) => (
+        <div key={i} style={{ background: '#fff', borderRadius: 12, margin: '0 12px 10px', height: h }} />
+      ))}
+    </div>
+  );
+}
+
+function EmptyState() {
+  return (
+    <div style={{ background: BG, minHeight: '100vh' }}>
+      <div style={{ background: MAROON, padding: '14px 16px 12px' }}>
+        <div style={{ fontSize: 20, fontWeight: 800, color: '#fff' }}>Season</div>
+      </div>
+      <div style={{ padding: '40px 24px', textAlign: 'center' }}>
+        <div style={{ fontSize: 13, color: INK2, lineHeight: 1.6 }}>
+          No check-in data yet. Start with <span style={{ fontWeight: 700 }}>/checkin</span> in the bot to see your season trends here.
+        </div>
       </div>
     </div>
   );

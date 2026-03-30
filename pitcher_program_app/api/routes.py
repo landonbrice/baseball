@@ -1203,6 +1203,19 @@ async def pitcher_trend(pitcher_id: str, request: Request):
 
 
 # ---------------------------------------------------------------------------
+# Season Summary
+# ---------------------------------------------------------------------------
+
+@router.get("/pitcher/{pitcher_id}/season-summary")
+async def season_summary(pitcher_id: str, request: Request):
+    """Full-season data for the Season tab: stats, timeline, rotation
+    signature, outing recovery curves, sleep correlation, weekly narratives."""
+    _require_pitcher_auth(request, pitcher_id)
+    from bot.services.progression import build_season_summary
+    return build_season_summary(pitcher_id)
+
+
+# ---------------------------------------------------------------------------
 # WHOOP OAuth Callback
 # ---------------------------------------------------------------------------
 

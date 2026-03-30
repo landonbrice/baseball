@@ -12,7 +12,7 @@ class SafeWrap extends Component {
 const NAV_ITEMS = [
   { to: '/',        label: 'Home',    icon: '\u2302' },
   { to: '/plans',   label: 'Program', icon: '\u25A4' },
-  { to: '/log',     label: 'History', icon: '\u25A6' },
+  { to: '/log',     label: 'Season',  icon: '\u25A6' },
   { to: '/profile', label: 'Profile', icon: '\u25CB' },
 ];
 

@@ -482,6 +482,253 @@ async def generate_weekly_narrative(pitcher_id: str) -> dict | None:
     return result
 
 
+def build_season_summary(pitcher_id: str) -> dict:
+    """Build a full-season summary for the Season tab.
+
+    Returns stats, timeline, rotation signature, outing recovery curves,
+    sleep-vs-arm-feel correlation, and weekly narratives.
+    """
+    from bot.services import db as _db
+    from datetime import date as _date
+
+    profile = load_profile(pitcher_id)
+    pitcher_name = profile.get("name", pitcher_id)
+    rotation_length = profile.get("rotation_length", 7)
+
+    # Fetch all entries (full season), sort chronologically
+    entries = _db.get_daily_entries(pitcher_id, limit=365)
+    entries.sort(key=lambda e: e.get("date", ""))
+
+    # --- Training entries with arm_feel ---
+    training_entries = []
+    for e in entries:
+        pre = e.get("pre_training")
+        af = None
+        if isinstance(pre, dict):
+            af = pre.get("arm_feel")
+        if af is None:
+            af = e.get("arm_feel")
+        if af is not None:
+            training_entries.append(e)
+
+    def _get_arm_feel(entry):
+        pre = entry.get("pre_training")
+        if isinstance(pre, dict) and pre.get("arm_feel") is not None:
+            return pre["arm_feel"]
+        return entry.get("arm_feel")
+
+    def _get_sleep(entry):
+        pre = entry.get("pre_training")
+        if isinstance(pre, dict):
+            return pre.get("sleep_hours")
+        return None
+
+    def _get_flag(entry):
+        pre = entry.get("pre_training")
+        if isinstance(pre, dict):
+            return pre.get("flag_level", "green")
+        return "green"
+
+    # --- Summary stats ---
+    feels = [_get_arm_feel(e) for e in training_entries]
+    sleeps = [_get_sleep(e) for e in training_entries if _get_sleep(e) is not None]
+    outing_entries = [e for e in entries if e.get("outing")]
+
+    avg_arm_feel = round(sum(feels) / len(feels), 1) if feels else None
+    avg_sleep = round(sum(sleeps) / len(sleeps), 1) if sleeps else None
+    total_starts = len(outing_entries)
+
+    # Current streak
+    check_dates = set()
+    for e in entries:
+        d = e.get("date")
+        if d and _get_arm_feel(e) is not None:
+            check_dates.add(d)
+    current_streak = 0
+    day = _date.today()
+    while day.isoformat() in check_dates:
+        current_streak += 1
+        day = day - timedelta(days=1)
+
+    # --- Season label ---
+    if training_entries:
+        first_month = int(training_entries[0].get("date", "2026-01-01")[5:7])
+    else:
+        first_month = datetime.now(CHICAGO_TZ).month
+    year = datetime.now(CHICAGO_TZ).year
+    season_label = f"{'Fall' if 8 <= first_month <= 11 else 'Spring'} {year}"
+
+    # --- Timeline ---
+    timeline = []
+    for e in training_entries:
+        timeline.append({
+            "date": e.get("date"),
+            "arm_feel": _get_arm_feel(e),
+            "is_outing": e.get("outing") is not None,
+            "flag_level": _get_flag(e),
+            "sleep_hours": _get_sleep(e),
+        })
+
+    # --- Rotation signature ---
+    rotation_signature = None
+    rot_buckets = {}  # rotation_day -> list of arm_feel values
+    for e in training_entries:
+        rd = e.get("rotation_day") or e.get("days_since_outing")
+        if rd is not None:
+            rd = int(rd)
+            if rd not in rot_buckets:
+                rot_buckets[rd] = []
+            rot_buckets[rd].append(_get_arm_feel(e))
+
+    if sum(len(v) for v in rot_buckets.values()) >= 5:
+        bars = []
+        for day_num in range(rotation_length):
+            vals = rot_buckets.get(day_num, [])
+            if vals:
+                bars.append({
+                    "day": day_num,
+                    "avg_feel": round(sum(vals) / len(vals), 1),
+                    "count": len(vals),
+                })
+            else:
+                bars.append({"day": day_num, "avg_feel": None, "count": 0})
+
+        valid_bars = [b for b in bars if b["avg_feel"] is not None]
+        best_day = max(valid_bars, key=lambda b: b["avg_feel"])["day"] if valid_bars else None
+        low_days = [b["day"] for b in valid_bars if b["avg_feel"] is not None and b["avg_feel"] < 4.0]
+
+        insight = ""
+        ask_prompt = ""
+        if low_days:
+            low_str = ", ".join(str(d) for d in low_days)
+            if len(low_days) == 1:
+                insight = f"Day {low_str} is your lowest. Watch forearm going into Day {low_days[0]}."
+                ask_prompt = f"Why is my arm feel lower on Day {low_str} of my rotation?"
+            else:
+                insight = f"Days {low_str} are your lowest. Watch forearm going into Day {low_days[0]}."
+                ask_prompt = f"Why is my arm feel lower on Days {low_str} of my rotation?"
+
+        rotation_signature = {
+            "bars": bars,
+            "best_day": best_day,
+            "low_days": low_days,
+            "insight": insight,
+            "ask_prompt": ask_prompt,
+        }
+
+    # --- Outing history with recovery curves ---
+    outings = []
+    for i, e in enumerate(entries):
+        outing = e.get("outing")
+        if not outing:
+            continue
+
+        post_arm_feel = outing.get("arm_feel") or outing.get("post_arm_feel")
+        pitch_count = outing.get("pitch_count")
+
+        # Collect recovery: arm_feel from the next 4 entries after the outing
+        recovery = []
+        for offset in range(1, 5):
+            if i + offset < len(entries):
+                next_e = entries[i + offset]
+                next_af = _get_arm_feel(next_e)
+                if next_af is not None:
+                    recovery.append({"day": f"D+{offset}", "arm_feel": next_af})
+
+        # How many days to get back to 4+
+        recovery_days = None
+        for r in recovery:
+            if r["arm_feel"] >= 4:
+                recovery_days = int(r["day"].split("+")[1])
+                break
+
+        # Generate insight
+        insight = ""
+        if recovery_days is not None:
+            if recovery_days <= 2:
+                insight = f"{recovery_days}-day recovery."
+                if pitch_count and pitch_count < 75:
+                    insight += f" Under 75 pitches, back to 4+ by D+{recovery_days}."
+                elif post_arm_feel and post_arm_feel >= 4:
+                    insight += " Post-arm feel was solid."
+            else:
+                insight = f"Took {recovery_days} days to get back to 4."
+        elif recovery:
+            insight = f"Still recovering — haven't reached 4+ in the {len(recovery)} days tracked."
+
+        outings.append({
+            "date": e.get("date"),
+            "pitch_count": pitch_count,
+            "post_arm_feel": post_arm_feel,
+            "recovery": recovery,
+            "recovery_days": recovery_days,
+            "insight": insight,
+            "ask_prompt": f"Why did my recovery take {recovery_days or 'so many'} days after the {e.get('date', '')} start?",
+        })
+
+    outings.reverse()  # most recent first
+
+    # --- Sleep vs arm feel correlation ---
+    sleep_correlation = None
+    points = []
+    under_7_count = 0
+    under_7_low_feel_count = 0
+
+    # Pair night N sleep with morning N+1 arm feel
+    for i in range(len(training_entries) - 1):
+        sleep_val = _get_sleep(training_entries[i])
+        next_af = _get_arm_feel(training_entries[i + 1])
+        if sleep_val is not None and next_af is not None:
+            points.append({"sleep": sleep_val, "arm_feel": next_af})
+            if sleep_val < 7:
+                under_7_count += 1
+                if next_af < 4:
+                    under_7_low_feel_count += 1
+
+    if len(points) >= 3:
+        if under_7_count > 0:
+            insight = (
+                f"Nights under 7h correlated with lower arm feel the following morning "
+                f"in {under_7_low_feel_count} of {under_7_count} instances this season."
+            )
+        else:
+            insight = "You've consistently slept 7+ hours. Keep it up — that's your recovery edge."
+        sleep_correlation = {
+            "points": points,
+            "under_7_count": under_7_count,
+            "under_7_low_feel_count": under_7_low_feel_count,
+            "insight": insight,
+            "ask_prompt": "How does my sleep affect my arm feel? Show me the pattern.",
+        }
+
+    # --- Weekly narratives ---
+    raw_narratives = _db.get_weekly_summaries(pitcher_id, limit=20)
+    weekly_narratives = []
+    for n in raw_narratives:
+        weekly_narratives.append({
+            "week_start": n.get("week_start"),
+            "headline": n.get("headline", ""),
+            "narrative": n.get("narrative", ""),
+        })
+
+    return {
+        "pitcher_name": pitcher_name,
+        "season_label": season_label,
+        "total_checkins": len(training_entries),
+        "stats": {
+            "avg_arm_feel": avg_arm_feel,
+            "avg_sleep": avg_sleep,
+            "total_starts": total_starts,
+            "current_streak": current_streak,
+        },
+        "timeline": timeline,
+        "rotation_signature": rotation_signature,
+        "outings": outings,
+        "sleep_correlation": sleep_correlation,
+        "weekly_narratives": weekly_narratives,
+    }
+
+
 def _parse_narrative(raw: str) -> dict | None:
     """Parse narrative JSON from LLM response."""
     import re
