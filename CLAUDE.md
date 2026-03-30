@@ -1,7 +1,7 @@
 # Pitcher Training Intelligence — Claude Init
 
-> Last updated: 2026-03-28
-> Sprint status: Phases 1-5 complete. Next: WHOOP integration (see WHOOP_INTEGRATION_PLAN.md) + The Ledger (modification history).
+> Last updated: 2026-03-29
+> Sprint status: Phases 1-5 + WHOOP integration complete. Next: The Ledger (modification history), adoption push.
 
 ## What This Is
 
@@ -161,21 +161,28 @@ All dates use `CHICAGO_TZ` (from `bot/config.py`). Server-side: `datetime.now(CH
 - Error toasts: exercise save failed, plan update failed
 - Auto-dismiss after 3.5 seconds
 
-### WHOOP Integration (Planned)
-See `WHOOP_INTEGRATION_PLAN.md` for full technical plan. Not yet implemented.
-- Per-pitcher OAuth PKCE linking via Supabase `whoop_tokens` table
+### WHOOP Integration (Live)
+See `WHOOP_INTEGRATION_PLAN.md` for original technical plan. Fully implemented 2026-03-29.
+- Per-pitcher OAuth PKCE linking via `/whoop` command + `/api/whoop/callback`
+- Tokens stored in Supabase `whoop_tokens` table, auto-refresh on expiry
 - Daily 6am pull: recovery, HRV, sleep, strain → `whoop_daily` table
-- Feeds into triage (HRV thresholds), plan generation (LLM context), weekly narrative
+- Smart cache: re-pulls when core metrics (recovery/HRV/sleep) are null (WHOOP processes sleep data ~1-2hr after wake)
+- Feeds into triage (`whoop_hrv`, `whoop_hrv_7day_avg`, `whoop_sleep_perf` params), plan generation (LLM context block), weekly narrative
+- `WhoopCard` component on Home page (recovery ring + HRV/sleep/strain satellites), only renders for linked pitchers
+- Profile page shows "WHOOP Connected" badge or link instructions
+- All code paths gracefully handle `whoop_data=None` — non-WHOOP pitchers unaffected
 
 ### Dual LLM Routing
-- `call_llm()` — fast model (deepseek-chat) for simple Q&A, check-in responses, weekly narrative
-- `call_llm_reasoning()` — reasoning model (deepseek-reasoner) for multi-day protocols, complex recovery plans
+- `call_llm()` — fast model (deepseek-chat, 60s timeout) for simple Q&A, check-in responses, weekly narrative
+- `call_llm_reasoning()` — reasoning model (deepseek-reasoner, 90s timeout) for multi-day protocols, complex recovery plans
+- `return_metadata=True` option surfaces `finish_reason` — plan generator uses this to detect truncated JSON and attempt repair
 - Keyword detection in qa.py routes to appropriate model
 
 ### API Endpoints (routes.py)
 **Auth:** `/api/auth/resolve`
 **Data:** `/api/pitcher/{id}/profile`, `/log`, `/progression`, `/upcoming`, `/week-summary`, `/morning-status`, `/weekly-narrative`
 **Actions:** `POST /checkin`, `/outing`, `/chat` (unified), `/set-next-outing`, `/complete-exercise`
+**WHOOP:** `GET /pitcher/{id}/whoop-today`, `GET /whoop/callback` (OAuth)
 **Plans:** `GET/POST /plans`, `/plans/{id}/activate`, `/deactivate`, `/apply-plan/{id}`, `/generate-plan`
 **Library:** `/api/exercises`, `/api/exercises/slugs`
 **Team:** `/api/staff/pulse`
@@ -186,7 +193,7 @@ See `WHOOP_INTEGRATION_PLAN.md` for full technical plan. Not yet implemented.
 - 6pm follow-up if unanswered
 - Sunday 6pm weekly narrative + summary
 - `/gamestart` → 2hr delayed outing reminder
-- (Planned) 6am daily WHOOP pull for linked pitchers
+- 6am daily WHOOP pull for all linked pitchers (sends re-link message if auth expired)
 
 ## Current Pitchers
 
@@ -216,6 +223,9 @@ See `WHOOP_INTEGRATION_PLAN.md` for full technical plan. Not yet implemented.
 | MINI_APP_URL | no | — | Vercel mini-app URL |
 | LLM_PROVIDER | no | deepseek | Provider name |
 | LLM_MODEL | no | deepseek-chat | Model identifier |
+| WHOOP_CLIENT_ID | yes (for WHOOP) | — | From WHOOP developer portal |
+| WHOOP_CLIENT_SECRET | yes (for WHOOP) | — | From WHOOP developer portal |
+| WHOOP_REDIRECT_URI | no | Railway callback URL | OAuth redirect URI |
 | TAVILY_API_KEY | no | — | Web research fallback |
 | PORT | no | 8000 | API port |
 | DISABLE_AUTH | no | false | Skip HMAC auth (dev only) |
@@ -251,6 +261,8 @@ Project: `pitcher-training-intel` (us-east-1)
 | `saved_plans` | Pitcher-specific saved/generated plans with plan_data JSONB |
 | `chat_messages` | Cross-platform conversation persistence — source (telegram/mini_app), role, content |
 | `weekly_summaries` | Aggregated weekly data for long-term tracking |
+| `whoop_tokens` | Per-pitcher WHOOP OAuth tokens (access, refresh, expiry) |
+| `whoop_daily` | Daily WHOOP biometrics — recovery, HRV, sleep, strain, raw API data |
 
 ## Deployment
 
@@ -284,24 +296,39 @@ GitHub (landonbrice/baseball)
 - **Migration script:** `python -m scripts.migrate_to_supabase` (idempotent, safe to re-run)
 - **Backup:** Supabase handles persistence. JSON files in `data/` are read-only fallback.
 
+### Handler Registration
+`register_handlers(application)` in `bot/main.py` is the **single source of truth** for all bot command/message handlers. Both `main.py` (local dev) and `run.py` (Railway) call this function. **Add new commands in `register_handlers()` only** — never add handlers directly in `run.py`.
+
 ### Deploy Checklist
 1. Push to `main` → Railway + Vercel auto-deploy
 2. If adding new Supabase tables/columns → apply migration first via MCP or dashboard
 3. If changing env vars → update in Railway dashboard, trigger redeploy
-4. Verify: bot responds to `/checkin`, API health at `/api/staff/pulse`, mini-app loads in Telegram
+4. If modifying templates → run `python -m scripts.validate_templates` to check exercise IDs
+5. Verify: bot responds to `/checkin`, API health at `/api/staff/pulse`, mini-app loads in Telegram
 
 ### Data Safety
 - **Supabase is source of truth.** JSON files are read-only fallback (`USE_JSON_FALLBACK=true`).
 - **`data_sync.py` is disabled.** No more auto-push to GitHub on writes.
 - **JSONB guard pattern:** Always use `(x.get("field") or {}).get()` in Python, `Array.isArray()`/`typeof` in React. See `mini-app/src/utils/sanitize.js`.
 
+### Check-in Retry Flow
+- API sends `plan_failed` status (not `plan_loaded`) when plan generation fails
+- `hasCheckedIn` in Coach.jsx and Home.jsx requires actual plan data, not just `pre_training.arm_feel`
+- "Retry plan" button re-triggers triage + plan gen with saved check-in data (no re-asking questions)
+- Rotation day only increments after successful plan generation
+
+### Plan Generation Resilience
+- `_parse_plan_json()` attempts JSON repair on truncated responses (`finish_reason: "length"`)
+- `_build_exercise_blocks()` validates exercise IDs against Supabase library, skips unknowns
+- Template fallback uses validated numeric exercise IDs (no more slug-format IDs)
+- `max_tokens=3000` for fast model, `4000` for reasoning; `FAST_TIMEOUT=60s`
+
 ## Known Issues & Tech Debt
 
 - Exercise library has YouTube link gaps (see `unmatched_youtube.csv`)
-- Templates reference exercise IDs that must exist in library — no validation
-- WHOOP API integration is a stub (schema fields exist, no API calls)
 - `data_sync.py` still exists but is disabled — can be removed entirely
-- Bot `/checkin` may hang if DeepSeek API is slow — needs timeout on LLM calls
+- WHOOP recovery/HRV/sleep data may be null if WHOOP hasn't processed overnight sleep yet (strain available first)
+- Reliever template (`reliever_flexible.json`) uses text descriptions, not exercise IDs — not validated
 
 ## Bot Scope Boundaries
 
