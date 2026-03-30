@@ -243,6 +243,96 @@ async def start_checkin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     return ARM_REPORT
 
 
+async def morning_arm_feel_entry(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Entry point from morning notification arm feel buttons.
+
+    Captures arm_feel from the callback, sets up user_data like start_checkin,
+    then routes into the normal check-in flow at the appropriate next step.
+    """
+    query = update.callback_query
+    await query.answer()
+
+    # Extract rating from callback_data (arm_feel_3 → 3)
+    arm_feel = int(query.data.split("_")[-1])
+
+    pitcher_id = get_pitcher_id_by_telegram(query.from_user.id, query.from_user.username)
+    if not pitcher_id:
+        await query.edit_message_text("I don't have a profile for you yet.")
+        return ConversationHandler.END
+
+    # Set up context (same as start_checkin)
+    context.user_data["pitcher_id"] = pitcher_id
+    context.user_data["conversation_history"] = []
+    profile = load_profile(pitcher_id)
+    flags = profile.get("active_flags", {})
+    days_since = flags.get("days_since_outing", 0)
+    role = profile.get("role", "starter")
+    first_name = profile.get("name", "").split()[0] if profile.get("name") else "there"
+
+    context.user_data["days_since"] = days_since
+    context.user_data["role"] = role
+    context.user_data["flags"] = flags
+    context.user_data["schedule_known"] = _schedule_already_known(flags)
+    context.user_data["arm_feel"] = arm_feel
+    context.user_data["arm_report"] = ""
+    context.user_data["concern_areas"] = []
+
+    append_context(pitcher_id, "checkin_start", f"Check-in via morning notification (arm feel {arm_feel})")
+
+    await query.edit_message_text(f"Arm feel: {arm_feel}/5 — got it.")
+
+    # Route based on situation (same logic as arm_report_handler)
+    if _is_recovery_day(days_since, role):
+        feel_comment = f"arm's at a {arm_feel} — solid recovery" if arm_feel >= 4 else \
+                       f"arm's at a {arm_feel} — pretty typical day-after" if arm_feel == 3 else \
+                       f"arm's at a {arm_feel} — let's be careful"
+        keyboard = InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton("Recovery day", callback_data="recovery_yes"),
+                InlineKeyboardButton("Something different", callback_data="recovery_no"),
+            ]
+        ])
+        await query.message.reply_text(
+            f"Day after, {feel_comment}. I'd keep it to recovery flush and blood flow. "
+            "Want me to build that, or are you thinking something different?",
+            reply_markup=keyboard,
+        )
+        return RECOVERY_CONFIRM
+
+    if arm_feel <= 2:
+        keyboard = InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton("Expected soreness", callback_data="lowarm_expected"),
+                InlineKeyboardButton("Something feels off", callback_data="lowarm_concerned"),
+            ]
+        ])
+        await query.message.reply_text(
+            f"That's on the lower end — is this soreness you'd expect given where you are "
+            "in rotation, or does something feel different?",
+            reply_markup=keyboard,
+        )
+        return LOW_ARM_CLARIFY
+
+    # Normal flow — ask about soreness, then lift pref
+    ack = _build_arm_acknowledgment(arm_feel, "", days_since, [])
+    keyboard = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("Upper", callback_data="lift_upper"),
+            InlineKeyboardButton("Lower", callback_data="lift_lower"),
+        ],
+        [
+            InlineKeyboardButton("Full body", callback_data="lift_full"),
+            InlineKeyboardButton("Your call", callback_data="lift_your_call"),
+        ],
+        [InlineKeyboardButton("Rest / arm care only", callback_data="lift_rest")],
+    ])
+    await query.message.reply_text(
+        f"{ack} What are you thinking for a lift?",
+        reply_markup=keyboard,
+    )
+    return LIFT_PREF
+
+
 async def reliever_threw_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Handle reliever 'Did you throw?' response."""
     query = update.callback_query
@@ -799,7 +889,10 @@ async def cancel_checkin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 def get_checkin_handler() -> ConversationHandler:
     """Build and return the ConversationHandler for daily check-in."""
     return ConversationHandler(
-        entry_points=[CommandHandler("checkin", start_checkin)],
+        entry_points=[
+            CommandHandler("checkin", start_checkin),
+            CallbackQueryHandler(morning_arm_feel_entry, pattern=r"^arm_feel_[1-5]$"),
+        ],
         states={
             RELIEVER_THREW: [CallbackQueryHandler(
                 reliever_threw_callback, pattern=r"^reliever_threw_(yes|no)$"

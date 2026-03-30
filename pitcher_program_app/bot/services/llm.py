@@ -16,8 +16,8 @@ from bot.config import LLM_CONFIG, DEEPSEEK_API_KEY
 logger = logging.getLogger(__name__)
 
 # Timeouts (seconds) for each model tier
-FAST_TIMEOUT = 60
-REASONING_TIMEOUT = 90
+FAST_TIMEOUT = 90
+REASONING_TIMEOUT = 120
 
 
 def load_prompt(prompt_name: str) -> str:

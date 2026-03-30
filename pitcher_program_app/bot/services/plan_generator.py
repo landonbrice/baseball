@@ -191,7 +191,7 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
         if use_reasoning:
             raw, meta = await call_llm_reasoning(system_prompt, user_prompt, max_tokens=4000, return_metadata=True)
         else:
-            raw, meta = await call_llm(system_prompt, user_prompt, max_tokens=3000, return_metadata=True)
+            raw, meta = await call_llm(system_prompt, user_prompt, max_tokens=4000, return_metadata=True)
         truncated = meta.get("finish_reason") == "length"
     except (TimeoutError, Exception) as e:
         logger.warning(f"LLM call failed for plan generation ({type(e).__name__}: {e}), using template fallback")
