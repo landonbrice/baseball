@@ -34,27 +34,77 @@ logger = logging.getLogger(__name__)
 
 
 async def start(update: Update, context) -> None:
-    """Handle /start command."""
+    """Handle /start — personalized intro + check-in prompt."""
+    from bot.services.context_manager import load_log
+    from bot.utils import build_rating_keyboard
+
     pitcher_id = get_pitcher_id_by_telegram(update.effective_user.id, update.effective_user.username)
-    first_name = update.effective_user.first_name or "there"
-    if pitcher_id:
-        try:
-            profile = load_profile(pitcher_id)
-            first_name = profile.get("name", first_name).split()[0]
 
-            # Ensure scheduled jobs exist for this pitcher (covers first-message backfill)
-            _ensure_pitcher_jobs(context.application, pitcher_id, profile)
-        except Exception:
-            pass
+    if not pitcher_id:
+        await update.message.reply_text(
+            "Hey! I'm the UChicago pitching staff bot. "
+            "Ask your coach to set you up with a profile, then come back and send /start."
+        )
+        return
 
-    await update.message.reply_text(
-        f"Hey {first_name}. Here's what I've got:\n\n"
-        "/checkin — arm feel, sleep → today's plan\n"
-        "/outing — log a post-outing report\n"
-        "/status — current flags and rotation day\n"
-        "/gamestart — game today? I'll remind you after\n\n"
-        "Or just ask me anything."
+    try:
+        profile = load_profile(pitcher_id)
+    except Exception:
+        await update.message.reply_text("Hey! Something went wrong loading your profile. Try again or ask your coach.")
+        return
+
+    first_name = profile.get("name", "").split()[0] or update.effective_user.first_name or "Hey"
+    _ensure_pitcher_jobs(context.application, pitcher_id, profile)
+
+    # Build personalized intro
+    lines = [f"Hey {first_name}."]
+
+    role = profile.get("role", "pitcher")
+    rotation = profile.get("rotation_length", 7)
+    throws = profile.get("throws", "")
+    role_line = f"{'LHP' if throws == 'left' else 'RHP'} " if throws else ""
+    role_line += f"{'starter' if role == 'starter' else 'reliever'}, {rotation}-day rotation"
+    lines.append(role_line.capitalize() + ".")
+
+    # Reference most relevant injury
+    injuries = profile.get("injury_history", [])
+    if injuries:
+        primary = injuries[0]
+        area = (primary.get("area") or "").replace("_", " ")
+        ongoing = primary.get("ongoing_considerations", "")
+        if area and ongoing:
+            lines.append(f"Your {area} history is factored in — {ongoing.split('.')[0].lower()}.")
+        elif area:
+            lines.append(f"Your {area} history is on file and adjusted for.")
+
+    # Current rotation position
+    flags = profile.get("active_flags", {})
+    days = flags.get("days_since_outing", 0)
+    if days <= 1:
+        lines.append("Day after outing — recovery focus today.")
+    elif days > 0:
+        lines.append(f"Day {days} of your rotation.")
+
+    intro = " ".join(lines)
+
+    # Check if already checked in today
+    today_str = datetime.now(CHICAGO_TZ).strftime("%Y-%m-%d")
+    log = load_log(pitcher_id)
+    today_entry = next((e for e in log.get("entries", []) if e.get("date") == today_str), None)
+    has_plan = today_entry and (
+        today_entry.get("plan_narrative")
+        or ((today_entry.get("plan_generated") or {}).get("exercise_blocks") or [])
     )
+
+    if has_plan:
+        await update.message.reply_text(
+            f"{intro}\n\nYou're checked in for today. Ask me anything about your plan, or type /status to see where you're at."
+        )
+    else:
+        await update.message.reply_text(
+            f"{intro}\n\nLet's get today's plan — how's the arm feeling?",
+            reply_markup=build_rating_keyboard("arm_feel"),
+        )
 
 
 async def help_command(update: Update, context) -> None:
@@ -323,53 +373,75 @@ async def dashboard(update: Update, context) -> None:
 # --- Scheduled jobs ---
 
 async def _send_morning_checkin(context) -> None:
-    """Send a morning check-in prompt with rotation day preview."""
+    """Send a contextual morning check-in — personal, not structural."""
     pitcher_id = context.job.data["pitcher_id"]
     chat_id = context.job.data["chat_id"]
 
     from bot.utils import build_rating_keyboard
-    from bot.services.context_manager import load_profile
+    from bot.services.context_manager import load_profile, load_log
     reply_markup = build_rating_keyboard("arm_feel")
 
-    # Build rotation day preview
     try:
         profile = load_profile(pitcher_id)
-        rotation_day = (profile.get("active_flags") or {}).get("days_since_outing", 0)
-        from bot.services.plan_generator import load_template
-        template = load_template("starter_7day.json")
-        day_key = f"day_{rotation_day}"
-        day_data = template["days"].get(day_key, {})
-        label = day_data.get("label", f"Day {rotation_day}")
-        throwing = day_data.get("throwing", "none")
+        first_name = profile.get("name", "").split()[0] or "Hey"
+        flags = profile.get("active_flags", {})
+        days = flags.get("days_since_outing", 0)
+        rotation_len = profile.get("rotation_length", 7)
 
-        preview = f"Day {rotation_day} — {label}"
-        if throwing and throwing != "none" and throwing != "none_or_light_catch":
-            preview += f"\nThrowing: {throwing.replace('_', ' ')}"
+        # Yesterday's data
+        log = load_log(pitcher_id)
+        entries = log.get("entries", [])
+        yesterday = (datetime.now(CHICAGO_TZ).date() - timedelta(days=1)).isoformat()
+        yesterday_entry = next((e for e in entries if e.get("date") == yesterday), None)
 
-        # Append WHOOP data if available (from 6am pull)
+        lines = []
+
+        # Line 1: Personal context
+        if days <= 1:
+            pitches = flags.get("last_outing_pitches")
+            if pitches:
+                lines.append(f"{first_name} — day after, {pitches} pitches yesterday. Recovery day.")
+            else:
+                lines.append(f"{first_name} — day after your outing. Recovery focus.")
+        elif days == 2:
+            lines.append(f"{first_name} — day 2 post-outing. Body should be bouncing back.")
+        elif days >= rotation_len - 1:
+            lines.append(f"{first_name} — start day approaching. Keeping it light.")
+        elif yesterday_entry and (yesterday_entry.get("pre_training") or {}).get("arm_feel"):
+            yest_feel = yesterday_entry["pre_training"]["arm_feel"]
+            if yest_feel >= 4:
+                lines.append(f"{first_name} — arm felt good yesterday ({yest_feel}/5). Let's keep it rolling.")
+            elif yest_feel == 3:
+                lines.append(f"{first_name} — arm was a 3 yesterday. Let's see where you're at today.")
+            else:
+                lines.append(f"{first_name} — arm was at {yest_feel} yesterday. Checking in on that.")
+        else:
+            lines.append(f"{first_name} — day {days}, let's get your plan set.")
+
+        # Line 2: WHOOP context (conversational)
         try:
             from bot.services.whoop import get_today_whoop
             wd = get_today_whoop(pitcher_id)
-            if wd:
-                parts = []
-                if wd.get("recovery_score") is not None:
-                    parts.append(f"Recovery {wd['recovery_score']}%")
-                if wd.get("hrv_rmssd") is not None:
-                    parts.append(f"HRV {wd['hrv_rmssd']:.0f}ms")
-                if wd.get("sleep_performance") is not None:
-                    parts.append(f"Sleep {wd['sleep_performance']}%")
-                if parts:
-                    preview += f"\nWHOOP: {' | '.join(parts)}"
+            if wd and wd.get("recovery_score") is not None:
+                rec = wd["recovery_score"]
+                if rec >= 67:
+                    lines.append(f"WHOOP has you at {rec}% recovery — green light.")
+                elif rec >= 34:
+                    lines.append(f"WHOOP recovery at {rec}% — I'll factor that into your plan.")
+                else:
+                    lines.append(f"WHOOP recovery low at {rec}% — dialing things back today.")
+            elif wd and wd.get("yesterday_strain") is not None:
+                lines.append(f"Yesterday's strain: {wd['yesterday_strain']:.1f}")
         except Exception:
             pass
 
-        msg = f"{preview}\n\nHow's the arm? (1-5)\nOr type /checkin for the full flow."
+        lines.append("")
+        lines.append("How's the arm? (1-5)")
+        msg = "\n".join(lines)
     except Exception:
-        msg = "Morning check-in time. How's the arm today? (1-5)\n\nOr type /checkin to start the full flow."
+        msg = "Morning — how's the arm? (1-5)"
 
-    await context.bot.send_message(
-        chat_id=chat_id, text=msg, reply_markup=reply_markup,
-    )
+    await context.bot.send_message(chat_id=chat_id, text=msg, reply_markup=reply_markup)
 
 
 async def _send_evening_followup(context) -> None:
@@ -391,8 +463,8 @@ async def _send_evening_followup(context) -> None:
     if not has_checkin:
         await context.bot.send_message(
             chat_id=chat_id,
-            text="Hey — you didn't check in this morning. Still want to get today's plan?\n\n"
-                 "Type /checkin to start, or skip if you're resting today.",
+            text="No check-in today — resting or just busy? "
+                 "Tap /checkin if you still want a plan, otherwise I'll catch you tomorrow.",
         )
 
 
