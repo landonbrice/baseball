@@ -17,26 +17,12 @@ load_dotenv()
 
 import uvicorn
 from telegram import Update
-from telegram.ext import (
-    Application,
-    CommandHandler,
-    CallbackQueryHandler,
-    MessageHandler,
-    filters,
-)
+from telegram.ext import Application
 
 from bot.config import TELEGRAM_BOT_TOKEN
-from bot.handlers.daily_checkin import get_checkin_handler, plan_completion_callback, skip_details_handler
-from bot.handlers.post_outing import get_outing_handler
-from bot.handlers.qa import handle_question
-from bot.main import (
-    start, help_command, status, setday, gamestart, dashboard,
-    backup_command, whoop_command, reauth_whoop, test_notify, post_init, _text_dispatcher,
-)
+from bot.main import register_handlers, post_init
 from api.main import app
 from scripts.seed_volume import seed_if_empty
-# data_sync disabled — Supabase is now the source of truth (Phase 1 migration complete)
-# from scripts.data_sync import start_sync
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -53,36 +39,17 @@ async def main() -> None:
     # Seed persistent volume from repo data on first deploy
     seed_if_empty()
 
-    # Data sync disabled — Supabase is now the source of truth
-    # start_sync()
-
     port = int(os.getenv("PORT", 8000))
 
     # ── Build the Telegram application ──
     application = (
         Application.builder()
         .token(TELEGRAM_BOT_TOKEN)
-        .post_init(post_init)
         .build()
     )
 
-    # Register handlers (same order as bot/main.py)
-    application.add_handler(get_checkin_handler())
-    application.add_handler(get_outing_handler())
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("help", help_command))
-    application.add_handler(CommandHandler("status", status))
-    application.add_handler(CommandHandler("setday", setday))
-    application.add_handler(CommandHandler("whoop", whoop_command))
-    application.add_handler(CommandHandler("reauth", reauth_whoop))
-    application.add_handler(CommandHandler("testnotify", test_notify))
-    application.add_handler(CommandHandler("gamestart", gamestart))
-    application.add_handler(CommandHandler("dashboard", dashboard))
-    application.add_handler(CommandHandler("backup", backup_command))
-    application.add_handler(CallbackQueryHandler(
-        plan_completion_callback, pattern=r"^plan_(done|skipped|dashboard)$"
-    ))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, _text_dispatcher))
+    # Single source of truth for handler registration (bot/main.py)
+    register_handlers(application)
 
     # ── Start both concurrently ──
     await application.initialize()

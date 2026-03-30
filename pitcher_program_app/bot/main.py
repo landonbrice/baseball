@@ -597,15 +597,12 @@ async def _text_dispatcher(update: Update, context) -> None:
         await handle_question(update, context)
 
 
-def main() -> None:
-    """Start the bot."""
-    if not TELEGRAM_BOT_TOKEN:
-        logger.error("TELEGRAM_BOT_TOKEN not set. Add it to .env")
-        sys.exit(1)
+def register_handlers(application) -> None:
+    """Register all bot handlers. Called by both main.py and run.py entry points.
 
-    application = Application.builder().token(TELEGRAM_BOT_TOKEN).post_init(post_init).build()
-
-    # Handlers — order matters (ConversationHandlers first, then commands, then fallback)
+    Order matters: ConversationHandlers first, then commands, then fallback.
+    Add new commands HERE — this is the single source of truth.
+    """
     application.add_handler(get_checkin_handler())
     application.add_handler(get_outing_handler())
     application.add_handler(CommandHandler("start", start))
@@ -618,14 +615,20 @@ def main() -> None:
     application.add_handler(CommandHandler("gamestart", gamestart))
     application.add_handler(CommandHandler("dashboard", dashboard))
     application.add_handler(CommandHandler("backup", backup_command))
-
-    # Fix 3: Plan completion callbacks (outside conversation handler)
     application.add_handler(CallbackQueryHandler(
         plan_completion_callback, pattern=r"^plan_(done|skipped|dashboard)$"
     ))
-
-    # Fallback: free-text → skip details (if awaiting) or Q&A handler
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, _text_dispatcher))
+
+
+def main() -> None:
+    """Start the bot."""
+    if not TELEGRAM_BOT_TOKEN:
+        logger.error("TELEGRAM_BOT_TOKEN not set. Add it to .env")
+        sys.exit(1)
+
+    application = Application.builder().token(TELEGRAM_BOT_TOKEN).post_init(post_init).build()
+    register_handlers(application)
 
     logger.info("Bot starting in long-polling mode...")
     application.run_polling(allowed_updates=Update.ALL_TYPES)

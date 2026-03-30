@@ -186,11 +186,13 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
 
     # Use reasoning model for RTT pitchers or complex injury profiles
     use_reasoning = phase == "return_to_throwing" or flag_level == "red"
+    truncated = False
     try:
         if use_reasoning:
-            raw = await call_llm_reasoning(system_prompt, user_prompt, max_tokens=4000)
+            raw, meta = await call_llm_reasoning(system_prompt, user_prompt, max_tokens=4000, return_metadata=True)
         else:
-            raw = await call_llm(system_prompt, user_prompt, max_tokens=3000)
+            raw, meta = await call_llm(system_prompt, user_prompt, max_tokens=3000, return_metadata=True)
+        truncated = meta.get("finish_reason") == "length"
     except (TimeoutError, Exception) as e:
         logger.warning(f"LLM call failed for plan generation ({type(e).__name__}: {e}), using template fallback")
         return {
@@ -209,7 +211,7 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
         }
 
     # Parse structured JSON from LLM response
-    plan = _parse_plan_json(raw)
+    plan = _parse_plan_json(raw, truncated=truncated)
 
     if plan:
         try:
@@ -293,10 +295,11 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
     }
 
 
-def _parse_plan_json(raw: str):
+def _parse_plan_json(raw: str, truncated: bool = False):
     """Try to parse structured JSON from the LLM response.
 
     Handles responses that may have markdown fences or extra text.
+    If truncated=True, attempts to repair incomplete JSON by closing open braces.
     Returns the parsed dict or None if parsing fails.
     """
     import re
@@ -335,7 +338,64 @@ def _parse_plan_json(raw: str):
                         pass
                     break
 
+    # Attempt repair on truncated JSON
+    if truncated and brace_start >= 0:
+        repaired = _repair_truncated_json(text[brace_start:])
+        if repaired:
+            logger.info("Repaired truncated JSON plan from LLM")
+            return repaired
+
     logger.warning(f"Could not parse plan JSON from LLM response (first 200 chars): {raw[:200]}")
+    return None
+
+
+def _repair_truncated_json(text: str) -> dict | None:
+    """Attempt to repair truncated JSON by closing open structures.
+
+    Finds the last valid key-value boundary, trims trailing garbage,
+    and closes all open braces/brackets.
+    """
+    # Trim to last complete value boundary (after a comma, closing brace/bracket)
+    # Walk backwards to find a safe cut point
+    cut = len(text)
+    in_string = False
+    for i in range(len(text) - 1, -1, -1):
+        ch = text[i]
+        if ch == '"' and (i == 0 or text[i - 1] != '\\'):
+            in_string = not in_string
+        if not in_string and ch in (',', '}', ']'):
+            cut = i + 1 if ch == ',' else i + 1
+            break
+
+    trimmed = text[:cut].rstrip(',').rstrip()
+
+    # Count open braces/brackets and close them
+    open_braces = 0
+    open_brackets = 0
+    in_str = False
+    for ch in trimmed:
+        if ch == '"' and (open_braces + open_brackets > 0):
+            in_str = not in_str
+        if in_str:
+            continue
+        if ch == '{':
+            open_braces += 1
+        elif ch == '}':
+            open_braces -= 1
+        elif ch == '[':
+            open_brackets += 1
+        elif ch == ']':
+            open_brackets -= 1
+
+    trimmed += ']' * max(0, open_brackets) + '}' * max(0, open_braces)
+
+    try:
+        plan = json.loads(trimmed)
+        if isinstance(plan, dict) and "morning_brief" in plan:
+            return plan
+    except json.JSONDecodeError:
+        pass
+
     return None
 
 

@@ -31,7 +31,8 @@ def load_prompt(prompt_name: str) -> str:
 async def call_llm(
     system_prompt: str, user_message: str, max_tokens: int = None,
     history: list = None, model: str = None, timeout: int = None,
-) -> str:
+    return_metadata: bool = False,
+) -> str | tuple:
     """Call the configured LLM and return the response text.
 
     Args:
@@ -41,6 +42,7 @@ async def call_llm(
         history: Optional conversation history (list of {role, content} dicts).
         model: Override model name (e.g. "deepseek-reasoner" for complex tasks).
         timeout: Override timeout in seconds.
+        return_metadata: If True, returns (content, {"finish_reason": str}).
     """
     provider = LLM_CONFIG["provider"]
     model = model or LLM_CONFIG["model"]
@@ -50,19 +52,21 @@ async def call_llm(
     timeout = timeout or (REASONING_TIMEOUT if is_reasoning else FAST_TIMEOUT)
 
     if provider == "deepseek":
-        return await _call_deepseek(system_prompt, user_message, model, tokens, temperature, history, timeout)
+        content, finish_reason = await _call_deepseek(
+            system_prompt, user_message, model, tokens, temperature, history, timeout,
+        )
+        if return_metadata:
+            return content, {"finish_reason": finish_reason}
+        return content
     else:
         raise ValueError(f"Unsupported LLM provider: {provider}")
 
 
 async def call_llm_reasoning(
     system_prompt: str, user_message: str, max_tokens: int = 4000,
-    history: list = None,
-) -> str:
+    history: list = None, return_metadata: bool = False,
+) -> str | tuple:
     """Call the reasoning model for complex multi-step protocol generation.
-
-    Used for: multi-day programs, return-to-throw progressions, post-outing
-    recovery protocols, anything needing deep domain reasoning.
 
     Uses deepseek-reasoner which does chain-of-thought before answering.
     Higher token budget (4000) for detailed output.
@@ -72,14 +76,18 @@ async def call_llm_reasoning(
     return await call_llm(
         system_prompt, user_message, max_tokens=max_tokens,
         history=history, model=model, timeout=REASONING_TIMEOUT,
+        return_metadata=return_metadata,
     )
 
 
 async def _call_deepseek(
     system_prompt: str, user_message: str, model: str, max_tokens: int,
     temperature: float, history: list = None, timeout: int = FAST_TIMEOUT,
-) -> str:
-    """Call DeepSeek's OpenAI-compatible API with timeout."""
+) -> tuple[str, str]:
+    """Call DeepSeek's OpenAI-compatible API with timeout.
+
+    Returns (content, finish_reason) tuple.
+    """
     from openai import AsyncOpenAI, APIError
 
     client = AsyncOpenAI(
@@ -103,7 +111,11 @@ async def _call_deepseek(
             ),
             timeout=timeout,
         )
-        return response.choices[0].message.content
+        content = response.choices[0].message.content
+        finish_reason = response.choices[0].finish_reason or "stop"
+        if finish_reason == "length":
+            logger.warning(f"LLM response truncated (hit max_tokens={max_tokens})")
+        return content, finish_reason
     except asyncio.TimeoutError:
         logger.error(f"DeepSeek timeout after {timeout}s ({model})")
         raise TimeoutError(f"LLM call timed out after {timeout}s")
