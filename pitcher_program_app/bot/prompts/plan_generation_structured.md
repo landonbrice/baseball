@@ -100,6 +100,7 @@ Generate today's training plan as a JSON object. Return ONLY the JSON — no mar
 - Not every exercise needs to be paired
 
 ### Exercise IDs
+- exercise_id MUST be in the format `ex_###` (e.g., ex_001, ex_096). NEVER use slug-style IDs like ex_front_squat or ex_rdl.
 - Use exercise_id from the template or exercise library. Always include it.
 - Use the EXACT name from the exercise library.
 

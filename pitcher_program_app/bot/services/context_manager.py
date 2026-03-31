@@ -395,10 +395,14 @@ def update_active_flags(pitcher_id: str, updates: dict) -> None:
 
 
 def increment_days_since_outing(pitcher_id: str) -> None:
-    """Increment days_since_outing by 1."""
+    """Increment days_since_outing by 1, capped at rotation_length * 3."""
     if _using_supabase():
         flags = _db.get_active_flags(pitcher_id)
         days = (flags.get("days_since_outing") or 0) + 1
+        # Cap to prevent runaway counter for pitchers who never log outings
+        pitcher = _db.get_pitcher(pitcher_id)
+        rotation_len = (pitcher or {}).get("rotation_length", 7) or 7
+        days = min(days, rotation_len * 3)
         _db.upsert_active_flags(pitcher_id, {
             "pitcher_id": pitcher_id,
             "days_since_outing": days,
@@ -407,7 +411,9 @@ def increment_days_since_outing(pitcher_id: str) -> None:
 
     profile = _json_load_profile(pitcher_id)
     flags = profile.get("active_flags", {})
-    flags["days_since_outing"] = flags.get("days_since_outing", 0) + 1
+    days = flags.get("days_since_outing", 0) + 1
+    rotation_len = profile.get("rotation_length", 7) or 7
+    flags["days_since_outing"] = min(days, rotation_len * 3)
     profile["active_flags"] = flags
     _json_save_profile(pitcher_id, profile)
 

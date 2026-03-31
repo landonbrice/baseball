@@ -998,15 +998,61 @@ def _strip_json_block(text: str, key: str) -> str:
     return result.strip()
 
 
+# Legacy slug-style IDs found in existing daily_entries → proper exercise IDs
+_SLUG_ORPHAN_MAP = {
+    "ex_broad_jump": "ex_018",
+    "ex_front_squat": "ex_002",
+    "ex_hip_circle": "ex_095",
+    "ex_hip_thrust": "ex_003",
+    "ex_lateral_lunge": "ex_009",
+    "ex_med_ball_rotational": "ex_014",
+    "ex_nordic_curl": "ex_013",
+    "ex_rdl": "ex_005",
+    "ex_romanian_deadlift": "ex_005",
+    "ex_wrist_roller": "ex_039",
+    "ex_band_er_90": "ex_032",
+    "ex_band_er_ir": "ex_033",
+    "ex_band_pull_apart": "ex_036",
+    "ex_banded_monster_walk": "ex_095",
+    "ex_db_bench": "ex_025",
+    "ex_db_row": "ex_020",
+    "ex_dead_bug": "ex_046",
+    "ex_dumbbell_bench_press": "ex_025",
+    "ex_face_pull": "ex_023",
+    "ex_farmers_carry": "ex_049",
+    "ex_goblet_squat": "ex_007",
+    "ex_j_band_routine": "ex_055",
+    "ex_landmine_press": "ex_026",
+    "ex_med_ball_overhead_slam": "ex_016",
+    "ex_med_ball_rotational_throw": "ex_014",
+    "ex_modified_side_plank_er_pressout_ball_drop": "ex_081",
+    "ex_pallof_press": "ex_045",
+    "ex_pronator_supinator_band": "ex_041",
+    "ex_pullup": "ex_019",
+    "ex_push_up": "ex_024",
+    "ex_radial_ulnar": "ex_073",
+    "ex_sa_db_bench": "ex_025",
+    "ex_side_plank": "ex_048",
+    "ex_trx_row": "ex_022",
+    "ex_weighted_pullup": "ex_019",
+    "ex_wrist_extension": "ex_040",
+    "ex_wrist_flexion": "ex_039",
+    "ex_wrist_flexion_extension": "ex_039",
+}
+
+
 @router.get("/exercises/slugs")
 async def get_slug_map():
     """Return slug→id mapping for template exercise resolution."""
     library = _load_exercise_library()
-    slug_map = {}
+    slug_map = dict(_SLUG_ORPHAN_MAP)
     for ex in library["exercises"]:
         slug_map[ex["id"]] = ex["id"]
         if "slug" in ex:
             slug_map[ex["slug"]] = ex["id"]
+        for alias in ex.get("aliases", []):
+            normalized = alias.lower().replace(" ", "_").replace("-", "_")
+            slug_map[f"ex_{normalized}"] = ex["id"]
     return slug_map
 
 

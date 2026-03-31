@@ -69,7 +69,7 @@ export default function Coach() {
       }
     })();
     return () => { cancelled = true; };
-  }, [pitcherId, initData, historyLoaded, messages.length]);
+  }, [pitcherId, initData, historyLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-open with welcome for new pitchers
   useEffect(() => {
@@ -417,12 +417,11 @@ export default function Coach() {
     setLoading(true);
     addMessage({ role: 'user', type: 'text', content: 'Retry plan generation' });
     try {
-      const res = await sendChat(pitcherId, initData, {
-        type: 'checkin',
+      const res = await sendChat(pitcherId, {
         arm_feel: todayEntry.pre_training.arm_feel,
         sleep_hours: todayEntry.pre_training.sleep_hours,
         energy: todayEntry.pre_training.overall_energy || 3,
-      });
+      }, 'checkin', initData);
       processResponse(res);
       for (const m of res.messages || []) {
         if (m.type === 'text') addMessage({ role: 'bot', type: 'text', content: m.content });
