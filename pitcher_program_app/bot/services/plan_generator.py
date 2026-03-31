@@ -102,9 +102,28 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
         except FileNotFoundError:
             logger.warning("Plyocare routines template not found")
 
-    # Build template-derived fallback data
+    # Build dynamic exercise pool from the library (replaces static template selection)
     day_key = f"day_{rotation_day}"
-    fallback_exercise_blocks = _build_exercise_blocks(today_template, arm_care, plyocare)
+    try:
+        from bot.services.exercise_pool import build_exercise_pool, get_recent_exercise_ids
+        recent_ids = get_recent_exercise_ids(pitcher_id, days=7)
+        day_focus = _DAY_BODY_FOCUS.get(rotation_day, "full")
+        training_intent = _get_training_intent(rotation_day, triage_result)
+        lifting_blocks = build_exercise_pool(
+            rotation_day=rotation_day,
+            day_focus=day_focus,
+            training_intent=training_intent,
+            pitcher_profile=profile,
+            recent_exercise_ids=recent_ids,
+            triage_result=triage_result,
+        )
+    except Exception as e:
+        logger.warning("Exercise pool builder failed (%s), falling back to template", e)
+        lifting_blocks = []
+
+    # Arm care blocks from curated template (not from library)
+    arm_care_blocks = _build_arm_care_blocks(arm_care, plyocare)
+    fallback_exercise_blocks = arm_care_blocks + lifting_blocks
     pitcher_role = (profile.get("pitching_profile") or {}).get("role_type", "starter")
     if "reliever" in pitcher_role.lower():
         pitcher_role = "reliever"
@@ -121,7 +140,19 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
         estimated_duration_min = today_template["lifting"].get("duration_min")
 
     # Build context for LLM
-    templates_context = _format_templates(today_template, arm_care, plyocare)
+    # Include pre-selected lifting exercises (from exercise pool) + arm care template
+    if lifting_blocks:
+        lifting_context = "\n\n## Today's Lifting Exercises (pre-selected from exercise library)\n"
+        lifting_context += "Adjust prescriptions based on recent performance and triage. "
+        lifting_context += "You may reorder or drop 1-2 if triage warrants, but do NOT add exercises outside this list.\n\n"
+        for block in lifting_blocks:
+            lifting_context += f"### {block['block_name']}\n"
+            for ex in block.get("exercises", []):
+                note = f" — {ex['note']}" if ex.get("note") else ""
+                lifting_context += f"- {ex['name']} ({ex['exercise_id']}): {ex['prescribed']}{note}\n"
+    else:
+        lifting_context = ""
+    templates_context = _format_templates(today_template, arm_care, plyocare) + lifting_context
     pitcher_context = _build_pitcher_context(profile, context)
 
     # Load research relevant to this pitcher's injury profile
@@ -715,6 +746,52 @@ _PRESCRIPTION_DEFAULTS = {
     "endurance": "3×15-20 light",
     "warmup": "2×10",
 }
+
+
+def _get_training_intent(rotation_day: int, triage_result: dict) -> str:
+    """Map rotation day + triage to training intent (prescription phase)."""
+    flag = triage_result.get("flag_level", "green")
+    if flag in ("red", "yellow"):
+        return "endurance"
+    day_intent = {
+        1: "endurance",
+        2: "power",
+        3: "strength",
+        4: "strength",
+        5: "endurance",
+    }
+    return day_intent.get(rotation_day, "strength")
+
+
+def _build_arm_care_blocks(arm_care: dict, plyocare) -> list:
+    """Build arm care + plyocare exercise blocks from curated templates."""
+    blocks = []
+    arm_care_seq = arm_care.get("sequence", [])
+    if arm_care_seq:
+        exercises = []
+        for block in arm_care_seq:
+            for ex in block.get("exercises", [block]):
+                exercises.append({
+                    "exercise_id": ex.get("exercise_id", ex.get("id", "")),
+                    "prescribed": ex.get("prescription", ex.get("sets_reps", "")),
+                })
+        blocks.append({
+            "block_name": f"Arm Care ({arm_care.get('name', 'Standard')})",
+            "exercises": exercises,
+        })
+    if plyocare:
+        exercises = []
+        for ex in plyocare.get("exercises", []):
+            exercises.append({
+                "exercise_id": ex.get("exercise_id", ex.get("id", "")),
+                "prescribed": ex.get("prescription", ex.get("sets_reps", "")),
+            })
+        if exercises:
+            blocks.append({
+                "block_name": f"Plyocare ({plyocare.get('routine_name', 'Standard')})",
+                "exercises": exercises,
+            })
+    return blocks
 
 
 def _build_exercise_blocks(today_template: dict, arm_care: dict, plyocare) -> list:

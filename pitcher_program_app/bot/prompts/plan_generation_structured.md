@@ -123,13 +123,14 @@ Generate today's training plan as a JSON object. Return ONLY the JSON — no mar
 - **If pitcher provided throw_intent in check-in,** use it to influence the day type (e.g., "want to long toss" → hybrid_b, "pen day" → bullpen, "easy day" → recovery). Pitcher intent can downgrade but not upgrade past triage cap.
 - **Throwing exercise IDs:** J-Band (ex_096-ex_101), wrist weights (ex_102-ex_105), plyo drills (ex_106-ex_113), long toss extension (ex_114), compression (ex_115), flat ground (ex_116), light catch (ex_117), short box bullpen (ex_118), full bullpen (ex_119), upward tosses (ex_120).
 
-### Template Adherence
-- The template's exercise_ids are your PRIMARY source. Use them.
-- Do NOT substitute lower body exercises on upper body days or vice versa.
-- Day 2 (Lower Power) and Day 4 (Lower Strength) = lower body compound focus. No bench press, no overhead press.
-- Day 3 (Upper Pull) = upper body emphasis. No squat, no deadlift (trap bar DL is a LOWER BODY exercise).
-- Day 5 (Light Upper) = light upper + pre-game. Keep intensity low.
-- If a pitcher's saved plan modification changes the focus, that overrides the template's body part focus but NOT the volume requirements.
+### Exercise Selection (IMPORTANT)
+- Lifting exercises have been PRE-SELECTED by the system from the exercise library. They are listed under "Today's Lifting Exercises" in the context.
+- Use ONLY the exercise_ids provided in that list. Do NOT invent new exercise IDs or substitute exercises.
+- You MAY adjust prescriptions (sets, reps, intensity) based on recent performance, triage, and pitcher context.
+- You MAY reorder exercises within blocks for better flow.
+- You MAY drop 1-2 exercises if triage warrants reduced volume — but explain why in the narrative.
+- Arm care exercises come from the arm care template — use those exercise_ids as provided.
+- Throwing exercises use the standard IDs (J-Band ex_096-ex_101, wrist weights ex_102-ex_105, etc.).
 
 ### Duration Estimates
 - Include `estimated_duration_min` in the lifting object.
