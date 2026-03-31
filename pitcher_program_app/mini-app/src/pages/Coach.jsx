@@ -452,6 +452,10 @@ export default function Coach() {
     quickActions.push({ label: "Today's plan", action: () => {
       setInput("What's my plan for today?");
     }});
+    quickActions.push({ label: 'Re-check-in', action: () => {
+      setCheckinCompleted(false);
+      startCheckin();
+    }});
   }
 
   // ── Determine what interactive buttons to show ──

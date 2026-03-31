@@ -491,8 +491,14 @@ async def post_chat(pitcher_id: str, request: Request):
                 _persist_chat(pitcher_id, f"Check-in: arm {arm_feel}/5 (plan gen failed)", messages)
                 return {"messages": messages, "morning_brief": None, "flag_level": result.get("flag_level", "green")}
 
-            # Increment rotation day only after successful plan generation
-            if (profile_chk.get("active_flags") or {}).get("phase") != "return_to_throwing":
+            # Increment rotation day only on first successful check-in today (not re-check-in)
+            today_str = datetime.now(CHICAGO_TZ).strftime("%Y-%m-%d")
+            existing = load_log(pitcher_id)
+            already_had_plan = any(
+                e.get("date") == today_str and (e.get("plan_narrative") or (e.get("plan_generated") or {}).get("exercise_blocks"))
+                for e in existing.get("entries", [])
+            )
+            if not already_had_plan and (profile_chk.get("active_flags") or {}).get("phase") != "return_to_throwing":
                 increment_days_since_outing(pitcher_id)
 
             messages.append({"type": "text", "content": f"{flag} flag. {result.get('triage_reasoning', '')}"})
