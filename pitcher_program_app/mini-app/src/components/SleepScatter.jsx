@@ -28,7 +28,7 @@ export default function SleepScatter({ points = [] }) {
         datasets: [{
           data: points.map(p => ({ x: p.sleep, y: p.arm_feel })),
           backgroundColor: points.map(p => p.sleep < 7 ? 'rgba(186,117,23,0.6)' : 'rgba(92,16,32,0.5)'),
-          pointRadius: 5,
+          pointRadius: 6,
           pointBorderWidth: 0,
         }],
       },
@@ -44,15 +44,15 @@ export default function SleepScatter({ points = [] }) {
         scales: {
           x: {
             min: 4.5, max: 9.5,
-            title: { display: true, text: 'sleep (h)', font: { size: 9 }, color: '#b0a89e' },
-            ticks: { font: { size: 9 }, color: '#b0a89e' },
+            title: { display: true, text: 'sleep (h)', font: { size: 11 }, color: '#b0a89e' },
+            ticks: { font: { size: 11 }, color: '#b0a89e' },
             grid: { color: 'rgba(0,0,0,0.04)' },
             border: { display: false },
           },
           y: {
             min: 0.5, max: 5.5,
-            title: { display: true, text: 'arm feel', font: { size: 9 }, color: '#b0a89e' },
-            ticks: { stepSize: 1, font: { size: 9 }, color: '#b0a89e' },
+            title: { display: true, text: 'arm feel', font: { size: 11 }, color: '#b0a89e' },
+            ticks: { stepSize: 1, font: { size: 11 }, color: '#b0a89e' },
             grid: { color: 'rgba(0,0,0,0.04)' },
             border: { display: false },
           },

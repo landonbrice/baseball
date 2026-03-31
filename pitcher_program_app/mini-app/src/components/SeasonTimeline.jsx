@@ -1,7 +1,10 @@
 /**
- * Season arm feel timeline — Chart.js line chart.
- * Shows arm feel (1-5) over the full season with outing markers and flag coloring.
- * Optional WHOOP recovery overlay (dashed blue line) for linked pitchers.
+ * Season arm feel + recovery timeline — Chart.js dual-axis line chart.
+ *
+ * Left Y-axis: arm feel (1-5, maroon line with gradient fill)
+ * Right Y-axis: recovery % (0-100, green/red dots)
+ * Outing markers: vertical dashed lines with S1/S2 labels
+ * Rotation day labels: second row below x-axis dates
  */
 
 import { useRef, useEffect } from 'react';
@@ -14,13 +17,67 @@ Chart.register(LineElement, PointElement, LinearScale, CategoryScale, Filler, To
 
 const MAROON = '#5c1020';
 const YELLOW = '#BA7517';
-const GREEN = '#1D9E75';
-const WHOOP_BLUE = 'rgba(45, 135, 210, 0.5)';
+const GREEN = '#28a745';
+const RED = '#dc3545';
 
 function formatDate(dateStr) {
   const d = new Date(dateStr + 'T12:00:00');
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
+
+// Plugin: vertical dashed lines at outing indices with S1/S2 labels
+const outingLinesPlugin = {
+  id: 'outingLines',
+  afterDraw(chart) {
+    const meta = chart.getDatasetMeta(0);
+    const ctx = chart.ctx;
+    const area = chart.chartArea;
+    let outingNum = 0;
+
+    chart.data._outingIndices?.forEach(idx => {
+      const pt = meta.data[idx];
+      if (!pt) return;
+      outingNum++;
+      ctx.save();
+      ctx.setLineDash([3, 3]);
+      ctx.strokeStyle = MAROON;
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(pt.x, area.top);
+      ctx.lineTo(pt.x, area.bottom);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = MAROON;
+      ctx.font = '700 11px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('S' + outingNum, pt.x, area.top - 3);
+      ctx.restore();
+    });
+  },
+};
+
+// Plugin: rotation day labels below x-axis
+const rotationLabelsPlugin = {
+  id: 'rotationLabels',
+  afterDraw(chart) {
+    const rotDays = chart.data._rotationDays;
+    if (!rotDays) return;
+    const xScale = chart.scales.x;
+    const area = chart.chartArea;
+    const ctx = chart.ctx;
+    ctx.save();
+    ctx.font = '600 11px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#b0a89e';
+    for (let i = 0; i < rotDays.length; i++) {
+      const x = xScale.getPixelForTick(i);
+      if (x !== undefined && rotDays[i] != null) {
+        ctx.fillText('D' + rotDays[i], x, area.bottom + 22);
+      }
+    }
+    ctx.restore();
+  },
+};
 
 export default function SeasonTimeline({ timeline = [], hasWhoop = false }) {
   const canvasRef = useRef(null);
@@ -28,80 +85,106 @@ export default function SeasonTimeline({ timeline = [], hasWhoop = false }) {
 
   useEffect(() => {
     if (!canvasRef.current || timeline.length < 2) return;
-
     if (chartRef.current) chartRef.current.destroy();
 
     const labels = timeline.map(t => formatDate(t.date));
     const armFeelData = timeline.map(t => t.arm_feel);
+    const outingIndices = [];
+    timeline.forEach((t, i) => { if (t.is_outing) outingIndices.push(i); });
+    const rotationDays = timeline.map(t => t.rotation_day);
 
-    const datasets = [{
-      data: armFeelData,
-      borderColor: MAROON,
-      borderWidth: 2,
-      pointBackgroundColor: timeline.map(t => {
-        if (t.is_outing) return 'rgba(92,16,32,0.3)';
-        if (t.flag_level === 'yellow') return YELLOW;
-        if (t.arm_feel >= 4) return GREEN;
-        return MAROON;
-      }),
-      pointRadius: timeline.map(t => t.is_outing ? 6 : 3),
-      pointBorderWidth: timeline.map(t => t.is_outing ? 2 : 0),
-      pointBorderColor: MAROON,
-      tension: 0.35,
-      fill: true,
-      backgroundColor: (ctx) => {
-        const g = ctx.chart.ctx.createLinearGradient(0, 0, 0, 130);
-        g.addColorStop(0, 'rgba(92,16,32,0.12)');
-        g.addColorStop(1, 'rgba(92,16,32,0.01)');
-        return g;
+    const hasRecovery = hasWhoop && timeline.some(t => t.recovery_score != null);
+    const recoveryData = hasRecovery
+      ? timeline.map(t => t.recovery_score ?? null)
+      : [];
+
+    const datasets = [
+      // Arm feel — left axis
+      {
+        label: 'Arm feel',
+        data: armFeelData,
+        borderColor: MAROON,
+        borderWidth: 2.5,
+        tension: 0.4,
+        pointBackgroundColor: armFeelData.map(v => v <= 3 ? YELLOW : '#1D9E75'),
+        pointRadius: armFeelData.map(v => v <= 3 ? 6 : 3.5),
+        pointBorderWidth: 0,
+        fill: true,
+        backgroundColor: (ctx) => {
+          const g = ctx.chart.ctx.createLinearGradient(0, 0, 0, 150);
+          g.addColorStop(0, 'rgba(92,16,32,0.11)');
+          g.addColorStop(1, 'rgba(92,16,32,0.01)');
+          return g;
+        },
+        yAxisID: 'yA',
+        order: 1,
+        z: 2,
       },
-    }];
+    ];
 
-    // WHOOP recovery overlay — map 0-100 to 1-5 scale
-    const hasRecoveryData = hasWhoop && timeline.some(t => t.recovery_score != null);
-    if (hasRecoveryData) {
+    if (hasRecovery) {
       datasets.push({
-        data: timeline.map(t => t.recovery_score != null ? t.recovery_score / 20 : null),
-        borderColor: WHOOP_BLUE,
+        label: 'Recovery',
+        data: recoveryData,
+        borderColor: 'rgba(40,167,69,0.75)',
         borderWidth: 1.5,
-        borderDash: [4, 3],
-        pointRadius: 0,
-        tension: 0.35,
+        tension: 0.4,
+        pointBackgroundColor: recoveryData.map(r =>
+          r == null ? 'transparent' : r < 67 ? 'rgba(220,53,69,0.8)' : 'rgba(40,167,69,0.8)'
+        ),
+        pointRadius: recoveryData.map(r => r == null ? 0 : 4),
+        pointBorderWidth: recoveryData.map(r => r == null ? 0 : 1),
+        pointBorderColor: recoveryData.map(r =>
+          r == null ? 'transparent' : r < 67 ? RED : GREEN
+        ),
         fill: false,
+        yAxisID: 'yR',
+        order: 2,
+        z: 1,
         spanGaps: true,
       });
     }
 
+    const data = { labels, datasets, _outingIndices: outingIndices, _rotationDays: rotationDays };
+
     chartRef.current = new Chart(canvasRef.current, {
       type: 'line',
-      data: { labels, datasets },
+      data,
+      plugins: [outingLinesPlugin, rotationLabelsPlugin],
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        layout: { padding: { bottom: 14 } },
+        interaction: { mode: 'index', intersect: false },
         plugins: {
           legend: { display: false },
           tooltip: {
             callbacks: {
               label: ctx => {
-                if (ctx.datasetIndex === 0) return 'Arm feel: ' + ctx.parsed.y + '/5';
-                if (ctx.datasetIndex === 1) {
-                  const raw = timeline[ctx.dataIndex]?.recovery_score;
-                  return raw != null ? `Recovery: ${raw}%` : '';
-                }
+                if (ctx.dataset.label === 'Arm feel') return 'Arm: ' + ctx.parsed.y + '/5';
+                if (ctx.dataset.label === 'Recovery') return 'Recovery: ' + ctx.parsed.y + '%';
                 return '';
               },
             },
           },
         },
         scales: {
-          y: {
-            min: 1, max: 5,
-            ticks: { stepSize: 1, font: { size: 9 }, color: '#b0a89e' },
-            grid: { color: 'rgba(0,0,0,0.04)' },
+          yA: {
+            min: 1, max: 5, position: 'left',
+            ticks: { stepSize: 1, font: { size: 11 }, color: MAROON, callback: v => v + '/5' },
+            grid: { color: 'rgba(0,0,0,0.05)' },
             border: { display: false },
           },
+          ...(hasRecovery ? {
+            yR: {
+              min: 0, max: 100, position: 'right',
+              ticks: { stepSize: 25, font: { size: 11 }, color: 'rgba(40,167,69,0.6)', callback: v => v + '%' },
+              grid: { display: false },
+              border: { display: false },
+            },
+          } : {}),
           x: {
-            ticks: { font: { size: 8 }, color: '#b0a89e', maxRotation: 0, autoSkip: true, maxTicksLimit: 6 },
+            ticks: { font: { size: 11 }, color: '#b0a89e', maxTicksLimit: 6, maxRotation: 0 },
             grid: { display: false },
             border: { display: false },
           },
@@ -114,33 +197,31 @@ export default function SeasonTimeline({ timeline = [], hasWhoop = false }) {
 
   if (timeline.length < 2) return null;
 
-  const hasRecoveryData = hasWhoop && timeline.some(t => t.recovery_score != null);
+  const hasRecovery = hasWhoop && timeline.some(t => t.recovery_score != null);
 
   return (
     <div>
-      <div style={{ position: 'relative', width: '100%', height: 180 }}>
+      <div style={{ position: 'relative', width: '100%', height: 175 }}>
         <canvas ref={canvasRef} />
       </div>
-      <div style={{ display: 'flex', gap: 12, marginTop: 8, flexWrap: 'wrap' }}>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 9, color: '#6b5f58' }}>
-          <span style={{ width: 20, height: 2, background: MAROON, display: 'inline-block', borderRadius: 1 }} />
+      <div style={{ display: 'flex', gap: 11, marginTop: 10, flexWrap: 'wrap' }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#6b5f58' }}>
+          <span style={{ width: 18, height: 2.5, background: MAROON, display: 'inline-block', borderRadius: 2 }} />
           Arm feel
         </span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 9, color: '#6b5f58' }}>
-          <span style={{ width: 7, height: 7, background: MAROON, borderRadius: '50%', display: 'inline-block', opacity: 0.3 }} />
-          Outing
-        </span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 9, color: '#6b5f58' }}>
-          <span style={{ width: 7, height: 7, background: YELLOW, borderRadius: 2, display: 'inline-block' }} />
-          Yellow flag
-        </span>
-        {hasRecoveryData && (
-          <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 9, color: '#6b5f58' }}>
-            <span style={{
-              width: 20, height: 0, borderTop: '1.5px dashed rgba(45,135,210,0.5)',
-              display: 'inline-block',
-            }} />
+        {hasRecovery && (
+          <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#6b5f58' }}>
+            <span style={{ display: 'inline-flex', gap: 1 }}>
+              <span style={{ width: 5, height: 5, background: GREEN, borderRadius: '50%' }} />
+              <span style={{ width: 5, height: 5, background: GREEN, borderRadius: '50%' }} />
+            </span>
             Recovery
+          </span>
+        )}
+        {timeline.some(t => t.is_outing) && (
+          <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#6b5f58' }}>
+            <span style={{ width: 1, height: 12, borderLeft: '1.5px dashed #5c1020', display: 'inline-block' }} />
+            Outing
           </span>
         )}
       </div>

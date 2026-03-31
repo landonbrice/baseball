@@ -567,6 +567,7 @@ def build_season_summary(pitcher_id: str) -> dict:
             "is_outing": e.get("outing") is not None,
             "flag_level": _get_flag(e),
             "sleep_hours": _get_sleep(e),
+            "rotation_day": e.get("rotation_day") or e.get("days_since_outing"),
         })
 
     # --- Rotation signature ---
@@ -709,6 +710,124 @@ def build_season_summary(pitcher_id: str) -> dict:
     except Exception as e:
         logger.warning("WHOOP overlay skipped for %s: %s", pitcher_id, e)
 
+    # --- WHOOP weekly card data ---
+    whoop_week = None
+    if has_whoop:
+        try:
+            today_str = _date.today().isoformat()
+            week_ago = (_date.today() - timedelta(days=7)).isoformat()
+            two_weeks_ago = (_date.today() - timedelta(days=14)).isoformat()
+
+            this_week = [r for r in whoop_rows if r.get("date") and r["date"] >= week_ago]
+            this_week.sort(key=lambda r: r["date"])
+            prior_week = [r for r in whoop_rows if r.get("date") and two_weeks_ago <= r["date"] < week_ago]
+
+            today_whoop = whoop_by_date.get(today_str, {})
+
+            recoveries = [r["recovery_score"] for r in this_week if r.get("recovery_score") is not None]
+            hrvs = [r["hrv_rmssd"] for r in this_week if r.get("hrv_rmssd") is not None]
+            sleep_hrs = [r["sleep_hours"] for r in this_week if r.get("sleep_hours") is not None]
+
+            # HRV trend: this week avg vs prior week avg
+            prior_hrvs = [r["hrv_rmssd"] for r in prior_week if r.get("hrv_rmssd") is not None]
+            hrv_trend_pct = None
+            if hrvs and prior_hrvs:
+                this_avg = sum(hrvs) / len(hrvs)
+                prior_avg = sum(prior_hrvs) / len(prior_hrvs)
+                if prior_avg > 0:
+                    hrv_trend_pct = round((this_avg - prior_avg) / prior_avg * 100)
+
+            # HRV sparkline
+            day_letters = {0: "M", 1: "T", 2: "W", 3: "T", 4: "F", 5: "S", 6: "S"}
+            hrv_sparkline = []
+            hrv_sparkline_labels = []
+            for r in this_week:
+                if r.get("hrv_rmssd") is not None:
+                    hrv_sparkline.append(round(r["hrv_rmssd"], 1))
+                    d = _date.fromisoformat(r["date"])
+                    hrv_sparkline_labels.append(day_letters.get(d.weekday(), "?"))
+
+            # Insight
+            parts = []
+            if hrv_trend_pct is not None:
+                direction = "up" if hrv_trend_pct > 0 else "down"
+                parts.append(f"HRV {direction} {abs(hrv_trend_pct)}% week-over-week.")
+            if today_whoop.get("yesterday_strain") is not None:
+                strain = today_whoop["yesterday_strain"]
+                level = "light" if strain < 8 else "moderate" if strain < 14 else "high"
+                parts.append(f"Strain {level}.")
+            if recoveries:
+                avg_rec = sum(recoveries) / len(recoveries)
+                if avg_rec >= 67:
+                    parts.append("Body handling load well going into your next start.")
+                elif avg_rec >= 34:
+                    parts.append("Recovery moderate — watch for accumulation.")
+
+            ask_parts = []
+            if hrv_trend_pct is not None and hrv_trend_pct > 0:
+                ask_parts.append("Why is HRV trending up?")
+            elif hrv_trend_pct is not None and hrv_trend_pct < -5:
+                ask_parts.append("Why is my HRV declining?")
+            else:
+                ask_parts.append("How is my body handling the current training load?")
+
+            whoop_week = {
+                "today": {
+                    "recovery_score": today_whoop.get("recovery_score"),
+                    "hrv_rmssd": round(today_whoop["hrv_rmssd"], 1) if today_whoop.get("hrv_rmssd") else None,
+                    "sleep_performance": today_whoop.get("sleep_performance"),
+                    "sleep_hours": today_whoop.get("sleep_hours"),
+                    "yesterday_strain": today_whoop.get("yesterday_strain"),
+                },
+                "avg_recovery": round(sum(recoveries) / len(recoveries)) if recoveries else None,
+                "avg_sleep_hours": round(sum(sleep_hrs) / len(sleep_hrs), 1) if sleep_hrs else None,
+                "hrv_trend_pct": hrv_trend_pct,
+                "hrv_sparkline": hrv_sparkline,
+                "hrv_sparkline_labels": hrv_sparkline_labels,
+                "insight": " ".join(parts) if parts else None,
+                "ask_prompt": ask_parts[0] if ask_parts else None,
+            }
+        except Exception as e:
+            logger.warning("WHOOP weekly card skipped for %s: %s", pitcher_id, e)
+
+    # --- Timeline insight (arm feel + recovery correlation) ---
+    timeline_insight = None
+    if has_whoop and outings:
+        low_rec_low_arm = 0
+        low_rec_total = 0
+        for t in timeline:
+            rec = t.get("recovery_score")
+            if rec is not None and rec < 67:
+                low_rec_total += 1
+                if t["arm_feel"] <= 3:
+                    low_rec_low_arm += 1
+        if low_rec_total >= 2:
+            timeline_insight = (
+                f"Sub-67% recovery days produced arm feel 3 or below "
+                f"in {low_rec_low_arm} of {low_rec_total} instances this season."
+            )
+        elif low_rec_total == 0 and len(timeline) >= 5:
+            timeline_insight = "Recovery has stayed above 67% all season — arm feel is tracking consistently."
+
+    # --- Fingerprint insight (pitch count vs recovery) ---
+    fingerprint_insight = None
+    if len(outings) >= 2:
+        high_pc = [o for o in outings if o.get("pitch_count") and o["pitch_count"] >= 75]
+        low_pc = [o for o in outings if o.get("pitch_count") and o["pitch_count"] < 75]
+        high_days = [o["recovery_days"] for o in high_pc if o.get("recovery_days")]
+        low_days = [o["recovery_days"] for o in low_pc if o.get("recovery_days")]
+        if high_days and low_days:
+            h_avg = sum(high_days) / len(high_days)
+            l_avg = sum(low_days) / len(low_days)
+            if h_avg > l_avg:
+                fingerprint_insight = (
+                    f"After 75+ pitches you average {h_avg:.0f} days to return to baseline. "
+                    f"Sub-75 pitch outings recover {h_avg - l_avg:.0f} day{'s' if h_avg - l_avg > 1 else ''} faster."
+                )
+        elif high_days:
+            h_avg = sum(high_days) / len(high_days)
+            fingerprint_insight = f"After 75+ pitches you average {h_avg:.0f} days to return to baseline."
+
     # --- Sleep vs arm feel correlation ---
     sleep_correlation = None
     points = []
@@ -764,11 +883,13 @@ def build_season_summary(pitcher_id: str) -> dict:
             "current_streak": current_streak,
         },
         "timeline": timeline,
+        "timeline_insight": timeline_insight,
         "rotation_signature": rotation_signature,
         "outings": outings,
         "upcoming_games": upcoming_games,
+        "fingerprint_insight": fingerprint_insight,
         "sleep_correlation": sleep_correlation,
-        "weekly_narratives": weekly_narratives,
+        "whoop_week": whoop_week,
     }
 
 
