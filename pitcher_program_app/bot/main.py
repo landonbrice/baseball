@@ -245,6 +245,61 @@ async def test_notify(update: Update, context) -> None:
     await _send_morning_checkin(context)
 
 
+async def whooptest(update: Update, context) -> None:
+    """Handle /whooptest — force fresh WHOOP pull, show all raw results for debugging."""
+    from bot.services.context_manager import get_pitcher_id_by_telegram
+    from bot.services.whoop import is_linked, pull_whoop_data, WHOOPAuthRequired
+
+    pitcher_id = get_pitcher_id_by_telegram(update.effective_user.id, update.effective_user.username)
+    if not pitcher_id:
+        await update.message.reply_text("No profile found.")
+        return
+
+    if not is_linked(pitcher_id):
+        await update.message.reply_text("WHOOP not linked. Use /whoop to connect.")
+        return
+
+    await update.message.reply_text("Pulling fresh WHOOP data (force_refresh)...")
+
+    try:
+        data = pull_whoop_data(pitcher_id, force_refresh=True)
+        if not data:
+            await update.message.reply_text("WHOOP returned no data. Check Railway logs for details.")
+            return
+
+        lines = ["WHOOP Force-Pull Results:"]
+        fields = [
+            ("recovery_score", "Recovery"),
+            ("hrv_rmssd", "HRV"),
+            ("hrv_7day_avg", "HRV 7d avg"),
+            ("sleep_performance", "Sleep %"),
+            ("sleep_hours", "Sleep hrs"),
+            ("yesterday_strain", "Strain"),
+        ]
+        for key, label in fields:
+            val = data.get(key)
+            status = f"{val}" if val is not None else "NULL"
+            lines.append(f"  {label}: {status}")
+
+        # Show raw_data keys for debugging
+        raw = data.get("raw_data") or {}
+        raw_summary = []
+        for endpoint in ("recovery", "sleep", "cycles"):
+            raw_val = raw.get(endpoint)
+            if raw_val:
+                raw_summary.append(f"{endpoint}=OK")
+            else:
+                raw_summary.append(f"{endpoint}=None")
+        lines.append(f"\n  Raw endpoints: {', '.join(raw_summary)}")
+
+        await update.message.reply_text("\n".join(lines))
+    except WHOOPAuthRequired:
+        await update.message.reply_text("WHOOP auth expired. Use /whoop to reconnect.")
+    except Exception as e:
+        await update.message.reply_text(f"Error: {e}")
+        logger.error("whooptest failed for %s: %s", pitcher_id, e, exc_info=True)
+
+
 async def reauth_whoop(update: Update, context) -> None:
     """Handle /reauth — force re-link WHOOP."""
     from bot.services.context_manager import get_pitcher_id_by_telegram
@@ -434,10 +489,10 @@ async def _send_morning_checkin(context) -> None:
         else:
             lines.append(f"{first_name} — day {days}, let's get your plan set.")
 
-        # Line 2: WHOOP context (conversational)
+        # Line 2: WHOOP context (conversational) — fresh pull, not just cache
         try:
-            from bot.services.whoop import get_today_whoop
-            wd = get_today_whoop(pitcher_id)
+            from bot.services.whoop import pull_whoop_data, is_linked
+            wd = pull_whoop_data(pitcher_id) if is_linked(pitcher_id) else None
             if wd and wd.get("recovery_score") is not None:
                 rec = wd["recovery_score"]
                 if rec >= 67:
@@ -699,6 +754,7 @@ def register_handlers(application) -> None:
     application.add_handler(CommandHandler("setday", setday))
     application.add_handler(CommandHandler("whoop", whoop_command))
     application.add_handler(CommandHandler("reauth", reauth_whoop))
+    application.add_handler(CommandHandler("whooptest", whooptest))
     application.add_handler(CommandHandler("testnotify", test_notify))
     application.add_handler(CommandHandler("gamestart", gamestart))
     application.add_handler(CommandHandler("dashboard", dashboard))

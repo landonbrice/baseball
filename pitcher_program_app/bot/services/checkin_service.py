@@ -76,12 +76,13 @@ async def process_checkin(
     profile = load_profile(pitcher_id)
     rotation_length = profile.get("rotation_length", 7)
 
-    # Pull WHOOP biometrics if pitcher is linked (optional enhancement)
+    # Pull WHOOP biometrics if pitcher is linked — force fresh pull
+    # to avoid serving stale partial data (e.g. strain-only from 6am cache)
     whoop_data = None
     try:
         from bot.services.whoop import is_linked, pull_whoop_data
         if is_linked(pitcher_id):
-            whoop_data = pull_whoop_data(pitcher_id)
+            whoop_data = pull_whoop_data(pitcher_id, force_refresh=True)
             # Use WHOOP sleep hours if self-reported is the default
             if whoop_data and whoop_data.get("sleep_hours") and sleep_hours == 7.0:
                 sleep_hours = whoop_data["sleep_hours"]

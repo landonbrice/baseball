@@ -184,8 +184,12 @@ def _api_get(pitcher_id: str, endpoint: str, params=None) -> dict:
 
 def _pull_recovery(pitcher_id: str) -> dict | None:
     data = _api_get(pitcher_id, "/recovery", params={"limit": 1})
-    if data and data.get("records"):
-        rec = data["records"][0]
+    records = data.get("records") if data else []
+    logger.info("WHOOP recovery raw for %s: %d records, score=%s",
+                pitcher_id, len(records),
+                records[0].get("score", {}) if records else "N/A")
+    if records:
+        rec = records[0]
         score = rec.get("score", {})
         return {
             "recovery_score": score.get("recovery_score"),
@@ -196,8 +200,12 @@ def _pull_recovery(pitcher_id: str) -> dict | None:
 
 def _pull_sleep(pitcher_id: str) -> dict | None:
     data = _api_get(pitcher_id, "/activity/sleep", params={"limit": 1})
-    if data and data.get("records"):
-        rec = data["records"][0]
+    records = data.get("records") if data else []
+    logger.info("WHOOP sleep raw for %s: %d records, score=%s",
+                pitcher_id, len(records),
+                records[0].get("score", {}) if records else "N/A")
+    if records:
+        rec = records[0]
         score = rec.get("score", {})
         total_ms = score.get("stage_summary", {}).get("total_in_bed_time_milli")
         sleep_hours = round(total_ms / 3_600_000, 1) if total_ms else None
@@ -210,8 +218,12 @@ def _pull_sleep(pitcher_id: str) -> dict | None:
 
 def _pull_cycles(pitcher_id: str) -> dict | None:
     data = _api_get(pitcher_id, "/cycle", params={"limit": 1})
-    if data and data.get("records"):
-        rec = data["records"][0]
+    records = data.get("records") if data else []
+    logger.info("WHOOP cycles raw for %s: %d records, score=%s",
+                pitcher_id, len(records),
+                records[0].get("score", {}) if records else "N/A")
+    if records:
+        rec = records[0]
         score = rec.get("score", {})
         return {"yesterday_strain": score.get("strain")}
     return None
@@ -226,8 +238,12 @@ def is_linked(pitcher_id: str) -> bool:
     return db.get_whoop_tokens(pitcher_id) is not None
 
 
-def pull_whoop_data(pitcher_id: str) -> dict | None:
+def pull_whoop_data(pitcher_id: str, force_refresh: bool = False) -> dict | None:
     """Pull all WHOOP data for a pitcher and cache in Supabase.
+
+    Args:
+        pitcher_id: The pitcher to pull data for.
+        force_refresh: If True, skip cache and always pull fresh from WHOOP API.
 
     Returns combined dict or None if no data available.
     Raises WHOOPAuthRequired if tokens are missing/expired.
@@ -237,15 +253,21 @@ def pull_whoop_data(pitcher_id: str) -> dict | None:
 
     # Return cached if already pulled today AND core metrics are present
     cached = db.get_whoop_daily(pitcher_id, today)
-    if cached:
+    if cached and not force_refresh:
         has_core = any([
             cached.get("recovery_score") is not None,
             cached.get("hrv_rmssd") is not None,
             cached.get("sleep_performance") is not None,
         ])
         if has_core:
+            logger.info("WHOOP cache hit for %s (has_core=True)", pitcher_id)
             return cached
         # Core metrics missing — re-pull (WHOOP may have processed them since last pull)
+        logger.info("WHOOP cache incomplete for %s — re-pulling (recovery=%s, hrv=%s, sleep=%s, strain=%s)",
+                     pitcher_id, cached.get("recovery_score"), cached.get("hrv_rmssd"),
+                     cached.get("sleep_performance"), cached.get("yesterday_strain"))
+    elif force_refresh:
+        logger.info("WHOOP force_refresh for %s — bypassing cache", pitcher_id)
 
     # Pull from WHOOP API (let WHOOPAuthRequired propagate)
     recovery = sleep = cycles = None
@@ -269,6 +291,9 @@ def pull_whoop_data(pitcher_id: str) -> dict | None:
         raise
     except Exception as e:
         logger.warning("WHOOP cycle pull failed for %s: %s", pitcher_id, e)
+
+    logger.info("WHOOP pull results for %s: recovery=%s, sleep=%s, cycles=%s",
+                pitcher_id, recovery, sleep, cycles)
 
     if not any([recovery, sleep, cycles]):
         logger.warning("WHOOP: no data for %s", pitcher_id)
