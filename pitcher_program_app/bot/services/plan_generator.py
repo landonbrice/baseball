@@ -65,26 +65,22 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
         "full": "day_2",    # Use lower power as full body base
         "rest": "day_6",    # Rest day — arm care and mobility only
         "auto": None,       # Use rotation-based template
+        "your_call": None,  # Use rotation-based template
+        "": None,           # Use rotation-based template
     }
 
     # Load templates
     rotation_template = load_template("starter_7day.json")
 
     # Determine which template to use:
-    # 1. Rest day always wins — arm care/mobility only regardless of rotation
-    # 2. Extended time off (past rotation cycle) or return-to-throwing: use lift preference
-    # 3. Normal rotation: use rotation day
-    use_preference = (
-        lift_pref == "rest"
-        or phase.startswith("return_to_throwing")
-        or rotation_day >= rotation_length
-        or not rotation_template["days"].get(f"day_{rotation_day}", {})
-    )
+    # 1. Explicit lift preference always wins (pitcher said what they want)
+    # 2. Extended time off or RTT with no preference: use mid-rotation
+    # 3. No preference: use rotation day
+    explicit_pref = lift_pref and lift_pref not in ("auto", "your_call", "")
 
-    if use_preference and pref_to_day.get(lift_pref) is not None:
+    if explicit_pref and pref_to_day.get(lift_pref) is not None:
         template_day = pref_to_day[lift_pref]
         today_template = rotation_template["days"].get(template_day, {})
-        # Keep actual rotation_day for context but note the override
         rotation_day = int(template_day.split("_")[1]) if "_" in template_day else rotation_day
     elif rotation_day >= rotation_length:
         # Extended time off, no specific preference — use mid-rotation template
@@ -417,6 +413,21 @@ _DAY_BODY_FOCUS = {
 }
 
 
+_KNOWN_EXERCISE_IDS = None
+
+
+def _get_known_ids() -> set:
+    """Return cached set of valid exercise IDs from the library."""
+    global _KNOWN_EXERCISE_IDS
+    if _KNOWN_EXERCISE_IDS is None:
+        try:
+            from bot.services.db import get_exercises
+            _KNOWN_EXERCISE_IDS = {ex["id"] for ex in get_exercises()}
+        except Exception:
+            _KNOWN_EXERCISE_IDS = set()
+    return _KNOWN_EXERCISE_IDS
+
+
 def _validate_plan(plan: dict, template: dict, rotation_day: int) -> dict:
     """Post-LLM validation: enforce exercise minimums and body-part adherence."""
     lifting = plan.get("lifting") or {}
@@ -425,6 +436,14 @@ def _validate_plan(plan: dict, template: dict, rotation_day: int) -> dict:
     exercises = lifting.get("exercises") or []
     if not isinstance(exercises, list):
         return plan
+
+    # Strip exercises with unknown IDs (LLM hallucination guard)
+    known = _get_known_ids()
+    if known:
+        before = len(exercises)
+        exercises = [ex for ex in exercises if ex.get("exercise_id", "") in known]
+        if len(exercises) < before:
+            logger.warning(f"Stripped {before - len(exercises)} unknown exercise IDs from LLM plan")
 
     # Full lifting days (2, 3, 4) need at least 6 exercises
     full_days = {2, 3, 4}
