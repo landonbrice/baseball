@@ -135,16 +135,27 @@ def scrape_and_store() -> int:
         return 0
 
     client = get_client()
+
+    # Deduplicate on (game_date, opponent) — doubleheaders produce duplicates
+    seen = {}
     for g in games:
+        key = (g["game_date"], g["opponent"])
+        if key not in seen:
+            seen[key] = g
+        else:
+            seen[key]["is_doubleheader"] = True
+
+    deduped = list(seen.values())
+    for g in deduped:
         g["updated_at"] = datetime.utcnow().isoformat()
 
     # Upsert on (game_date, opponent) unique constraint
     client.table("schedule").upsert(
-        games, on_conflict="game_date,opponent"
+        deduped, on_conflict="game_date,opponent"
     ).execute()
 
-    logger.info("Upserted %d games into schedule table", len(games))
-    return len(games)
+    logger.info("Upserted %d games into schedule table", len(deduped))
+    return len(deduped)
 
 
 if __name__ == "__main__":
