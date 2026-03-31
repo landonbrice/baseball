@@ -71,17 +71,42 @@ export default function Coach() {
     return () => { cancelled = true; };
   }, [pitcherId, initData, historyLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Auto-open with welcome for new pitchers
+  // Auto-open with personalized welcome for new pitchers
   useEffect(() => {
     if (isNewPitcher && !welcomeSent && messages.length === 0) {
-      setMessages([{
-        role: 'bot', type: 'text',
-        content: `Hey ${profile?.name?.split(' ')[0] || 'there'}, I'm set up with your profile. Before I can build your first plan, I need to know \u2014 when do you next expect to pitch?`,
-      }]);
+      const firstName = profile?.name?.split(' ')[0] || 'there';
+      const role = profile?.role === 'starter' ? 'starter' : 'reliever';
+      const rotLen = profile?.rotation_length || 7;
+      const arsenal = (profile?.pitching_profile || {}).pitch_arsenal || [];
+      const pitchCount = (profile?.pitching_profile || {}).typical_pitch_count || 0;
+      const injuries = profile?.injury_history || [];
+      const goalPrimary = (profile?.goals || {}).primary;
+
+      // Paragraph 1 — what we know about their pitching
+      let p1 = `Hey ${firstName} — I've got your intake loaded. I see you're a **${role} on a ${rotLen}-day rotation**`;
+      if (arsenal.length > 0) p1 += ` with a **${arsenal.length}-pitch mix**`;
+      if (pitchCount > 0) p1 += `. Typical outing around **${pitchCount} pitches**`;
+      p1 += '.';
+
+      // Paragraph 2 — injury awareness (conditional)
+      let p2 = '';
+      if (injuries.length > 0) {
+        const areas = injuries.map(inj => {
+          const area = (inj.area || '').replace(/_/g, ' ');
+          return inj.description ? `**${area}** — ${inj.description.split('.')[0].toLowerCase()}` : `**${area}**`;
+        });
+        p2 = `\n\nI'm tracking ${areas.join(', ')}. Your plans will have modified loads and I'll flag any concerning patterns early.`;
+      }
+
+      // Paragraph 3 — goal connection
+      let p3 = '\n\nReady to build your first plan?';
+      if (goalPrimary) p3 = `\n\nYour goal — *${goalPrimary}* — lines up perfectly with how I program. Ready to build your first plan?`;
+
+      setMessages([{ role: 'bot', type: 'text', content: p1 + p2 + p3 }]);
       setWelcomeSent(true);
       setNextOutingFlow(true);
     }
-  }, [isNewPitcher, welcomeSent, messages.length, profile?.name]);
+  }, [isNewPitcher, welcomeSent, messages.length, profile]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-scroll
   useEffect(() => {

@@ -16,6 +16,118 @@ import StaffPulse from '../components/StaffPulse';
 import FlagBadge from '../components/FlagBadge';
 import WhoopCard from '../components/WhoopCard';
 
+function NewPitcherWelcome({ profile, navigate }) {
+  const firstName = (profile?.name || '').split(' ')[0];
+  const role = profile?.role || 'starter';
+  const roleLabel = role === 'starter' ? 'Starter' : 'Reliever';
+  const rotLen = profile?.rotation_length || 7;
+  const arsenal = (profile?.pitching_profile || {}).pitch_arsenal || [];
+  const training = profile?.current_training || {};
+  const maxes = training.current_maxes || {};
+  const experience = training.lifting_experience;
+  const split = training.current_split;
+  const injuries = profile?.injury_history || [];
+
+  const hasMaxes = Object.values(maxes).some(v => v && v !== 0 && v !== '0');
+
+  const maxLabels = { trap_bar_dl: 'Trap Bar DL', front_squat: 'Front Squat', db_bench: 'DB Bench', pullup: 'Pull-Up' };
+  const maxEntries = Object.entries(maxes)
+    .filter(([, v]) => v && v !== 0 && v !== '0')
+    .map(([k, v]) => [maxLabels[k] || k, typeof v === 'number' ? `${v} lbs` : String(v)]);
+
+  const splitLabels = { upper_lower_2x: 'Upper/Lower 2x', full_body_3x: 'Full Body 3x', push_pull_legs: 'PPL', upper_lower: 'Upper/Lower' };
+  const expLabels = { beginner: 'Beginner', intermediate: 'Intermediate', advanced: 'Advanced' };
+
+  return (
+    <div style={{ marginTop: 12 }}>
+      {/* Welcome Card */}
+      <div style={{ background: '#fff', borderRadius: 12, padding: 16 }}>
+        <p style={{ fontSize: 13, color: '#6b5f58', margin: '0 0 12px', lineHeight: 1.5 }}>
+          {"I've loaded your intake data and built a profile for you. Here's what I know so far:"}
+        </p>
+
+        {/* Arsenal pills */}
+        {arsenal.length > 0 && (
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: 10, fontWeight: 600, color: '#b0a89e', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Arsenal</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {arsenal.map((pitch, i) => (
+                <span key={i} className="bg-accent-blue/10 text-accent-blue" style={{ padding: '4px 10px', borderRadius: 99, fontSize: 11, fontWeight: 500 }}>{pitch}</span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Training snapshot grid */}
+        {(hasMaxes || experience || split) && (
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: 10, fontWeight: 600, color: '#b0a89e', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Training Snapshot</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              {maxEntries.map(([label, val]) => (
+                <div key={label} style={{ background: '#f5f1eb', borderRadius: 8, padding: '8px 10px' }}>
+                  <div style={{ fontSize: 10, color: '#b0a89e' }}>{label}</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#2a1a18', marginTop: 2 }}>{val}</div>
+                </div>
+              ))}
+              {experience && (
+                <div style={{ background: '#f5f1eb', borderRadius: 8, padding: '8px 10px' }}>
+                  <div style={{ fontSize: 10, color: '#b0a89e' }}>Experience</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#2a1a18', marginTop: 2 }}>{expLabels[experience] || experience}</div>
+                </div>
+              )}
+              {split && (
+                <div style={{ background: '#f5f1eb', borderRadius: 8, padding: '8px 10px' }}>
+                  <div style={{ fontSize: 10, color: '#b0a89e' }}>Current Split</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#2a1a18', marginTop: 2 }}>{splitLabels[split] || split}</div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Injury awareness banner */}
+        {injuries.length > 0 && (
+          <div style={{ background: 'rgba(186,117,23,0.08)', border: '1px solid rgba(186,117,23,0.25)', borderRadius: 8, padding: '10px 12px', marginBottom: 12 }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: '#BA7517', marginBottom: 4 }}>Injury-Aware Programming</div>
+            <div style={{ fontSize: 11, color: '#6b5f58', lineHeight: 1.5 }}>
+              {injuries.map(inj => `${inj.area?.replace(/_/g, ' ')}${inj.severity ? ` (${inj.severity})` : ''}`).join(' + ')}
+              {'. Your plans will account for these with modified loads and elevated monitoring.'}
+            </div>
+          </div>
+        )}
+
+        {/* CTA */}
+        <button
+          onClick={() => navigate('/coach')}
+          style={{ width: '100%', background: '#5c1020', color: '#fff', border: 'none', borderRadius: 12, padding: '14px 0', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+        >
+          {'\uD83D\uDCAC Start your first check-in'}
+        </button>
+        <p style={{ fontSize: 11, color: '#b0a89e', textAlign: 'center', marginTop: 6, marginBottom: 0 }}>{"Takes ~2 minutes. I'll build your plan from there."}</p>
+      </div>
+
+      {/* What you'll get each day */}
+      <div style={{ background: '#fff', borderRadius: 12, padding: 16, marginTop: 10 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: '#2a1a18', marginBottom: 10 }}>What you get each day</div>
+        {[
+          ['\uD83C\uDFCB\uFE0F', 'Personalized lifting plan', 'Exercises selected from 95+ options based on your rotation day and injury profile'],
+          ['\uD83D\uDCAA', 'Arm care prescription', 'Targeted shoulder, elbow, and forearm work matched to your history'],
+          ['\u26BE', 'Throwing program', 'Plyo drills, long toss, and bullpen plans calibrated to your schedule'],
+          ['\uD83D\uDCC8', 'Season trends', 'Arm feel tracking, recovery patterns, and weekly coaching insights'],
+        ].map(([icon, title, desc], i) => (
+          <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: i < 3 ? 10 : 0 }}>
+            <span style={{ fontSize: 18, lineHeight: 1 }}>{icon}</span>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: '#2a1a18' }}>{title}</div>
+              <div style={{ fontSize: 11, color: '#6b5f58', lineHeight: 1.4, marginTop: 1 }}>{desc}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function Home() {
   const { pitcherId, initData } = useAuth();
   const { globalRefreshKey, checkinCompleted } = useAppContext();
@@ -180,10 +292,7 @@ export default function Home() {
 
       <div style={{ padding: '0 12px' }}>
         {isNewPitcher ? (
-          <div style={{ background: '#fff', borderRadius: 12, padding: 16, textAlign: 'center', marginTop: 12 }}>
-            <p style={{ fontSize: 14, color: '#2a1a18', marginBottom: 4 }}>{"You're set up."}</p>
-            <p style={{ fontSize: 12, color: '#b0a89e' }}>{'Head to Coach to check in.'}</p>
-          </div>
+          <NewPitcherWelcome profile={profile} navigate={navigate} />
         ) : (
           <div>
             {isViewingPast && (
