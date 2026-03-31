@@ -72,7 +72,7 @@ const rotationLabelsPlugin = {
     for (let i = 0; i < rotDays.length; i++) {
       const x = xScale.getPixelForTick(i);
       if (x !== undefined && rotDays[i] != null) {
-        ctx.fillText('D' + rotDays[i], x, area.bottom + 22);
+        ctx.fillText('D' + rotDays[i], x, area.bottom + 32);
       }
     }
     ctx.restore();
@@ -154,7 +154,7 @@ export default function SeasonTimeline({ timeline = [], hasWhoop = false }) {
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        layout: { padding: { bottom: 14 } },
+        layout: { padding: { top: 10, bottom: 28 } },
         interaction: { mode: 'index', intersect: false },
         plugins: {
           legend: { display: false },
