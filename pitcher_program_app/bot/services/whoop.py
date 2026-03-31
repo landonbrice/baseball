@@ -299,13 +299,17 @@ def pull_whoop_data(pitcher_id: str, force_refresh: bool = False) -> dict | None
         logger.warning("WHOOP: no data for %s", pitcher_id)
         return None
 
+    # Cast to expected Postgres types — v2 API returns floats where v1 returned ints
+    _rec = recovery or {}
+    _slp = sleep or {}
+    _cyc = cycles or {}
     result = {
         "date": today,
-        "recovery_score": (recovery or {}).get("recovery_score"),
-        "hrv_rmssd": (recovery or {}).get("hrv_rmssd"),
-        "sleep_performance": (sleep or {}).get("sleep_performance"),
-        "sleep_hours": (sleep or {}).get("sleep_hours"),
-        "yesterday_strain": (cycles or {}).get("yesterday_strain"),
+        "recovery_score": int(_rec["recovery_score"]) if _rec.get("recovery_score") is not None else None,
+        "hrv_rmssd": _rec.get("hrv_rmssd"),
+        "sleep_performance": int(_slp["sleep_performance"]) if _slp.get("sleep_performance") is not None else None,
+        "sleep_hours": _slp.get("sleep_hours"),
+        "yesterday_strain": _cyc.get("yesterday_strain"),
         "hrv_7day_avg": get_hrv_7day_avg(pitcher_id),
         "raw_data": {"recovery": recovery, "sleep": sleep, "cycles": cycles},
     }
