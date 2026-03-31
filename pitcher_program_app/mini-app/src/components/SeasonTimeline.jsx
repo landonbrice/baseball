@@ -154,7 +154,7 @@ export default function SeasonTimeline({ timeline = [], hasWhoop = false }) {
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        layout: { padding: { top: 18, bottom: 28 } },
+        layout: { padding: { top: 28, bottom: 28 } },
         interaction: { mode: 'index', intersect: false },
         plugins: {
           legend: { display: false },
@@ -201,7 +201,7 @@ export default function SeasonTimeline({ timeline = [], hasWhoop = false }) {
 
   return (
     <div>
-      <div style={{ position: 'relative', width: '100%', height: 175 }}>
+      <div style={{ position: 'relative', width: '100%', height: 195 }}>
         <canvas ref={canvasRef} />
       </div>
       <div style={{ display: 'flex', gap: 11, marginTop: 10, flexWrap: 'wrap' }}>
