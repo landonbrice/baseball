@@ -121,8 +121,8 @@ export default function LogHistory() {
       {/* ── Starts this season ── */}
       {(outings.length > 0 || (upcoming_games && upcoming_games.length > 0)) ? (
         <Card label="Starts this season">
-          {/* Upcoming games (not yet logged) */}
-          {upcoming_games && upcoming_games.map(g => (
+          {/* Upcoming games (not yet logged) — show next 3 */}
+          {upcoming_games && upcoming_games.slice(0, 3).map(g => (
             <UpcomingGameCard key={g.game_date + g.opponent} game={g} />
           ))}
           {/* Logged outings */}
