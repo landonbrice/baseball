@@ -86,7 +86,7 @@ export default function LogHistory() {
       )}
 
       {/* ── Rotation signature ── */}
-      {rotation_signature && (
+      {rotation_signature ? (
         <Card label="Your rotation signature">
           <div style={{ fontSize: 10, color: INK2, lineHeight: 1.5, marginBottom: 10 }}>
             Average arm feel per day of your rotation, across all starts this season.
@@ -113,10 +113,12 @@ export default function LogHistory() {
             </div>
           )}
         </Card>
+      ) : (
+        <LockedCard label="Your rotation signature" hint="Unlocks after a few check-ins across your rotation cycle." />
       )}
 
       {/* ── Starts this season ── */}
-      {outings.length > 0 && (
+      {outings.length > 0 ? (
         <Card label="Starts this season">
           {outings.map((o, idx) => (
             <OutingCard
@@ -128,10 +130,12 @@ export default function LogHistory() {
             />
           ))}
         </Card>
+      ) : (
+        <LockedCard label="Starts this season" hint="Log your first outing with /outing in the bot to see recovery curves here." />
       )}
 
       {/* ── Weekly coaching notes ── */}
-      {weekly_narratives.length > 0 && (
+      {weekly_narratives.length > 0 ? (
         <Card label="Weekly coaching notes">
           {weekly_narratives.map((n, idx) => (
             <div
@@ -157,10 +161,12 @@ export default function LogHistory() {
             </div>
           ))}
         </Card>
+      ) : (
+        <LockedCard label="Weekly coaching notes" hint="Your first coaching narrative generates Sunday evening after a week of check-ins." />
       )}
 
       {/* ── Sleep vs arm feel ── */}
-      {sleep_correlation && (
+      {sleep_correlation && sleep_correlation.points.length >= 5 ? (
         <Card label="Sleep vs arm feel" last>
           <div style={{ fontSize: 10, color: INK2, lineHeight: 1.5, marginBottom: 10 }}>
             {sleep_correlation.insight}
@@ -170,7 +176,7 @@ export default function LogHistory() {
             <div
               onClick={() => askCoach(sleep_correlation.ask_prompt)}
               style={{
-                marginTop: 10, background: BG, borderRadius: 8, padding: '7px 10px',
+                marginTop: 10, background: BG, borderRadius: 8, padding: '7px 10px 7px 10px',
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                 cursor: 'pointer', border: `0.5px solid ${BORDER}`,
               }}
@@ -180,6 +186,8 @@ export default function LogHistory() {
             </div>
           )}
         </Card>
+      ) : (
+        <LockedCard label="Sleep vs arm feel" hint={`Need ${5 - (sleep_correlation?.points?.length || 0)} more check-ins to map sleep → arm feel patterns.`} last />
       )}
     </div>
   );
@@ -200,6 +208,23 @@ function Card({ label, children, last }) {
         {label}
       </div>
       {children}
+    </div>
+  );
+}
+
+function LockedCard({ label, hint, last }) {
+  return (
+    <div style={{
+      background: '#fff', borderRadius: 12, padding: 14,
+      margin: `0 12px ${last ? 20 : 10}px`, opacity: 0.55,
+    }}>
+      <div style={{
+        fontSize: 9, fontWeight: 700, color: MAROON,
+        letterSpacing: '0.07em', textTransform: 'uppercase', marginBottom: 6,
+      }}>
+        {label}
+      </div>
+      <div style={{ fontSize: 10, color: INK2, lineHeight: 1.5 }}>{hint}</div>
     </div>
   );
 }
