@@ -55,7 +55,8 @@ export default function LogHistory() {
   if (!data) return <EmptyState />;
 
   const { pitcher_name, season_label, total_checkins, stats, timeline,
-    rotation_signature, outings, sleep_correlation, weekly_narratives } = data;
+    rotation_signature, outings, upcoming_games, sleep_correlation,
+    weekly_narratives, has_whoop } = data;
 
   return (
     <div style={{ background: BG, minHeight: '100vh', paddingBottom: 100 }}>
@@ -81,7 +82,7 @@ export default function LogHistory() {
       {/* ── Season arm feel timeline ── */}
       {timeline.length >= 2 && (
         <Card label="Season arm feel timeline">
-          <SeasonTimeline timeline={timeline} />
+          <SeasonTimeline timeline={timeline} hasWhoop={has_whoop} />
         </Card>
       )}
 
@@ -118,14 +119,19 @@ export default function LogHistory() {
       )}
 
       {/* ── Starts this season ── */}
-      {outings.length > 0 ? (
+      {(outings.length > 0 || (upcoming_games && upcoming_games.length > 0)) ? (
         <Card label="Starts this season">
+          {/* Upcoming games (not yet logged) */}
+          {upcoming_games && upcoming_games.map(g => (
+            <UpcomingGameCard key={g.game_date + g.opponent} game={g} />
+          ))}
+          {/* Logged outings */}
           {outings.map((o, idx) => (
             <OutingCard
               key={o.date}
               outing={o}
               opacity={idx === 0 ? 1 : idx === 1 ? 0.75 : 0.6}
-              isLast={idx === outings.length - 1}
+              isLast={idx === outings.length - 1 && !(upcoming_games && upcoming_games.length)}
               onAsk={askCoach}
             />
           ))}
@@ -298,7 +304,9 @@ function OutingCard({ outing, opacity, isLast, onAsk }) {
     }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 6 }}>
         <div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: INK }}>{formatDate(outing.date)}</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: INK }}>
+            {formatDate(outing.date)}{outing.opponent ? ` · ${outing.home_away === 'away' ? '@ ' : 'vs. '}${outing.opponent}` : ''}
+          </div>
           <div style={{ fontSize: 9, color: MUTED, marginTop: 1 }}>
             {outing.pitch_count ? `${outing.pitch_count} pitches · ` : ''}
             post-arm {outing.post_arm_feel}/5
@@ -352,6 +360,28 @@ function RecoveryDot({ r, isLast }) {
       </div>
       {!isLast && <div style={{ flex: 1, height: 1, background: BORDER }} />}
     </>
+  );
+}
+
+function UpcomingGameCard({ game }) {
+  return (
+    <div style={{
+      borderBottom: `0.5px solid ${BORDER}`,
+      paddingBottom: 10, marginBottom: 10, opacity: 0.5,
+      border: `1px dashed ${BORDER}`, borderRadius: 8, padding: '8px 10px',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: INK2 }}>
+            {formatDate(game.game_date)} · {game.home_away === 'away' ? '@ ' : 'vs. '}{game.opponent}
+          </div>
+          {game.start_time && (
+            <div style={{ fontSize: 9, color: MUTED, marginTop: 1 }}>{game.start_time}</div>
+          )}
+        </div>
+        <div style={{ fontSize: 8, color: MUTED, fontWeight: 600, textTransform: 'uppercase' }}>upcoming</div>
+      </div>
+    </div>
   );
 }
 

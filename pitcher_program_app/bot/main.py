@@ -324,6 +324,22 @@ async def _send_post_outing_reminder(context) -> None:
 ADMIN_TELEGRAM_IDS = [8589499360]  # Landon
 
 
+async def refresh_schedule(update: Update, context) -> None:
+    """Handle /refreshschedule — scrape UChicago schedule and update DB."""
+    if update.effective_user.id not in ADMIN_TELEGRAM_IDS:
+        await update.message.reply_text("Admin only.")
+        return
+
+    await update.message.reply_text("Scraping schedule...")
+    try:
+        from scripts.scrape_schedule import scrape_and_store
+        count = scrape_and_store()
+        await update.message.reply_text(f"Done — {count} games upserted.")
+    except Exception as e:
+        logger.error("Schedule scrape failed: %s", e)
+        await update.message.reply_text(f"Failed: {e}")
+
+
 async def backup_command(update: Update, context) -> None:
     """Handle /backup — admin only. Show data status from Supabase."""
     if update.effective_user.id not in ADMIN_TELEGRAM_IDS:
@@ -687,6 +703,7 @@ def register_handlers(application) -> None:
     application.add_handler(CommandHandler("gamestart", gamestart))
     application.add_handler(CommandHandler("dashboard", dashboard))
     application.add_handler(CommandHandler("backup", backup_command))
+    application.add_handler(CommandHandler("refreshschedule", refresh_schedule))
     application.add_handler(CallbackQueryHandler(
         plan_completion_callback, pattern=r"^plan_(done|skipped|dashboard)$"
     ))

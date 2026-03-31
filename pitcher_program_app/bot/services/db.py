@@ -297,3 +297,44 @@ def get_whoop_daily_range(pitcher_id: str, days: int = 7) -> list:
             .limit(days)
             .execute())
     return resp.data or []
+
+
+# ---------------------------------------------------------------------------
+# Schedule
+# ---------------------------------------------------------------------------
+
+def get_schedule(limit: int = 50) -> list:
+    """Return schedule rows ordered by game_date."""
+    resp = (get_client().table("schedule")
+            .select("*")
+            .order("game_date", desc=False)
+            .limit(limit)
+            .execute())
+    return resp.data or []
+
+
+def get_schedule_by_dates(dates: list) -> dict:
+    """Return schedule rows keyed by game_date for a list of date strings."""
+    if not dates:
+        return {}
+    resp = (get_client().table("schedule")
+            .select("game_date,opponent,home_away,location,start_time,is_doubleheader")
+            .in_("game_date", dates)
+            .execute())
+    result = {}
+    for row in (resp.data or []):
+        result[row["game_date"]] = row
+    return result
+
+
+def get_upcoming_games(from_date: str, days: int = 30) -> list:
+    """Return schedule rows for the next N days from a given date."""
+    from datetime import date as _date, timedelta
+    end_date = (_date.fromisoformat(from_date) + timedelta(days=days)).isoformat()
+    resp = (get_client().table("schedule")
+            .select("game_date,opponent,home_away,location,start_time,is_doubleheader")
+            .gte("game_date", from_date)
+            .lte("game_date", end_date)
+            .order("game_date", desc=False)
+            .execute())
+    return resp.data or []

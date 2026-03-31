@@ -1203,6 +1203,17 @@ async def pitcher_trend(pitcher_id: str, request: Request):
 
 
 # ---------------------------------------------------------------------------
+# Schedule
+# ---------------------------------------------------------------------------
+
+@router.get("/schedule")
+async def get_schedule():
+    """Public endpoint — return the full UChicago baseball schedule."""
+    from bot.services import db as _db
+    return {"games": _db.get_schedule(limit=100)}
+
+
+# ---------------------------------------------------------------------------
 # Season Summary
 # ---------------------------------------------------------------------------
 

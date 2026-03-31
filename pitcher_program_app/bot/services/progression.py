@@ -668,6 +668,47 @@ def build_season_summary(pitcher_id: str) -> dict:
 
     outings.reverse()  # most recent first
 
+    # --- Enrich outings with schedule data + upcoming games ---
+    upcoming_games = []
+    try:
+        outing_dates = [o["date"] for o in outings if o.get("date")]
+        schedule_map = _db.get_schedule_by_dates(outing_dates)
+        for o in outings:
+            game = schedule_map.get(o.get("date"))
+            if game:
+                o["opponent"] = game.get("opponent")
+                o["home_away"] = game.get("home_away")
+
+        # Upcoming games not yet logged as outings
+        today_str = _date.today().isoformat()
+        outing_date_set = set(outing_dates)
+        raw_upcoming = _db.get_upcoming_games(today_str, days=30)
+        for g in raw_upcoming:
+            if g["game_date"] not in outing_date_set:
+                upcoming_games.append({
+                    "game_date": g["game_date"],
+                    "opponent": g.get("opponent"),
+                    "home_away": g.get("home_away"),
+                    "start_time": g.get("start_time"),
+                })
+    except Exception as e:
+        logger.warning("Schedule enrichment failed: %s", e)
+
+    # --- WHOOP overlay on timeline ---
+    has_whoop = False
+    try:
+        from bot.services.whoop import is_linked
+        if is_linked(pitcher_id):
+            whoop_rows = _db.get_whoop_daily_range(pitcher_id, days=365)
+            if whoop_rows:
+                has_whoop = True
+                whoop_by_date = {r["date"]: r for r in whoop_rows}
+                for t in timeline:
+                    w = whoop_by_date.get(t["date"])
+                    t["recovery_score"] = w.get("recovery_score") if w else None
+    except Exception as e:
+        logger.warning("WHOOP overlay skipped for %s: %s", pitcher_id, e)
+
     # --- Sleep vs arm feel correlation ---
     sleep_correlation = None
     points = []
@@ -715,6 +756,7 @@ def build_season_summary(pitcher_id: str) -> dict:
         "pitcher_name": pitcher_name,
         "season_label": season_label,
         "total_checkins": len(training_entries),
+        "has_whoop": has_whoop,
         "stats": {
             "avg_arm_feel": avg_arm_feel,
             "avg_sleep": avg_sleep,
@@ -724,6 +766,7 @@ def build_season_summary(pitcher_id: str) -> dict:
         "timeline": timeline,
         "rotation_signature": rotation_signature,
         "outings": outings,
+        "upcoming_games": upcoming_games,
         "sleep_correlation": sleep_correlation,
         "weekly_narratives": weekly_narratives,
     }
