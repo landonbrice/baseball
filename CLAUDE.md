@@ -1,7 +1,7 @@
 # Pitcher Training Intelligence — Claude Init
 
-> Last updated: 2026-03-29
-> Sprint status: Phases 1-5 + WHOOP integration complete. Next: The Ledger (modification history), adoption push.
+> Last updated: 2026-03-31
+> Sprint status: Phases 1-6 + adoption push + dynamic exercise pool complete. Next: The Ledger (modification history), periodization, exercise progression curves.
 
 ## What This Is
 
@@ -12,38 +12,36 @@ A training intelligence system for the UChicago baseball pitching staff. Telegra
 - **Mini App (React)** — Value/visibility layer. Programs, completion tracking, trajectory over time. Where compounding becomes tangible.
 - **Intelligence Engine (Python/FastAPI)** — Triage, plan generation, knowledge retrieval, progression analysis. The thinking that connects input to output.
 
-**The system is deployed but adoption is low.** The intelligence layer is solid. The problems are UX friction, fragile data persistence, and lack of visible payoff for consistency. This sprint fixes that.
+**The system is deployed and functional.** Morning notifications, WHOOP biometrics, dynamic exercise selection, and personalized onboarding are all live. Adoption push is in progress.
 
-## Active Sprint (March 2026)
+## Completed Phases
 
-> Full details in PROJECT_VISION.md. This section is the quick reference.
+> Phases 1-5: Supabase migration, state awareness, coaching conversation quality, visible compounding, polish. All complete as of 2026-03-28.
 
-### Phase 1: Supabase Migration (Priority)
-Migrate from JSON-on-Railway-filesystem to Supabase Postgres. This unblocks everything else.
+### Phase 6: WHOOP Integration (2026-03-29) — COMPLETE
+Full biometric pipeline. See WHOOP Integration section below.
 
-**Key tables:** `pitchers`, `injury_history`, `active_flags`, `daily_entries`, `exercises`, `templates`, `saved_plans`, `chat_messages`, `weekly_summaries`
+### Phase 7: Adoption Push (2026-03-30) — COMPLETE
+- `/start` reworked: personalized intro referencing injury history + rotation day, auto-launches check-in
+- Morning notification: contextual (references yesterday's arm feel, post-outing status, WHOOP recovery as conversational sentence)
+- Morning arm feel buttons enter full ConversationHandler check-in flow (not orphaned)
+- Evening follow-up: human, normalizes skipping
+- `post_init` fix: scheduler now fires on Railway (was silently not running)
 
-**Critical addition:** `chat_messages` table — both Telegram and mini app write here, both read. Solves the cross-platform conversation gap.
+### Phase 8: Dynamic Exercise Pool (2026-03-31) — COMPLETE
+- `exercise_pool.py`: selects 7-8 exercises from the 95-exercise Supabase library per session
+- Filters by day focus, rotation_day_usage, injury contraindications, modification_flags
+- Prefers exercises not used in last 7 days (variety across weeks)
+- Applies prescription from the exercise's phase data (strength/power/hypertrophy/endurance)
+- LLM receives pre-selected exercises — adjusts prescriptions and writes narrative, cannot hallucinate IDs
+- Arm care and throwing remain template-based (curated protocols)
 
-**Approach:**
-- Create `bot/services/db.py` — async Supabase client, all CRUD operations
-- Swap `context_manager.py` to read/write Supabase instead of filesystem
-- Keep JSON files as read-only fallback during transition
-- Migration script reads existing JSON data → inserts into Supabase
-
-**New env vars needed:** `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`
-
-### Phase 2: State Awareness
-Bot and mini app share unified pitcher state. Morning status endpoint, cross-platform conversation history, explicit check-in tracking.
-
-### Phase 3: Coaching Conversation Quality
-Same data captured, but the bot *responds* to each step before asking the next. Context-aware prompts that reference yesterday's data. Smart defaults where rotation position is known. Preserve space for real pitcher input — the coaching is in the response, not the removal of steps.
-
-### Phase 4: Visible Compounding
-Mini app home redesign: arm feel trends, consistency streaks, LLM-generated weekly insights, exercise progression, plan modification history.
-
-### Phase 5: Polish + Adoption Push
-Update docs, fix broken flows, in-person onboarding with 2-3 pitchers, team monitoring dashboard.
+### What's Not Yet Built
+1. **The Ledger** — Modification history visualization. Data exists in `plan_generated.modifications_applied`. Needs frontend timeline on Profile.
+2. **Periodization** — No multi-week phases (hypertrophy → strength → power). Template repeats identically each week. Exercise pool adds variety but not progressive structure.
+3. **Exercise progression curves** — Volume/intensity trends for key lifts over time.
+4. **Coach dashboard** — Staff-facing view of team readiness, flags, trends.
+5. **Truncated JSON repair** — LLM sometimes returns cut-off JSON. `finish_reason` is surfaced but repair logic not yet built.
 
 ## Stack
 
@@ -80,9 +78,10 @@ pitcher_program_app/
 │   │   ├── outing_service.py     # Outing → recovery protocol pipeline
 │   │   ├── triage.py             # Rule-based readiness triage (green/yellow/red), injury-aware
 │   │   ├── triage_llm.py         # LLM refinement for ambiguous triage cases
-│   │   ├── plan_generator.py     # LLM-powered daily plan from templates (674 lines, most complex service)
-│   │   ├── progression.py        # Arm feel trends, sleep patterns, recovery curves, weekly summaries
-│   │   ├── llm.py                # DeepSeek wrapper (call_llm + call_llm_reasoning)
+│   │   ├── exercise_pool.py      # Dynamic exercise selection from library (replaces static templates)
+│   │   ├── plan_generator.py     # LLM-powered daily plan with exercise pool + template fallback
+│   │   ├── progression.py        # Arm feel trends, sleep patterns, recovery curves, weekly summaries, season summary
+│   │   ├── llm.py                # DeepSeek wrapper (call_llm + call_llm_reasoning, 90s/120s timeouts)
 │   │   ├── knowledge_retrieval.py # Exercise library search + auto-research generation
 │   │   └── web_research.py       # Tavily API fallback for Q&A
 │   └── prompts/                  # LLM prompt templates (.md): system, qa, plan_generation, triage, recovery
@@ -128,19 +127,28 @@ pitcher_program_app/
 Supabase-backed. `context_manager.py` queries recent `chat_messages` + `daily_entries` + `active_flags` from Supabase to build LLM context. JSON filesystem fallback available via `USE_JSON_FALLBACK=true`.
 
 ### Triage → Plan Pipeline
-1. Rule-based triage (`triage.py`) → green/yellow/red + modifications
+1. Rule-based triage (`triage.py`) → green/yellow/red + modifications (includes WHOOP HRV/recovery/sleep thresholds)
 2. Ambiguous cases → LLM refinement (`triage_llm.py`)
 3. **Partial entry saved to Supabase BEFORE plan generation** (check-in data persists even if LLM fails)
-4. Templates + triage + context → LLM → structured JSON protocol
-5. Fallback to template-derived blocks if LLM fails
-6. Full entry upserted (same date = updates partial), results persist to active_flags
-7. `days_since_outing` incremented AFTER successful check-in (not before)
+4. **Dynamic exercise pool** (`exercise_pool.py`) selects 7-8 lifting exercises from the 95-exercise library
+5. Pre-selected exercises + triage + context → LLM → structured JSON with personalized prescriptions
+6. Fallback to exercise pool blocks if LLM fails (guaranteed valid exercise IDs)
+7. Full entry upserted (same date = updates partial), results persist to active_flags
+8. `days_since_outing` incremented AFTER first successful check-in of the day (re-check-ins don't double-increment)
 
-### Template Selection
-- Normal rotation: `days_since_outing % rotation_length` → template day
-- Extended time off (past rotation cycle): uses `lift_preference` to pick template
-- `lift_preference = "rest"` → day_6 template (arm care + mobility only, no lifting) for ALL pitchers
-- Return-to-throwing: always uses lift preference
+### Exercise Selection (`exercise_pool.py`)
+- Filters library by: day focus (upper/lower/full), rotation_day_usage, contraindications, modification_flags
+- Prefers exercises NOT used in last 7 days (weekly variety)
+- Session structure: 2 compounds + 3 accessories + 2 core (full day), fewer for light/flagged days
+- Training intent mapped from rotation day + triage: power (day 2), strength (day 3-4), endurance (recovery/flagged)
+- Injury modification flags appended as notes (e.g., "reduce to 5 reps" for UCL history)
+- LLM adjusts prescriptions but CANNOT add exercises outside the pre-selected pool
+
+### Template Selection (Lift Preference)
+- **Explicit preference always wins**: "upper" → day_3 template, "lower" → day_2, "rest" → day_6, regardless of rotation day
+- **"Your call" / "auto" / empty**: falls back to rotation-based (`days_since_outing` → template day)
+- Extended time off (past rotation cycle): uses preference if given, else mid-rotation
+- Arm care templates (heavy/light) and throwing plans remain template-based (curated protocols)
 
 ### Timezone
 All dates use `CHICAGO_TZ` (from `bot/config.py`). Server-side: `datetime.now(CHICAGO_TZ)`. Client-side: `toLocaleDateString('en-CA', { timeZone: 'America/Chicago' })`.
@@ -173,9 +181,10 @@ See `WHOOP_INTEGRATION_PLAN.md` for original technical plan. Fully implemented 2
 - All code paths gracefully handle `whoop_data=None` — non-WHOOP pitchers unaffected
 
 ### Dual LLM Routing
-- `call_llm()` — fast model (deepseek-chat, 60s timeout) for simple Q&A, check-in responses, weekly narrative
-- `call_llm_reasoning()` — reasoning model (deepseek-reasoner, 90s timeout) for multi-day protocols, complex recovery plans
-- `return_metadata=True` option surfaces `finish_reason` — plan generator uses this to detect truncated JSON and attempt repair
+- `call_llm()` — fast model (deepseek-chat, 90s timeout) for Q&A, plan personalization, weekly narrative
+- `call_llm_reasoning()` — reasoning model (deepseek-reasoner, 120s timeout) for multi-day protocols, complex recovery plans
+- `return_metadata=True` option surfaces `finish_reason` — plan generator uses this to detect truncated JSON
+- Plan gen uses `max_tokens=4000` for both models
 - Keyword detection in qa.py routes to appropriate model
 
 ### API Endpoints (routes.py)
@@ -311,17 +320,25 @@ GitHub (landonbrice/baseball)
 - **`data_sync.py` is disabled.** No more auto-push to GitHub on writes.
 - **JSONB guard pattern:** Always use `(x.get("field") or {}).get()` in Python, `Array.isArray()`/`typeof` in React. See `mini-app/src/utils/sanitize.js`.
 
-### Check-in Retry Flow
+### Check-in Flow
+- Morning notification arm feel buttons (1-5) are ConversationHandler entry points → full check-in flow
 - API sends `plan_failed` status (not `plan_loaded`) when plan generation fails
 - `hasCheckedIn` in Coach.jsx and Home.jsx requires actual plan data, not just `pre_training.arm_feel`
-- "Retry plan" button re-triggers triage + plan gen with saved check-in data (no re-asking questions)
-- Rotation day only increments after successful plan generation
+- "Retry plan" button re-triggers triage + plan gen with saved check-in data
+- "Re-check-in" button allows re-running full check-in on same day (upserts, doesn't duplicate)
+- Rotation day only increments on first successful check-in of the day
+
+### Onboarding (`/start`)
+- Personalized intro: references pitcher's role, injury history, rotation day
+- If not checked in today: ends with arm feel keyboard (one tap to enter check-in flow)
+- If already checked in: acknowledges plan, invites questions
+- No command list shown — the interaction IS the onboarding
 
 ### Plan Generation Resilience
-- `_parse_plan_json()` attempts JSON repair on truncated responses (`finish_reason: "length"`)
-- `_build_exercise_blocks()` validates exercise IDs against Supabase library, skips unknowns
-- Template fallback uses validated numeric exercise IDs (no more slug-format IDs)
-- `max_tokens=3000` for fast model, `4000` for reasoning; `FAST_TIMEOUT=60s`
+- Exercise pool builder guarantees valid exercise IDs from the library (no LLM hallucination)
+- `_validate_plan()` strips unknown exercise IDs before minimum-count check, backfills from pool
+- `_parse_plan_json()` surfaces `finish_reason: "length"` for truncation detection
+- `max_tokens=4000` for both fast and reasoning models; `FAST_TIMEOUT=90s`, `REASONING_TIMEOUT=120s`
 
 ## Known Issues & Tech Debt
 
@@ -329,6 +346,9 @@ GitHub (landonbrice/baseball)
 - `data_sync.py` still exists but is disabled — can be removed entirely
 - WHOOP recovery/HRV/sleep data may be null if WHOOP hasn't processed overnight sleep yet (strain available first)
 - Reliever template (`reliever_flexible.json`) uses text descriptions, not exercise IDs — not validated
+- No periodization layer — exercise pool adds variety but not multi-week progressive structure
+- No truncated JSON repair — `finish_reason` is surfaced but repair logic not built
+- `/testnotify` command exists for dev testing — can be removed before team rollout
 
 ## Bot Scope Boundaries
 
