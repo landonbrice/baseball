@@ -282,11 +282,6 @@ async def post_checkin(pitcher_id: str, request: Request):
     if arm_feel is None or sleep_hours is None:
         raise HTTPException(status_code=400, detail="arm_feel and sleep_hours required")
 
-    # Increment rotation day (skip for return-to-throwing phase)
-    profile_check = load_profile(pitcher_id)
-    if (profile_check.get("active_flags") or {}).get("phase") != "return_to_throwing":
-        increment_days_since_outing(pitcher_id)
-
     try:
         result = await process_checkin(
             pitcher_id,
@@ -294,6 +289,12 @@ async def post_checkin(pitcher_id: str, request: Request):
             float(sleep_hours),
             int(body.get("energy", 3)),
         )
+
+        # Increment rotation day AFTER check-in (skip for return-to-throwing phase)
+        profile_check = load_profile(pitcher_id)
+        if (profile_check.get("active_flags") or {}).get("phase") != "return_to_throwing":
+            increment_days_since_outing(pitcher_id)
+
         return {"status": "ok", **result}
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Pitcher not found")
