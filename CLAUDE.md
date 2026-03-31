@@ -170,14 +170,18 @@ All dates use `CHICAGO_TZ` (from `bot/config.py`). Server-side: `datetime.now(CH
 - Auto-dismiss after 3.5 seconds
 
 ### WHOOP Integration (Live)
-See `WHOOP_INTEGRATION_PLAN.md` for original technical plan. Fully implemented 2026-03-29.
+Fully implemented 2026-03-29, v2 API migration + reliability hardening 2026-03-31.
+- **API v2** — migrated from v1 (deprecated, returning 404s on recovery/sleep endpoints)
 - Per-pitcher OAuth PKCE linking via `/whoop` command + `/api/whoop/callback`
 - Tokens stored in Supabase `whoop_tokens` table, auto-refresh on expiry
 - Daily 6am pull: recovery, HRV, sleep, strain → `whoop_daily` table
-- Smart cache: re-pulls when core metrics (recovery/HRV/sleep) are null (WHOOP processes sleep data ~1-2hr after wake)
+- **Smart cache with force_refresh**: check-in always pulls fresh (`force_refresh=True`), morning message pulls live (not cache-only). 6am pull may get partial data (strain arrives before recovery/sleep); cache stays incomplete → next pull fills in.
+- **`score_state` guard**: only extracts metrics when WHOOP returns `SCORED`. `PENDING_SCORE` (common at 6am) is logged and treated as no-data so cache triggers re-pull later.
+- **Type casting**: recovery_score and sleep_performance cast to int before Supabase upsert (v2 returns floats, Postgres columns are integer)
 - Feeds into triage (`whoop_hrv`, `whoop_hrv_7day_avg`, `whoop_sleep_perf` params), plan generation (LLM context block), weekly narrative
 - `WhoopCard` component on Home page (recovery ring + HRV/sleep/strain satellites), only renders for linked pitchers
 - Profile page shows "WHOOP Connected" badge or link instructions
+- `/whooptest` command: force-pulls fresh data and displays all fields + raw endpoint status for debugging
 - All code paths gracefully handle `whoop_data=None` — non-WHOOP pitchers unaffected
 
 ### Dual LLM Routing
@@ -344,11 +348,11 @@ GitHub (landonbrice/baseball)
 
 - Exercise library has YouTube link gaps (see `unmatched_youtube.csv`)
 - `data_sync.py` still exists but is disabled — can be removed entirely
-- WHOOP recovery/HRV/sleep data may be null if WHOOP hasn't processed overnight sleep yet (strain available first)
+- WHOOP 6am pull may get partial data (strain before recovery/sleep) — handled by force_refresh on check-in and score_state guards
 - Reliever template (`reliever_flexible.json`) uses text descriptions, not exercise IDs — not validated
 - No periodization layer — exercise pool adds variety but not multi-week progressive structure
 - No truncated JSON repair — `finish_reason` is surfaced but repair logic not built
-- `/testnotify` command exists for dev testing — can be removed before team rollout
+- `/testnotify` and `/whooptest` commands exist for dev testing — can be removed before team rollout
 
 ## Bot Scope Boundaries
 
