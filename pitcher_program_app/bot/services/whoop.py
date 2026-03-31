@@ -185,34 +185,38 @@ def _api_get(pitcher_id: str, endpoint: str, params=None) -> dict:
 def _pull_recovery(pitcher_id: str) -> dict | None:
     data = _api_get(pitcher_id, "/recovery", params={"limit": 1})
     records = data.get("records") if data else []
-    logger.info("WHOOP recovery raw for %s: %d records, score=%s",
-                pitcher_id, len(records),
+    score_state = records[0].get("score_state") if records else None
+    logger.info("WHOOP recovery for %s: %d records, score_state=%s, score=%s",
+                pitcher_id, len(records), score_state,
                 records[0].get("score", {}) if records else "N/A")
-    if records:
-        rec = records[0]
-        score = rec.get("score", {})
+    if records and score_state == "SCORED":
+        score = records[0].get("score") or {}
         return {
             "recovery_score": score.get("recovery_score"),
             "hrv_rmssd": score.get("hrv_rmssd_milli"),
         }
+    if score_state == "PENDING_SCORE":
+        logger.info("WHOOP recovery PENDING for %s — not yet scored", pitcher_id)
     return None
 
 
 def _pull_sleep(pitcher_id: str) -> dict | None:
     data = _api_get(pitcher_id, "/activity/sleep", params={"limit": 1})
     records = data.get("records") if data else []
-    logger.info("WHOOP sleep raw for %s: %d records, score=%s",
-                pitcher_id, len(records),
+    score_state = records[0].get("score_state") if records else None
+    logger.info("WHOOP sleep for %s: %d records, score_state=%s, score=%s",
+                pitcher_id, len(records), score_state,
                 records[0].get("score", {}) if records else "N/A")
-    if records:
-        rec = records[0]
-        score = rec.get("score", {})
+    if records and score_state == "SCORED":
+        score = records[0].get("score") or {}
         total_ms = score.get("stage_summary", {}).get("total_in_bed_time_milli")
         sleep_hours = round(total_ms / 3_600_000, 1) if total_ms else None
         return {
             "sleep_performance": score.get("sleep_performance_percentage"),
             "sleep_hours": sleep_hours,
         }
+    if score_state == "PENDING_SCORE":
+        logger.info("WHOOP sleep PENDING for %s — not yet scored", pitcher_id)
     return None
 
 
