@@ -154,7 +154,7 @@ export default function SeasonTimeline({ timeline = [], hasWhoop = false }) {
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        layout: { padding: { top: 10, bottom: 28 } },
+        layout: { padding: { top: 18, bottom: 28 } },
         interaction: { mode: 'index', intersect: false },
         plugins: {
           legend: { display: false },
