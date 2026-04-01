@@ -738,7 +738,7 @@ async def _generate_plan_and_respond(message, context) -> int:
             pass
 
         # Handle plan generation failure (check-in data saved, but no plan)
-        if not result.get("plan_narrative") and not result.get("morning_brief"):
+        if not result.get("plan_narrative") and not result.get("morning_brief") and not result.get("exercise_blocks"):
             flag = result["flag_level"].upper()
             await message.reply_text(
                 f"{flag} flag. Your check-in data has been saved.\n\n"

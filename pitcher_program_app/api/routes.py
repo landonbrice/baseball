@@ -484,7 +484,7 @@ async def post_chat(pitcher_id: str, request: Request):
             flag = result["flag_level"].upper()
 
             # Handle plan generation failure (check-in data saved, but no plan)
-            if not result.get("plan_narrative") and not result.get("morning_brief"):
+            if not result.get("plan_narrative") and not result.get("morning_brief") and not result.get("exercise_blocks"):
                 messages.append({"type": "text", "content":
                     f"{flag} flag. Your check-in data has been saved. "
                     "Plan generation had an issue. Tap \"Retry plan\" to try again."})
