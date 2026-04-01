@@ -1287,6 +1287,13 @@ async def season_summary(pitcher_id: str, request: Request):
 # WHOOP OAuth Callback
 # ---------------------------------------------------------------------------
 
+@router.get("/pitcher/{pitcher_id}/mobility-today")
+async def get_mobility_today(pitcher_id: str, request: Request):
+    """Return today's mobility videos from the 10-week rotation."""
+    from bot.services.mobility import get_today_mobility
+    return get_today_mobility()
+
+
 @router.get("/pitcher/{pitcher_id}/whoop-today")
 async def whoop_today(pitcher_id: str, request: Request):
     """Return today's WHOOP data for a pitcher, or linked=false if not connected."""

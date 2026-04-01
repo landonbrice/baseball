@@ -96,6 +96,10 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
     # Build dynamic warmup block
     warmup_block = _build_warmup_block(profile, rotation_day, triage_result)
 
+    # Load today's mobility videos
+    from bot.services.mobility import get_today_mobility
+    mobility_data = get_today_mobility()
+
     # Plyocare (if allowed)
     plyocare = None
     if triage_result["protocol_adjustments"]["plyocare_allowed"]:
@@ -236,6 +240,7 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
             "exercise_blocks": fallback_exercise_blocks,
             "throwing_plan": fallback_throwing_plan,
             "warmup": warmup_block,
+            "mobility": mobility_data,
             "estimated_duration_min": estimated_duration_min,
             "modifications_applied": triage_result.get("modifications", []),
             "template_day": day_key,
@@ -300,6 +305,7 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
                 "exercise_blocks": exercise_blocks,
                 "throwing_plan": structured_throwing,
                 "warmup": warmup_block,
+                "mobility": mobility_data,
                 "estimated_duration_min": (lifting_data or {}).get("estimated_duration_min", estimated_duration_min),
                 "modifications_applied": triage_result.get("modifications", []),
                 "template_day": day_key,
@@ -322,6 +328,7 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
         "exercise_blocks": fallback_exercise_blocks,
         "throwing_plan": fallback_throwing_plan,
         "warmup": warmup_block,
+        "mobility": mobility_data,
         "estimated_duration_min": estimated_duration_min,
         "modifications_applied": triage_result.get("modifications", []),
         "template_day": day_key,
