@@ -1,10 +1,11 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { toggleExercise } from '../api';
 import { useToast } from '../hooks/useToast';
 import ExerciseWhy from './ExerciseWhy';
 import { BallDots, BallColorLegend } from './BallDots';
 import WhyCard from './WhyCard';
 import PostThrowFeel from './PostThrowFeel';
+import MobilityCard from './MobilityCard';
 import { submitThrowFeel } from '../api';
 
 function resolveExercise(exerciseId, exerciseMap, slugMap) {
@@ -65,6 +66,22 @@ export default function DailyCard({ entry, exerciseMap = {}, slugMap = {}, pitch
     lifting: entry.lifting || plan_generated?.lifting,
     throwing: resolveThrowingData(),
   };
+  const mobilityData = entry.mobility || plan_generated?.mobility;
+
+  const [fetchedMobility, setFetchedMobility] = useState(null);
+
+  useEffect(() => {
+    if (!mobilityData && pitcherId) {
+      const apiBase = import.meta.env.VITE_API_URL || '';
+      fetch(`${apiBase}/api/pitcher/${pitcherId}/mobility-today`)
+        .then(r => r.ok ? r.json() : null)
+        .then(data => { if (data) setFetchedMobility(data); })
+        .catch(() => {});
+    }
+  }, [mobilityData, pitcherId]);
+
+  const activeMobility = mobilityData || fetchedMobility;
+
   const rawNotes = entry.notes || plan_generated?.notes;
   const notes = Array.isArray(rawNotes) ? rawNotes : [];
   const hasStructured = !!(blockData.arm_care?.exercises?.length || blockData.lifting?.exercises?.length);
@@ -117,6 +134,8 @@ export default function DailyCard({ entry, exerciseMap = {}, slugMap = {}, pitch
       })}
 
       {notes.length > 0 && <NotesBlock notes={notes} />}
+
+      <MobilityCard mobility={activeMobility} />
 
       {entry.outing && (
         <div style={{ background: 'var(--color-white)', borderRadius: 12, padding: 14 }}>
