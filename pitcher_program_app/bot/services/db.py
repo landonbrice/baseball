@@ -268,6 +268,33 @@ def list_whoop_linked_pitchers() -> list:
     return [r["pitcher_id"] for r in (resp.data or [])]
 
 
+def save_whoop_pending_auth(state: str, pitcher_id: str, verifier: str) -> None:
+    """Store PKCE state for OAuth callback (survives Railway restarts)."""
+    get_client().table("whoop_pending_auth").upsert({
+        "state": state,
+        "pitcher_id": pitcher_id,
+        "verifier": verifier,
+    }, on_conflict="state").execute()
+
+
+def get_whoop_pending_auth(state: str) -> dict | None:
+    """Retrieve PKCE state by state token."""
+    resp = get_client().table("whoop_pending_auth").select("*").eq("state", state).execute()
+    return resp.data[0] if resp.data else None
+
+
+def delete_whoop_pending_auth(state: str) -> None:
+    """Remove PKCE state after successful exchange."""
+    get_client().table("whoop_pending_auth").delete().eq("state", state).execute()
+
+
+def cleanup_stale_whoop_auth(max_age_hours: int = 1) -> None:
+    """Remove pending auth entries older than max_age_hours."""
+    from datetime import datetime, timedelta, timezone
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=max_age_hours)).isoformat()
+    get_client().table("whoop_pending_auth").delete().lt("created_at", cutoff).execute()
+
+
 # ---------------------------------------------------------------------------
 # WHOOP Daily
 # ---------------------------------------------------------------------------

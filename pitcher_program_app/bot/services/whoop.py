@@ -32,10 +32,6 @@ class WHOOPAuthRequired(Exception):
         self.pitcher_id = pitcher_id
 
 
-# In-memory PKCE state: maps state_token -> {pitcher_id, verifier}
-_pending_auth: dict[str, dict] = {}
-
-
 # ---------------------------------------------------------------------------
 # PKCE helpers
 # ---------------------------------------------------------------------------
@@ -49,7 +45,7 @@ def _generate_pkce():
 
 
 # ---------------------------------------------------------------------------
-# OAuth flow
+# OAuth flow (PKCE state persisted in Supabase for Railway restart resilience)
 # ---------------------------------------------------------------------------
 
 def build_auth_url(pitcher_id: str) -> str:
@@ -63,7 +59,7 @@ def build_auth_url(pitcher_id: str) -> str:
     verifier, challenge = _generate_pkce()
     state = secrets.token_urlsafe(16)
 
-    _pending_auth[state] = {"pitcher_id": pitcher_id, "verifier": verifier}
+    db.save_whoop_pending_auth(state, pitcher_id, verifier)
 
     params = {
         "response_type": "code",
@@ -79,7 +75,7 @@ def build_auth_url(pitcher_id: str) -> str:
 
 def exchange_code(code: str, state: str) -> str:
     """Exchange an authorization code for tokens. Returns the pitcher_id on success."""
-    pending = _pending_auth.get(state)
+    pending = db.get_whoop_pending_auth(state)
     if not pending:
         raise ValueError("Invalid or expired state parameter. Try linking again.")
 
@@ -105,7 +101,7 @@ def exchange_code(code: str, state: str) -> str:
         "scopes": SCOPES,
     })
 
-    _pending_auth.pop(state, None)
+    db.delete_whoop_pending_auth(state)
     logger.info("WHOOP linked for pitcher %s", pitcher_id)
     return pitcher_id
 
