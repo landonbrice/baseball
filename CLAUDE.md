@@ -1,7 +1,7 @@
 # Pitcher Training Intelligence — Claude Init
 
-> Last updated: 2026-03-31
-> Sprint status: Phases 1-11 complete (through day phases + onboarding UX). Next: The Ledger (modification history), periodization, exercise progression curves.
+> Last updated: 2026-04-01
+> Sprint status: Phases 1-11 complete. WHOOP PKCE fixed, JSON fallback removed. Next: The Ledger, periodization, exercise progression curves.
 
 ## What This Is
 
@@ -158,7 +158,7 @@ pitcher_program_app/
 `get_pitcher_id_by_telegram(telegram_id, username)` — matches by telegram_id first, falls back to telegram_username with auto-backfill on first message.
 
 ### Context System
-Supabase-backed. `context_manager.py` queries recent `chat_messages` + `daily_entries` + `active_flags` from Supabase to build LLM context. JSON filesystem fallback available via `USE_JSON_FALLBACK=true`.
+Supabase-only. `context_manager.py` queries recent `chat_messages` + `daily_entries` + `active_flags` from Supabase to build LLM context. JSON fallback was removed 2026-04-01 — no filesystem dependencies remain.
 
 ### Triage → Plan Pipeline
 1. Rule-based triage (`triage.py`) → green/yellow/red + modifications (includes WHOOP HRV/recovery/sleep thresholds)
@@ -203,6 +203,12 @@ All dates use `CHICAGO_TZ` (from `bot/config.py`). Server-side: `datetime.now(CH
 ### DB Column Whitelist
 `db.py` uses `_DAILY_ENTRY_COLUMNS` whitelist to strip unknown fields before upsert, preventing PostgREST 400 errors from schema mismatches.
 
+### Exercise Library (Dual Source)
+- `exercise_library.json` — read by `_load_exercise_library()` in routes.py (cached with `lru_cache`). This serves the `/api/exercises` and `/api/exercises/slugs` endpoints.
+- Supabase `exercises` table — read by `db.get_exercises()` and `exercise_pool.py` for plan generation.
+- **Both must be updated** when adding/modifying exercises. JSON is the source of truth; sync to Supabase via migration script or MCP SQL.
+- Currently 159 exercises (ex_001-ex_159). 10 still missing YouTube links (6 major lifts + 4 mobility stretches).
+
 ### Weekly Coaching Narrative
 - `generate_weekly_narrative(pitcher_id)` in `progression.py` — LLM-generated Sunday evening
 - `build_week_snapshot()` collects arm feel, sleep, exercise completion, throwing, modifications
@@ -225,9 +231,10 @@ All dates use `CHICAGO_TZ` (from `bot/config.py`). Server-side: `datetime.now(CH
 - Auto-dismiss after 3.5 seconds
 
 ### WHOOP Integration (Live)
-Fully implemented 2026-03-29, v2 API migration + reliability hardening 2026-03-31.
+Fully implemented 2026-03-29, v2 API migration 2026-03-31, PKCE state persistence fix 2026-04-01.
 - **API v2** — migrated from v1 (deprecated, returning 404s on recovery/sleep endpoints)
 - Per-pitcher OAuth PKCE linking via `/whoop` command + `/api/whoop/callback`
+- PKCE state persisted in `whoop_pending_auth` Supabase table (survives Railway restarts)
 - Tokens stored in Supabase `whoop_tokens` table, auto-refresh on expiry
 - Daily 6am pull: recovery, HRV, sleep, strain → `whoop_daily` table
 - **Smart cache with force_refresh**: check-in always pulls fresh (`force_refresh=True`), morning message pulls live (not cache-only). 6am pull may get partial data (strain arrives before recovery/sleep); cache stays incomplete → next pull fills in.
@@ -401,16 +408,19 @@ GitHub (landonbrice/baseball)
 - `_validate_plan()` strips unknown exercise IDs before minimum-count check, backfills from pool
 - `_parse_plan_json()` surfaces `finish_reason: "length"` for truncation detection
 - `max_tokens=4000` for both fast and reasoning models; `FAST_TIMEOUT=90s`, `REASONING_TIMEOUT=120s`
+- `generate_plan()` has 3 return paths (LLM timeout fallback, successful parse, unparseable fallback) — new plan fields must be added to ALL THREE
+- Template-driven blocks (warmup, post-throw) are injected by plan_generator, not LLM-generated
 
 ## Known Issues & Tech Debt
 
-- Exercise library has YouTube link gaps (see `unmatched_youtube.csv`)
+- 10 exercises missing YouTube links: ex_121-123, ex_126-128 (major lifts — not in source xlsx), ex_156-159 (new mobility stretches)
 - `data_sync.py` still exists but is disabled — can be removed entirely
 - WHOOP 6am pull may get partial data (strain before recovery/sleep) — handled by force_refresh on check-in and score_state guards
 - Reliever template (`reliever_flexible.json`) uses text descriptions, not exercise IDs — not validated
 - No periodization layer — exercise pool adds variety but not multi-week progressive structure
 - No truncated JSON repair — `finish_reason` is surfaced but repair logic not built
 - `/testnotify` and `/whooptest` commands exist for dev testing — can be removed before team rollout
+- `_load_exercise_library()` uses `lru_cache(maxsize=1)` — cache never invalidates during a Railway process lifetime. New exercises in JSON require redeploy.
 
 ## Bot Scope Boundaries
 
