@@ -15,6 +15,7 @@ function resolveExercise(exerciseId, exerciseMap, slugMap) {
 }
 
 const BLOCKS = [
+  { key: 'warmup', emoji: '\uD83D\uDD25', label: 'Dynamic Warmup' },
   { key: 'arm_care', emoji: '\uD83D\uDCAA', label: 'Arm Care' },
   { key: 'lifting', emoji: '\uD83C\uDFCB\uFE0F', label: 'Lifting' },
   { key: 'throwing', emoji: '\u26BE', label: 'Throwing' },
@@ -59,6 +60,7 @@ export default function DailyCard({ entry, exerciseMap = {}, slugMap = {}, pitch
     return et || plan_generated?.throwing;
   };
   const blockData = {
+    warmup: entry.warmup || plan_generated?.warmup,
     arm_care: entry.arm_care || plan_generated?.arm_care,
     lifting: entry.lifting || plan_generated?.lifting,
     throwing: resolveThrowingData(),
@@ -161,6 +163,55 @@ function ExerciseBlock({ blockKey, emoji, label, data, fallbackBlocks, hasStruct
   const duration = data?.estimated_duration_min;
   const reasoning = data?.reasoning;
 
+  // Warmup block: group exercises by their block name
+  if (blockKey === 'warmup' && allEx.length > 0) {
+    const groups = [];
+    let currentBlock = null;
+    for (const ex of allEx) {
+      if (ex.block !== currentBlock) {
+        currentBlock = ex.block;
+        groups.push({ label: currentBlock, exercises: [ex] });
+      } else {
+        groups[groups.length - 1].exercises.push(ex);
+      }
+    }
+
+    return (
+      <div style={{ background: 'var(--color-white)', borderRadius: 12, overflow: 'hidden' }}>
+        <div style={{ padding: '10px 14px', borderBottom: '0.5px solid var(--color-cream-border)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 14 }}>{emoji}</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-ink-primary)' }}>{label}</span>
+              {duration && <span style={{ fontSize: 10, color: 'var(--color-ink-faint)' }}>{duration} min</span>}
+            </div>
+            <span style={{ fontSize: 11, color: doneCount === allEx.length && allEx.length > 0 ? 'var(--color-flag-green)' : 'var(--color-ink-muted)', fontWeight: 600 }}>
+              {doneCount}/{allEx.length}
+            </span>
+          </div>
+        </div>
+        <div style={{ padding: '4px 14px 10px' }}>
+          {groups.map((g, gi) => (
+            <div key={gi}>
+              <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--color-ink-muted)', textTransform: 'uppercase', letterSpacing: 0.5, padding: '6px 0 2px' }}>
+                {g.label}
+              </div>
+              <SupersetList
+                exercises={g.exercises}
+                exerciseMap={exerciseMap}
+                slugMap={slugMap}
+                completed={completed}
+                onToggle={onToggle}
+                expandedWhy={expandedWhy}
+                onToggleWhy={onToggleWhy}
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ background: 'var(--color-white)', borderRadius: 12, overflow: 'hidden' }}>
       {/* Block header */}
@@ -262,6 +313,7 @@ function ThrowingBlock({ emoji, label, throwing, fallbackPlan, exerciseMap, slug
             const isCollapsed = !!collapsedPhases[phaseKey];
             const phaseDone = phaseExercises.filter(ex => completed[ex.exercise_id] === true).length;
 
+            const isPostThrow = (phase.phase_name || '').toLowerCase().includes('post-throw');
             return (
               <div key={pi} style={{ borderBottom: pi < phases.length - 1 ? '0.5px solid var(--color-cream-border)' : 'none' }}>
                 {/* Phase header */}
@@ -270,7 +322,7 @@ function ThrowingBlock({ emoji, label, throwing, fallbackPlan, exerciseMap, slug
                   style={{
                     padding: '6px 14px', cursor: 'pointer',
                     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    background: 'var(--color-cream-bg)',
+                    background: isPostThrow ? 'rgba(29, 158, 117, 0.06)' : 'var(--color-cream-bg)',
                   }}
                 >
                   <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-ink-secondary)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
@@ -395,9 +447,10 @@ function SupersetList({ exercises, exerciseMap, slugMap, completed, onToggle, ex
       {groups.map((g, gi) => (
         <div key={gi} style={g.letter ? { borderLeft: '2px solid var(--color-rose-blush)', paddingLeft: 8, marginBottom: 8 } : { marginBottom: 4 }}>
           {g.exercises.map((ex, ei) => {
-            const lib = resolveExercise(ex.exercise_id, exerciseMap, slugMap);
-            const exerciseObj = lib || { name: ex.name || ex.exercise_id, youtube_url: '', muscles_primary: [], pitching_relevance: '' };
-            const isCompleted = completed[ex.exercise_id] === true;
+            const exId = ex.exercise_id || `flow_${(ex.name || '').replace(/\s+/g, '_').toLowerCase()}`;
+            const lib = resolveExercise(exId, exerciseMap, slugMap);
+            const exerciseObj = lib || { name: ex.name || exId, youtube_url: '', muscles_primary: [], pitching_relevance: '' };
+            const isCompleted = completed[exId] === true;
             const label = g.letter ? `${g.letter}${ei + 1}` : null;
             const noteStr = typeof ex.note === 'string' ? ex.note : '';
             const isFpm = noteStr.toLowerCase().includes('elevated') || noteStr.toLowerCase().includes('fpm');
@@ -407,7 +460,7 @@ function SupersetList({ exercises, exerciseMap, slugMap, completed, onToggle, ex
             return (
               <ExerciseItem
                 key={ei}
-                exerciseId={ex.exercise_id}
+                exerciseId={exId}
                 exercise={exerciseObj}
                 rx={ex.rx || ex.prescribed || ''}
                 prescription={ex.prescription || ''}
@@ -416,9 +469,9 @@ function SupersetList({ exercises, exerciseMap, slugMap, completed, onToggle, ex
                 completed={isCompleted}
                 isFpm={isFpm}
                 why={why}
-                whyExpanded={!!expandedWhy[ex.exercise_id]}
-                onToggle={onToggle ? () => onToggle(ex.exercise_id, !isCompleted) : null}
-                onToggleWhy={() => onToggleWhy(ex.exercise_id)}
+                whyExpanded={!!expandedWhy[exId]}
+                onToggle={onToggle ? () => onToggle(exId, !isCompleted) : null}
+                onToggleWhy={() => onToggleWhy(exId)}
                 ballWeight={ex.ball_weight}
               />
             );

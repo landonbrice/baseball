@@ -1,0 +1,67 @@
+{
+  "template_id": "post_throw_protocols_v1",
+  "description": "Scaled post-throw recovery protocols. Tier selected based on throwing day type intensity.",
+  "tier_mapping": {
+    "recovery": "light",
+    "recovery_short_box": "light",
+    "hybrid_b": "medium",
+    "hybrid_a": "full",
+    "bullpen": "full",
+    "game": "full",
+    "no_throw": null
+  },
+  "tiers": {
+    "light": {
+      "label": "Light Recovery Flush",
+      "description": "Minimal flush after low-stress throwing. J-Band cooldown + upward tosses.",
+      "estimated_duration_min": 6,
+      "exercises": [
+        { "exercise_id": "ex_096", "name": "J-Band Forward Fly", "rx": "1x10 (light, slow)", "order": 1 },
+        { "exercise_id": "ex_097", "name": "J-Band Reverse Fly", "rx": "1x10 (light, slow)", "order": 2 },
+        { "exercise_id": "ex_099", "name": "J-Band External Rotation", "rx": "1x10 (light, slow)", "order": 3 },
+        { "exercise_id": "ex_120", "name": "Post-Throw Upward Tosses", "rx": "2x15 (2kg black or 1kg green)", "order": 4 },
+        { "exercise_id": "ex_064", "name": "Band Pullaparts", "rx": "2x15", "order": 5 }
+      ]
+    },
+    "medium": {
+      "label": "Standard Recovery Flush",
+      "description": "Post-throw recovery after moderate throwing. Full J-Band cooldown + posterior shoulder + forearm flush.",
+      "estimated_duration_min": 10,
+      "exercises": [
+        { "exercise_id": "ex_096", "name": "J-Band Forward Fly", "rx": "1x10 (light, slow)", "order": 1 },
+        { "exercise_id": "ex_097", "name": "J-Band Reverse Fly", "rx": "1x10 (light, slow)", "order": 2 },
+        { "exercise_id": "ex_098", "name": "J-Band Internal Rotation", "rx": "1x10 (light, slow)", "order": 3 },
+        { "exercise_id": "ex_099", "name": "J-Band External Rotation", "rx": "1x10 (light, slow)", "order": 4 },
+        { "exercise_id": "ex_100", "name": "J-Band Bicep Curl", "rx": "1x10 (light, slow)", "order": 5 },
+        { "exercise_id": "ex_101", "name": "J-Band Tricep Extension", "rx": "1x10 (light, slow)", "order": 6 },
+        { "exercise_id": "ex_120", "name": "Post-Throw Upward Tosses", "rx": "2x15 (2kg black or 1kg green)", "order": 7 },
+        { "exercise_id": "ex_064", "name": "Band Pullaparts", "rx": "2x15", "order": 8 },
+        { "exercise_id": "ex_039", "name": "DB Wrist Flexion Curl", "rx": "1x15 (light)", "order": 9 },
+        { "exercise_id": "ex_040", "name": "DB Wrist Extension Curl", "rx": "1x15 (light)", "order": 10 },
+        { "name": "Sleeper Stretch", "rx": "2x30 sec each side", "order": 11 }
+      ]
+    },
+    "full": {
+      "label": "Full Recovery Flush",
+      "description": "Complete post-throw recovery after high-intent throwing. Full J-Band cooldown, forearm flush, posterior shoulder, thoracic mobility.",
+      "estimated_duration_min": 15,
+      "exercises": [
+        { "exercise_id": "ex_096", "name": "J-Band Forward Fly", "rx": "1x10 (light, slow)", "order": 1 },
+        { "exercise_id": "ex_097", "name": "J-Band Reverse Fly", "rx": "1x10 (light, slow)", "order": 2 },
+        { "exercise_id": "ex_098", "name": "J-Band Internal Rotation", "rx": "1x10 (light, slow)", "order": 3 },
+        { "exercise_id": "ex_099", "name": "J-Band External Rotation", "rx": "1x10 (light, slow)", "order": 4 },
+        { "exercise_id": "ex_100", "name": "J-Band Bicep Curl", "rx": "1x10 (light, slow)", "order": 5 },
+        { "exercise_id": "ex_101", "name": "J-Band Tricep Extension", "rx": "1x10 (light, slow)", "order": 6 },
+        { "exercise_id": "ex_120", "name": "Post-Throw Upward Tosses", "rx": "2x15 (2kg black or 1kg green)", "order": 7 },
+        { "exercise_id": "ex_064", "name": "Band Pullaparts", "rx": "2x20", "order": 8 },
+        { "exercise_id": "ex_039", "name": "DB Wrist Flexion Curl", "rx": "2x15 (light)", "order": 9 },
+        { "exercise_id": "ex_040", "name": "DB Wrist Extension Curl", "rx": "2x15 (light)", "order": 10 },
+        { "exercise_id": "ex_041", "name": "Full Pronation", "rx": "1x15 (light band)", "order": 11 },
+        { "name": "Sleeper Stretch", "rx": "2x30 sec each side", "order": 12 },
+        { "name": "Cross-Body Posterior Shoulder Stretch", "rx": "2x30 sec each side", "order": 13 },
+        { "name": "Thoracic Rotation on Wall", "rx": "1x10 each side", "order": 14 },
+        { "name": "Standing Lat Stretch", "rx": "2x20 sec each side", "order": 15 }
+      ]
+    }
+  }
+}

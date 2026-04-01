@@ -111,6 +111,12 @@ Generate today's training plan as a JSON object. Return ONLY the JSON — no mar
 - If the template provides 9 exercises, you may trim to 7-8 if time-constrained, but NEVER below 6 on a full day.
 - Every full lifting day needs: 1-2 compound movements, 2-3 accessories, 1-2 core/stability.
 
+### Dynamic Warmup (System-Generated)
+- A dynamic warmup block is automatically prepended to every plan. You do NOT generate it.
+- The warmup includes: movement prep, lunge complex, dynamic movement, ground mobility, and an activation block (cuff or scap focus).
+- Reference it naturally in the morning_brief or notes (e.g., "Start with your dynamic warmup, then hit arm care...").
+- Do NOT include warmup exercises in arm_care or lifting blocks — they are separate.
+
 ### Throwing Plan Rules
 - **Day types by intent:** recovery (50-60%), recovery_short_box (50-70%), hybrid_b (60-70%), hybrid_a (80-90%), bullpen (70-95%), game (100%), no_throw (0%)
 - **Every throwing session MUST include:** Pre-Throw Warmup (J-Band ex_096-ex_101 + wrist weights ex_102-ex_105) and Post-Throw Recovery (J-Band cooldown + upward tosses ex_120 + band pullaparts)

@@ -93,6 +93,9 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
     arm_care_type = triage_result["protocol_adjustments"]["arm_care_template"]
     arm_care = load_template(f"arm_care_{arm_care_type}.json")
 
+    # Build dynamic warmup block
+    warmup_block = _build_warmup_block(profile, rotation_day, triage_result)
+
     # Plyocare (if allowed)
     plyocare = None
     if triage_result["protocol_adjustments"]["plyocare_allowed"]:
@@ -232,6 +235,7 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
             "soreness_response": None,
             "exercise_blocks": fallback_exercise_blocks,
             "throwing_plan": fallback_throwing_plan,
+            "warmup": warmup_block,
             "estimated_duration_min": estimated_duration_min,
             "modifications_applied": triage_result.get("modifications", []),
             "template_day": day_key,
@@ -295,6 +299,7 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
                 "soreness_response": soreness_response,
                 "exercise_blocks": exercise_blocks,
                 "throwing_plan": structured_throwing,
+                "warmup": warmup_block,
                 "estimated_duration_min": (lifting_data or {}).get("estimated_duration_min", estimated_duration_min),
                 "modifications_applied": triage_result.get("modifications", []),
                 "template_day": day_key,
@@ -316,6 +321,7 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
         "soreness_response": None,
         "exercise_blocks": fallback_exercise_blocks,
         "throwing_plan": fallback_throwing_plan,
+        "warmup": warmup_block,
         "estimated_duration_min": estimated_duration_min,
         "modifications_applied": triage_result.get("modifications", []),
         "template_day": day_key,
@@ -883,7 +889,101 @@ def _load_throwing_templates():
         return None, None, None
 
 
-def _resolve_throwing_phases(day_type_template: dict, jband: dict) -> list:
+def _build_warmup_block(pitcher_profile: dict, rotation_day: int, triage_result: dict) -> dict:
+    """Build dynamic warmup block from template.
+
+    Selects activation option based on context:
+    - Scap focus (Option 2) on upper-body / pull days (day 3, 4)
+    - Cuff focus (Option 1) on throwing-heavy or lower-body days (day 0, 1, 2, 5, 6)
+    FPM addon auto-included for pitchers with UCL or forearm history.
+    """
+    try:
+        warmup_template = load_template("dynamic_warmup.json")
+    except FileNotFoundError:
+        logger.warning("dynamic_warmup.json not found")
+        return None
+
+    sequence = warmup_template.get("sequence", [])
+    if not sequence:
+        return None
+
+    # Select activation option
+    scap_days = {3, 4}  # Upper body / pull emphasis
+    use_scap = rotation_day in scap_days
+    skip_label = "Activation — Option 1 (Cuff Focus)" if use_scap else "Activation — Option 2 (Scap Focus)"
+
+    # Check injury history for FPM addon
+    injuries = pitcher_profile.get("injury_history", [])
+    injury_areas = {(inj.get("area") or "").lower() for inj in injuries}
+    needs_fpm = bool(injury_areas & {"medial_elbow", "ucl", "forearm", "flexor", "pronator"})
+    fpm_label = "Additional Band Addons — Flexor Prime (optional)"
+
+    # Build exercise list from selected blocks
+    exercises = []
+    for block in sequence:
+        block_name = block.get("block_name", "")
+
+        # Skip the non-selected activation option
+        if block_name == skip_label:
+            continue
+
+        # Skip FPM addon if pitcher doesn't need it
+        if block_name == fpm_label and not needs_fpm:
+            continue
+
+        for ex in block.get("exercises", []):
+            exercises.append({
+                "exercise_id": ex.get("exercise_id"),
+                "name": ex.get("name", ""),
+                "rx": ex.get("prescription", ""),
+                "block": block_name,
+            })
+
+    return {
+        "label": "Dynamic Warmup",
+        "estimated_duration_min": warmup_template.get("duration_min", 12),
+        "activation_type": "scap" if use_scap else "cuff",
+        "includes_fpm": needs_fpm,
+        "exercises": exercises,
+    }
+
+
+def _select_post_throw_protocol(throwing_day_type: str) -> dict | None:
+    """Select tiered post-throw recovery protocol based on throwing intensity.
+
+    Returns a phase dict with exercises, or None for no_throw days.
+    """
+    try:
+        protocols = load_template("post_throw_protocols.json")
+    except FileNotFoundError:
+        logger.warning("post_throw_protocols.json not found")
+        return None
+
+    tier_mapping = protocols.get("tier_mapping", {})
+    tier_key = tier_mapping.get(throwing_day_type)
+    if not tier_key:
+        return None
+
+    tier = protocols["tiers"].get(tier_key)
+    if not tier:
+        return None
+
+    return {
+        "phase_name": f"Post-Throw Recovery \u2014 {tier['label']}",
+        "description": tier["description"],
+        "exercises": [
+            {
+                "exercise_id": ex.get("exercise_id"),
+                "name": ex["name"],
+                "rx": ex["rx"],
+                "order": ex.get("order"),
+            }
+            for ex in tier["exercises"]
+        ],
+    }
+
+
+def _resolve_throwing_phases(day_type_template: dict, jband: dict, day_type_key: str = "") -> list:
     """Resolve template_ref entries in phases to actual exercise lists."""
     if not day_type_template or not day_type_template.get("phases"):
         return []
@@ -894,6 +994,12 @@ def _resolve_throwing_phases(day_type_template: dict, jband: dict) -> list:
         if template_ref and jband:
             # Resolve jband_routine_v1.pre_throw or jband_routine_v1.post_throw
             ref_parts = template_ref.split(".")
+            # Use tiered post-throw protocol instead of static jband post_throw
+            if "post_throw" in template_ref:
+                tiered = _select_post_throw_protocol(day_type_key)
+                if tiered:
+                    resolved_phases.append(tiered)
+                    continue
             if len(ref_parts) == 2 and ref_parts[0] == "jband_routine_v1":
                 routine_key = ref_parts[1]
                 routine = (jband or {}).get(routine_key)
@@ -977,7 +1083,7 @@ def _build_throwing_plan(today_template: dict, rotation_day: int = None, role: s
             day_type_template = day_types.get("day_types", {}).get(day_type_key)
 
             if day_type_template:
-                phases = _resolve_throwing_phases(day_type_template, jband)
+                phases = _resolve_throwing_phases(day_type_template, jband, day_type_key=day_type_key)
 
                 # Apply triage skip_phases filter
                 skip_phases = adj.get("skip_phases", [])

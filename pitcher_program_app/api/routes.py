@@ -702,6 +702,8 @@ async def post_chat(pitcher_id: str, request: Request):
                                         entry["lifting"] = new_plan["lifting"]
                                     if new_plan.get("throwing"):
                                         entry["throwing"] = new_plan["throwing"]
+                                    if new_plan.get("warmup"):
+                                        entry["warmup"] = new_plan["warmup"]
                                     if new_plan.get("notes"):
                                         entry["notes"] = new_plan["notes"]
                                     entry["morning_brief"] = new_plan.get("morning_brief")
@@ -829,6 +831,8 @@ async def apply_plan_to_today(pitcher_id: str, plan_id: str, request: Request):
         today_entry["lifting"] = plan["lifting"]
     if plan.get("throwing"):
         today_entry["throwing"] = plan["throwing"]
+    if plan.get("warmup"):
+        today_entry["warmup"] = plan["warmup"]
     if plan.get("notes"):
         today_entry["notes"] = plan["notes"]
     today_entry["morning_brief"] = f"Applied plan: {plan.get('title', 'Custom plan')}"

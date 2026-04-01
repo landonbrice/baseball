@@ -216,6 +216,7 @@ async def process_checkin(
         "arm_care": plan_result.get("arm_care") if plan_result else None,
         "lifting": plan_result.get("lifting") if plan_result else None,
         "throwing": plan_result.get("throwing") if plan_result else None,
+        "warmup": plan_result.get("warmup") if plan_result else None,
         "notes": plan_result.get("notes", []) if plan_result else [],
         "soreness_response": plan_result.get("soreness_response") if plan_result else None,
         "plan_generated": {
