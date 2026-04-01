@@ -58,16 +58,19 @@ def get_today_mobility(anchor_date: date | None = None) -> dict:
         logger.warning("No mobility rotation found for cycle week %d", cycle_week)
         return {"week": cycle_week, "videos": []}
 
-    video_map = {v["id"]: v for v in data["videos"]}
-    videos = []
-    for vid_id in week_data["slots"]:
-        video = video_map.get(vid_id)
-        if video:
-            videos.append({
-                "id": video["id"],
-                "title": video["title"],
-                "youtube_url": video["youtube_url"],
-                "type": video["type"],
-            })
+    # Pick 1 video per day: weekday mod number of slots
+    slots = week_data["slots"]
+    slot_index = today.weekday() % len(slots)  # Mon=0..Sun=6 → cycles through 4 slots
+    vid_id = slots[slot_index]
 
-    return {"week": cycle_week, "videos": videos}
+    video_map = {v["id"]: v for v in data["videos"]}
+    video = video_map.get(vid_id)
+    if not video:
+        return {"week": cycle_week, "videos": []}
+
+    return {"week": cycle_week, "videos": [{
+        "id": video["id"],
+        "title": video["title"],
+        "youtube_url": video["youtube_url"],
+        "type": video["type"],
+    }]}
