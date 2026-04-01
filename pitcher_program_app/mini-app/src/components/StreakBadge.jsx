@@ -15,7 +15,7 @@ export default function StreakBadge({ streak = 0, weekDots = [] }) {
       <span style={{
         fontSize: 10, color: 'rgba(255,255,255,0.5)', whiteSpace: 'nowrap',
       }}>
-        {streak} day streak
+        🔥 {streak} day streak
       </span>
     </div>
   );

@@ -28,7 +28,7 @@ export default function ThrowingWeekPreview({ days }) {
     <div style={{ background: 'var(--color-white)', borderRadius: 12, overflow: 'hidden' }}>
       <div style={{ padding: '10px 14px', borderBottom: '0.5px solid var(--color-cream-border)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 14 }}>{'\uD83D\uDCC5'}</span>
+          <span style={{ fontSize: 14 }}>🗓️</span>
           <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-ink-primary)' }}>Throwing Week</span>
         </div>
       </div>

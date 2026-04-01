@@ -15,10 +15,7 @@ export default function CoachFAB({ showBadge }) {
         boxShadow: '0 2px 12px rgba(92,16,32,0.3)',
       }}
     >
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M12 20h9" />
-        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-      </svg>
+      <span style={{ fontSize: 22 }}>💬</span>
       {showBadge && (
         <span style={{
           position: 'absolute', top: 2, right: 2,

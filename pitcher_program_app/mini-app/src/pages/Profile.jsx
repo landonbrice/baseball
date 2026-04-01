@@ -40,7 +40,7 @@ export default function Profile() {
       </div>
 
       {/* Current Status */}
-      <Section title="Current Status">
+      <Section title="🎯 Current Status">
         <Row label="Arm Feel" value={`${flags.current_arm_feel ?? '—'}/5`} />
         <Row label="Days Since Outing" value={flags.days_since_outing ?? '—'} />
         <Row label="Last Outing" value={`${flags.last_outing_pitches ?? '—'} pitches (${flags.last_outing_date ?? '—'})`} />
@@ -50,21 +50,21 @@ export default function Profile() {
       </Section>
 
       {/* Pitching */}
-      <Section title="Pitching">
+      <Section title="⚾ Pitching">
         <Row label="FB Velocity" value={`${profile.pitching_profile?.avg_velocity_fb ?? '—'} mph`} />
         <Row label="Arsenal" value={Array.isArray(profile.pitching_profile?.pitch_arsenal) ? profile.pitching_profile.pitch_arsenal.join(', ') : '—'} />
         <Row label="Typical Count" value={`${profile.pitching_profile?.typical_pitch_count ?? '—'} pitches`} />
       </Section>
 
       {/* Physical */}
-      <Section title="Physical">
+      <Section title="📏 Physical">
         <Row label="Height" value={profile.physical_profile?.height_in ? `${Math.floor(profile.physical_profile.height_in / 12)}'${profile.physical_profile.height_in % 12}"` : '—'} />
         <Row label="Weight" value={profile.physical_profile?.weight_lbs ? `${profile.physical_profile.weight_lbs} lbs` : '—'} />
         <Row label="Goal" value={profile.physical_profile?.body_comp_goal || '—'} />
       </Section>
 
       {/* Training */}
-      <Section title="Training">
+      <Section title="🏋️ Training">
         <Row label="Experience" value={profile.current_training?.lifting_experience || '—'} />
         <Row label="Split" value={profile.current_training?.current_split || '—'} />
         {profile.current_training?.current_maxes && (
@@ -78,13 +78,13 @@ export default function Profile() {
       </Section>
 
       {/* Goals */}
-      <Section title="Goals">
+      <Section title="🎯 Goals">
         <Row label="Primary" value={profile.goals?.primary || '—'} />
         {profile.goals?.secondary && <Row label="Secondary" value={profile.goals.secondary} />}
       </Section>
 
       {/* WHOOP */}
-      <Section title="Biometrics">
+      <Section title="📡 Biometrics">
         {whoopStatus?.data?.linked ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#28a745' }} />
@@ -104,7 +104,7 @@ export default function Profile() {
 
       {/* Injury History */}
       {profile.injury_history?.length > 0 && (
-        <Section title="Injury History">
+        <Section title="🩹 Injury History">
           {profile.injury_history.map((injury, i) => (
             <div key={i} className="mb-2 last:mb-0">
               <p className="text-xs text-text-primary">

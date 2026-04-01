@@ -10,10 +10,10 @@ class SafeWrap extends Component {
 }
 
 const NAV_ITEMS = [
-  { to: '/',        label: 'Home',    icon: '\u2302' },
-  { to: '/plans',   label: 'Program', icon: '\u25A4' },
-  { to: '/log',     label: 'Season',  icon: '\u25A6' },
-  { to: '/profile', label: 'Profile', icon: '\u25CB' },
+  { to: '/',        label: 'Home',    icon: '🏠' },
+  { to: '/plans',   label: 'Program', icon: '📋' },
+  { to: '/log',     label: 'Season',  icon: '📊' },
+  { to: '/profile', label: 'Profile', icon: '👤' },
 ];
 
 export default function Layout() {
@@ -55,8 +55,9 @@ export default function Layout() {
                     marginBottom: 1,
                   }} />
                   <span style={{
-                    fontSize: 16,
-                    color: isActive ? 'var(--color-maroon)' : 'var(--color-ink-faint)',
+                    fontSize: 20,
+                    filter: isActive ? 'none' : 'grayscale(80%)',
+                    opacity: isActive ? 1 : 0.5,
                   }}>
                     {icon}
                   </span>

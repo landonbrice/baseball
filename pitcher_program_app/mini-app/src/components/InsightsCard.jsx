@@ -39,7 +39,7 @@ export default function InsightsCard({ observations = [], trendWeeks = [], narra
         textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10,
         display: 'flex', alignItems: 'center', gap: 6,
       }}>
-        <span>Weekly Insight</span>
+        <span>🧠 Weekly Insight</span>
         {hasChart && (
           <span style={{
             fontSize: 8, fontWeight: 600, color: 'var(--color-ink-muted)',

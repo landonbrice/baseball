@@ -17,7 +17,7 @@ export default function UpcomingDays({ upcoming = [], exerciseMap = {} }) {
 
   return (
     <div className="bg-bg-secondary rounded-xl p-4">
-      <h3 className="text-sm font-semibold text-text-primary mb-3">Coming up</h3>
+      <h3 className="text-sm font-semibold text-text-primary mb-3">📅 Coming Up</h3>
       <div className="space-y-0">
         {upcoming.map((day, i) => {
           const expanded = expandedIdx === i;

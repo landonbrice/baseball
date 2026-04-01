@@ -33,7 +33,7 @@ export default function Plans() {
     <div style={{ paddingBottom: 100 }}>
       {/* Header */}
       <div style={{ background: 'var(--color-maroon)', padding: '14px 16px 12px' }}>
-        <div style={{ fontSize: 20, fontWeight: 800, color: '#fff', letterSpacing: '-0.4px' }}>My Program</div>
+        <div style={{ fontSize: 20, fontWeight: 800, color: '#fff', letterSpacing: '-0.4px' }}>📋 My Program</div>
         <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.45)', marginTop: 2 }}>
           Current training program and history
         </div>
@@ -47,7 +47,7 @@ export default function Plans() {
               fontSize: 9, fontWeight: 700, color: 'var(--color-maroon)',
               textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6,
             }}>
-              Current Program
+              ⚡ Active Program
             </div>
             <CurrentProgramCard
               plan={currentProgram}
@@ -77,7 +77,7 @@ export default function Plans() {
             cursor: 'pointer',
           }}
         >
-          + Build new program
+          🛠️ Build New
         </button>
 
         {/* Program history */}
@@ -87,7 +87,7 @@ export default function Plans() {
               fontSize: 9, fontWeight: 700, color: 'var(--color-ink-muted)',
               textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8,
             }}>
-              Program History
+              📂 Past Programs
             </div>
             {pastPrograms.map(plan => (
               <PastProgramRow

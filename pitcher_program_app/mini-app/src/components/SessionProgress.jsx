@@ -16,7 +16,7 @@ export default function SessionProgress({ doneCount, totalCount }) {
             margin: 0, fontSize: 9, fontWeight: 700, letterSpacing: 0.8,
             textTransform: 'uppercase', color: 'var(--color-ink-muted)',
           }}>
-            Session Progress
+            📝 Session Progress
           </p>
           <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--color-ink-secondary)' }}>
             {doneCount}/{totalCount} exercises

@@ -54,7 +54,7 @@ export default function LogHistory() {
 
       {/* ── Header ── */}
       <div style={{ background: MAROON, padding: '12px 16px 11px' }}>
-        <div style={{ fontSize: 19, fontWeight: 800, color: '#fff', letterSpacing: -0.4 }}>Season</div>
+        <div style={{ fontSize: 19, fontWeight: 800, color: '#fff', letterSpacing: -0.4 }}>📊 Season</div>
         <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginTop: 2 }}>
           {pitcher_name} · {season_label}
         </div>
@@ -65,17 +65,17 @@ export default function LogHistory() {
         display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
         gap: 6, padding: '10px 12px 0',
       }}>
-        <StatCard value={stats.avg_arm_feel ?? '—'} label="avg arm" color={MAROON} />
-        <StatCard value={stats.avg_sleep ? `${stats.avg_sleep}h` : '—'} label="avg sleep" color={INK} />
-        <StatCard value={stats.total_starts} label="starts" color={INK} />
-        <StatCard value={stats.current_streak} label="streak" color={GREEN} />
+        <StatCard value={stats.avg_arm_feel ?? '—'} label="avg arm" color={MAROON} emoji="💪" />
+        <StatCard value={stats.avg_sleep ? `${stats.avg_sleep}h` : '—'} label="avg sleep" color={INK} emoji="😴" />
+        <StatCard value={stats.total_starts} label="starts" color={INK} emoji="⚾" />
+        <StatCard value={stats.current_streak} label="streak" color={GREEN} emoji="🔥" />
       </div>
 
       <div style={{ height: 10 }} />
 
       {/* ── Arm feel + recovery ── */}
       {timeline.length >= 2 && (
-        <Card label="Arm feel + recovery">
+        <Card label="📈 Arm Feel + Recovery">
           <SeasonTimeline timeline={timeline} hasWhoop={has_whoop} />
           {timeline_insight && (
             <div className="ins" style={{
@@ -100,7 +100,7 @@ export default function LogHistory() {
 
       {/* ── Rotation signature ── */}
       {rotation_signature ? (
-        <Card label="Your rotation signature">
+        <Card label="🔄 Your Rotation Signature">
           <div style={{ fontSize: 11, color: INK2, marginBottom: 9, lineHeight: 1.5 }}>
             Average arm feel per rotation day, computed across all {stats.total_starts || ''} start{stats.total_starts !== 1 ? 's' : ''}.
           </div>
@@ -120,12 +120,12 @@ export default function LogHistory() {
           )}
         </Card>
       ) : (
-        <LockedCard label="Your rotation signature" hint="Unlocks after a few check-ins across your rotation cycle." />
+        <LockedCard label="🔄 Your Rotation Signature" hint="Unlocks after a few check-ins across your rotation cycle." />
       )}
 
       {/* ── Outing recovery fingerprint ── */}
       {(outings.length > 0 || (upcoming_games && upcoming_games.length > 0)) ? (
-        <Card label="Outing recovery fingerprint">
+        <Card label="🩺 Outing Recovery Fingerprint">
           {outings.length > 0 && (
             <>
               <div style={{ fontSize: 11, color: INK2, marginBottom: 9, lineHeight: 1.5 }}>
@@ -156,12 +156,12 @@ export default function LogHistory() {
           ))}
         </Card>
       ) : (
-        <LockedCard label="Outing recovery fingerprint" hint="Log your first outing with /outing in the bot to see recovery curves here." />
+        <LockedCard label="🩺 Outing Recovery Fingerprint" hint="Log your first outing with /outing in the bot to see recovery curves here." />
       )}
 
       {/* ── Sleep vs arm feel ── */}
       {sleep_correlation && sleep_correlation.points.length >= 5 ? (
-        <Card label="Sleep vs arm feel" last>
+        <Card label="😴 Sleep vs Arm Feel" last>
           <div style={{ fontSize: 11, color: INK2, lineHeight: 1.5, marginBottom: 9 }}>
             {sleep_correlation.insight}
           </div>
@@ -171,7 +171,7 @@ export default function LogHistory() {
           </AskLink>
         </Card>
       ) : (
-        <LockedCard label="Sleep vs arm feel" hint={`Need ${5 - (sleep_correlation?.points?.length || 0)} more check-ins to map sleep → arm feel patterns.`} last />
+        <LockedCard label="😴 Sleep vs Arm Feel" hint={`Need ${5 - (sleep_correlation?.points?.length || 0)} more check-ins to map sleep → arm feel patterns.`} last />
       )}
     </div>
   );
@@ -213,11 +213,12 @@ function LockedCard({ label, hint, last }) {
   );
 }
 
-function StatCard({ value, label, color }) {
+function StatCard({ value, label, color, emoji }) {
   return (
     <div style={{
       background: '#fff', borderRadius: 9, padding: '8px 4px', textAlign: 'center',
     }}>
+      {emoji && <div style={{ fontSize: 16, marginBottom: 4 }}>{emoji}</div>}
       <div style={{ fontSize: 17, fontWeight: 800, color, lineHeight: 1 }}>{value}</div>
       <div style={{ fontSize: 11, color: MUTED, marginTop: 2 }}>{label}</div>
     </div>
@@ -340,7 +341,7 @@ function EmptyState() {
   return (
     <div style={{ background: BG, minHeight: '100vh' }}>
       <div style={{ background: MAROON, padding: '12px 16px 11px' }}>
-        <div style={{ fontSize: 19, fontWeight: 800, color: '#fff' }}>Season</div>
+        <div style={{ fontSize: 19, fontWeight: 800, color: '#fff' }}>📊 Season</div>
       </div>
       <div style={{ padding: '40px 24px', textAlign: 'center' }}>
         <div style={{ fontSize: 13, color: INK2, lineHeight: 1.6 }}>

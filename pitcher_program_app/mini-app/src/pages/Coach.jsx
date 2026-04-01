@@ -461,22 +461,22 @@ export default function Coach() {
   // ── Quick action pills ──
   const quickActions = [];
   if (!hasCheckedIn && !checkinFlow && !checkedInNoPlan) {
-    quickActions.push({ label: 'Check in', action: startCheckin });
+    quickActions.push({ label: '✅ Check in', action: startCheckin });
   }
   if (checkedInNoPlan) {
-    quickActions.push({ label: 'Retry plan', action: retryPlan });
+    quickActions.push({ label: '🔄 Retry plan', action: retryPlan });
   }
   if (!outingFlow) {
-    quickActions.push({ label: 'Log outing', action: startOuting });
+    quickActions.push({ label: '📊 Log outing', action: startOuting });
   }
   if (!nextOutingFlow) {
-    quickActions.push({ label: 'Next outing', action: startNextOuting });
+    quickActions.push({ label: '📅 Next outing', action: startNextOuting });
   }
   if (hasCheckedIn) {
-    quickActions.push({ label: "Today's plan", action: () => {
+    quickActions.push({ label: "📝 Today's plan", action: () => {
       setInput("What's my plan for today?");
     }});
-    quickActions.push({ label: 'Re-check-in', action: () => {
+    quickActions.push({ label: '🔄 Re-check-in', action: () => {
       setCheckinCompleted(false);
       startCheckin();
     }});
@@ -595,7 +595,7 @@ export default function Coach() {
 
       {/* Maroon header */}
       <div style={{ background: 'var(--color-maroon)', padding: '14px 16px 12px', flexShrink: 0 }}>
-        <div style={{ fontSize: 20, fontWeight: 800, color: '#fff', letterSpacing: '-0.4px' }}>Coach</div>
+        <div style={{ fontSize: 20, fontWeight: 800, color: '#fff', letterSpacing: '-0.4px' }}>💬 Coach</div>
         <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.45)', marginTop: 2 }}>
           {profile ? `Day ${flags.days_since_outing ?? 0} \u00B7 ${profile.role || 'pitcher'}` : ''}
         </div>

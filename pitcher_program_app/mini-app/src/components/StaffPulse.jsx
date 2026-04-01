@@ -27,7 +27,7 @@ export default function StaffPulse({ data }) {
           textTransform: 'uppercase', color: 'var(--color-ink-muted)',
           flex: 1,
         }}>
-          Pitching Staff
+          ⚾ Pitching Staff
         </span>
         <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-ink-primary)' }}>
           {checked_in_count}/{total_pitchers}
