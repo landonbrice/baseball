@@ -29,12 +29,24 @@ Full biometric pipeline. See WHOOP Integration section below.
 - `post_init` fix: scheduler now fires on Railway (was silently not running)
 
 ### Phase 8: Dynamic Exercise Pool (2026-03-31) — COMPLETE
-- `exercise_pool.py`: selects 7-8 exercises from the 95-exercise Supabase library per session
+- `exercise_pool.py`: selects 7-8 exercises from the 155-exercise Supabase library per session
 - Filters by day focus, rotation_day_usage, injury contraindications, modification_flags
 - Prefers exercises not used in last 7 days (variety across weeks)
 - Applies prescription from the exercise's phase data (strength/power/hypertrophy/endurance)
 - LLM receives pre-selected exercises — adjusts prescriptions and writes narrative, cannot hallucinate IDs
 - Arm care and throwing remain template-based (curated protocols)
+- **Explosive block**: Every non-recovery/non-light lift includes 1 plyometric_power exercise (med ball, plyo pushups, jumps) as the first block
+
+### Phase 9: Exercise Enrichment + Mobility Videos (2026-03-31) — COMPLETE
+- Exercise library expanded from 120 → 155 exercises via `scripts/enrich_exercises.py`
+- 6 YouTube URL backfills on existing exercises, 35 new exercises added (ex_121–ex_155)
+- New exercises: arm isolation (curls, skull crushers, pushdowns) as `upper_body_push`/`upper_body_pull`, med ball variations (10 new) as `plyometric_power`, core exercises (copenhagen plank, hanging leg raises, rope crunch), lower body accessories
+- **Mobility video system**: 21 follow-along YouTube videos in a 10-week cycling rotation (3 P/R + 1 targeted per week)
+- `mobility_videos` + `mobility_weekly_rotation` Supabase tables
+- `bot/services/mobility.py`: `get_today_mobility()` cycles by ISO week number mod 10
+- `GET /api/pitcher/{id}/mobility-today` endpoint
+- `MobilityCard` component on daily plan page — renders after all exercise blocks with clickable YouTube video links
+- Plan generator includes `mobility` key in output; DailyCard falls back to API fetch for pre-existing plans
 
 ### What's Not Yet Built
 1. **The Ledger** — Modification history visualization. Data exists in `plan_generated.modifications_applied`. Needs frontend timeline on Profile.
@@ -78,7 +90,8 @@ pitcher_program_app/
 │   │   ├── outing_service.py     # Outing → recovery protocol pipeline
 │   │   ├── triage.py             # Rule-based readiness triage (green/yellow/red), injury-aware
 │   │   ├── triage_llm.py         # LLM refinement for ambiguous triage cases
-│   │   ├── exercise_pool.py      # Dynamic exercise selection from library (replaces static templates)
+│   │   ├── exercise_pool.py      # Dynamic exercise selection from library (replaces static templates), explosive block
+│   │   ├── mobility.py           # 10-week cycling mobility video rotation service
 │   │   ├── plan_generator.py     # LLM-powered daily plan with exercise pool + template fallback
 │   │   ├── progression.py        # Arm feel trends, sleep patterns, recovery curves, weekly summaries, season summary
 │   │   ├── llm.py                # DeepSeek wrapper (call_llm + call_llm_reasoning, 90s/120s timeouts)
@@ -94,14 +107,14 @@ pitcher_program_app/
 ├── data/
 │   ├── pitchers/                 # Per-pitcher dirs: profile.json, context.md, daily_log.json (12 active)
 │   ├── templates/                # 9 training templates (starter_7day, reliever_flexible, arm_care, plyocare, recovery, etc.)
-│   ├── knowledge/                # exercise_library.json (250+ exercises), research docs with YAML front matter
+│   ├── knowledge/                # exercise_library.json (155 exercises), mobility_videos.json (21 videos, 10-week rotation), research docs
 │   └── intake_responses.json     # Raw Google Form responses
 │
 ├── mini-app/                     # React Telegram Mini App
 │   ├── src/
 │   │   ├── App.jsx / Layout.jsx  # Router, auth context, TelegramWebApp init, morning badge check
 │   │   ├── hooks/                # useApi, usePitcher, useTelegram, useChatState
-│   │   ├── components/           # DailyCard, WeekStrip, TrendChart, SessionProgress, Sparkline, StreakBadge, StaffPulse, CoachFAB, TrendInsightChart, ExerciseWhy, etc. (19 total)
+│   │   ├── components/           # DailyCard, WeekStrip, TrendChart, SessionProgress, Sparkline, StreakBadge, StaffPulse, CoachFAB, TrendInsightChart, ExerciseWhy, MobilityCard, etc. (20 total)
 │   │   └── pages/                # Home, Coach, Plans, PlanDetail, ExerciseLibrary, LogHistory, Profile (7 total)
 │   └── .env.production           # VITE_API_URL
 │
@@ -130,7 +143,7 @@ Supabase-backed. `context_manager.py` queries recent `chat_messages` + `daily_en
 1. Rule-based triage (`triage.py`) → green/yellow/red + modifications (includes WHOOP HRV/recovery/sleep thresholds)
 2. Ambiguous cases → LLM refinement (`triage_llm.py`)
 3. **Partial entry saved to Supabase BEFORE plan generation** (check-in data persists even if LLM fails)
-4. **Dynamic exercise pool** (`exercise_pool.py`) selects 7-8 lifting exercises from the 95-exercise library
+4. **Dynamic exercise pool** (`exercise_pool.py`) selects 7-8 lifting exercises + 1 explosive from the 155-exercise library
 5. Pre-selected exercises + triage + context → LLM → structured JSON with personalized prescriptions
 6. Fallback to exercise pool blocks if LLM fails (guaranteed valid exercise IDs)
 7. Full entry upserted (same date = updates partial), results persist to active_flags
@@ -139,7 +152,8 @@ Supabase-backed. `context_manager.py` queries recent `chat_messages` + `daily_en
 ### Exercise Selection (`exercise_pool.py`)
 - Filters library by: day focus (upper/lower/full), rotation_day_usage, contraindications, modification_flags
 - Prefers exercises NOT used in last 7 days (weekly variety)
-- Session structure: 2 compounds + 3 accessories + 2 core (full day), fewer for light/flagged days
+- Session structure: 1 explosive + 2 compounds + 3 accessories + 2 core (full day), fewer for light/flagged days
+- Explosive block: 1 `plyometric_power` exercise (med ball slams, plyo pushups, jumps) inserted as first block on all non-recovery/non-light days
 - Training intent mapped from rotation day + triage: power (day 2), strength (day 3-4), endurance (recovery/flagged)
 - Injury modification flags appended as notes (e.g., "reduce to 5 reps" for UCL history)
 - LLM adjusts prescriptions but CANNOT add exercises outside the pre-selected pool
@@ -162,6 +176,14 @@ All dates use `CHICAGO_TZ` (from `bot/config.py`). Server-side: `datetime.now(CH
 - Stored in `weekly_summaries` table, served via `/api/pitcher/{id}/weekly-narrative`
 - Displayed in `InsightsCard` on Home with maroon accent border
 - Falls back to stats-only summary if LLM fails
+
+### Mobility Video Rotation
+- 21 YouTube follow-along videos in `data/knowledge/mobility_videos.json` and `mobility_videos` Supabase table
+- 10-week rotation: 4 videos/week (3 P/R postural restoration + 1 targeted: Hip, Full, Back, Lower, Shoulder, Spine)
+- Cycles endlessly: `cycle_week = (iso_week % 10) + 1`
+- `bot/services/mobility.py`: `get_today_mobility()` returns week number + 4 video objects
+- Plan generator includes `mobility` in plan output; DailyCard falls back to `GET /api/pitcher/{id}/mobility-today`
+- `MobilityCard` renders after all exercise blocks — clickable YouTube video links, not checkable exercises
 
 ### Toast Notifications (Mini-App)
 - `useToast` hook + `ToastProvider` in `hooks/useToast.jsx`
@@ -195,6 +217,7 @@ Fully implemented 2026-03-29, v2 API migration + reliability hardening 2026-03-3
 **Auth:** `/api/auth/resolve`
 **Data:** `/api/pitcher/{id}/profile`, `/log`, `/progression`, `/upcoming`, `/week-summary`, `/morning-status`, `/weekly-narrative`
 **Actions:** `POST /checkin`, `/outing`, `/chat` (unified), `/set-next-outing`, `/complete-exercise`
+**Mobility:** `GET /pitcher/{id}/mobility-today`
 **WHOOP:** `GET /pitcher/{id}/whoop-today`, `GET /whoop/callback` (OAuth)
 **Plans:** `GET/POST /plans`, `/plans/{id}/activate`, `/deactivate`, `/apply-plan/{id}`, `/generate-plan`
 **Library:** `/api/exercises`, `/api/exercises/slugs`
@@ -276,6 +299,8 @@ Project: `pitcher-training-intel` (us-east-1)
 | `weekly_summaries` | Aggregated weekly data for long-term tracking |
 | `whoop_tokens` | Per-pitcher WHOOP OAuth tokens (access, refresh, expiry) |
 | `whoop_daily` | Daily WHOOP biometrics — recovery, HRV, sleep, strain, raw API data |
+| `mobility_videos` | 21 follow-along mobility videos — id, title, youtube_url, type (P/R, Hip, Full, etc.) |
+| `mobility_weekly_rotation` | 10-week rotation schedule — week (1-10), slot (1-4), video_id FK |
 
 ## Deployment
 
