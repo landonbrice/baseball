@@ -193,7 +193,7 @@
         "low_back_history": "use_single_leg_variation",
         "poor_hip_mobility": "no_modification_needed"
       },
-      "youtube_url": "",
+      "youtube_url": "https://youtu.be/5S8SApGU_Lk?si=5ySdDtnje3end4bq",
       "evidence_level": "strong",
       "source_notes": "Tread (Lower B option), Contreras research.",
       "slug": "ex_hip_thrust"
@@ -260,7 +260,7 @@
         "low_back_history": "no_modification_needed",
         "knee_history": "substitute_reverse_lunge"
       },
-      "youtube_url": "",
+      "youtube_url": "https://youtu.be/AGvR91bbHy8?si=a_K0I6mhT27xMPfo",
       "evidence_level": "strong",
       "source_notes": "Tread (Lower B unilateral), Cressey (single-leg on Day 3), Driveline off-season Day 3.",
       "slug": "ex_split_squat"
@@ -499,7 +499,7 @@
         "low_back_history": "no_modification_needed",
         "knee_history": "preferred_over_forward_lunge"
       },
-      "youtube_url": "",
+      "youtube_url": "https://youtu.be/qfpaNBDhidg?si=Oi50XxX_B_NNSTc_",
       "evidence_level": "moderate",
       "source_notes": "Driveline off-season Day 1 accessory."
     },
@@ -559,7 +559,7 @@
         "low_back_history": "no_modification_needed",
         "poor_hip_mobility": "reduce_depth"
       },
-      "youtube_url": "",
+      "youtube_url": "https://youtu.be/VTtLrBvHoJ8?si=oOQ22Fo0vW2guNaw",
       "evidence_level": "moderate",
       "source_notes": "Driveline off-season/in-season Day 2 primary.",
       "slug": "ex_lateral_lunge"
@@ -674,7 +674,7 @@
         "low_back_history": "reduce_load",
         "poor_hip_mobility": "no_modification_needed"
       },
-      "youtube_url": "",
+      "youtube_url": "https://youtube.com/shorts/6e0tp0_s5Zs?si=658yEaZvFhQMBH5d",
       "evidence_level": "moderate",
       "source_notes": "Driveline off-season/in-season Day 1."
     },
@@ -1210,7 +1210,7 @@
         "low_back_history": "preferred_over_bent_over_row",
         "poor_hip_mobility": "no_modification_needed"
       },
-      "youtube_url": "",
+      "youtube_url": "https://youtube.com/shorts/DgyslsszCQ0?si=__F7SkQRGW-Ny0U1",
       "evidence_level": "strong",
       "source_notes": "Tread (Upper A primary pull), Cressey, Gemini.",
       "slug": "ex_db_row"
@@ -5424,11 +5424,21 @@
       "id": "ex_095",
       "name": "Banded Hip Circle",
       "slug": "ex_hip_circle",
-      "aliases": ["hip circle", "monster walk", "banded lateral walk"],
+      "aliases": [
+        "hip circle",
+        "monster walk",
+        "banded lateral walk"
+      ],
       "category": "lower_body_compound",
       "subcategory": "glute_activation",
-      "muscles_primary": ["glute medius", "glute minimus"],
-      "muscles_secondary": ["hip external rotators", "TFL"],
+      "muscles_primary": [
+        "glute medius",
+        "glute minimus"
+      ],
+      "muscles_secondary": [
+        "hip external rotators",
+        "TFL"
+      ],
       "pitching_relevance": "Hip stabilizer activation improves single-leg balance through the delivery and reduces energy leak at foot strike.",
       "prescription": {
         "warmup": {
@@ -5439,12 +5449,26 @@
         }
       },
       "rotation_day_usage": {
-        "recommended": ["day_1", "day_2", "day_4"],
-        "acceptable": ["day_3", "day_5"],
+        "recommended": [
+          "day_1",
+          "day_2",
+          "day_4"
+        ],
+        "acceptable": [
+          "day_3",
+          "day_5"
+        ],
         "avoid": []
       },
-      "tags": ["warmup", "glute_activation", "hip_stability", "lower_body"],
-      "contraindications": ["acute_hip_labral"],
+      "tags": [
+        "warmup",
+        "glute_activation",
+        "hip_stability",
+        "lower_body"
+      ],
+      "contraindications": [
+        "acute_hip_labral"
+      ],
       "modification_flags": {
         "hip_impingement": "reduce_range_of_motion"
       },
@@ -5452,23 +5476,56 @@
       "evidence_level": "moderate",
       "source_notes": "Common warmup exercise in pitcher training programs."
     },
-
     {
       "id": "ex_096",
       "name": "J-Band Forward Fly",
-      "aliases": ["jband forward fly", "band forward fly"],
+      "aliases": [
+        "jband forward fly",
+        "band forward fly"
+      ],
       "category": "throwing_warmup",
       "subcategory": "jband",
-      "muscles_primary": ["anterior deltoid", "pectorals"],
-      "muscles_secondary": ["biceps", "serratus anterior"],
+      "muscles_primary": [
+        "anterior deltoid",
+        "pectorals"
+      ],
+      "muscles_secondary": [
+        "biceps",
+        "serratus anterior"
+      ],
       "pitching_relevance": "Activates anterior chain involved in arm acceleration phase. Standard pre-throw warmup per Driveline protocol.",
       "prescription": {
-        "warmup": { "sets": "1", "reps": "10", "intensity": "light band", "rest_min": 0 }
+        "warmup": {
+          "sets": "1",
+          "reps": "10",
+          "intensity": "light band",
+          "rest_min": 0
+        }
       },
-      "rotation_day_usage": { "recommended": ["day_1", "day_2", "day_3", "day_4", "day_5"], "acceptable": ["day_0", "day_6"], "avoid": [] },
-      "tags": ["jband", "throwing_warmup", "arm_care", "pre_throw"],
+      "rotation_day_usage": {
+        "recommended": [
+          "day_1",
+          "day_2",
+          "day_3",
+          "day_4",
+          "day_5"
+        ],
+        "acceptable": [
+          "day_0",
+          "day_6"
+        ],
+        "avoid": []
+      },
+      "tags": [
+        "jband",
+        "throwing_warmup",
+        "arm_care",
+        "pre_throw"
+      ],
       "contraindications": [],
-      "modification_flags": { "shoulder_impingement": "reduce_range_of_motion" },
+      "modification_flags": {
+        "shoulder_impingement": "reduce_range_of_motion"
+      },
       "youtube_url": "",
       "evidence_level": "moderate",
       "source_notes": "Driveline 16-week throwing program — J-Band routine."
@@ -5476,19 +5533,54 @@
     {
       "id": "ex_097",
       "name": "J-Band Reverse Fly",
-      "aliases": ["jband reverse fly", "band reverse fly"],
+      "aliases": [
+        "jband reverse fly",
+        "band reverse fly"
+      ],
       "category": "throwing_warmup",
       "subcategory": "jband",
-      "muscles_primary": ["posterior deltoid", "rhomboids"],
-      "muscles_secondary": ["infraspinatus", "teres minor"],
+      "muscles_primary": [
+        "posterior deltoid",
+        "rhomboids"
+      ],
+      "muscles_secondary": [
+        "infraspinatus",
+        "teres minor"
+      ],
       "pitching_relevance": "Posterior shoulder activation critical for deceleration phase. Balances anterior-dominant throwing pattern.",
       "prescription": {
-        "warmup": { "sets": "1", "reps": "10", "intensity": "light band", "rest_min": 0 }
+        "warmup": {
+          "sets": "1",
+          "reps": "10",
+          "intensity": "light band",
+          "rest_min": 0
+        }
       },
-      "rotation_day_usage": { "recommended": ["day_1", "day_2", "day_3", "day_4", "day_5"], "acceptable": ["day_0", "day_6"], "avoid": [] },
-      "tags": ["jband", "throwing_warmup", "arm_care", "pre_throw", "deceleration"],
+      "rotation_day_usage": {
+        "recommended": [
+          "day_1",
+          "day_2",
+          "day_3",
+          "day_4",
+          "day_5"
+        ],
+        "acceptable": [
+          "day_0",
+          "day_6"
+        ],
+        "avoid": []
+      },
+      "tags": [
+        "jband",
+        "throwing_warmup",
+        "arm_care",
+        "pre_throw",
+        "deceleration"
+      ],
       "contraindications": [],
-      "modification_flags": { "shoulder_impingement": "reduce_range_of_motion" },
+      "modification_flags": {
+        "shoulder_impingement": "reduce_range_of_motion"
+      },
       "youtube_url": "",
       "evidence_level": "moderate",
       "source_notes": "Driveline 16-week throwing program — J-Band routine."
@@ -5496,19 +5588,55 @@
     {
       "id": "ex_098",
       "name": "J-Band Internal Rotation",
-      "aliases": ["jband IR", "band internal rotation"],
+      "aliases": [
+        "jband IR",
+        "band internal rotation"
+      ],
       "category": "throwing_warmup",
       "subcategory": "jband",
-      "muscles_primary": ["subscapularis", "pectorals", "teres major"],
-      "muscles_secondary": ["latissimus dorsi"],
+      "muscles_primary": [
+        "subscapularis",
+        "pectorals",
+        "teres major"
+      ],
+      "muscles_secondary": [
+        "latissimus dorsi"
+      ],
       "pitching_relevance": "Internal rotation strength directly correlates with arm acceleration and velocity production.",
       "prescription": {
-        "warmup": { "sets": "1", "reps": "10", "intensity": "light band", "rest_min": 0 }
+        "warmup": {
+          "sets": "1",
+          "reps": "10",
+          "intensity": "light band",
+          "rest_min": 0
+        }
       },
-      "rotation_day_usage": { "recommended": ["day_1", "day_2", "day_3", "day_4", "day_5"], "acceptable": ["day_0", "day_6"], "avoid": [] },
-      "tags": ["jband", "throwing_warmup", "arm_care", "pre_throw", "rotator_cuff"],
+      "rotation_day_usage": {
+        "recommended": [
+          "day_1",
+          "day_2",
+          "day_3",
+          "day_4",
+          "day_5"
+        ],
+        "acceptable": [
+          "day_0",
+          "day_6"
+        ],
+        "avoid": []
+      },
+      "tags": [
+        "jband",
+        "throwing_warmup",
+        "arm_care",
+        "pre_throw",
+        "rotator_cuff"
+      ],
       "contraindications": [],
-      "modification_flags": { "ucl_history": "light_band_only", "shoulder_impingement": "pain_free_range_only" },
+      "modification_flags": {
+        "ucl_history": "light_band_only",
+        "shoulder_impingement": "pain_free_range_only"
+      },
       "youtube_url": "",
       "evidence_level": "strong",
       "source_notes": "Driveline 16-week throwing program — J-Band routine."
@@ -5516,19 +5644,54 @@
     {
       "id": "ex_099",
       "name": "J-Band External Rotation",
-      "aliases": ["jband ER", "band external rotation"],
+      "aliases": [
+        "jband ER",
+        "band external rotation"
+      ],
       "category": "throwing_warmup",
       "subcategory": "jband",
-      "muscles_primary": ["infraspinatus", "teres minor"],
-      "muscles_secondary": ["posterior deltoid"],
+      "muscles_primary": [
+        "infraspinatus",
+        "teres minor"
+      ],
+      "muscles_secondary": [
+        "posterior deltoid"
+      ],
       "pitching_relevance": "ER strength is the primary decelerator of the throwing arm. Preseason ER deficits predict in-season injury.",
       "prescription": {
-        "warmup": { "sets": "1", "reps": "10", "intensity": "light band", "rest_min": 0 }
+        "warmup": {
+          "sets": "1",
+          "reps": "10",
+          "intensity": "light band",
+          "rest_min": 0
+        }
       },
-      "rotation_day_usage": { "recommended": ["day_1", "day_2", "day_3", "day_4", "day_5"], "acceptable": ["day_0", "day_6"], "avoid": [] },
-      "tags": ["jband", "throwing_warmup", "arm_care", "pre_throw", "rotator_cuff", "deceleration"],
+      "rotation_day_usage": {
+        "recommended": [
+          "day_1",
+          "day_2",
+          "day_3",
+          "day_4",
+          "day_5"
+        ],
+        "acceptable": [
+          "day_0",
+          "day_6"
+        ],
+        "avoid": []
+      },
+      "tags": [
+        "jband",
+        "throwing_warmup",
+        "arm_care",
+        "pre_throw",
+        "rotator_cuff",
+        "deceleration"
+      ],
       "contraindications": [],
-      "modification_flags": { "shoulder_impingement": "pain_free_range_only" },
+      "modification_flags": {
+        "shoulder_impingement": "pain_free_range_only"
+      },
       "youtube_url": "",
       "evidence_level": "strong",
       "source_notes": "Driveline 16-week throwing program — J-Band routine. Evidence: preseason ER weakness associated with in-season injury."
@@ -5536,19 +5699,52 @@
     {
       "id": "ex_100",
       "name": "J-Band Bicep Curl",
-      "aliases": ["jband bicep curl", "band curl"],
+      "aliases": [
+        "jband bicep curl",
+        "band curl"
+      ],
       "category": "throwing_warmup",
       "subcategory": "jband",
-      "muscles_primary": ["biceps brachii"],
-      "muscles_secondary": ["brachialis", "forearm flexors"],
+      "muscles_primary": [
+        "biceps brachii"
+      ],
+      "muscles_secondary": [
+        "brachialis",
+        "forearm flexors"
+      ],
       "pitching_relevance": "Biceps act as dynamic UCL protector during arm deceleration. Pre-throw activation reduces valgus stress.",
       "prescription": {
-        "warmup": { "sets": "1", "reps": "10", "intensity": "light band", "rest_min": 0 }
+        "warmup": {
+          "sets": "1",
+          "reps": "10",
+          "intensity": "light band",
+          "rest_min": 0
+        }
       },
-      "rotation_day_usage": { "recommended": ["day_1", "day_2", "day_3", "day_4", "day_5"], "acceptable": ["day_0", "day_6"], "avoid": [] },
-      "tags": ["jband", "throwing_warmup", "arm_care", "pre_throw"],
+      "rotation_day_usage": {
+        "recommended": [
+          "day_1",
+          "day_2",
+          "day_3",
+          "day_4",
+          "day_5"
+        ],
+        "acceptable": [
+          "day_0",
+          "day_6"
+        ],
+        "avoid": []
+      },
+      "tags": [
+        "jband",
+        "throwing_warmup",
+        "arm_care",
+        "pre_throw"
+      ],
       "contraindications": [],
-      "modification_flags": { "ucl_history": "light_band_only" },
+      "modification_flags": {
+        "ucl_history": "light_band_only"
+      },
       "youtube_url": "",
       "evidence_level": "moderate",
       "source_notes": "Driveline 16-week throwing program — J-Band routine."
@@ -5556,40 +5752,103 @@
     {
       "id": "ex_101",
       "name": "J-Band Tricep Extension",
-      "aliases": ["jband tricep extension", "band tricep pushdown"],
+      "aliases": [
+        "jband tricep extension",
+        "band tricep pushdown"
+      ],
       "category": "throwing_warmup",
       "subcategory": "jband",
-      "muscles_primary": ["triceps brachii"],
-      "muscles_secondary": ["anconeus"],
+      "muscles_primary": [
+        "triceps brachii"
+      ],
+      "muscles_secondary": [
+        "anconeus"
+      ],
       "pitching_relevance": "Triceps provide elbow extension force during acceleration. Pre-throw activation improves arm speed and protects against medial elbow stress.",
       "prescription": {
-        "warmup": { "sets": "1", "reps": "10", "intensity": "light band", "rest_min": 0 }
+        "warmup": {
+          "sets": "1",
+          "reps": "10",
+          "intensity": "light band",
+          "rest_min": 0
+        }
       },
-      "rotation_day_usage": { "recommended": ["day_1", "day_2", "day_3", "day_4", "day_5"], "acceptable": ["day_0", "day_6"], "avoid": [] },
-      "tags": ["jband", "throwing_warmup", "arm_care", "pre_throw"],
+      "rotation_day_usage": {
+        "recommended": [
+          "day_1",
+          "day_2",
+          "day_3",
+          "day_4",
+          "day_5"
+        ],
+        "acceptable": [
+          "day_0",
+          "day_6"
+        ],
+        "avoid": []
+      },
+      "tags": [
+        "jband",
+        "throwing_warmup",
+        "arm_care",
+        "pre_throw"
+      ],
       "contraindications": [],
       "modification_flags": {},
       "youtube_url": "",
       "evidence_level": "moderate",
       "source_notes": "Driveline 16-week throwing program — J-Band routine."
     },
-
     {
       "id": "ex_102",
       "name": "Wrist Weight Pronation Swings",
-      "aliases": ["pronation swings", "wrist weight pronation"],
+      "aliases": [
+        "pronation swings",
+        "wrist weight pronation"
+      ],
       "category": "throwing_warmup",
       "subcategory": "wrist_weight",
-      "muscles_primary": ["pronator teres", "pronator quadratus"],
-      "muscles_secondary": ["forearm flexors"],
+      "muscles_primary": [
+        "pronator teres",
+        "pronator quadratus"
+      ],
+      "muscles_secondary": [
+        "forearm flexors"
+      ],
       "pitching_relevance": "Pronation is the final force applicator at ball release. Wrist weight activation primes the pronator-flexor mass for throwing.",
       "prescription": {
-        "warmup": { "sets": "1", "reps": "10", "intensity": "1-2 lb wrist weight", "rest_min": 0 }
+        "warmup": {
+          "sets": "1",
+          "reps": "10",
+          "intensity": "1-2 lb wrist weight",
+          "rest_min": 0
+        }
       },
-      "rotation_day_usage": { "recommended": ["day_1", "day_2", "day_3", "day_4", "day_5"], "acceptable": ["day_0"], "avoid": [] },
-      "tags": ["wrist_weight", "throwing_warmup", "fpm", "pre_throw"],
-      "contraindications": ["acute_forearm_strain"],
-      "modification_flags": { "ucl_history": "reduce_to_5_reps" },
+      "rotation_day_usage": {
+        "recommended": [
+          "day_1",
+          "day_2",
+          "day_3",
+          "day_4",
+          "day_5"
+        ],
+        "acceptable": [
+          "day_0"
+        ],
+        "avoid": []
+      },
+      "tags": [
+        "wrist_weight",
+        "throwing_warmup",
+        "fpm",
+        "pre_throw"
+      ],
+      "contraindications": [
+        "acute_forearm_strain"
+      ],
+      "modification_flags": {
+        "ucl_history": "reduce_to_5_reps"
+      },
       "youtube_url": "",
       "evidence_level": "moderate",
       "source_notes": "Driveline 16-week throwing program — Wrist weight routine."
@@ -5597,18 +5856,50 @@
     {
       "id": "ex_103",
       "name": "Wrist Weight Two-Arm Throws",
-      "aliases": ["two arm throws", "wrist weight two arm"],
+      "aliases": [
+        "two arm throws",
+        "wrist weight two arm"
+      ],
       "category": "throwing_warmup",
       "subcategory": "wrist_weight",
-      "muscles_primary": ["forearm flexors", "wrist extensors"],
-      "muscles_secondary": ["anterior deltoid", "pectorals"],
+      "muscles_primary": [
+        "forearm flexors",
+        "wrist extensors"
+      ],
+      "muscles_secondary": [
+        "anterior deltoid",
+        "pectorals"
+      ],
       "pitching_relevance": "Bilateral arm action pattern reinforces timing and coordination of forearm musculature before throwing.",
       "prescription": {
-        "warmup": { "sets": "1", "reps": "10", "intensity": "1-2 lb wrist weight", "rest_min": 0 }
+        "warmup": {
+          "sets": "1",
+          "reps": "10",
+          "intensity": "1-2 lb wrist weight",
+          "rest_min": 0
+        }
       },
-      "rotation_day_usage": { "recommended": ["day_1", "day_2", "day_3", "day_4", "day_5"], "acceptable": ["day_0"], "avoid": [] },
-      "tags": ["wrist_weight", "throwing_warmup", "pre_throw"],
-      "contraindications": ["acute_forearm_strain"],
+      "rotation_day_usage": {
+        "recommended": [
+          "day_1",
+          "day_2",
+          "day_3",
+          "day_4",
+          "day_5"
+        ],
+        "acceptable": [
+          "day_0"
+        ],
+        "avoid": []
+      },
+      "tags": [
+        "wrist_weight",
+        "throwing_warmup",
+        "pre_throw"
+      ],
+      "contraindications": [
+        "acute_forearm_strain"
+      ],
       "modification_flags": {},
       "youtube_url": "",
       "evidence_level": "low",
@@ -5617,19 +5908,52 @@
     {
       "id": "ex_104",
       "name": "Wrist Weight Pivot Pickoffs",
-      "aliases": ["pivot pickoffs wrist weight"],
+      "aliases": [
+        "pivot pickoffs wrist weight"
+      ],
       "category": "throwing_warmup",
       "subcategory": "wrist_weight",
-      "muscles_primary": ["forearm flexors", "pronator teres"],
-      "muscles_secondary": ["rotator cuff", "anterior deltoid"],
+      "muscles_primary": [
+        "forearm flexors",
+        "pronator teres"
+      ],
+      "muscles_secondary": [
+        "rotator cuff",
+        "anterior deltoid"
+      ],
       "pitching_relevance": "Mimics arm action of pickoff move with wrist weight resistance. Trains forearm load acceptance in throwing-specific pattern.",
       "prescription": {
-        "warmup": { "sets": "1", "reps": "10", "intensity": "1-2 lb wrist weight", "rest_min": 0 }
+        "warmup": {
+          "sets": "1",
+          "reps": "10",
+          "intensity": "1-2 lb wrist weight",
+          "rest_min": 0
+        }
       },
-      "rotation_day_usage": { "recommended": ["day_1", "day_2", "day_3", "day_4", "day_5"], "acceptable": ["day_0"], "avoid": [] },
-      "tags": ["wrist_weight", "throwing_warmup", "pre_throw"],
-      "contraindications": ["acute_forearm_strain"],
-      "modification_flags": { "ucl_history": "reduce_to_5_reps" },
+      "rotation_day_usage": {
+        "recommended": [
+          "day_1",
+          "day_2",
+          "day_3",
+          "day_4",
+          "day_5"
+        ],
+        "acceptable": [
+          "day_0"
+        ],
+        "avoid": []
+      },
+      "tags": [
+        "wrist_weight",
+        "throwing_warmup",
+        "pre_throw"
+      ],
+      "contraindications": [
+        "acute_forearm_strain"
+      ],
+      "modification_flags": {
+        "ucl_history": "reduce_to_5_reps"
+      },
       "youtube_url": "",
       "evidence_level": "low",
       "source_notes": "Driveline 16-week throwing program — Wrist weight routine."
@@ -5637,42 +5961,125 @@
     {
       "id": "ex_105",
       "name": "Wrist Weight Cuban Press",
-      "aliases": ["cuban press wrist weight"],
+      "aliases": [
+        "cuban press wrist weight"
+      ],
       "category": "throwing_warmup",
       "subcategory": "wrist_weight",
-      "muscles_primary": ["rotator cuff", "deltoid"],
-      "muscles_secondary": ["upper trapezius", "forearm extensors"],
+      "muscles_primary": [
+        "rotator cuff",
+        "deltoid"
+      ],
+      "muscles_secondary": [
+        "upper trapezius",
+        "forearm extensors"
+      ],
       "pitching_relevance": "External rotation through elevation pattern activates rotator cuff in a throwing-relevant arc. Prepares shoulder for overhead stress.",
       "prescription": {
-        "warmup": { "sets": "1", "reps": "10", "intensity": "1-2 lb wrist weight", "rest_min": 0 }
+        "warmup": {
+          "sets": "1",
+          "reps": "10",
+          "intensity": "1-2 lb wrist weight",
+          "rest_min": 0
+        }
       },
-      "rotation_day_usage": { "recommended": ["day_1", "day_2", "day_3", "day_4", "day_5"], "acceptable": ["day_0"], "avoid": [] },
-      "tags": ["wrist_weight", "throwing_warmup", "rotator_cuff", "pre_throw"],
-      "contraindications": ["acute_shoulder_impingement"],
-      "modification_flags": { "shoulder_impingement": "reduce_range_of_motion" },
+      "rotation_day_usage": {
+        "recommended": [
+          "day_1",
+          "day_2",
+          "day_3",
+          "day_4",
+          "day_5"
+        ],
+        "acceptable": [
+          "day_0"
+        ],
+        "avoid": []
+      },
+      "tags": [
+        "wrist_weight",
+        "throwing_warmup",
+        "rotator_cuff",
+        "pre_throw"
+      ],
+      "contraindications": [
+        "acute_shoulder_impingement"
+      ],
+      "modification_flags": {
+        "shoulder_impingement": "reduce_range_of_motion"
+      },
       "youtube_url": "",
       "evidence_level": "low",
       "source_notes": "Driveline 16-week throwing program — Wrist weight routine."
     },
-
     {
       "id": "ex_106",
       "name": "Plyo Reverse Throws",
-      "aliases": ["reverse throws", "plyo reverse"],
+      "aliases": [
+        "reverse throws",
+        "plyo reverse"
+      ],
       "category": "plyo_throwing",
       "subcategory": "plyo_drill",
-      "muscles_primary": ["posterior deltoid", "infraspinatus", "teres minor"],
-      "muscles_secondary": ["rhomboids", "thoracic extensors"],
+      "muscles_primary": [
+        "posterior deltoid",
+        "infraspinatus",
+        "teres minor"
+      ],
+      "muscles_secondary": [
+        "rhomboids",
+        "thoracic extensors"
+      ],
       "pitching_relevance": "Trains posterior shoulder to accept force from higher velocities. Develops T-spine mobility. Always performed first in plyo sequence.",
       "prescription": {
-        "recovery": { "sets": "1", "reps": "8-10 each", "intensity": "50-60% (pink/green)", "rest_min": 0 },
-        "build": { "sets": "1", "reps": "8-10 each", "intensity": "60-70% (pink/green)", "rest_min": 0 },
-        "compete": { "sets": "1", "reps": "8-10 each", "intensity": "80-90% (green/blue)", "rest_min": 0 }
+        "recovery": {
+          "sets": "1",
+          "reps": "8-10 each",
+          "intensity": "50-60% (pink/green)",
+          "rest_min": 0
+        },
+        "build": {
+          "sets": "1",
+          "reps": "8-10 each",
+          "intensity": "60-70% (pink/green)",
+          "rest_min": 0
+        },
+        "compete": {
+          "sets": "1",
+          "reps": "8-10 each",
+          "intensity": "80-90% (green/blue)",
+          "rest_min": 0
+        }
       },
-      "rotation_day_usage": { "recommended": ["day_1", "day_2", "day_3", "day_4", "day_5"], "acceptable": ["day_6"], "avoid": ["day_0"] },
-      "tags": ["plyo", "throwing", "deceleration", "posterior_shoulder", "tspine"],
-      "contraindications": ["acute_shoulder"],
-      "modification_flags": { "shoulder_impingement": "reduce_effort_to_50pct", "ucl_history": "green_ball_only" },
+      "rotation_day_usage": {
+        "recommended": [
+          "day_1",
+          "day_2",
+          "day_3",
+          "day_4",
+          "day_5"
+        ],
+        "acceptable": [
+          "day_6"
+        ],
+        "avoid": [
+          "day_0"
+        ]
+      },
+      "tags": [
+        "plyo",
+        "throwing",
+        "deceleration",
+        "posterior_shoulder",
+        "tspine"
+      ],
+      "contraindications": [
+        "acute_shoulder"
+      ],
+      "modification_flags": {
+        "shoulder_impingement": "reduce_effort_to_50pct",
+        "ucl_history": "green_ball_only"
+      },
       "youtube_url": "",
       "evidence_level": "moderate",
       "source_notes": "Driveline 16-week throwing program — always first in plyo sequence."
@@ -5680,21 +6087,69 @@
     {
       "id": "ex_107",
       "name": "Plyo Pivot Picks",
-      "aliases": ["pivot picks", "pivot pickoffs plyo"],
+      "aliases": [
+        "pivot picks",
+        "pivot pickoffs plyo"
+      ],
       "category": "plyo_throwing",
       "subcategory": "plyo_drill",
-      "muscles_primary": ["anterior deltoid", "pectorals", "internal rotators"],
-      "muscles_secondary": ["core rotators", "hip rotators"],
+      "muscles_primary": [
+        "anterior deltoid",
+        "pectorals",
+        "internal rotators"
+      ],
+      "muscles_secondary": [
+        "core rotators",
+        "hip rotators"
+      ],
       "pitching_relevance": "Develops efficient arm action and improved forward rotation. Trains arm path without lower-half complexity.",
       "prescription": {
-        "recovery": { "sets": "1", "reps": "8-10 each", "intensity": "50-60% (pink/green)", "rest_min": 0 },
-        "build": { "sets": "1", "reps": "8-10 each", "intensity": "60-70% (green/blue)", "rest_min": 0 },
-        "compete": { "sets": "1", "reps": "8-10 each", "intensity": "80-90% (blue/red)", "rest_min": 0 }
+        "recovery": {
+          "sets": "1",
+          "reps": "8-10 each",
+          "intensity": "50-60% (pink/green)",
+          "rest_min": 0
+        },
+        "build": {
+          "sets": "1",
+          "reps": "8-10 each",
+          "intensity": "60-70% (green/blue)",
+          "rest_min": 0
+        },
+        "compete": {
+          "sets": "1",
+          "reps": "8-10 each",
+          "intensity": "80-90% (blue/red)",
+          "rest_min": 0
+        }
       },
-      "rotation_day_usage": { "recommended": ["day_1", "day_2", "day_3", "day_4", "day_5"], "acceptable": ["day_6"], "avoid": ["day_0"] },
-      "tags": ["plyo", "throwing", "arm_action", "forward_rotation"],
-      "contraindications": ["acute_shoulder"],
-      "modification_flags": { "ucl_history": "green_ball_only" },
+      "rotation_day_usage": {
+        "recommended": [
+          "day_1",
+          "day_2",
+          "day_3",
+          "day_4",
+          "day_5"
+        ],
+        "acceptable": [
+          "day_6"
+        ],
+        "avoid": [
+          "day_0"
+        ]
+      },
+      "tags": [
+        "plyo",
+        "throwing",
+        "arm_action",
+        "forward_rotation"
+      ],
+      "contraindications": [
+        "acute_shoulder"
+      ],
+      "modification_flags": {
+        "ucl_history": "green_ball_only"
+      },
       "youtube_url": "",
       "evidence_level": "moderate",
       "source_notes": "Driveline 16-week throwing program — always second in plyo sequence."
@@ -5702,21 +6157,71 @@
     {
       "id": "ex_108",
       "name": "Plyo Roll-Ins",
-      "aliases": ["roll-ins", "roll ins plyo"],
+      "aliases": [
+        "roll-ins",
+        "roll ins plyo"
+      ],
       "category": "plyo_throwing",
       "subcategory": "plyo_drill",
-      "muscles_primary": ["obliques", "hip rotators", "anterior deltoid"],
-      "muscles_secondary": ["glutes", "core stabilizers"],
+      "muscles_primary": [
+        "obliques",
+        "hip rotators",
+        "anterior deltoid"
+      ],
+      "muscles_secondary": [
+        "glutes",
+        "core stabilizers"
+      ],
       "pitching_relevance": "Develops hip-shoulder separation — lower half stays open while upper half closes. Key movement pattern for velocity development.",
       "prescription": {
-        "build": { "sets": "1", "reps": "3-5 each", "intensity": "60-70% (green/blue)", "rest_min": 0 },
-        "compete": { "sets": "1", "reps": "3-5 each", "intensity": "80-90% (blue/red)", "rest_min": 0 },
-        "velocity": { "sets": "1", "reps": "2-3 each", "intensity": "100% (green/blue/red)", "rest_min": 0.5 }
+        "build": {
+          "sets": "1",
+          "reps": "3-5 each",
+          "intensity": "60-70% (green/blue)",
+          "rest_min": 0
+        },
+        "compete": {
+          "sets": "1",
+          "reps": "3-5 each",
+          "intensity": "80-90% (blue/red)",
+          "rest_min": 0
+        },
+        "velocity": {
+          "sets": "1",
+          "reps": "2-3 each",
+          "intensity": "100% (green/blue/red)",
+          "rest_min": 0.5
+        }
       },
-      "rotation_day_usage": { "recommended": ["day_2", "day_3", "day_5"], "acceptable": ["day_4"], "avoid": ["day_0", "day_1", "day_6"] },
-      "tags": ["plyo", "throwing", "hip_shoulder_separation", "velocity"],
-      "contraindications": ["acute_oblique_strain", "acute_shoulder"],
-      "modification_flags": { "ucl_history": "cap_at_build_intensity", "oblique_strain": "skip_entirely" },
+      "rotation_day_usage": {
+        "recommended": [
+          "day_2",
+          "day_3",
+          "day_5"
+        ],
+        "acceptable": [
+          "day_4"
+        ],
+        "avoid": [
+          "day_0",
+          "day_1",
+          "day_6"
+        ]
+      },
+      "tags": [
+        "plyo",
+        "throwing",
+        "hip_shoulder_separation",
+        "velocity"
+      ],
+      "contraindications": [
+        "acute_oblique_strain",
+        "acute_shoulder"
+      ],
+      "modification_flags": {
+        "ucl_history": "cap_at_build_intensity",
+        "oblique_strain": "skip_entirely"
+      },
       "youtube_url": "",
       "evidence_level": "moderate",
       "source_notes": "Driveline 16-week throwing program — drill 3 in plyo sequence."
@@ -5724,21 +6229,69 @@
     {
       "id": "ex_109",
       "name": "Plyo Step Backs",
-      "aliases": ["step backs", "step back plyo"],
+      "aliases": [
+        "step backs",
+        "step back plyo"
+      ],
       "category": "plyo_throwing",
       "subcategory": "plyo_drill",
-      "muscles_primary": ["posterior chain", "obliques", "anterior deltoid"],
-      "muscles_secondary": ["hip flexors", "core stabilizers"],
+      "muscles_primary": [
+        "posterior chain",
+        "obliques",
+        "anterior deltoid"
+      ],
+      "muscles_secondary": [
+        "hip flexors",
+        "core stabilizers"
+      ],
       "pitching_relevance": "Delays torso rotation and develops momentum toward the plate. Teaches sequencing of stride before rotation.",
       "prescription": {
-        "build": { "sets": "1", "reps": "3-5 each", "intensity": "60-70% (green/blue)", "rest_min": 0 },
-        "compete": { "sets": "1", "reps": "3-5 each", "intensity": "80-90% (blue/red)", "rest_min": 0 },
-        "velocity": { "sets": "1", "reps": "2-3 each", "intensity": "100% (blue/red/yellow)", "rest_min": 0.5 }
+        "build": {
+          "sets": "1",
+          "reps": "3-5 each",
+          "intensity": "60-70% (green/blue)",
+          "rest_min": 0
+        },
+        "compete": {
+          "sets": "1",
+          "reps": "3-5 each",
+          "intensity": "80-90% (blue/red)",
+          "rest_min": 0
+        },
+        "velocity": {
+          "sets": "1",
+          "reps": "2-3 each",
+          "intensity": "100% (blue/red/yellow)",
+          "rest_min": 0.5
+        }
       },
-      "rotation_day_usage": { "recommended": ["day_2", "day_3", "day_5"], "acceptable": ["day_4"], "avoid": ["day_0", "day_1", "day_6"] },
-      "tags": ["plyo", "throwing", "torso_delay", "momentum"],
-      "contraindications": ["acute_shoulder"],
-      "modification_flags": { "ucl_history": "cap_at_build_intensity" },
+      "rotation_day_usage": {
+        "recommended": [
+          "day_2",
+          "day_3",
+          "day_5"
+        ],
+        "acceptable": [
+          "day_4"
+        ],
+        "avoid": [
+          "day_0",
+          "day_1",
+          "day_6"
+        ]
+      },
+      "tags": [
+        "plyo",
+        "throwing",
+        "torso_delay",
+        "momentum"
+      ],
+      "contraindications": [
+        "acute_shoulder"
+      ],
+      "modification_flags": {
+        "ucl_history": "cap_at_build_intensity"
+      },
       "youtube_url": "",
       "evidence_level": "moderate",
       "source_notes": "Driveline 16-week throwing program — drill 4 in plyo sequence."
@@ -5746,21 +6299,71 @@
     {
       "id": "ex_110",
       "name": "Plyo Drop Steps",
-      "aliases": ["drop steps", "drop step plyo"],
+      "aliases": [
+        "drop steps",
+        "drop step plyo"
+      ],
       "category": "plyo_throwing",
       "subcategory": "plyo_drill",
-      "muscles_primary": ["glutes", "obliques", "anterior deltoid"],
-      "muscles_secondary": ["hip rotators", "core stabilizers", "quadriceps"],
+      "muscles_primary": [
+        "glutes",
+        "obliques",
+        "anterior deltoid"
+      ],
+      "muscles_secondary": [
+        "hip rotators",
+        "core stabilizers",
+        "quadriceps"
+      ],
       "pitching_relevance": "Simulates mound momentum — gain ground toward target while delaying torso into foot plant. High transfer to mound delivery.",
       "prescription": {
-        "build": { "sets": "1", "reps": "3-5 each", "intensity": "60-70% (green/blue)", "rest_min": 0 },
-        "compete": { "sets": "1", "reps": "3-5 each", "intensity": "80-90% (blue/red)", "rest_min": 0 },
-        "velocity": { "sets": "1", "reps": "2-3 each", "intensity": "100% (blue/red/yellow/gray)", "rest_min": 0.5 }
+        "build": {
+          "sets": "1",
+          "reps": "3-5 each",
+          "intensity": "60-70% (green/blue)",
+          "rest_min": 0
+        },
+        "compete": {
+          "sets": "1",
+          "reps": "3-5 each",
+          "intensity": "80-90% (blue/red)",
+          "rest_min": 0
+        },
+        "velocity": {
+          "sets": "1",
+          "reps": "2-3 each",
+          "intensity": "100% (blue/red/yellow/gray)",
+          "rest_min": 0.5
+        }
       },
-      "rotation_day_usage": { "recommended": ["day_2", "day_3", "day_5"], "acceptable": ["day_4"], "avoid": ["day_0", "day_1", "day_6"] },
-      "tags": ["plyo", "throwing", "mound_momentum", "torso_delay"],
-      "contraindications": ["acute_shoulder", "acute_knee"],
-      "modification_flags": { "ucl_history": "cap_at_build_intensity" },
+      "rotation_day_usage": {
+        "recommended": [
+          "day_2",
+          "day_3",
+          "day_5"
+        ],
+        "acceptable": [
+          "day_4"
+        ],
+        "avoid": [
+          "day_0",
+          "day_1",
+          "day_6"
+        ]
+      },
+      "tags": [
+        "plyo",
+        "throwing",
+        "mound_momentum",
+        "torso_delay"
+      ],
+      "contraindications": [
+        "acute_shoulder",
+        "acute_knee"
+      ],
+      "modification_flags": {
+        "ucl_history": "cap_at_build_intensity"
+      },
       "youtube_url": "",
       "evidence_level": "moderate",
       "source_notes": "Driveline 16-week throwing program — drill 5 in plyo sequence."
@@ -5768,21 +6371,70 @@
     {
       "id": "ex_111",
       "name": "Plyo Janitors",
-      "aliases": ["janitors", "janitor drill"],
+      "aliases": [
+        "janitors",
+        "janitor drill"
+      ],
       "category": "plyo_throwing",
       "subcategory": "plyo_drill",
-      "muscles_primary": ["hip rotators", "obliques", "core stabilizers"],
-      "muscles_secondary": ["anterior deltoid", "glutes"],
+      "muscles_primary": [
+        "hip rotators",
+        "obliques",
+        "core stabilizers"
+      ],
+      "muscles_secondary": [
+        "anterior deltoid",
+        "glutes"
+      ],
       "pitching_relevance": "Constrained drop step — lower half rotates freely while upper half stays quiet. Trains lower-half-first rotation sequencing.",
       "prescription": {
-        "build": { "sets": "1", "reps": "3-5 each", "intensity": "60-70% (green/blue)", "rest_min": 0 },
-        "compete": { "sets": "1", "reps": "3-5 each", "intensity": "80-90% (blue/red)", "rest_min": 0 },
-        "velocity": { "sets": "1", "reps": "2-3 each", "intensity": "100% (blue/red/yellow/gray)", "rest_min": 0.5 }
+        "build": {
+          "sets": "1",
+          "reps": "3-5 each",
+          "intensity": "60-70% (green/blue)",
+          "rest_min": 0
+        },
+        "compete": {
+          "sets": "1",
+          "reps": "3-5 each",
+          "intensity": "80-90% (blue/red)",
+          "rest_min": 0
+        },
+        "velocity": {
+          "sets": "1",
+          "reps": "2-3 each",
+          "intensity": "100% (blue/red/yellow/gray)",
+          "rest_min": 0.5
+        }
       },
-      "rotation_day_usage": { "recommended": ["day_2", "day_3", "day_5"], "acceptable": ["day_4"], "avoid": ["day_0", "day_1", "day_6"] },
-      "tags": ["plyo", "throwing", "lower_half_rotation", "sequencing"],
-      "contraindications": ["acute_hip", "acute_shoulder"],
-      "modification_flags": { "ucl_history": "cap_at_build_intensity" },
+      "rotation_day_usage": {
+        "recommended": [
+          "day_2",
+          "day_3",
+          "day_5"
+        ],
+        "acceptable": [
+          "day_4"
+        ],
+        "avoid": [
+          "day_0",
+          "day_1",
+          "day_6"
+        ]
+      },
+      "tags": [
+        "plyo",
+        "throwing",
+        "lower_half_rotation",
+        "sequencing"
+      ],
+      "contraindications": [
+        "acute_hip",
+        "acute_shoulder"
+      ],
+      "modification_flags": {
+        "ucl_history": "cap_at_build_intensity"
+      },
       "youtube_url": "",
       "evidence_level": "moderate",
       "source_notes": "Driveline 16-week throwing program — drill 6 in plyo sequence."
@@ -5790,21 +6442,70 @@
     {
       "id": "ex_112",
       "name": "Plyo Rockers",
-      "aliases": ["rockers", "rocker drill"],
+      "aliases": [
+        "rockers",
+        "rocker drill"
+      ],
       "category": "plyo_throwing",
       "subcategory": "plyo_drill",
-      "muscles_primary": ["hip rotators", "glutes", "obliques"],
-      "muscles_secondary": ["quadriceps", "anterior deltoid"],
+      "muscles_primary": [
+        "hip rotators",
+        "glutes",
+        "obliques"
+      ],
+      "muscles_secondary": [
+        "quadriceps",
+        "anterior deltoid"
+      ],
       "pitching_relevance": "Proper weight shift and timing of lead leg block. Trains the load-transfer pattern critical for velocity and arm health.",
       "prescription": {
-        "build": { "sets": "1", "reps": "3-5 each", "intensity": "60-70% (green/blue)", "rest_min": 0 },
-        "compete": { "sets": "1", "reps": "3-5 each", "intensity": "80-90% (blue/red)", "rest_min": 0 },
-        "velocity": { "sets": "1", "reps": "2-3 each", "intensity": "100% (blue/red/yellow/gray)", "rest_min": 0.5 }
+        "build": {
+          "sets": "1",
+          "reps": "3-5 each",
+          "intensity": "60-70% (green/blue)",
+          "rest_min": 0
+        },
+        "compete": {
+          "sets": "1",
+          "reps": "3-5 each",
+          "intensity": "80-90% (blue/red)",
+          "rest_min": 0
+        },
+        "velocity": {
+          "sets": "1",
+          "reps": "2-3 each",
+          "intensity": "100% (blue/red/yellow/gray)",
+          "rest_min": 0.5
+        }
       },
-      "rotation_day_usage": { "recommended": ["day_2", "day_3", "day_5"], "acceptable": ["day_4"], "avoid": ["day_0", "day_1", "day_6"] },
-      "tags": ["plyo", "throwing", "weight_shift", "lead_leg_block"],
-      "contraindications": ["acute_hip", "acute_shoulder"],
-      "modification_flags": { "ucl_history": "cap_at_build_intensity" },
+      "rotation_day_usage": {
+        "recommended": [
+          "day_2",
+          "day_3",
+          "day_5"
+        ],
+        "acceptable": [
+          "day_4"
+        ],
+        "avoid": [
+          "day_0",
+          "day_1",
+          "day_6"
+        ]
+      },
+      "tags": [
+        "plyo",
+        "throwing",
+        "weight_shift",
+        "lead_leg_block"
+      ],
+      "contraindications": [
+        "acute_hip",
+        "acute_shoulder"
+      ],
+      "modification_flags": {
+        "ucl_history": "cap_at_build_intensity"
+      },
       "youtube_url": "",
       "evidence_level": "moderate",
       "source_notes": "Driveline 16-week throwing program — drill 7 in plyo sequence."
@@ -5812,43 +6513,137 @@
     {
       "id": "ex_113",
       "name": "Plyo Walking Windups",
-      "aliases": ["walking windups", "walk-in windups"],
+      "aliases": [
+        "walking windups",
+        "walk-in windups"
+      ],
       "category": "plyo_throwing",
       "subcategory": "plyo_drill",
-      "muscles_primary": ["full kinetic chain"],
-      "muscles_secondary": ["hip rotators", "obliques", "anterior deltoid", "core stabilizers"],
+      "muscles_primary": [
+        "full kinetic chain"
+      ],
+      "muscles_secondary": [
+        "hip rotators",
+        "obliques",
+        "anterior deltoid",
+        "core stabilizers"
+      ],
       "pitching_relevance": "Full integration drill — puts all movement patterns together with momentum. Always last in plyo sequence. Highest transfer to mound delivery.",
       "prescription": {
-        "build": { "sets": "1", "reps": "3-5 each", "intensity": "60-70% (green/blue)", "rest_min": 0 },
-        "compete": { "sets": "1", "reps": "3-5 each", "intensity": "80-90% (blue/red)", "rest_min": 0 },
-        "velocity": { "sets": "1", "reps": "2-3 each", "intensity": "100% (blue/red/yellow/gray)", "rest_min": 0.5 }
+        "build": {
+          "sets": "1",
+          "reps": "3-5 each",
+          "intensity": "60-70% (green/blue)",
+          "rest_min": 0
+        },
+        "compete": {
+          "sets": "1",
+          "reps": "3-5 each",
+          "intensity": "80-90% (blue/red)",
+          "rest_min": 0
+        },
+        "velocity": {
+          "sets": "1",
+          "reps": "2-3 each",
+          "intensity": "100% (blue/red/yellow/gray)",
+          "rest_min": 0.5
+        }
       },
-      "rotation_day_usage": { "recommended": ["day_2", "day_3", "day_5"], "acceptable": ["day_4"], "avoid": ["day_0", "day_1", "day_6"] },
-      "tags": ["plyo", "throwing", "full_integration", "momentum", "mound_transfer"],
-      "contraindications": ["acute_shoulder"],
-      "modification_flags": { "ucl_history": "cap_at_build_intensity" },
+      "rotation_day_usage": {
+        "recommended": [
+          "day_2",
+          "day_3",
+          "day_5"
+        ],
+        "acceptable": [
+          "day_4"
+        ],
+        "avoid": [
+          "day_0",
+          "day_1",
+          "day_6"
+        ]
+      },
+      "tags": [
+        "plyo",
+        "throwing",
+        "full_integration",
+        "momentum",
+        "mound_transfer"
+      ],
+      "contraindications": [
+        "acute_shoulder"
+      ],
+      "modification_flags": {
+        "ucl_history": "cap_at_build_intensity"
+      },
       "youtube_url": "",
       "evidence_level": "moderate",
       "source_notes": "Driveline 16-week throwing program — always last in plyo sequence."
     },
-
     {
       "id": "ex_114",
       "name": "Long Toss — Extension Throws",
-      "aliases": ["extension throws", "long toss extension", "arc throws"],
+      "aliases": [
+        "extension throws",
+        "long toss extension",
+        "arc throws"
+      ],
       "category": "plyo_throwing",
       "subcategory": "long_toss",
-      "muscles_primary": ["full kinetic chain"],
-      "muscles_secondary": ["posterior shoulder", "scapular stabilizers"],
+      "muscles_primary": [
+        "full kinetic chain"
+      ],
+      "muscles_secondary": [
+        "posterior shoulder",
+        "scapular stabilizers"
+      ],
       "pitching_relevance": "High-arc throws at increasing distance build arm strength and shoulder capacity. Extension-only days develop base throwing fitness without high arm stress.",
       "prescription": {
-        "build": { "sets": "1", "reps": "Work out to max distance, high arc", "intensity": "60-70%", "rest_min": 0, "note": "Start at 60ft, add 15-30ft per round, work back in lightly" },
-        "compete": { "sets": "1", "reps": "Work out to max distance, high arc", "intensity": "80-90%", "rest_min": 0, "note": "Extension to max, then compression throws on way back" }
+        "build": {
+          "sets": "1",
+          "reps": "Work out to max distance, high arc",
+          "intensity": "60-70%",
+          "rest_min": 0,
+          "note": "Start at 60ft, add 15-30ft per round, work back in lightly"
+        },
+        "compete": {
+          "sets": "1",
+          "reps": "Work out to max distance, high arc",
+          "intensity": "80-90%",
+          "rest_min": 0,
+          "note": "Extension to max, then compression throws on way back"
+        }
       },
-      "rotation_day_usage": { "recommended": ["day_2", "day_3"], "acceptable": ["day_4", "day_5"], "avoid": ["day_0", "day_1", "day_6"] },
-      "tags": ["throwing", "long_toss", "arm_strength", "distance"],
-      "contraindications": ["acute_shoulder", "acute_ucl"],
-      "modification_flags": { "ucl_history": "cap_at_120ft", "shoulder_impingement": "cap_at_90ft" },
+      "rotation_day_usage": {
+        "recommended": [
+          "day_2",
+          "day_3"
+        ],
+        "acceptable": [
+          "day_4",
+          "day_5"
+        ],
+        "avoid": [
+          "day_0",
+          "day_1",
+          "day_6"
+        ]
+      },
+      "tags": [
+        "throwing",
+        "long_toss",
+        "arm_strength",
+        "distance"
+      ],
+      "contraindications": [
+        "acute_shoulder",
+        "acute_ucl"
+      ],
+      "modification_flags": {
+        "ucl_history": "cap_at_120ft",
+        "shoulder_impingement": "cap_at_90ft"
+      },
       "youtube_url": "",
       "evidence_level": "moderate",
       "source_notes": "Driveline 16-week throwing program — long toss program."
@@ -5856,19 +6651,63 @@
     {
       "id": "ex_115",
       "name": "Long Toss — Compression Throws",
-      "aliases": ["compression throws", "pull-down throws", "on-a-line throws"],
+      "aliases": [
+        "compression throws",
+        "pull-down throws",
+        "on-a-line throws"
+      ],
       "category": "plyo_throwing",
       "subcategory": "long_toss",
-      "muscles_primary": ["full kinetic chain"],
-      "muscles_secondary": ["anterior deltoid", "internal rotators", "core rotators"],
+      "muscles_primary": [
+        "full kinetic chain"
+      ],
+      "muscles_secondary": [
+        "anterior deltoid",
+        "internal rotators",
+        "core rotators"
+      ],
       "pitching_relevance": "Hard, on-a-line throws at 90-120ft simulate game-intent arm speed. Highest arm stress in long toss — develops competitive arm speed.",
       "prescription": {
-        "compete": { "sets": "1", "reps": "8-12 throws", "intensity": "80-90%, on-a-line at head height", "rest_min": 0, "note": "90-120ft, shuffle approach, hard and direct" }
+        "compete": {
+          "sets": "1",
+          "reps": "8-12 throws",
+          "intensity": "80-90%, on-a-line at head height",
+          "rest_min": 0,
+          "note": "90-120ft, shuffle approach, hard and direct"
+        }
       },
-      "rotation_day_usage": { "recommended": ["day_3"], "acceptable": ["day_5"], "avoid": ["day_0", "day_1", "day_2", "day_4", "day_6"] },
-      "tags": ["throwing", "long_toss", "high_intent", "arm_speed", "velocity"],
-      "contraindications": ["acute_shoulder", "acute_ucl", "yellow_flag", "red_flag"],
-      "modification_flags": { "ucl_history": "skip_entirely", "shoulder_impingement": "skip_entirely" },
+      "rotation_day_usage": {
+        "recommended": [
+          "day_3"
+        ],
+        "acceptable": [
+          "day_5"
+        ],
+        "avoid": [
+          "day_0",
+          "day_1",
+          "day_2",
+          "day_4",
+          "day_6"
+        ]
+      },
+      "tags": [
+        "throwing",
+        "long_toss",
+        "high_intent",
+        "arm_speed",
+        "velocity"
+      ],
+      "contraindications": [
+        "acute_shoulder",
+        "acute_ucl",
+        "yellow_flag",
+        "red_flag"
+      ],
+      "modification_flags": {
+        "ucl_history": "skip_entirely",
+        "shoulder_impingement": "skip_entirely"
+      },
       "youtube_url": "",
       "evidence_level": "moderate",
       "source_notes": "Driveline 16-week throwing program — Hybrid A+ only. Highest stress throwing activity."
@@ -5876,20 +6715,63 @@
     {
       "id": "ex_116",
       "name": "Flat Ground Throws",
-      "aliases": ["flat ground", "flat ground work", "flatties"],
+      "aliases": [
+        "flat ground",
+        "flat ground work",
+        "flatties"
+      ],
       "category": "plyo_throwing",
       "subcategory": "flat_ground",
-      "muscles_primary": ["full kinetic chain"],
-      "muscles_secondary": ["rotator cuff", "core rotators"],
+      "muscles_primary": [
+        "full kinetic chain"
+      ],
+      "muscles_secondary": [
+        "rotator cuff",
+        "core rotators"
+      ],
       "pitching_relevance": "Mound-like mechanics without the downhill slope. Lower stress than mound work while maintaining mechanical patterns and arm conditioning.",
       "prescription": {
-        "recovery": { "sets": "1", "reps": "15-20 throws", "intensity": "50-60%", "rest_min": 0, "note": "60ft, easy and smooth" },
-        "build": { "sets": "1", "reps": "20-30 throws", "intensity": "60-75%", "rest_min": 0, "note": "60ft, work on mechanics" }
+        "recovery": {
+          "sets": "1",
+          "reps": "15-20 throws",
+          "intensity": "50-60%",
+          "rest_min": 0,
+          "note": "60ft, easy and smooth"
+        },
+        "build": {
+          "sets": "1",
+          "reps": "20-30 throws",
+          "intensity": "60-75%",
+          "rest_min": 0,
+          "note": "60ft, work on mechanics"
+        }
       },
-      "rotation_day_usage": { "recommended": ["day_2", "day_4"], "acceptable": ["day_3"], "avoid": ["day_0", "day_1", "day_6"] },
-      "tags": ["throwing", "flat_ground", "mechanics", "arm_conditioning"],
-      "contraindications": ["red_flag"],
-      "modification_flags": { "ucl_history": "cap_at_60pct_intent" },
+      "rotation_day_usage": {
+        "recommended": [
+          "day_2",
+          "day_4"
+        ],
+        "acceptable": [
+          "day_3"
+        ],
+        "avoid": [
+          "day_0",
+          "day_1",
+          "day_6"
+        ]
+      },
+      "tags": [
+        "throwing",
+        "flat_ground",
+        "mechanics",
+        "arm_conditioning"
+      ],
+      "contraindications": [
+        "red_flag"
+      ],
+      "modification_flags": {
+        "ucl_history": "cap_at_60pct_intent"
+      },
       "youtube_url": "",
       "evidence_level": "moderate",
       "source_notes": "Standard throwing modality across Driveline, Tread, and college programs."
@@ -5897,19 +6779,52 @@
     {
       "id": "ex_117",
       "name": "Light Catch Play",
-      "aliases": ["catch play", "light catch", "easy toss"],
+      "aliases": [
+        "catch play",
+        "light catch",
+        "easy toss"
+      ],
       "category": "plyo_throwing",
       "subcategory": "catch_play",
-      "muscles_primary": ["full kinetic chain"],
-      "muscles_secondary": ["rotator cuff"],
+      "muscles_primary": [
+        "full kinetic chain"
+      ],
+      "muscles_secondary": [
+        "rotator cuff"
+      ],
       "pitching_relevance": "Low-stress arm activity for recovery days. Maintains arm motion and blood flow without meaningful fatigue accumulation.",
       "prescription": {
-        "recovery": { "sets": "1", "reps": "20-30 throws", "intensity": "40-50%, easy", "rest_min": 0, "note": "60-90ft, easy arc, no intent" }
+        "recovery": {
+          "sets": "1",
+          "reps": "20-30 throws",
+          "intensity": "40-50%, easy",
+          "rest_min": 0,
+          "note": "60-90ft, easy arc, no intent"
+        }
       },
-      "rotation_day_usage": { "recommended": ["day_1", "day_4", "day_6"], "acceptable": ["day_2"], "avoid": ["day_0"] },
-      "tags": ["throwing", "recovery", "catch_play", "low_stress"],
+      "rotation_day_usage": {
+        "recommended": [
+          "day_1",
+          "day_4",
+          "day_6"
+        ],
+        "acceptable": [
+          "day_2"
+        ],
+        "avoid": [
+          "day_0"
+        ]
+      },
+      "tags": [
+        "throwing",
+        "recovery",
+        "catch_play",
+        "low_stress"
+      ],
       "contraindications": [],
-      "modification_flags": { "ucl_history": "no_modification_needed" },
+      "modification_flags": {
+        "ucl_history": "no_modification_needed"
+      },
       "youtube_url": "",
       "evidence_level": "strong",
       "source_notes": "Universal recovery throwing modality."
@@ -5917,19 +6832,56 @@
     {
       "id": "ex_118",
       "name": "Short Box Bullpen",
-      "aliases": ["short box", "short bullpen", "half-distance bullpen"],
+      "aliases": [
+        "short box",
+        "short bullpen",
+        "half-distance bullpen"
+      ],
       "category": "plyo_throwing",
       "subcategory": "bullpen",
-      "muscles_primary": ["full kinetic chain"],
-      "muscles_secondary": ["rotator cuff", "core rotators"],
+      "muscles_primary": [
+        "full kinetic chain"
+      ],
+      "muscles_secondary": [
+        "rotator cuff",
+        "core rotators"
+      ],
       "pitching_relevance": "Mound reps at reduced distance (45-50ft) for feel and mechanics work without full-distance arm stress. Useful pre-start day or during return-to-throw.",
       "prescription": {
-        "build": { "sets": "1", "reps": "15 pitches", "intensity": "60-70%", "rest_min": 0, "note": "45-50ft, fastball only, focus on feel" }
+        "build": {
+          "sets": "1",
+          "reps": "15 pitches",
+          "intensity": "60-70%",
+          "rest_min": 0,
+          "note": "45-50ft, fastball only, focus on feel"
+        }
       },
-      "rotation_day_usage": { "recommended": ["day_5"], "acceptable": ["day_3"], "avoid": ["day_0", "day_1", "day_6"] },
-      "tags": ["throwing", "bullpen", "mound", "reduced_distance", "mechanics"],
-      "contraindications": ["red_flag"],
-      "modification_flags": { "ucl_history": "cap_at_10_pitches" },
+      "rotation_day_usage": {
+        "recommended": [
+          "day_5"
+        ],
+        "acceptable": [
+          "day_3"
+        ],
+        "avoid": [
+          "day_0",
+          "day_1",
+          "day_6"
+        ]
+      },
+      "tags": [
+        "throwing",
+        "bullpen",
+        "mound",
+        "reduced_distance",
+        "mechanics"
+      ],
+      "contraindications": [
+        "red_flag"
+      ],
+      "modification_flags": {
+        "ucl_history": "cap_at_10_pitches"
+      },
       "youtube_url": "",
       "evidence_level": "moderate",
       "source_notes": "Driveline 16-week program — Recovery + Short Box day type."
@@ -5937,20 +6889,66 @@
     {
       "id": "ex_119",
       "name": "Full Bullpen",
-      "aliases": ["bullpen", "full pen", "bullpen session"],
+      "aliases": [
+        "bullpen",
+        "full pen",
+        "bullpen session"
+      ],
       "category": "plyo_throwing",
       "subcategory": "bullpen",
-      "muscles_primary": ["full kinetic chain"],
-      "muscles_secondary": ["rotator cuff", "core rotators", "lower body"],
+      "muscles_primary": [
+        "full kinetic chain"
+      ],
+      "muscles_secondary": [
+        "rotator cuff",
+        "core rotators",
+        "lower body"
+      ],
       "pitching_relevance": "Full-distance mound work simulating game conditions. Primary venue for pitch development, command work, and mechanical refinement between starts.",
       "prescription": {
-        "build": { "sets": "1", "reps": "25-35 pitches", "intensity": "70-85%", "rest_min": 0, "note": "Mix fastball and off-speed, simulate innings" },
-        "compete": { "sets": "1", "reps": "35-50 pitches", "intensity": "85-95%", "rest_min": 0, "note": "Full repertoire, game-like sequences" }
+        "build": {
+          "sets": "1",
+          "reps": "25-35 pitches",
+          "intensity": "70-85%",
+          "rest_min": 0,
+          "note": "Mix fastball and off-speed, simulate innings"
+        },
+        "compete": {
+          "sets": "1",
+          "reps": "35-50 pitches",
+          "intensity": "85-95%",
+          "rest_min": 0,
+          "note": "Full repertoire, game-like sequences"
+        }
       },
-      "rotation_day_usage": { "recommended": ["day_3", "day_5"], "acceptable": [], "avoid": ["day_0", "day_1", "day_4", "day_6"] },
-      "tags": ["throwing", "bullpen", "mound", "pitch_development", "game_sim"],
-      "contraindications": ["red_flag", "yellow_flag"],
-      "modification_flags": { "ucl_history": "reduce_pitch_count_30pct", "shoulder_impingement": "fastball_only" },
+      "rotation_day_usage": {
+        "recommended": [
+          "day_3",
+          "day_5"
+        ],
+        "acceptable": [],
+        "avoid": [
+          "day_0",
+          "day_1",
+          "day_4",
+          "day_6"
+        ]
+      },
+      "tags": [
+        "throwing",
+        "bullpen",
+        "mound",
+        "pitch_development",
+        "game_sim"
+      ],
+      "contraindications": [
+        "red_flag",
+        "yellow_flag"
+      ],
+      "modification_flags": {
+        "ucl_history": "reduce_pitch_count_30pct",
+        "shoulder_impingement": "fastball_only"
+      },
       "youtube_url": "",
       "evidence_level": "strong",
       "source_notes": "Standard pitcher development modality across all programs."
@@ -5958,22 +6956,2327 @@
     {
       "id": "ex_120",
       "name": "Post-Throw Upward Tosses",
-      "aliases": ["upward tosses", "ceiling tosses", "plyo upward toss"],
+      "aliases": [
+        "upward tosses",
+        "ceiling tosses",
+        "plyo upward toss"
+      ],
       "category": "throwing_warmup",
       "subcategory": "post_throw",
-      "muscles_primary": ["posterior deltoid", "rotator cuff"],
-      "muscles_secondary": ["scapular stabilizers"],
+      "muscles_primary": [
+        "posterior deltoid",
+        "rotator cuff"
+      ],
+      "muscles_secondary": [
+        "scapular stabilizers"
+      ],
       "pitching_relevance": "Light deceleration work post-throwing. Flushes the posterior shoulder and promotes blood flow for recovery.",
       "prescription": {
-        "recovery": { "sets": "2", "reps": "15", "intensity": "2kg black or 1kg green plyo", "rest_min": 0.5 }
+        "recovery": {
+          "sets": "2",
+          "reps": "15",
+          "intensity": "2kg black or 1kg green plyo",
+          "rest_min": 0.5
+        }
       },
-      "rotation_day_usage": { "recommended": ["day_1", "day_2", "day_3", "day_4", "day_5"], "acceptable": ["day_0"], "avoid": [] },
-      "tags": ["post_throw", "recovery", "deceleration", "arm_care"],
+      "rotation_day_usage": {
+        "recommended": [
+          "day_1",
+          "day_2",
+          "day_3",
+          "day_4",
+          "day_5"
+        ],
+        "acceptable": [
+          "day_0"
+        ],
+        "avoid": []
+      },
+      "tags": [
+        "post_throw",
+        "recovery",
+        "deceleration",
+        "arm_care"
+      ],
       "contraindications": [],
       "modification_flags": {},
       "youtube_url": "",
       "evidence_level": "moderate",
       "source_notes": "Driveline 16-week throwing program — post-practice recovery protocol."
+    },
+    {
+      "id": "ex_121",
+      "name": "Back Squat",
+      "slug": "ex_back_squat",
+      "aliases": [
+        "barbell back squat",
+        "barbell squat"
+      ],
+      "category": "lower_body_compound",
+      "subcategory": "quad_dominant",
+      "muscles_primary": [
+        "quads",
+        "glutes"
+      ],
+      "muscles_secondary": [
+        "hamstrings",
+        "erector spinae",
+        "core"
+      ],
+      "pitching_relevance": "Foundational lower-body strength. Bilateral quad and glute loading builds the base for rotational power and stride force.",
+      "prescription": {
+        "strength": {
+          "sets": "3-4",
+          "reps": "4-6",
+          "intensity": "80-85% 1RM",
+          "rest_min": 3
+        },
+        "hypertrophy": {
+          "sets": "3-4",
+          "reps": "8-10",
+          "intensity": "65-75% 1RM",
+          "rest_min": 2
+        },
+        "power": {
+          "sets": "4",
+          "reps": "2-3",
+          "intensity": "70% 1RM",
+          "rest_min": 3,
+          "note": "Compensatory acceleration — max intent on concentric"
+        }
+      },
+      "rotation_day_usage": {
+        "recommended": [
+          "day_1",
+          "day_4"
+        ],
+        "acceptable": [
+          "day_2"
+        ],
+        "avoid": [
+          "day_0",
+          "day_5",
+          "day_6"
+        ]
+      },
+      "tags": [
+        "compound",
+        "lower_body",
+        "strength",
+        "quad_dominant",
+        "bilateral"
+      ],
+      "contraindications": [
+        "acute_knee_pain",
+        "lumbar_disk_issues"
+      ],
+      "modification_flags": {
+        "ucl_history": "no_modification_needed",
+        "shoulder_impingement": "monitor_bar_position_use_safety_bar",
+        "low_back_history": "substitute_trap_bar_deadlift",
+        "poor_hip_mobility": "use_box_squat_or_goblet_squat"
+      },
+      "youtube_url": "",
+      "evidence_level": "strong",
+      "source_notes": "UChicago exercise library (Major Lifts). Cressey prefers front squat for baseball but back squat acceptable for general strength."
+    },
+    {
+      "id": "ex_122",
+      "name": "Barbell Deadlift",
+      "slug": "ex_barbell_deadlift",
+      "aliases": [
+        "conventional deadlift",
+        "straight bar deadlift"
+      ],
+      "category": "lower_body_compound",
+      "subcategory": "hip_dominant",
+      "muscles_primary": [
+        "hamstrings",
+        "glutes",
+        "erector spinae"
+      ],
+      "muscles_secondary": [
+        "quads",
+        "traps",
+        "grip"
+      ],
+      "pitching_relevance": "Posterior chain strength foundational to high-velocity pitching. Conventional bar increases spinal shear vs trap bar — use trap bar in-season.",
+      "prescription": {
+        "strength": {
+          "sets": "3",
+          "reps": "3-5",
+          "intensity": "85% 1RM",
+          "rest_min": 3
+        },
+        "hypertrophy": {
+          "sets": "3",
+          "reps": "6-8",
+          "intensity": "70-75% 1RM",
+          "rest_min": 2
+        }
+      },
+      "rotation_day_usage": {
+        "recommended": [
+          "day_1",
+          "day_4"
+        ],
+        "acceptable": [
+          "day_2"
+        ],
+        "avoid": [
+          "day_0",
+          "day_5",
+          "day_6"
+        ]
+      },
+      "tags": [
+        "compound",
+        "lower_body",
+        "hip_dominant",
+        "strength"
+      ],
+      "contraindications": [
+        "acute_low_back",
+        "lumbar_disk_issues"
+      ],
+      "modification_flags": {
+        "ucl_history": "no_modification_needed",
+        "shoulder_impingement": "no_modification_needed",
+        "low_back_history": "substitute_trap_bar_deadlift",
+        "poor_hip_mobility": "substitute_trap_bar_deadlift"
+      },
+      "youtube_url": "",
+      "evidence_level": "strong",
+      "source_notes": "UChicago exercise library (Major Lifts). Prefer trap bar variant in-season."
+    },
+    {
+      "id": "ex_123",
+      "name": "Trap Bar Squat",
+      "slug": "ex_trap_bar_squat",
+      "aliases": [
+        "hex bar squat",
+        "trap bar elevated squat"
+      ],
+      "category": "lower_body_compound",
+      "subcategory": "quad_dominant",
+      "muscles_primary": [
+        "quads",
+        "glutes"
+      ],
+      "muscles_secondary": [
+        "hamstrings",
+        "core"
+      ],
+      "pitching_relevance": "More upright torso than conventional squat — loads quads and glutes with reduced spinal shear. Good in-season compound option.",
+      "prescription": {
+        "strength": {
+          "sets": "3",
+          "reps": "4-6",
+          "intensity": "80% 1RM",
+          "rest_min": 3
+        },
+        "hypertrophy": {
+          "sets": "3",
+          "reps": "8-10",
+          "intensity": "65-75% 1RM",
+          "rest_min": 2
+        }
+      },
+      "rotation_day_usage": {
+        "recommended": [
+          "day_1",
+          "day_4"
+        ],
+        "acceptable": [
+          "day_2"
+        ],
+        "avoid": [
+          "day_0",
+          "day_5",
+          "day_6"
+        ]
+      },
+      "tags": [
+        "compound",
+        "lower_body",
+        "quad_dominant",
+        "trap_bar"
+      ],
+      "contraindications": [],
+      "modification_flags": {
+        "ucl_history": "no_modification_needed",
+        "shoulder_impingement": "no_modification_needed",
+        "low_back_history": "preferred_over_barbell_squat",
+        "poor_hip_mobility": "elevate_handles"
+      },
+      "youtube_url": "",
+      "evidence_level": "moderate",
+      "source_notes": "UChicago exercise library (Major Lifts)."
+    },
+    {
+      "id": "ex_124",
+      "name": "Trap Bar Squat Jumps",
+      "slug": "ex_trap_bar_squat_jumps",
+      "aliases": [
+        "trap bar jump squat",
+        "hex bar jump"
+      ],
+      "category": "lower_body_power",
+      "subcategory": "plyometric",
+      "muscles_primary": [
+        "quads",
+        "glutes",
+        "calves"
+      ],
+      "muscles_secondary": [
+        "hamstrings",
+        "core"
+      ],
+      "pitching_relevance": "Develops rate of force development — directly transfers to explosive drive off the mound. Lower spinal load than barbell jump squats.",
+      "prescription": {
+        "power": {
+          "sets": "4",
+          "reps": "3-5",
+          "intensity": "20-40% 1RM trap bar DL",
+          "rest_min": 3,
+          "note": "Max intent on takeoff — land softly and reset between reps"
+        }
+      },
+      "rotation_day_usage": {
+        "recommended": [
+          "day_2"
+        ],
+        "acceptable": [
+          "day_1"
+        ],
+        "avoid": [
+          "day_0",
+          "day_5",
+          "day_6"
+        ]
+      },
+      "tags": [
+        "power",
+        "plyometric",
+        "lower_body",
+        "velocity_development",
+        "explosive"
+      ],
+      "contraindications": [
+        "knee_ligament_instability",
+        "acute_ankle_sprain"
+      ],
+      "modification_flags": {
+        "ucl_history": "no_modification_needed",
+        "shoulder_impingement": "no_modification_needed",
+        "low_back_history": "reduce_load_or_substitute_broad_jump",
+        "knee_history": "substitute_broad_jump"
+      },
+      "youtube_url": "https://youtu.be/-n2p5mQxYTw?si=YougfQuYz5Ra4tac",
+      "evidence_level": "strong",
+      "source_notes": "UChicago exercise library (Major Lifts). Driveline — ballistic lower body work for velocity development."
+    },
+    {
+      "id": "ex_125",
+      "name": "Barbell Reverse Lunge",
+      "slug": "ex_barbell_reverse_lunge",
+      "aliases": [
+        "barbell step back lunge",
+        "back lunge barbell"
+      ],
+      "category": "lower_body_compound",
+      "subcategory": "single_leg",
+      "muscles_primary": [
+        "quads",
+        "glutes"
+      ],
+      "muscles_secondary": [
+        "hamstrings",
+        "hip_stabilizers"
+      ],
+      "pitching_relevance": "Unilateral hip stability and single-leg strength. Reverse lunge reduces anterior knee shear vs. forward lunge — better for pitchers with knee history.",
+      "prescription": {
+        "strength": {
+          "sets": "3",
+          "reps": "5-6/side",
+          "intensity": "RPE 7-8",
+          "rest_min": 2
+        },
+        "hypertrophy": {
+          "sets": "3",
+          "reps": "8-10/side",
+          "intensity": "2-3 RIR",
+          "rest_min": 1.5
+        }
+      },
+      "rotation_day_usage": {
+        "recommended": [
+          "day_2",
+          "day_4"
+        ],
+        "acceptable": [
+          "day_1"
+        ],
+        "avoid": [
+          "day_0",
+          "day_5",
+          "day_6"
+        ]
+      },
+      "tags": [
+        "compound",
+        "lower_body",
+        "single_leg",
+        "unilateral"
+      ],
+      "contraindications": [],
+      "modification_flags": {
+        "ucl_history": "no_modification_needed",
+        "shoulder_impingement": "no_modification_needed",
+        "low_back_history": "use_goblet_hold_instead_of_barbell",
+        "knee_history": "preferred_over_forward_lunge"
+      },
+      "youtube_url": "https://youtu.be/qfpaNBDhidg?si=Oi50XxX_B_NNSTc_",
+      "evidence_level": "moderate",
+      "source_notes": "UChicago exercise library (Major Lifts)."
+    },
+    {
+      "id": "ex_126",
+      "name": "Barbell Bench Press",
+      "slug": "ex_barbell_bench_press",
+      "aliases": [
+        "bench press",
+        "flat bench barbell"
+      ],
+      "category": "upper_body_push",
+      "subcategory": "horizontal_push",
+      "muscles_primary": [
+        "pectorals",
+        "anterior deltoid",
+        "triceps"
+      ],
+      "muscles_secondary": [
+        "serratus anterior",
+        "core"
+      ],
+      "pitching_relevance": "General upper-body pressing strength. Use sparingly in-season — prefer neutral-grip DB variants to reduce shoulder impingement risk. Off-season strength base builder.",
+      "prescription": {
+        "strength": {
+          "sets": "3-4",
+          "reps": "4-6",
+          "intensity": "80-85% 1RM",
+          "rest_min": 3
+        },
+        "hypertrophy": {
+          "sets": "3-4",
+          "reps": "8-10",
+          "intensity": "65-75% 1RM",
+          "rest_min": 2
+        }
+      },
+      "rotation_day_usage": {
+        "recommended": [
+          "day_1",
+          "day_3"
+        ],
+        "acceptable": [
+          "day_2"
+        ],
+        "avoid": [
+          "day_0",
+          "day_5",
+          "day_6"
+        ]
+      },
+      "tags": [
+        "compound",
+        "upper_body",
+        "push",
+        "horizontal",
+        "bilateral"
+      ],
+      "contraindications": [
+        "shoulder_impingement_acute",
+        "ac_joint_issues"
+      ],
+      "modification_flags": {
+        "ucl_history": "no_modification_needed",
+        "shoulder_impingement": "substitute_neutral_grip_db_press",
+        "labrum_history": "substitute_neutral_grip_db_press",
+        "low_back_history": "no_modification_needed"
+      },
+      "youtube_url": "",
+      "evidence_level": "strong",
+      "source_notes": "UChicago exercise library (Major Lifts). Cressey: limit in-season; prefer DB/neutral-grip variants for shoulder health."
+    },
+    {
+      "id": "ex_127",
+      "name": "Incline Barbell Press",
+      "slug": "ex_incline_barbell_press",
+      "aliases": [
+        "incline bench press",
+        "incline barbell bench"
+      ],
+      "category": "upper_body_push",
+      "subcategory": "incline_push",
+      "muscles_primary": [
+        "upper pectorals",
+        "anterior deltoid",
+        "triceps"
+      ],
+      "muscles_secondary": [
+        "serratus anterior"
+      ],
+      "pitching_relevance": "Upper chest and anterior delt strength. Lower shoulder stress at incline angle vs. flat. Useful off-season pressing variant.",
+      "prescription": {
+        "hypertrophy": {
+          "sets": "3",
+          "reps": "8-10",
+          "intensity": "65-75% 1RM",
+          "rest_min": 2
+        },
+        "strength": {
+          "sets": "3",
+          "reps": "5-6",
+          "intensity": "75-80% 1RM",
+          "rest_min": 2.5
+        }
+      },
+      "rotation_day_usage": {
+        "recommended": [
+          "day_1",
+          "day_3"
+        ],
+        "acceptable": [
+          "day_2"
+        ],
+        "avoid": [
+          "day_0",
+          "day_5",
+          "day_6"
+        ]
+      },
+      "tags": [
+        "compound",
+        "upper_body",
+        "push",
+        "incline"
+      ],
+      "contraindications": [
+        "shoulder_impingement_acute"
+      ],
+      "modification_flags": {
+        "ucl_history": "no_modification_needed",
+        "shoulder_impingement": "substitute_incline_db_press_neutral_grip",
+        "labrum_history": "substitute_incline_db_press_neutral_grip",
+        "low_back_history": "no_modification_needed"
+      },
+      "youtube_url": "",
+      "evidence_level": "moderate",
+      "source_notes": "UChicago exercise library (Major Lifts)."
+    },
+    {
+      "id": "ex_128",
+      "name": "Pull-Up",
+      "slug": "ex_pull_up",
+      "aliases": [
+        "pull ups",
+        "pullup",
+        "bodyweight pull up"
+      ],
+      "category": "upper_body_pull",
+      "subcategory": "vertical_pull",
+      "muscles_primary": [
+        "latissimus dorsi",
+        "biceps"
+      ],
+      "muscles_secondary": [
+        "lower traps",
+        "rhomboids",
+        "core"
+      ],
+      "pitching_relevance": "Lat strength directly loads arm deceleration and scapular stability. Bodyweight pull-ups build relative strength without excessive load on shoulder structures.",
+      "prescription": {
+        "strength": {
+          "sets": "3-4",
+          "reps": "5-8",
+          "intensity": "bodyweight or +10-20lb",
+          "rest_min": 2
+        },
+        "hypertrophy": {
+          "sets": "3",
+          "reps": "8-12",
+          "intensity": "bodyweight or band-assisted",
+          "rest_min": 1.5
+        },
+        "endurance": {
+          "sets": "2-3",
+          "reps": "max",
+          "intensity": "bodyweight",
+          "rest_min": 1.5
+        }
+      },
+      "rotation_day_usage": {
+        "recommended": [
+          "day_1",
+          "day_3"
+        ],
+        "acceptable": [
+          "day_2",
+          "day_4"
+        ],
+        "avoid": [
+          "day_0",
+          "day_6"
+        ]
+      },
+      "tags": [
+        "compound",
+        "upper_body",
+        "pull",
+        "vertical",
+        "lat",
+        "bodyweight"
+      ],
+      "contraindications": [
+        "acute_shoulder_impingement",
+        "labrum_acute_flare"
+      ],
+      "modification_flags": {
+        "ucl_history": "monitor_medial_elbow_stress",
+        "shoulder_impingement": "reduce_range_or_substitute_lat_pulldown",
+        "labrum_history": "use_band_assisted_or_lat_pulldown",
+        "low_back_history": "no_modification_needed"
+      },
+      "youtube_url": "",
+      "evidence_level": "strong",
+      "source_notes": "UChicago exercise library (Major Lifts). Cressey staple for baseball lat development."
+    },
+    {
+      "id": "ex_129",
+      "name": "Lat Pulldown",
+      "slug": "ex_lat_pulldown",
+      "aliases": [
+        "lat pull down",
+        "cable lat pulldown",
+        "wide grip pulldown"
+      ],
+      "category": "upper_body_pull",
+      "subcategory": "vertical_pull",
+      "muscles_primary": [
+        "latissimus dorsi",
+        "biceps"
+      ],
+      "muscles_secondary": [
+        "lower traps",
+        "rhomboids"
+      ],
+      "pitching_relevance": "Lat loading with load control — good substitute for pull-ups when managing fatigue or shoulder flags. Adjustable load makes it useful across all rotation days.",
+      "prescription": {
+        "hypertrophy": {
+          "sets": "3",
+          "reps": "10-12",
+          "intensity": "moderate load 2-3 RIR",
+          "rest_min": 1.5
+        },
+        "endurance": {
+          "sets": "2-3",
+          "reps": "12-15",
+          "intensity": "light-moderate",
+          "rest_min": 1
+        }
+      },
+      "rotation_day_usage": {
+        "recommended": [
+          "day_1",
+          "day_3"
+        ],
+        "acceptable": [
+          "day_2",
+          "day_4"
+        ],
+        "avoid": [
+          "day_0",
+          "day_6"
+        ]
+      },
+      "tags": [
+        "upper_body",
+        "pull",
+        "vertical",
+        "lat",
+        "cable"
+      ],
+      "contraindications": [],
+      "modification_flags": {
+        "ucl_history": "no_modification_needed",
+        "shoulder_impingement": "use_neutral_grip_attachment",
+        "labrum_history": "use_neutral_grip_or_supinated_grip",
+        "low_back_history": "no_modification_needed"
+      },
+      "youtube_url": "https://youtube.com/shorts/8d6d46pGdQM?si=n2vyYEvIEo7MnxBz",
+      "evidence_level": "strong",
+      "source_notes": "UChicago exercise library (Major Lifts, Accessory Lifts)."
+    },
+    {
+      "id": "ex_130",
+      "name": "Barbell Row",
+      "slug": "ex_barbell_row",
+      "aliases": [
+        "bent over row barbell",
+        "bent-over barbell row",
+        "overhand barbell row"
+      ],
+      "category": "upper_body_pull",
+      "subcategory": "horizontal_pull",
+      "muscles_primary": [
+        "latissimus dorsi",
+        "rhomboids",
+        "lower traps"
+      ],
+      "muscles_secondary": [
+        "biceps",
+        "erector spinae",
+        "rear deltoid"
+      ],
+      "pitching_relevance": "Horizontal pulling for scapular retractor strength — counterbalances pressing volume and supports arm deceleration.",
+      "prescription": {
+        "strength": {
+          "sets": "3-4",
+          "reps": "5-6",
+          "intensity": "75-80% 1RM",
+          "rest_min": 2.5
+        },
+        "hypertrophy": {
+          "sets": "3",
+          "reps": "8-10",
+          "intensity": "65-70% 1RM",
+          "rest_min": 2
+        }
+      },
+      "rotation_day_usage": {
+        "recommended": [
+          "day_1",
+          "day_3"
+        ],
+        "acceptable": [
+          "day_2"
+        ],
+        "avoid": [
+          "day_0",
+          "day_5",
+          "day_6"
+        ]
+      },
+      "tags": [
+        "compound",
+        "upper_body",
+        "pull",
+        "horizontal",
+        "row"
+      ],
+      "contraindications": [
+        "acute_low_back"
+      ],
+      "modification_flags": {
+        "ucl_history": "no_modification_needed",
+        "shoulder_impingement": "no_modification_needed",
+        "low_back_history": "substitute_chest_supported_row",
+        "labrum_history": "no_modification_needed"
+      },
+      "youtube_url": "https://youtube.com/shorts/DgyslsszCQ0?si=__F7SkQRGW-Ny0U1",
+      "evidence_level": "strong",
+      "source_notes": "UChicago exercise library (Major Lifts)."
+    },
+    {
+      "id": "ex_131",
+      "name": "Dumbbell Row",
+      "slug": "ex_dumbbell_row",
+      "aliases": [
+        "DB row",
+        "single arm dumbbell row",
+        "one arm dumbbell row"
+      ],
+      "category": "upper_body_pull",
+      "subcategory": "horizontal_pull",
+      "muscles_primary": [
+        "latissimus dorsi",
+        "rhomboids"
+      ],
+      "muscles_secondary": [
+        "biceps",
+        "rear deltoid",
+        "lower traps"
+      ],
+      "pitching_relevance": "Unilateral horizontal pulling — addresses side-to-side lat imbalances common in pitchers. Chest-supported variation available for low back protection.",
+      "prescription": {
+        "hypertrophy": {
+          "sets": "3",
+          "reps": "10-12/side",
+          "intensity": "2-3 RIR",
+          "rest_min": 1.5
+        },
+        "strength": {
+          "sets": "3",
+          "reps": "6-8/side",
+          "intensity": "RPE 7-8",
+          "rest_min": 2
+        }
+      },
+      "rotation_day_usage": {
+        "recommended": [
+          "day_1",
+          "day_3"
+        ],
+        "acceptable": [
+          "day_2",
+          "day_4"
+        ],
+        "avoid": [
+          "day_0",
+          "day_6"
+        ]
+      },
+      "tags": [
+        "upper_body",
+        "pull",
+        "horizontal",
+        "unilateral",
+        "dumbbell"
+      ],
+      "contraindications": [],
+      "modification_flags": {
+        "ucl_history": "no_modification_needed",
+        "shoulder_impingement": "no_modification_needed",
+        "low_back_history": "use_chest_supported_or_incline_bench_support",
+        "labrum_history": "no_modification_needed"
+      },
+      "youtube_url": "https://youtu.be/DMo3HJoawrU?si=RLJAKZCiDZbtLl3d",
+      "evidence_level": "strong",
+      "source_notes": "UChicago exercise library (Major Lifts)."
+    },
+    {
+      "id": "ex_132",
+      "name": "Pin Press",
+      "slug": "ex_pin_press",
+      "aliases": [
+        "barbell pin press",
+        "floor pin press"
+      ],
+      "category": "upper_body_push",
+      "subcategory": "horizontal_push",
+      "muscles_primary": [
+        "triceps",
+        "pectorals"
+      ],
+      "muscles_secondary": [
+        "anterior deltoid"
+      ],
+      "pitching_relevance": "Trains pressing from a dead stop — eliminates stretch-shortening cycle and overloads the sticking point. Useful for pitchers with UCL/elbow history to control ROM.",
+      "prescription": {
+        "strength": {
+          "sets": "3-4",
+          "reps": "3-5",
+          "intensity": "80-85% 1RM",
+          "rest_min": 3
+        }
+      },
+      "rotation_day_usage": {
+        "recommended": [
+          "day_1",
+          "day_3"
+        ],
+        "acceptable": [
+          "day_2"
+        ],
+        "avoid": [
+          "day_0",
+          "day_5",
+          "day_6"
+        ]
+      },
+      "tags": [
+        "upper_body",
+        "push",
+        "tricep",
+        "strength"
+      ],
+      "contraindications": [
+        "shoulder_impingement_acute"
+      ],
+      "modification_flags": {
+        "ucl_history": "set_pin_height_above_90_degree_elbow_flexion",
+        "shoulder_impingement": "substitute_neutral_grip_db_floor_press",
+        "low_back_history": "no_modification_needed"
+      },
+      "youtube_url": "https://youtu.be/9ntAEA4fsxc?si=enDS8xDKindoG-uz",
+      "evidence_level": "moderate",
+      "source_notes": "UChicago exercise library (Major Lifts)."
+    },
+    {
+      "id": "ex_133",
+      "name": "Glute Ham Raise",
+      "slug": "ex_glute_ham_raise",
+      "aliases": [
+        "GHR",
+        "glute-ham raise"
+      ],
+      "category": "lower_body_accessory",
+      "subcategory": "hip_dominant",
+      "muscles_primary": [
+        "hamstrings",
+        "glutes"
+      ],
+      "muscles_secondary": [
+        "calves",
+        "erector spinae"
+      ],
+      "pitching_relevance": "Eccentric hamstring strength — high injury prevention value. Hamstring strain is a top soft-tissue injury for pitchers. GHR develops active eccentric control through full ROM.",
+      "prescription": {
+        "strength": {
+          "sets": "3",
+          "reps": "4-6",
+          "intensity": "bodyweight or +10-20lb",
+          "rest_min": 2
+        },
+        "hypertrophy": {
+          "sets": "3",
+          "reps": "6-8",
+          "intensity": "bodyweight",
+          "rest_min": 1.5
+        },
+        "endurance": {
+          "sets": "2-3",
+          "reps": "8-12",
+          "intensity": "bodyweight",
+          "rest_min": 1
+        }
+      },
+      "rotation_day_usage": {
+        "recommended": [
+          "day_1",
+          "day_4"
+        ],
+        "acceptable": [
+          "day_2",
+          "day_3"
+        ],
+        "avoid": [
+          "day_0",
+          "day_5",
+          "day_6"
+        ]
+      },
+      "tags": [
+        "accessory",
+        "lower_body",
+        "hamstring",
+        "eccentric",
+        "injury_prevention"
+      ],
+      "contraindications": [
+        "acute_hamstring_strain"
+      ],
+      "modification_flags": {
+        "ucl_history": "no_modification_needed",
+        "shoulder_impingement": "no_modification_needed",
+        "low_back_history": "no_modification_needed",
+        "hamstring_history": "reduce_depth_or_use_nordic_progression"
+      },
+      "youtube_url": "https://youtube.com/shorts/rjH934b6pVw?si=lMnmBtdS_9WhaxjJ",
+      "evidence_level": "strong",
+      "source_notes": "UChicago exercise library (Accessory Lifts). Hamstring injury prevention evidence from Driveline and Cressey."
+    },
+    {
+      "id": "ex_134",
+      "name": "Copenhagen Plank",
+      "slug": "ex_copenhagen_plank",
+      "aliases": [
+        "copenhagen side plank",
+        "adductor side plank"
+      ],
+      "category": "core_stability",
+      "subcategory": "lateral",
+      "muscles_primary": [
+        "adductors",
+        "hip abductors",
+        "lateral core"
+      ],
+      "muscles_secondary": [
+        "glutes",
+        "obliques"
+      ],
+      "pitching_relevance": "Adductor and groin strength — critical for pitchers who drive hard off the mound. Reduces groin/oblique strain risk in rotational athletes.",
+      "prescription": {
+        "endurance": {
+          "sets": "3",
+          "reps": "20-30s/side",
+          "intensity": "bodyweight",
+          "rest_min": 1
+        },
+        "strength": {
+          "sets": "3",
+          "reps": "8-10/side",
+          "intensity": "slow tempo 3s hold at top",
+          "rest_min": 1.5
+        }
+      },
+      "rotation_day_usage": {
+        "recommended": [
+          "day_1",
+          "day_3"
+        ],
+        "acceptable": [
+          "day_2",
+          "day_4"
+        ],
+        "avoid": [
+          "day_0",
+          "day_6"
+        ]
+      },
+      "tags": [
+        "core",
+        "lateral",
+        "adductor",
+        "injury_prevention",
+        "stability"
+      ],
+      "contraindications": [
+        "active_groin_strain",
+        "active_oblique_strain"
+      ],
+      "modification_flags": {
+        "ucl_history": "no_modification_needed",
+        "oblique_strain": "avoid_until_cleared",
+        "low_back_history": "no_modification_needed"
+      },
+      "youtube_url": "https://youtube.com/shorts/Rwap0_j5i5A?si=r9ty_AF95aeheQms",
+      "evidence_level": "strong",
+      "source_notes": "UChicago exercise library (Accessory Lifts). High evidence for groin injury prevention in kicking/throwing athletes."
+    },
+    {
+      "id": "ex_135",
+      "name": "Swiss Ball Hamstring Curl",
+      "slug": "ex_swiss_ball_hamstring_curl",
+      "aliases": [
+        "stability ball hamstring curl",
+        "physio ball leg curl"
+      ],
+      "category": "lower_body_accessory",
+      "subcategory": "hip_dominant",
+      "muscles_primary": [
+        "hamstrings"
+      ],
+      "muscles_secondary": [
+        "glutes",
+        "core"
+      ],
+      "pitching_relevance": "Eccentric hamstring loading with hip extension component — bridges gap between isolated curl and GHR. No equipment barrier; useful when GHR machine unavailable.",
+      "prescription": {
+        "endurance": {
+          "sets": "3",
+          "reps": "10-15",
+          "intensity": "bodyweight",
+          "rest_min": 1
+        },
+        "hypertrophy": {
+          "sets": "3",
+          "reps": "8-12",
+          "intensity": "slow eccentric 3s",
+          "rest_min": 1.5
+        }
+      },
+      "rotation_day_usage": {
+        "recommended": [
+          "day_2",
+          "day_4"
+        ],
+        "acceptable": [
+          "day_1",
+          "day_3"
+        ],
+        "avoid": [
+          "day_0",
+          "day_6"
+        ]
+      },
+      "tags": [
+        "accessory",
+        "lower_body",
+        "hamstring",
+        "eccentric",
+        "stability"
+      ],
+      "contraindications": [
+        "acute_hamstring_strain"
+      ],
+      "modification_flags": {
+        "ucl_history": "no_modification_needed",
+        "shoulder_impingement": "no_modification_needed",
+        "low_back_history": "no_modification_needed",
+        "hamstring_history": "reduce_range_or_do_isometric_holds"
+      },
+      "youtube_url": "https://youtube.com/shorts/xB1lGVzRwWk?si=HdN_lD20vlePOLuG",
+      "evidence_level": "moderate",
+      "source_notes": "UChicago exercise library (Accessory Lifts)."
+    },
+    {
+      "id": "ex_136",
+      "name": "Heel Elevated Goblet Squat",
+      "slug": "ex_heel_elevated_goblet_squat",
+      "aliases": [
+        "heel raised goblet squat",
+        "goblet squat heel raise"
+      ],
+      "category": "lower_body_compound",
+      "subcategory": "quad_dominant",
+      "muscles_primary": [
+        "quads",
+        "glutes"
+      ],
+      "muscles_secondary": [
+        "core",
+        "hip flexors"
+      ],
+      "pitching_relevance": "Heel elevation increases quad loading and reduces ankle dorsiflexion demand — good for pitchers with limited ankle mobility. Anterior chain strength for front-foot landing.",
+      "prescription": {
+        "hypertrophy": {
+          "sets": "3",
+          "reps": "10-12",
+          "intensity": "moderate KB/DB",
+          "rest_min": 1.5
+        },
+        "endurance": {
+          "sets": "2-3",
+          "reps": "12-15",
+          "intensity": "light-moderate",
+          "rest_min": 1
+        }
+      },
+      "rotation_day_usage": {
+        "recommended": [
+          "day_2",
+          "day_4"
+        ],
+        "acceptable": [
+          "day_1",
+          "day_3"
+        ],
+        "avoid": [
+          "day_0",
+          "day_6"
+        ]
+      },
+      "tags": [
+        "lower_body",
+        "quad_dominant",
+        "accessory",
+        "goblet"
+      ],
+      "contraindications": [],
+      "modification_flags": {
+        "ucl_history": "no_modification_needed",
+        "shoulder_impingement": "no_modification_needed",
+        "low_back_history": "preferred_over_barbell_squat",
+        "knee_history": "monitor_knee_tracking"
+      },
+      "youtube_url": "https://youtu.be/3dLIa1YljLs?si=tuLL9R6qbQkmhgLG",
+      "evidence_level": "moderate",
+      "source_notes": "UChicago exercise library (Accessory Lifts)."
+    },
+    {
+      "id": "ex_137",
+      "name": "Dumbbell Walking Lunge",
+      "slug": "ex_dumbbell_walking_lunge",
+      "aliases": [
+        "walking lunges",
+        "DB walking lunge",
+        "dumbbell lunges"
+      ],
+      "category": "lower_body_compound",
+      "subcategory": "single_leg",
+      "muscles_primary": [
+        "quads",
+        "glutes"
+      ],
+      "muscles_secondary": [
+        "hamstrings",
+        "hip_stabilizers",
+        "adductors"
+      ],
+      "pitching_relevance": "Dynamic single-leg loading with hip and knee stability demand. Builds stride-leg eccentric strength and drive-leg push-off power.",
+      "prescription": {
+        "hypertrophy": {
+          "sets": "3",
+          "reps": "10-12/side",
+          "intensity": "moderate DBs 2-3 RIR",
+          "rest_min": 1.5
+        },
+        "endurance": {
+          "sets": "2-3",
+          "reps": "12-15/side",
+          "intensity": "light DBs",
+          "rest_min": 1
+        }
+      },
+      "rotation_day_usage": {
+        "recommended": [
+          "day_2",
+          "day_4"
+        ],
+        "acceptable": [
+          "day_1"
+        ],
+        "avoid": [
+          "day_0",
+          "day_5",
+          "day_6"
+        ]
+      },
+      "tags": [
+        "lower_body",
+        "single_leg",
+        "dynamic",
+        "accessory"
+      ],
+      "contraindications": [
+        "knee_ligament_instability_acute"
+      ],
+      "modification_flags": {
+        "ucl_history": "no_modification_needed",
+        "shoulder_impingement": "no_modification_needed",
+        "low_back_history": "no_modification_needed",
+        "knee_history": "substitute_reverse_lunge"
+      },
+      "youtube_url": "",
+      "evidence_level": "moderate",
+      "source_notes": "UChicago exercise library (Accessory Lifts)."
+    },
+    {
+      "id": "ex_138",
+      "name": "Tricep Pushdown",
+      "slug": "ex_tricep_pushdown",
+      "aliases": [
+        "cable tricep pulldown",
+        "tricep pull down",
+        "rope pushdown",
+        "straight bar pushdown"
+      ],
+      "category": "upper_body_accessory",
+      "subcategory": "elbow_extension",
+      "muscles_primary": [
+        "triceps"
+      ],
+      "muscles_secondary": [
+        "anconeus"
+      ],
+      "pitching_relevance": "Tricep hypertrophy and elbow extension strength — important for arm deceleration and elbow stability. Low joint stress compared to free-weight skull crushers.",
+      "prescription": {
+        "hypertrophy": {
+          "sets": "3",
+          "reps": "12-15",
+          "intensity": "moderate load 2-3 RIR",
+          "rest_min": 1
+        },
+        "endurance": {
+          "sets": "2-3",
+          "reps": "15-20",
+          "intensity": "light pump work",
+          "rest_min": 1
+        }
+      },
+      "rotation_day_usage": {
+        "recommended": [
+          "day_1",
+          "day_3"
+        ],
+        "acceptable": [
+          "day_2"
+        ],
+        "avoid": [
+          "day_0",
+          "day_5",
+          "day_6"
+        ]
+      },
+      "tags": [
+        "accessory",
+        "upper_body",
+        "tricep",
+        "cable",
+        "elbow"
+      ],
+      "contraindications": [],
+      "modification_flags": {
+        "ucl_history": "avoid_if_medial_elbow_pain_present",
+        "shoulder_impingement": "no_modification_needed",
+        "low_back_history": "no_modification_needed"
+      },
+      "youtube_url": "https://youtube.com/shorts/6Dh8sD6aNQE?si=9Bf2FWJSXmVHFLPv",
+      "evidence_level": "moderate",
+      "source_notes": "UChicago exercise library (Accessory Lifts). Rope pushdown URL from xlsx."
+    },
+    {
+      "id": "ex_139",
+      "name": "Straight Arm Pulldown",
+      "slug": "ex_straight_arm_pulldown",
+      "aliases": [
+        "cable straight arm pulldown",
+        "straight arm lat pulldown"
+      ],
+      "category": "upper_body_pull",
+      "subcategory": "lat_isolation",
+      "muscles_primary": [
+        "latissimus dorsi"
+      ],
+      "muscles_secondary": [
+        "teres major",
+        "posterior deltoid"
+      ],
+      "pitching_relevance": "Lat isolation with minimal bicep involvement — reinforces arm deceleration musculature. Elbow stays extended, reducing UCL stress.",
+      "prescription": {
+        "hypertrophy": {
+          "sets": "3",
+          "reps": "12-15",
+          "intensity": "moderate load",
+          "rest_min": 1
+        },
+        "endurance": {
+          "sets": "2-3",
+          "reps": "15-20",
+          "intensity": "light",
+          "rest_min": 1
+        }
+      },
+      "rotation_day_usage": {
+        "recommended": [
+          "day_1",
+          "day_3"
+        ],
+        "acceptable": [
+          "day_2",
+          "day_4"
+        ],
+        "avoid": [
+          "day_0",
+          "day_6"
+        ]
+      },
+      "tags": [
+        "accessory",
+        "upper_body",
+        "pull",
+        "lat",
+        "cable"
+      ],
+      "contraindications": [],
+      "modification_flags": {
+        "ucl_history": "preferred_low_elbow_stress_lat_exercise",
+        "shoulder_impingement": "no_modification_needed",
+        "low_back_history": "no_modification_needed"
+      },
+      "youtube_url": "https://youtube.com/shorts/K9Tgn6sO3J0?si=eZdcOMGn6X9pvMiF",
+      "evidence_level": "moderate",
+      "source_notes": "UChicago exercise library (Accessory Lifts)."
+    },
+    {
+      "id": "ex_140",
+      "name": "Dumbbell Lateral Raise",
+      "slug": "ex_dumbbell_lateral_raise",
+      "aliases": [
+        "lateral raise",
+        "DB lateral raise",
+        "side raise"
+      ],
+      "category": "upper_body_accessory",
+      "subcategory": "shoulder_isolation",
+      "muscles_primary": [
+        "medial deltoid"
+      ],
+      "muscles_secondary": [
+        "upper traps",
+        "supraspinatus"
+      ],
+      "pitching_relevance": "Medial deltoid development for shoulder cap stability. Keep loads light and range controlled for pitchers — avoid above shoulder height with impingement history.",
+      "prescription": {
+        "hypertrophy": {
+          "sets": "3",
+          "reps": "12-15",
+          "intensity": "light-moderate DBs",
+          "rest_min": 1
+        },
+        "endurance": {
+          "sets": "2-3",
+          "reps": "15-20",
+          "intensity": "very light",
+          "rest_min": 1
+        }
+      },
+      "rotation_day_usage": {
+        "recommended": [
+          "day_1",
+          "day_3"
+        ],
+        "acceptable": [
+          "day_2"
+        ],
+        "avoid": [
+          "day_0",
+          "day_5",
+          "day_6"
+        ]
+      },
+      "tags": [
+        "accessory",
+        "upper_body",
+        "shoulder",
+        "deltoid",
+        "isolation"
+      ],
+      "contraindications": [
+        "supraspinatus_tear_active"
+      ],
+      "modification_flags": {
+        "ucl_history": "no_modification_needed",
+        "shoulder_impingement": "limit_to_90_degrees_or_substitute_cable_variation",
+        "labrum_history": "use_cable_lateral_raise_for_more_control"
+      },
+      "youtube_url": "https://youtube.com/shorts/JIhbYYA1Q90?si=5PGEVX-_sja4TszD",
+      "evidence_level": "moderate",
+      "source_notes": "UChicago exercise library (Accessory Lifts)."
+    },
+    {
+      "id": "ex_141",
+      "name": "Dumbbell Reverse Fly",
+      "slug": "ex_dumbbell_reverse_fly",
+      "aliases": [
+        "DB reverse fly",
+        "rear delt fly",
+        "bent over reverse fly"
+      ],
+      "category": "upper_body_accessory",
+      "subcategory": "rear_delt",
+      "muscles_primary": [
+        "posterior deltoid",
+        "rhomboids"
+      ],
+      "muscles_secondary": [
+        "lower traps",
+        "infraspinatus"
+      ],
+      "pitching_relevance": "Rear deltoid and scapular retractor strength — directly counteracts the heavy anterior shoulder use in throwing. Reduces impingement risk when done consistently.",
+      "prescription": {
+        "hypertrophy": {
+          "sets": "3",
+          "reps": "12-15",
+          "intensity": "light DBs",
+          "rest_min": 1
+        },
+        "endurance": {
+          "sets": "3",
+          "reps": "15-20",
+          "intensity": "very light",
+          "rest_min": 1
+        }
+      },
+      "rotation_day_usage": {
+        "recommended": [
+          "day_1",
+          "day_3"
+        ],
+        "acceptable": [
+          "day_2",
+          "day_4"
+        ],
+        "avoid": [
+          "day_0",
+          "day_6"
+        ]
+      },
+      "tags": [
+        "accessory",
+        "upper_body",
+        "rear_delt",
+        "scapular",
+        "shoulder_health"
+      ],
+      "contraindications": [],
+      "modification_flags": {
+        "ucl_history": "no_modification_needed",
+        "shoulder_impingement": "good_exercise_for_posterior_shoulder_health",
+        "labrum_history": "monitor_shoulder_position"
+      },
+      "youtube_url": "https://youtube.com/shorts/4eSyt7pEK8Q?si=IjFQ-RE630PENVNd",
+      "evidence_level": "moderate",
+      "source_notes": "UChicago exercise library (Accessory Lifts)."
+    },
+    {
+      "id": "ex_142",
+      "name": "Skull Crusher",
+      "slug": "ex_skull_crusher",
+      "aliases": [
+        "skull crushers",
+        "EZ bar skull crusher",
+        "lying tricep extension",
+        "lying DB skull crusher"
+      ],
+      "category": "upper_body_accessory",
+      "subcategory": "elbow_extension",
+      "muscles_primary": [
+        "triceps"
+      ],
+      "muscles_secondary": [],
+      "pitching_relevance": "Tricep mass and elbow extension strength. Monitor medial elbow stress for pitchers with UCL history — may substitute cable pushdown.",
+      "prescription": {
+        "hypertrophy": {
+          "sets": "3",
+          "reps": "10-12",
+          "intensity": "moderate load 2-3 RIR",
+          "rest_min": 1.5
+        }
+      },
+      "rotation_day_usage": {
+        "recommended": [
+          "day_1",
+          "day_3"
+        ],
+        "acceptable": [
+          "day_2"
+        ],
+        "avoid": [
+          "day_0",
+          "day_5",
+          "day_6"
+        ]
+      },
+      "tags": [
+        "accessory",
+        "upper_body",
+        "tricep",
+        "isolation"
+      ],
+      "contraindications": [
+        "medial_elbow_pain_active"
+      ],
+      "modification_flags": {
+        "ucl_history": "substitute_cable_pushdown_or_reduce_load",
+        "shoulder_impingement": "no_modification_needed",
+        "low_back_history": "no_modification_needed"
+      },
+      "youtube_url": "https://youtube.com/shorts/zR9gty7LUxE?si=gP7tr-m2e_m6pEf9",
+      "evidence_level": "moderate",
+      "source_notes": "UChicago exercise library (Accessory Lifts)."
+    },
+    {
+      "id": "ex_143",
+      "name": "Hanging Leg Raise",
+      "slug": "ex_hanging_leg_raise",
+      "aliases": [
+        "hanging leg raises",
+        "hanging knee raise"
+      ],
+      "category": "core_stability",
+      "subcategory": "anterior",
+      "muscles_primary": [
+        "hip flexors",
+        "lower abs"
+      ],
+      "muscles_secondary": [
+        "upper abs",
+        "grip",
+        "lat"
+      ],
+      "pitching_relevance": "Hip flexor and anterior core strength — critical for leg lift mechanics and maintaining posture through delivery. Lat loading during hang also beneficial.",
+      "prescription": {
+        "hypertrophy": {
+          "sets": "3",
+          "reps": "10-15",
+          "intensity": "bodyweight",
+          "rest_min": 1
+        },
+        "endurance": {
+          "sets": "2-3",
+          "reps": "15-20",
+          "intensity": "bodyweight",
+          "rest_min": 1
+        }
+      },
+      "rotation_day_usage": {
+        "recommended": [
+          "day_1",
+          "day_3"
+        ],
+        "acceptable": [
+          "day_2",
+          "day_4"
+        ],
+        "avoid": [
+          "day_0",
+          "day_6"
+        ]
+      },
+      "tags": [
+        "core",
+        "anterior",
+        "hip_flexor",
+        "bodyweight"
+      ],
+      "contraindications": [
+        "active_hip_flexor_strain"
+      ],
+      "modification_flags": {
+        "ucl_history": "monitor_grip_pressure_on_medial_elbow",
+        "shoulder_impingement": "substitute_decline_situp_or_ab_wheel",
+        "labrum_history": "substitute_decline_situp_or_cable_crunch",
+        "low_back_history": "start_with_knee_raise_variant"
+      },
+      "youtube_url": "https://youtube.com/shorts/2n4UqRIJyk4?si=C04Pt4dlu0fJqtlm",
+      "evidence_level": "moderate",
+      "source_notes": "UChicago exercise library (Accessory Lifts)."
+    },
+    {
+      "id": "ex_144",
+      "name": "Kneeling Landmine Press",
+      "slug": "ex_kneeling_landmine_press",
+      "aliases": [
+        "landmine press",
+        "half kneeling landmine press"
+      ],
+      "category": "upper_body_push",
+      "subcategory": "overhead_push",
+      "muscles_primary": [
+        "anterior deltoid",
+        "upper pectorals",
+        "triceps"
+      ],
+      "muscles_secondary": [
+        "serratus anterior",
+        "core",
+        "glutes"
+      ],
+      "pitching_relevance": "Shoulder-friendly overhead press variant — neutral-to-internal grip path reduces impingement risk. Half-kneeling position demands hip-to-core stability that transfers to pitching delivery.",
+      "prescription": {
+        "hypertrophy": {
+          "sets": "3",
+          "reps": "10-12/side",
+          "intensity": "moderate load",
+          "rest_min": 1.5
+        },
+        "strength": {
+          "sets": "3",
+          "reps": "6-8/side",
+          "intensity": "RPE 7",
+          "rest_min": 2
+        }
+      },
+      "rotation_day_usage": {
+        "recommended": [
+          "day_1",
+          "day_3"
+        ],
+        "acceptable": [
+          "day_2"
+        ],
+        "avoid": [
+          "day_0",
+          "day_5",
+          "day_6"
+        ]
+      },
+      "tags": [
+        "upper_body",
+        "push",
+        "overhead",
+        "unilateral",
+        "shoulder_friendly"
+      ],
+      "contraindications": [],
+      "modification_flags": {
+        "ucl_history": "no_modification_needed",
+        "shoulder_impingement": "preferred_overhead_press_option",
+        "labrum_history": "monitor_end_range_overhead_position",
+        "low_back_history": "kneeling_position_reduces_lumbar_extension"
+      },
+      "youtube_url": "https://youtube.com/shorts/wUFMBUX5L0M?si=M_ItZjoen_kOQlgm",
+      "evidence_level": "moderate",
+      "source_notes": "UChicago exercise library (Accessory Lifts). Cressey recommends landmine press for overhead-compromised pitchers."
+    },
+    {
+      "id": "ex_145",
+      "name": "Plyometric Push-Up",
+      "slug": "ex_plyometric_pushup",
+      "aliases": [
+        "plyo pushups",
+        "explosive push up",
+        "clap push up"
+      ],
+      "category": "upper_body_power",
+      "subcategory": "horizontal_push",
+      "muscles_primary": [
+        "pectorals",
+        "triceps",
+        "anterior deltoid"
+      ],
+      "muscles_secondary": [
+        "serratus anterior",
+        "core"
+      ],
+      "pitching_relevance": "Upper-body rate of force development — elastic push-off speed transfers to arm acceleration. Low load makes it safe for in-season power maintenance.",
+      "prescription": {
+        "power": {
+          "sets": "3-4",
+          "reps": "5-8",
+          "intensity": "bodyweight max intent",
+          "rest_min": 2,
+          "note": "Full takeoff — hands leave ground each rep"
+        }
+      },
+      "rotation_day_usage": {
+        "recommended": [
+          "day_2"
+        ],
+        "acceptable": [
+          "day_1"
+        ],
+        "avoid": [
+          "day_0",
+          "day_5",
+          "day_6"
+        ]
+      },
+      "tags": [
+        "power",
+        "plyometric",
+        "upper_body",
+        "push",
+        "explosive",
+        "velocity_development"
+      ],
+      "contraindications": [
+        "acute_wrist_pain",
+        "shoulder_instability_active"
+      ],
+      "modification_flags": {
+        "ucl_history": "monitor_wrist_extension_stress",
+        "shoulder_impingement": "substitute_medicine_ball_chest_pass",
+        "labrum_history": "substitute_medicine_ball_chest_pass"
+      },
+      "youtube_url": "https://youtube.com/shorts/n-HUnTmCTys?si=edpEdIT5PpE82DZu",
+      "evidence_level": "moderate",
+      "source_notes": "UChicago exercise library (Accessory Lifts)."
+    },
+    {
+      "id": "ex_146",
+      "name": "Weighted I-T-Y",
+      "slug": "ex_weighted_ity",
+      "aliases": [
+        "weighted I/T/Ys",
+        "dumbbell ITY",
+        "DB I-T-Y",
+        "prone ITY"
+      ],
+      "category": "upper_body_accessory",
+      "subcategory": "scapular",
+      "muscles_primary": [
+        "lower traps",
+        "middle traps",
+        "rhomboids"
+      ],
+      "muscles_secondary": [
+        "posterior deltoid",
+        "serratus anterior"
+      ],
+      "pitching_relevance": "Scapular upward rotation and lower trap strength — directly supports arm health and reduces impingement risk. Essential for pitchers with scap/shoulder issues.",
+      "prescription": {
+        "endurance": {
+          "sets": "3",
+          "reps": "10-12 each position",
+          "intensity": "very light DBs 2-5lb",
+          "rest_min": 1
+        }
+      },
+      "rotation_day_usage": {
+        "recommended": [
+          "day_1",
+          "day_3"
+        ],
+        "acceptable": [
+          "day_2",
+          "day_4"
+        ],
+        "avoid": [
+          "day_0",
+          "day_6"
+        ]
+      },
+      "tags": [
+        "accessory",
+        "scapular",
+        "shoulder_health",
+        "lower_trap",
+        "arm_care"
+      ],
+      "contraindications": [],
+      "modification_flags": {
+        "ucl_history": "no_modification_needed",
+        "shoulder_impingement": "excellent_exercise_keep_loads_very_light",
+        "labrum_history": "use_very_light_loads_monitor_pain"
+      },
+      "youtube_url": "https://youtube.com/shorts/_XJksTY6enk?si=iNWXqJKO2bOukGx_",
+      "evidence_level": "strong",
+      "source_notes": "UChicago exercise library (Accessory Lifts). Cressey and Driveline standard scapular health protocol."
+    },
+    {
+      "id": "ex_147",
+      "name": "EZ Bar Curl",
+      "slug": "ex_ez_bar_curl",
+      "aliases": [
+        "EZ bar bicep curl",
+        "cambered bar curl"
+      ],
+      "category": "upper_body_accessory",
+      "subcategory": "elbow_flexion",
+      "muscles_primary": [
+        "biceps brachii"
+      ],
+      "muscles_secondary": [
+        "brachialis",
+        "brachioradialis"
+      ],
+      "pitching_relevance": "Bicep hypertrophy for elbow flexion strength and forearm stability. EZ bar reduces wrist/elbow stress vs. straight bar — preferred for pitchers with elbow history.",
+      "prescription": {
+        "hypertrophy": {
+          "sets": "3",
+          "reps": "10-12",
+          "intensity": "moderate 2-3 RIR",
+          "rest_min": 1
+        }
+      },
+      "rotation_day_usage": {
+        "recommended": [
+          "day_1",
+          "day_3"
+        ],
+        "acceptable": [
+          "day_2"
+        ],
+        "avoid": [
+          "day_0",
+          "day_5",
+          "day_6"
+        ]
+      },
+      "tags": [
+        "accessory",
+        "bicep",
+        "elbow",
+        "isolation"
+      ],
+      "contraindications": [
+        "medial_elbow_pain_active"
+      ],
+      "modification_flags": {
+        "ucl_history": "use_supinated_grip_minimize_pronation_force",
+        "shoulder_impingement": "no_modification_needed",
+        "flexor_pronator_strain": "reduce_load_avoid_if_acute"
+      },
+      "youtube_url": "https://youtube.com/shorts/pT-wvBPSMZU?si=8ED5058ZYjyuZtQ1",
+      "evidence_level": "moderate",
+      "source_notes": "UChicago exercise library (Arms)."
+    },
+    {
+      "id": "ex_148",
+      "name": "Overhead Tricep Extension",
+      "slug": "ex_overhead_tricep_extension",
+      "aliases": [
+        "seated overhead DB tricep extension",
+        "seated overhead DB tri ext",
+        "overhead cable tricep ext"
+      ],
+      "category": "upper_body_accessory",
+      "subcategory": "elbow_extension",
+      "muscles_primary": [
+        "triceps long head"
+      ],
+      "muscles_secondary": [
+        "triceps lateral head"
+      ],
+      "pitching_relevance": "Long head of tricep is stressed in overhead position — important for arm deceleration. Overhead loading stretches the long head for full eccentric development.",
+      "prescription": {
+        "hypertrophy": {
+          "sets": "3",
+          "reps": "10-12",
+          "intensity": "moderate 2-3 RIR",
+          "rest_min": 1
+        }
+      },
+      "rotation_day_usage": {
+        "recommended": [
+          "day_1",
+          "day_3"
+        ],
+        "acceptable": [
+          "day_2"
+        ],
+        "avoid": [
+          "day_0",
+          "day_5",
+          "day_6"
+        ]
+      },
+      "tags": [
+        "accessory",
+        "tricep",
+        "overhead",
+        "long_head",
+        "isolation"
+      ],
+      "contraindications": [
+        "shoulder_impingement_acute",
+        "medial_elbow_pain_active"
+      ],
+      "modification_flags": {
+        "ucl_history": "reduce_load_monitor_medial_elbow",
+        "shoulder_impingement": "substitute_tricep_pushdown",
+        "labrum_history": "substitute_tricep_pushdown_if_overhead_painful"
+      },
+      "youtube_url": "https://youtube.com/shorts/b_r_LW4HEcM?si=92GFsPDhFW6HuRKH",
+      "evidence_level": "moderate",
+      "source_notes": "UChicago exercise library (Arms)."
+    },
+    {
+      "id": "ex_149",
+      "name": "Reverse Curl",
+      "slug": "ex_reverse_curl",
+      "aliases": [
+        "pronated grip EZ bar reverse curl",
+        "overhand EZ bar curl",
+        "reverse barbell curl"
+      ],
+      "category": "upper_body_accessory",
+      "subcategory": "elbow_flexion",
+      "muscles_primary": [
+        "brachioradialis",
+        "brachialis"
+      ],
+      "muscles_secondary": [
+        "biceps",
+        "wrist extensors"
+      ],
+      "pitching_relevance": "Brachioradialis and wrist extensor strength — supports forearm resilience and reduces medial elbow stress. Relevant for pitchers with UCL or flexor-pronator history.",
+      "prescription": {
+        "hypertrophy": {
+          "sets": "3",
+          "reps": "12-15",
+          "intensity": "light-moderate load",
+          "rest_min": 1
+        }
+      },
+      "rotation_day_usage": {
+        "recommended": [
+          "day_1",
+          "day_3"
+        ],
+        "acceptable": [
+          "day_2",
+          "day_4"
+        ],
+        "avoid": [
+          "day_0",
+          "day_6"
+        ]
+      },
+      "tags": [
+        "accessory",
+        "forearm",
+        "elbow",
+        "wrist_extensor",
+        "arm_care"
+      ],
+      "contraindications": [],
+      "modification_flags": {
+        "ucl_history": "excellent_supportive_exercise",
+        "flexor_pronator_strain": "reduce_load_if_acute",
+        "shoulder_impingement": "no_modification_needed"
+      },
+      "youtube_url": "https://youtube.com/shorts/MOEMvgYzNZQ?si=97JQe9yjN8JWvQbJ",
+      "evidence_level": "moderate",
+      "source_notes": "UChicago exercise library (Arms)."
+    },
+    {
+      "id": "ex_150",
+      "name": "Cable Lateral Raise",
+      "slug": "ex_cable_lateral_raise",
+      "aliases": [
+        "cable side raise",
+        "single arm cable lateral raise"
+      ],
+      "category": "upper_body_accessory",
+      "subcategory": "shoulder_isolation",
+      "muscles_primary": [
+        "medial deltoid"
+      ],
+      "muscles_secondary": [
+        "supraspinatus",
+        "upper traps"
+      ],
+      "pitching_relevance": "Medial delt isolation with constant cable tension — better resistance curve than DB for shoulder stability work. Good accessory for pitchers needing shoulder balance.",
+      "prescription": {
+        "hypertrophy": {
+          "sets": "3",
+          "reps": "12-15",
+          "intensity": "light load",
+          "rest_min": 1
+        },
+        "endurance": {
+          "sets": "2-3",
+          "reps": "15-20",
+          "intensity": "very light",
+          "rest_min": 1
+        }
+      },
+      "rotation_day_usage": {
+        "recommended": [
+          "day_1",
+          "day_3"
+        ],
+        "acceptable": [
+          "day_2",
+          "day_4"
+        ],
+        "avoid": [
+          "day_0",
+          "day_6"
+        ]
+      },
+      "tags": [
+        "accessory",
+        "shoulder",
+        "deltoid",
+        "cable",
+        "isolation"
+      ],
+      "contraindications": [
+        "supraspinatus_tear_active"
+      ],
+      "modification_flags": {
+        "ucl_history": "no_modification_needed",
+        "shoulder_impingement": "limit_to_90_degrees_or_below",
+        "labrum_history": "keep_loads_very_light"
+      },
+      "youtube_url": "https://youtube.com/shorts/0N6-ichlpxg?si=Rx1hH4lwtM6DrnTm",
+      "evidence_level": "moderate",
+      "source_notes": "UChicago exercise library (Arms)."
+    },
+    {
+      "id": "ex_151",
+      "name": "Med Ball Rotational Slam",
+      "slug": "ex_med_ball_rotational_slam",
+      "aliases": [
+        "rotational slam",
+        "rotational med ball slam",
+        "rotational overhead slam"
+      ],
+      "category": "med_ball",
+      "subcategory": "rotational_power",
+      "muscles_primary": [
+        "obliques",
+        "glutes",
+        "lats"
+      ],
+      "muscles_secondary": [
+        "shoulders",
+        "hip flexors",
+        "thoracic extensors"
+      ],
+      "pitching_relevance": "Directly trains rotational power in the pitching plane — hip-to-shoulder separation and deceleration loading. One of the most transfer-specific exercises for velocity.",
+      "prescription": {
+        "power": {
+          "sets": "4",
+          "reps": "5-8",
+          "intensity": "6-10lb med ball max intent",
+          "rest_min": 2
+        }
+      },
+      "rotation_day_usage": {
+        "recommended": [
+          "day_2"
+        ],
+        "acceptable": [
+          "day_1"
+        ],
+        "avoid": [
+          "day_0",
+          "day_5",
+          "day_6"
+        ]
+      },
+      "tags": [
+        "med_ball",
+        "power",
+        "rotational",
+        "velocity_development",
+        "explosive"
+      ],
+      "contraindications": [
+        "active_oblique_strain"
+      ],
+      "modification_flags": {
+        "ucl_history": "no_modification_needed",
+        "oblique_strain": "avoid_until_cleared",
+        "shoulder_impingement": "monitor_overhead_position",
+        "low_back_history": "reduce_slam_height_or_substitute_chest_pass"
+      },
+      "youtube_url": "https://youtube.com/shorts/8ReGsLOc-lo?si=RSohtvSpwJOsXvxK",
+      "evidence_level": "strong",
+      "source_notes": "UChicago exercise library (Med Ball). Driveline med ball protocols."
+    },
+    {
+      "id": "ex_152",
+      "name": "Med Ball Slam",
+      "slug": "ex_med_ball_slam",
+      "aliases": [
+        "slam",
+        "overhead slam",
+        "med ball overhead slam"
+      ],
+      "category": "med_ball",
+      "subcategory": "vertical_power",
+      "muscles_primary": [
+        "lats",
+        "abs",
+        "glutes"
+      ],
+      "muscles_secondary": [
+        "shoulders",
+        "triceps"
+      ],
+      "pitching_relevance": "Total body power in vertical plane — lat and core co-contraction with trunk flexion. Trains the deceleration musculature. Good warm-up explosive option.",
+      "prescription": {
+        "power": {
+          "sets": "3-4",
+          "reps": "6-8",
+          "intensity": "8-14lb med ball",
+          "rest_min": 1.5
+        }
+      },
+      "rotation_day_usage": {
+        "recommended": [
+          "day_2"
+        ],
+        "acceptable": [
+          "day_1",
+          "day_3"
+        ],
+        "avoid": [
+          "day_0",
+          "day_6"
+        ]
+      },
+      "tags": [
+        "med_ball",
+        "power",
+        "vertical",
+        "explosive",
+        "total_body"
+      ],
+      "contraindications": [
+        "active_oblique_strain",
+        "shoulder_impingement_acute"
+      ],
+      "modification_flags": {
+        "ucl_history": "no_modification_needed",
+        "oblique_strain": "avoid_or_reduce_to_chest_height_only",
+        "shoulder_impingement": "substitute_rotational_chest_pass"
+      },
+      "youtube_url": "https://youtube.com/shorts/99DLQtHP7jE?si=cY-37LkfrMxuEi3U",
+      "evidence_level": "strong",
+      "source_notes": "UChicago exercise library (Med Ball)."
+    },
+    {
+      "id": "ex_153",
+      "name": "Med Ball Split Stance Throw",
+      "slug": "ex_med_ball_split_stance_throw",
+      "aliases": [
+        "split stance throw",
+        "split stance med ball throw",
+        "med ball split stance"
+      ],
+      "category": "med_ball",
+      "subcategory": "rotational_power",
+      "muscles_primary": [
+        "obliques",
+        "glutes",
+        "hip rotators"
+      ],
+      "muscles_secondary": [
+        "lats",
+        "anterior core",
+        "shoulders"
+      ],
+      "pitching_relevance": "Rotational power from a split stance mimics the pitching position — trains hip-to-shoulder kinetic chain in a mechanically relevant position.",
+      "prescription": {
+        "power": {
+          "sets": "4",
+          "reps": "5-6/side",
+          "intensity": "6-10lb max intent",
+          "rest_min": 2
+        }
+      },
+      "rotation_day_usage": {
+        "recommended": [
+          "day_2"
+        ],
+        "acceptable": [
+          "day_1"
+        ],
+        "avoid": [
+          "day_0",
+          "day_5",
+          "day_6"
+        ]
+      },
+      "tags": [
+        "med_ball",
+        "power",
+        "rotational",
+        "velocity_development",
+        "split_stance"
+      ],
+      "contraindications": [
+        "active_oblique_strain"
+      ],
+      "modification_flags": {
+        "ucl_history": "no_modification_needed",
+        "oblique_strain": "avoid_until_cleared",
+        "shoulder_impingement": "monitor_follow_through_position"
+      },
+      "youtube_url": "https://youtube.com/shorts/3Zfy4W1o4y0?si=n9sqNySSjOivI9Hh",
+      "evidence_level": "strong",
+      "source_notes": "UChicago exercise library (Med Ball). Driveline split stance series."
+    },
+    {
+      "id": "ex_154",
+      "name": "Med Ball Half Kneeling Rotational Throw",
+      "slug": "ex_med_ball_half_kneeling_rotational_throw",
+      "aliases": [
+        "half kneeling rotational throw",
+        "half kneeling med ball throw"
+      ],
+      "category": "med_ball",
+      "subcategory": "rotational_power",
+      "muscles_primary": [
+        "obliques",
+        "hip flexors",
+        "glutes"
+      ],
+      "muscles_secondary": [
+        "lats",
+        "anterior core"
+      ],
+      "pitching_relevance": "Rotational power with a fixed lower body — isolates trunk rotation and hip-shoulder separation. Good for isolating rotational deficits.",
+      "prescription": {
+        "power": {
+          "sets": "3-4",
+          "reps": "6-8/side",
+          "intensity": "6-8lb",
+          "rest_min": 1.5
+        }
+      },
+      "rotation_day_usage": {
+        "recommended": [
+          "day_2"
+        ],
+        "acceptable": [
+          "day_1",
+          "day_3"
+        ],
+        "avoid": [
+          "day_0",
+          "day_5",
+          "day_6"
+        ]
+      },
+      "tags": [
+        "med_ball",
+        "power",
+        "rotational",
+        "kneeling",
+        "velocity_development"
+      ],
+      "contraindications": [
+        "active_oblique_strain"
+      ],
+      "modification_flags": {
+        "ucl_history": "no_modification_needed",
+        "oblique_strain": "avoid_until_cleared",
+        "shoulder_impingement": "monitor_follow_through"
+      },
+      "youtube_url": "https://youtu.be/c9C4uUF39hE?si=D4H9bAnvEImlayht",
+      "evidence_level": "moderate",
+      "source_notes": "UChicago exercise library (Med Ball)."
+    },
+    {
+      "id": "ex_155",
+      "name": "Med Ball Back Facing Rotational Throw",
+      "slug": "ex_med_ball_back_facing_rotational_throw",
+      "aliases": [
+        "back facing rotational throw",
+        "reverse rotational throw",
+        "backward rotational slam"
+      ],
+      "category": "med_ball",
+      "subcategory": "rotational_power",
+      "muscles_primary": [
+        "obliques",
+        "glutes",
+        "hip extensors"
+      ],
+      "muscles_secondary": [
+        "lats",
+        "hamstrings"
+      ],
+      "pitching_relevance": "Reactive hip extension and rotation starting from a counter-rotation position — trains the elastic energy storage and release of the pitching motion.",
+      "prescription": {
+        "power": {
+          "sets": "4",
+          "reps": "5-6/side",
+          "intensity": "8-12lb max intent",
+          "rest_min": 2
+        }
+      },
+      "rotation_day_usage": {
+        "recommended": [
+          "day_2"
+        ],
+        "acceptable": [
+          "day_1"
+        ],
+        "avoid": [
+          "day_0",
+          "day_5",
+          "day_6"
+        ]
+      },
+      "tags": [
+        "med_ball",
+        "power",
+        "rotational",
+        "velocity_development",
+        "reactive"
+      ],
+      "contraindications": [
+        "active_oblique_strain"
+      ],
+      "modification_flags": {
+        "ucl_history": "no_modification_needed",
+        "oblique_strain": "avoid_until_cleared",
+        "shoulder_impingement": "monitor_arm_follow_through"
+      },
+      "youtube_url": "https://youtube.com/shorts/7fbeRfHsyuQ?si=ePwVGUDDFM7HYPik",
+      "evidence_level": "moderate",
+      "source_notes": "UChicago exercise library (Med Ball)."
     }
   ]
 }
