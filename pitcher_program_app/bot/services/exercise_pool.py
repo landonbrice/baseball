@@ -188,7 +188,7 @@ def build_exercise_pool(
             ],
         })
 
-    # Step 5: Select explosive/plyometric exercises and insert at position 0
+    # Step 5: Select explosive/plyometric exercise and prepend to first lift block
     explosive_count = structure[3] if len(structure) > 3 else 0
     selected_explosive = []
     if explosive_count > 0:
@@ -199,14 +199,10 @@ def build_exercise_pool(
             and e["id"] not in used_ids
         ]
         selected_explosive = _pick(plyo_candidates, explosive_count, recent_exercise_ids, day_key)
-        if selected_explosive:
-            blocks.insert(0, {
-                "block_name": "Explosive",
-                "exercises": [
-                    _format_exercise(ex, training_intent, injuries)
-                    for ex in selected_explosive
-                ],
-            })
+        if selected_explosive and blocks:
+            # Insert at top of first block (Power/Strength) — explosive before heavy lifts
+            formatted = [_format_exercise(ex, "power", injuries) for ex in selected_explosive]
+            blocks[0]["exercises"] = formatted + blocks[0]["exercises"]
 
     total = sum(len(b["exercises"]) for b in blocks)
     logger.info(
