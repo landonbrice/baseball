@@ -40,18 +40,18 @@ INJURY_TO_FLAG = {
 # Categories that match each day focus
 FOCUS_CATEGORIES = {
     "lower": {"lower_body_compound", "plyometric_power"},
-    "upper": {"upper_body_pull", "upper_body_push"},
+    "upper": {"upper_body_pull", "upper_body_push", "plyometric_power"},
     "full": {"lower_body_compound", "upper_body_pull", "upper_body_push", "plyometric_power"},
     "recovery": set(),  # no lifting on recovery
 }
 
-# Session structure: (compounds, accessories, core_stability) counts
+# Session structure: (compounds, accessories, core_stability, explosive) counts
 SESSION_STRUCTURE = {
-    "full":     (2, 3, 2),  # full training day
-    "lower":    (2, 3, 2),
-    "upper":    (2, 3, 2),
-    "light":    (1, 2, 1),  # light/recovery day
-    "recovery": (0, 0, 0),
+    "full":     (2, 3, 2, 1),  # full training day
+    "lower":    (2, 3, 2, 1),
+    "upper":    (2, 3, 2, 1),
+    "light":    (1, 2, 1, 0),  # no explosive on light days
+    "recovery": (0, 0, 0, 0),
 }
 
 # Prescription phase defaults for display
@@ -139,23 +139,20 @@ def build_exercise_pool(
 
     # Step 2: Categorize
     focus_cats = FOCUS_CATEGORIES.get(day_focus, set())
+    # Exclude plyometric_power from compound/accessory pools — gets its own block
+    lift_cats = focus_cats - {"plyometric_power"}
     compounds = [ex for ex in eligible
-                 if ex.get("category") in focus_cats
+                 if ex.get("category") in lift_cats
                  and "compound" in (ex.get("tags") or [])]
     accessories = [ex for ex in eligible
-                   if ex.get("category") in focus_cats
+                   if ex.get("category") in lift_cats
                    and "compound" not in (ex.get("tags") or [])]
     core = [ex for ex in eligible if ex.get("category") == "core"]
-    # Include plyometric_power as compounds for lower days
-    if day_focus in ("lower", "full"):
-        plyo = [ex for ex in eligible if ex.get("category") == "plyometric_power"]
-        compounds = compounds + plyo
 
     # Step 3: Select with variety (prefer fresh exercises)
-    n_compound, n_accessory, n_core = SESSION_STRUCTURE.get(
-        "light" if flag_level in ("red", "yellow") else day_focus,
-        (2, 3, 2)
-    )
+    structure_key = "light" if flag_level in ("red", "yellow") else day_focus
+    structure = SESSION_STRUCTURE.get(structure_key, (2, 3, 2, 1))
+    n_compound, n_accessory, n_core = structure[0], structure[1], structure[2]
 
     selected_compounds = _pick(compounds, n_compound, recent_exercise_ids, day_key)
     selected_accessories = _pick(accessories, n_accessory, recent_exercise_ids, day_key)
@@ -191,10 +188,32 @@ def build_exercise_pool(
             ],
         })
 
+    # Step 5: Select explosive/plyometric exercises and insert at position 0
+    explosive_count = structure[3] if len(structure) > 3 else 0
+    selected_explosive = []
+    if explosive_count > 0:
+        used_ids = {ex["exercise_id"] for block in blocks for ex in block.get("exercises", [])}
+        plyo_candidates = [
+            e for e in eligible
+            if e.get("category") == "plyometric_power"
+            and e["id"] not in used_ids
+        ]
+        selected_explosive = _pick(plyo_candidates, explosive_count, recent_exercise_ids, day_key)
+        if selected_explosive:
+            blocks.insert(0, {
+                "block_name": "Explosive",
+                "exercises": [
+                    _format_exercise(ex, training_intent, injuries)
+                    for ex in selected_explosive
+                ],
+            })
+
     total = sum(len(b["exercises"]) for b in blocks)
-    logger.info("Exercise pool built: %d exercises (%d compounds, %d accessories, %d core) for day_%d %s/%s",
-                total, len(selected_compounds), len(selected_accessories), len(selected_core),
-                rotation_day, day_focus, training_intent)
+    logger.info(
+        "Exercise pool built: %d exercises (%d explosive, %d compounds, %d accessories, %d core) for day_%d %s/%s",
+        total, len(selected_explosive), len(selected_compounds), len(selected_accessories), len(selected_core),
+        rotation_day, day_focus, training_intent
+    )
 
     return blocks
 
