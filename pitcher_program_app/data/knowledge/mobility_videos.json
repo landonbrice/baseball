@@ -1,0 +1,39 @@
+{
+  "$schema": "mobility_videos",
+  "$description": "10-week rotating mobility video program. 4 videos per week: 3 P/R (postural restoration) + 1 targeted. Cycles back to week 1 after week 10.",
+  "videos": [
+    {"id": "mob_001", "youtube_url": "https://www.youtube.com/watch?v=injmxSkTXaY", "type": "P/R", "title": "P/R Routine A"},
+    {"id": "mob_002", "youtube_url": "https://www.youtube.com/watch?v=PQwpLfBiB5U", "type": "P/R", "title": "P/R Routine B"},
+    {"id": "mob_003", "youtube_url": "https://www.youtube.com/watch?v=V-bBSjBZbIs", "type": "P/R", "title": "P/R Routine C"},
+    {"id": "mob_004", "youtube_url": "https://youtu.be/KfElAgr72Vo?si=VDTz-SAlrjvn_lo8", "type": "Hip", "title": "Hip Mobility A"},
+    {"id": "mob_005", "youtube_url": "https://www.youtube.com/watch?v=Kp8r-OACCKE", "type": "P/R", "title": "P/R Routine D"},
+    {"id": "mob_006", "youtube_url": "https://www.youtube.com/watch?v=7vokuI8D8QU", "type": "P/R", "title": "P/R Routine E"},
+    {"id": "mob_007", "youtube_url": "https://www.youtube.com/watch?v=wbHWRAHGZxc", "type": "P/R", "title": "P/R Routine F"},
+    {"id": "mob_008", "youtube_url": "https://youtu.be/lPKRiU9u_Hc?si=Ji7IduozPWLWfZ9U", "type": "Full", "title": "Full Body Mobility A"},
+    {"id": "mob_009", "youtube_url": "https://www.youtube.com/watch?v=IU3A-pwsynQ", "type": "P/R", "title": "P/R Routine G"},
+    {"id": "mob_010", "youtube_url": "https://youtu.be/JLdgw-FWGr4?si=t16CNDcj0gYAWESE", "type": "Back", "title": "Back Mobility"},
+    {"id": "mob_011", "youtube_url": "https://www.youtube.com/watch?v=iBEtEPGb_Lg", "type": "P/R", "title": "P/R Routine H"},
+    {"id": "mob_012", "youtube_url": "https://www.youtube.com/watch?v=RRiPvafe6dM", "type": "P/R", "title": "P/R Routine I"},
+    {"id": "mob_013", "youtube_url": "https://youtu.be/Wa_FD6EsBSg?si=8sIcRE_7-pFFx6to", "type": "Lower", "title": "Lower Body Mobility A"},
+    {"id": "mob_014", "youtube_url": "https://www.youtube.com/watch?v=v_gG-swvg7g", "type": "P/R", "title": "P/R Routine J"},
+    {"id": "mob_015", "youtube_url": "https://www.youtube.com/watch?v=axqwhAgDEec", "type": "P/R", "title": "P/R Routine K"},
+    {"id": "mob_016", "youtube_url": "https://youtu.be/TNU6umd0sNA?si=R5dxckwpfx2uLFW0", "type": "Shoulder", "title": "Shoulder Mobility"},
+    {"id": "mob_017", "youtube_url": "https://youtu.be/jj2AAH6jbHk?si=idyFwR2OhzbzW5dY", "type": "Hip", "title": "Hip Mobility B"},
+    {"id": "mob_018", "youtube_url": "https://youtu.be/9iHko2F81cE?si=aQoWbdr5WbkboRnL", "type": "Shoulder/Spine", "title": "Shoulder & Spine Mobility A"},
+    {"id": "mob_019", "youtube_url": "https://youtu.be/DCdKTMlatYw?si=lAQfFYq6jYL6-MZc", "type": "Lower", "title": "Lower Body Mobility B"},
+    {"id": "mob_020", "youtube_url": "https://youtu.be/P_QR28TIjEQ?si=aYqHOcv5rQCeIBQA", "type": "Full", "title": "Full Body Mobility B"},
+    {"id": "mob_021", "youtube_url": "https://youtu.be/Btn6J6NFFSU?si=FYCpu6HnqVZy64qy", "type": "Shoulder/Spine", "title": "Shoulder & Spine Mobility B"}
+  ],
+  "weekly_rotation": [
+    {"week": 1, "slots": ["mob_001", "mob_002", "mob_003", "mob_004"]},
+    {"week": 2, "slots": ["mob_005", "mob_006", "mob_007", "mob_008"]},
+    {"week": 3, "slots": ["mob_009", "mob_001", "mob_002", "mob_010"]},
+    {"week": 4, "slots": ["mob_007", "mob_011", "mob_012", "mob_013"]},
+    {"week": 5, "slots": ["mob_014", "mob_015", "mob_015", "mob_016"]},
+    {"week": 6, "slots": ["mob_001", "mob_002", "mob_005", "mob_017"]},
+    {"week": 7, "slots": ["mob_001", "mob_002", "mob_005", "mob_018"]},
+    {"week": 8, "slots": ["mob_007", "mob_002", "mob_003", "mob_019"]},
+    {"week": 9, "slots": ["mob_009", "mob_001", "mob_002", "mob_020"]},
+    {"week": 10, "slots": ["mob_007", "mob_001", "mob_006", "mob_021"]}
+  ]
+}
