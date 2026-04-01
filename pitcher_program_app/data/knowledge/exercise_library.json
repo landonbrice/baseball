@@ -9277,6 +9277,87 @@
       "youtube_url": "https://youtube.com/shorts/7fbeRfHsyuQ?si=ePwVGUDDFM7HYPik",
       "evidence_level": "moderate",
       "source_notes": "UChicago exercise library (Med Ball)."
+    },
+
+    {
+      "id": "ex_156",
+      "name": "Sleeper Stretch",
+      "aliases": ["sleeper stretch", "side-lying IR stretch"],
+      "category": "mobility",
+      "subcategory": "shoulder_mobility",
+      "muscles_primary": ["posterior shoulder", "infraspinatus"],
+      "muscles_secondary": ["teres minor"],
+      "pitching_relevance": "Restores internal rotation range lost from throwing. Tight posterior shoulder increases UCL stress and impingement risk.",
+      "prescription": {
+        "recovery": { "sets": "2", "reps": "30 sec each side", "intensity": "gentle pressure", "rest_min": 0 }
+      },
+      "rotation_day_usage": { "recommended": ["day_1", "day_2", "day_3", "day_4", "day_5"], "acceptable": ["day_0", "day_6"], "avoid": [] },
+      "tags": ["mobility", "post_throw", "recovery", "shoulder", "glenohumeral_ir"],
+      "contraindications": ["acute_shoulder"],
+      "modification_flags": { "shoulder_impingement": "reduce_pressure" },
+      "youtube_url": "",
+      "evidence_level": "strong",
+      "source_notes": "Standard posterior shoulder stretch. Evidence: GIRD reduction in overhead athletes."
+    },
+    {
+      "id": "ex_157",
+      "name": "Cross-Body Posterior Shoulder Stretch",
+      "aliases": ["cross body stretch", "horizontal adduction stretch"],
+      "category": "mobility",
+      "subcategory": "shoulder_mobility",
+      "muscles_primary": ["posterior deltoid", "infraspinatus"],
+      "muscles_secondary": ["teres minor", "rhomboids"],
+      "pitching_relevance": "Targets posterior capsule tightness that accumulates from throwing. Complements sleeper stretch for full posterior shoulder recovery.",
+      "prescription": {
+        "recovery": { "sets": "2", "reps": "30 sec each side", "intensity": "gentle pull", "rest_min": 0 }
+      },
+      "rotation_day_usage": { "recommended": ["day_1", "day_2", "day_3", "day_4", "day_5"], "acceptable": ["day_0", "day_6"], "avoid": [] },
+      "tags": ["mobility", "post_throw", "recovery", "shoulder", "posterior_capsule"],
+      "contraindications": ["acute_shoulder"],
+      "modification_flags": {},
+      "youtube_url": "",
+      "evidence_level": "moderate",
+      "source_notes": "Standard post-throwing stretch protocol."
+    },
+    {
+      "id": "ex_158",
+      "name": "Thoracic Rotation on Wall",
+      "aliases": ["t-spine rotation", "wall thoracic rotation", "thoracic twist"],
+      "category": "mobility",
+      "subcategory": "thoracic_mobility",
+      "muscles_primary": ["thoracic extensors", "obliques"],
+      "muscles_secondary": ["intercostals", "serratus anterior"],
+      "pitching_relevance": "Thoracic rotation is the primary driver of trunk rotation in the pitching delivery. Post-throw mobility work restores range and prevents stiffness.",
+      "prescription": {
+        "recovery": { "sets": "1", "reps": "10 each side", "intensity": "controlled rotation", "rest_min": 0 }
+      },
+      "rotation_day_usage": { "recommended": ["day_1", "day_2", "day_3", "day_4", "day_5"], "acceptable": ["day_0", "day_6"], "avoid": [] },
+      "tags": ["mobility", "post_throw", "recovery", "thoracic", "tspine"],
+      "contraindications": [],
+      "modification_flags": {},
+      "youtube_url": "",
+      "evidence_level": "moderate",
+      "source_notes": "Standard thoracic mobility drill. Used in Driveline and Tread programs."
+    },
+    {
+      "id": "ex_159",
+      "name": "Standing Lat Stretch",
+      "aliases": ["lat stretch", "overhead lat stretch", "doorway lat stretch"],
+      "category": "mobility",
+      "subcategory": "shoulder_mobility",
+      "muscles_primary": ["latissimus dorsi"],
+      "muscles_secondary": ["teres major", "thoracolumbar fascia"],
+      "pitching_relevance": "Lats are the primary internal rotator and arm accelerator. Post-throw stretching prevents lat-driven shoulder impingement and maintains overhead range.",
+      "prescription": {
+        "recovery": { "sets": "2", "reps": "20 sec each side", "intensity": "gentle stretch", "rest_min": 0 }
+      },
+      "rotation_day_usage": { "recommended": ["day_1", "day_2", "day_3", "day_4", "day_5"], "acceptable": ["day_0", "day_6"], "avoid": [] },
+      "tags": ["mobility", "post_throw", "recovery", "lat", "shoulder"],
+      "contraindications": [],
+      "modification_flags": {},
+      "youtube_url": "",
+      "evidence_level": "moderate",
+      "source_notes": "Standard lat stretch for overhead athletes."
     }
   ]
 }

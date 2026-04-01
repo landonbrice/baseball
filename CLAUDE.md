@@ -1,7 +1,7 @@
 # Pitcher Training Intelligence — Claude Init
 
 > Last updated: 2026-03-31
-> Sprint status: Phases 1-6 + adoption push + dynamic exercise pool complete. Next: The Ledger (modification history), periodization, exercise progression curves.
+> Sprint status: Phases 1-11 complete (through day phases + onboarding UX). Next: The Ledger (modification history), periodization, exercise progression curves.
 
 ## What This Is
 
@@ -12,7 +12,7 @@ A training intelligence system for the UChicago baseball pitching staff. Telegra
 - **Mini App (React)** — Value/visibility layer. Programs, completion tracking, trajectory over time. Where compounding becomes tangible.
 - **Intelligence Engine (Python/FastAPI)** — Triage, plan generation, knowledge retrieval, progression analysis. The thinking that connects input to output.
 
-**The system is deployed and functional.** Morning notifications, WHOOP biometrics, dynamic exercise selection, and personalized onboarding are all live. Adoption push is in progress.
+**The system is deployed and functional.** Morning notifications, WHOOP biometrics, dynamic exercise selection, personalized onboarding, dynamic warmup, and tiered post-throw recovery are all live. Onboarding push April 1.
 
 ## Completed Phases
 
@@ -48,12 +48,33 @@ Full biometric pipeline. See WHOOP Integration section below.
 - `MobilityCard` component on daily plan page — renders after all exercise blocks with clickable YouTube video links
 - Plan generator includes `mobility` key in output; DailyCard falls back to API fetch for pre-existing plans
 
+### Phase 10: Day Phases — Dynamic Warmup + Post-Throw Recovery (2026-03-31) — COMPLETE
+- **Dynamic warmup block** injected as first block in every daily plan from `dynamic_warmup.json`
+- `_build_warmup_block()`: picks cuff activation (days 0,1,2,5,6) vs scap activation (days 3,4), auto-includes FPM addon for UCL/forearm history pitchers
+- **Tiered post-throw recovery** from `post_throw_protocols.json` replaces static 2-exercise post-throw:
+  - Light (5 exercises, 6 min): recovery, recovery_short_box days
+  - Medium (11 exercises, 10 min): hybrid_b days
+  - Full (15 exercises, 15 min): hybrid_a, bullpen, game days
+- 4 new mobility exercises added (ex_156-ex_159): Sleeper Stretch, Cross-Body Posterior Shoulder, Thoracic Rotation, Standing Lat Stretch
+- Exercise library now 159 exercises (ex_001-ex_159), all synced to Supabase
+- `warmup` JSONB column on `daily_entries`, passed through checkin_service + routes
+- DailyCard renders warmup as first block, collapsed by default with expand toggle, exercises grouped by block name
+- Post-throw recovery phases have green-tinted background in ThrowingBlock
+- LLM prompt references warmup existence but does not generate it
+
+### Phase 11: Onboarding UX — First Experience Overhaul (2026-03-31) — COMPLETE
+- **Home welcome card** for new pitchers: arsenal pills, training snapshot grid (maxes, experience, split), injury-aware banner, CTA button, value prop card
+- **Coach personalized welcome**: dynamic message referencing role, rotation, arsenal, pitch count, injury history, goals
+- All sections degrade gracefully for sparse profiles
+- Pre-onboarding bug fixes: 25 missing exercises migrated, 38 slug-to-ID mappings, RetryPlan signature fix, chat history race condition, days_since_outing cap
+
 ### What's Not Yet Built
 1. **The Ledger** — Modification history visualization. Data exists in `plan_generated.modifications_applied`. Needs frontend timeline on Profile.
 2. **Periodization** — No multi-week phases (hypertrophy → strength → power). Template repeats identically each week. Exercise pool adds variety but not progressive structure.
 3. **Exercise progression curves** — Volume/intensity trends for key lifts over time.
 4. **Coach dashboard** — Staff-facing view of team readiness, flags, trends.
 5. **Truncated JSON repair** — LLM sometimes returns cut-off JSON. `finish_reason` is surfaced but repair logic not yet built.
+6. **Guided day flow** — Sequential phase unlocking in DailyCard (complete warmup → arm care unlocks → lifting → throwing → post-throw). Data structure supports it, frontend not yet wired.
 
 ## Stack
 
@@ -143,11 +164,13 @@ Supabase-backed. `context_manager.py` queries recent `chat_messages` + `daily_en
 1. Rule-based triage (`triage.py`) → green/yellow/red + modifications (includes WHOOP HRV/recovery/sleep thresholds)
 2. Ambiguous cases → LLM refinement (`triage_llm.py`)
 3. **Partial entry saved to Supabase BEFORE plan generation** (check-in data persists even if LLM fails)
-4. **Dynamic exercise pool** (`exercise_pool.py`) selects 7-8 lifting exercises + 1 explosive from the 155-exercise library
-5. Pre-selected exercises + triage + context → LLM → structured JSON with personalized prescriptions
-6. Fallback to exercise pool blocks if LLM fails (guaranteed valid exercise IDs)
-7. Full entry upserted (same date = updates partial), results persist to active_flags
-8. `days_since_outing` incremented AFTER first successful check-in of the day (re-check-ins don't double-increment)
+4. **Dynamic warmup** (`_build_warmup_block`) loads `dynamic_warmup.json`, picks activation option + FPM addon
+5. **Dynamic exercise pool** (`exercise_pool.py`) selects 7-8 lifting exercises + 1 explosive from the 159-exercise library
+6. **Tiered post-throw** (`_select_post_throw_protocol`) selects light/medium/full recovery based on throwing day type
+7. Pre-selected exercises + triage + context → LLM → structured JSON with personalized prescriptions
+8. Fallback to exercise pool blocks if LLM fails (guaranteed valid exercise IDs)
+9. Full entry upserted (same date = updates partial), results persist to active_flags
+10. `days_since_outing` incremented AFTER first successful check-in of the day (re-check-ins don't double-increment), capped at `rotation_length * 3`
 
 ### Exercise Selection (`exercise_pool.py`)
 - Filters library by: day focus (upper/lower/full), rotation_day_usage, contraindications, modification_flags
@@ -157,6 +180,16 @@ Supabase-backed. `context_manager.py` queries recent `chat_messages` + `daily_en
 - Training intent mapped from rotation day + triage: power (day 2), strength (day 3-4), endurance (recovery/flagged)
 - Injury modification flags appended as notes (e.g., "reduce to 5 reps" for UCL history)
 - LLM adjusts prescriptions but CANNOT add exercises outside the pre-selected pool
+
+### Day Phases (DailyCard Block Order)
+Each daily plan has 5 phases rendered as blocks in the mini-app:
+1. **Dynamic Warmup** — template-driven, collapsed by default, cuff vs scap activation, FPM addon for injury history
+2. **Arm Care** — heavy or light arm care template (curated)
+3. **Lifting** — exercise pool selection (dynamic)
+4. **Throwing** — phased: pre-throw warmup → plyo drills → catch/long toss/bullpen → post-throw recovery
+5. **Post-Throw Recovery** — tiered: light (5 ex) / medium (11 ex) / full (15 ex) based on throwing day type
+
+Warmup and post-throw are template-driven (not LLM-generated). Stored in `warmup` JSONB column on `daily_entries`.
 
 ### Template Selection (Lift Preference)
 - **Explicit preference always wins**: "upper" → day_3 template, "lower" → day_2, "rest" → day_6, regardless of rotation day
@@ -292,7 +325,7 @@ Project: `pitcher-training-intel` (us-east-1)
 | `injury_history` | Per-pitcher injury records with severity, area, flag_level, red_flags |
 | `active_flags` | Current state per pitcher — arm_feel, flag_level, days_since_outing, modifications |
 | `daily_entries` | Daily training logs — pre_training, plan_generated, actual_logged, completed_exercises |
-| `exercises` | Exercise library (95 exercises) — prescription, tags, contraindications, youtube_url |
+| `exercises` | Exercise library (159 exercises) — prescription, tags, contraindications, youtube_url |
 | `templates` | Training templates (9) — rotation day structure, exercise blocks |
 | `saved_plans` | Pitcher-specific saved/generated plans with plan_data JSONB |
 | `chat_messages` | Cross-platform conversation persistence — source (telegram/mini_app), role, content |

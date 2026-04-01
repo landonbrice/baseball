@@ -38,7 +38,7 @@
         { "exercise_id": "ex_064", "name": "Band Pullaparts", "rx": "2x15", "order": 8 },
         { "exercise_id": "ex_039", "name": "DB Wrist Flexion Curl", "rx": "1x15 (light)", "order": 9 },
         { "exercise_id": "ex_040", "name": "DB Wrist Extension Curl", "rx": "1x15 (light)", "order": 10 },
-        { "name": "Sleeper Stretch", "rx": "2x30 sec each side", "order": 11 }
+        { "exercise_id": "ex_156", "name": "Sleeper Stretch", "rx": "2x30 sec each side", "order": 11 }
       ]
     },
     "full": {
@@ -58,9 +58,9 @@
         { "exercise_id": "ex_040", "name": "DB Wrist Extension Curl", "rx": "2x15 (light)", "order": 10 },
         { "exercise_id": "ex_041", "name": "Full Pronation", "rx": "1x15 (light band)", "order": 11 },
         { "name": "Sleeper Stretch", "rx": "2x30 sec each side", "order": 12 },
-        { "name": "Cross-Body Posterior Shoulder Stretch", "rx": "2x30 sec each side", "order": 13 },
-        { "name": "Thoracic Rotation on Wall", "rx": "1x10 each side", "order": 14 },
-        { "name": "Standing Lat Stretch", "rx": "2x20 sec each side", "order": 15 }
+        { "exercise_id": "ex_157", "name": "Cross-Body Posterior Shoulder Stretch", "rx": "2x30 sec each side", "order": 13 },
+        { "exercise_id": "ex_158", "name": "Thoracic Rotation on Wall", "rx": "1x10 each side", "order": 14 },
+        { "exercise_id": "ex_159", "name": "Standing Lat Stretch", "rx": "2x20 sec each side", "order": 15 }
       ]
     }
   }

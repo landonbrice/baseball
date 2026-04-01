@@ -160,6 +160,7 @@ export default function DailyCard({ entry, exerciseMap = {}, slugMap = {}, pitch
 // ── Exercise Block (arm_care, lifting) ──
 
 function ExerciseBlock({ blockKey, emoji, label, data, fallbackBlocks, hasStructured, exerciseMap, slugMap, completed, onToggle, expandedWhy, onToggleWhy }) {
+  const [warmupExpanded, setWarmupExpanded] = useState(false);
   const exercises = data?.exercises || [];
   const hasDirect = hasStructured && exercises.length > 0;
 
@@ -182,7 +183,7 @@ function ExerciseBlock({ blockKey, emoji, label, data, fallbackBlocks, hasStruct
   const duration = data?.estimated_duration_min;
   const reasoning = data?.reasoning;
 
-  // Warmup block: group exercises by their block name
+  // Warmup block: group exercises by their block name, collapsed by default
   if (blockKey === 'warmup' && allEx.length > 0) {
     const groups = [];
     let currentBlock = null;
@@ -197,36 +198,42 @@ function ExerciseBlock({ blockKey, emoji, label, data, fallbackBlocks, hasStruct
 
     return (
       <div style={{ background: 'var(--color-white)', borderRadius: 12, overflow: 'hidden' }}>
-        <div style={{ padding: '10px 14px', borderBottom: '0.5px solid var(--color-cream-border)' }}>
+        <div
+          onClick={() => setWarmupExpanded(prev => !prev)}
+          style={{ padding: '10px 14px', borderBottom: warmupExpanded ? '0.5px solid var(--color-cream-border)' : 'none', cursor: 'pointer' }}
+        >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{ fontSize: 14 }}>{emoji}</span>
               <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-ink-primary)' }}>{label}</span>
               {duration && <span style={{ fontSize: 10, color: 'var(--color-ink-faint)' }}>{duration} min</span>}
+              <span style={{ fontSize: 10, color: 'var(--color-ink-muted)' }}>{warmupExpanded ? '\u25BC' : '\u25B6'}</span>
             </div>
             <span style={{ fontSize: 11, color: doneCount === allEx.length && allEx.length > 0 ? 'var(--color-flag-green)' : 'var(--color-ink-muted)', fontWeight: 600 }}>
               {doneCount}/{allEx.length}
             </span>
           </div>
         </div>
-        <div style={{ padding: '4px 14px 10px' }}>
-          {groups.map((g, gi) => (
-            <div key={gi}>
-              <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--color-ink-muted)', textTransform: 'uppercase', letterSpacing: 0.5, padding: '6px 0 2px' }}>
-                {g.label}
+        {warmupExpanded && (
+          <div style={{ padding: '4px 14px 10px' }}>
+            {groups.map((g, gi) => (
+              <div key={gi}>
+                <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--color-ink-muted)', textTransform: 'uppercase', letterSpacing: 0.5, padding: '6px 0 2px' }}>
+                  {g.label}
+                </div>
+                <SupersetList
+                  exercises={g.exercises}
+                  exerciseMap={exerciseMap}
+                  slugMap={slugMap}
+                  completed={completed}
+                  onToggle={onToggle}
+                  expandedWhy={expandedWhy}
+                  onToggleWhy={onToggleWhy}
+                />
               </div>
-              <SupersetList
-                exercises={g.exercises}
-                exerciseMap={exerciseMap}
-                slugMap={slugMap}
-                completed={completed}
-                onToggle={onToggle}
-                expandedWhy={expandedWhy}
-                onToggleWhy={onToggleWhy}
-              />
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     );
   }
