@@ -15,6 +15,7 @@ import StreakBadge from '../components/StreakBadge';
 import StaffPulse from '../components/StaffPulse';
 import FlagBadge from '../components/FlagBadge';
 import WhoopCard from '../components/WhoopCard';
+import LockedState from '../components/LockedState';
 
 function NewPitcherWelcome({ profile, navigate }) {
   const firstName = (profile?.name || '').split(' ')[0];
@@ -237,12 +238,22 @@ export default function Home() {
         </div>
       </div>
 
-      {/* WHOOP Biometrics — only for linked pitchers with data */}
-      {whoopData?.data?.linked && whoopData?.data?.data && (
+      {/* WHOOP Biometrics — data card or locked state */}
+      {whoopData?.data?.linked && whoopData?.data?.data ? (
         <div style={{ padding: '8px 12px 0' }}>
           <WhoopCard data={whoopData.data.data} averages={whoopData.data.averages} />
         </div>
-      )}
+      ) : (!isNewPitcher && whoopData?.data && !whoopData.data.linked) ? (
+        <div style={{ padding: '8px 12px 0' }}>
+          <LockedState
+            emoji={'\u231A'}
+            title="Connect WHOOP for recovery data"
+            description="See HRV, strain, and recovery alongside your daily plan"
+            cta="Connect WHOOP"
+            onCtaPress={() => navigate('/profile')}
+          />
+        </div>
+      ) : null}
 
       {/* SessionProgress */}
       {totalEx > 0 && hasCheckedIn && (
@@ -325,11 +336,21 @@ export default function Home() {
           </div>
         )}
 
-        {upcoming.data?.upcoming?.length > 0 && (
+        {upcoming.data?.upcoming?.length > 0 ? (
           <div style={{ marginTop: 12 }}>
             <ThrowingWeekPreview days={upcoming.data.upcoming} />
           </div>
-        )}
+        ) : !isNewPitcher ? (
+          <div style={{ marginTop: 12 }}>
+            <LockedState
+              emoji={'\uD83D\uDCC5'}
+              title="Set your next outing"
+              description={"I'll build your throwing week around your start date"}
+              cta={"Tell Coach your next start \u2192"}
+              onCtaPress={() => navigate('/coach')}
+            />
+          </div>
+        ) : null}
 
         <InsightsCard
           observations={progression?.observations}
@@ -338,7 +359,17 @@ export default function Home() {
           narrativeHeadline={narrativeData.data?.headline}
           narrativeWeek={narrativeData.data?.week_start}
         />
-        {staffPulse.data && <div style={{ marginTop: 12 }}><StaffPulse data={staffPulse.data} /></div>}
+        {(staffPulse.data && staffPulse.data.total_pitchers > 0) ? (
+          <div style={{ marginTop: 12 }}><StaffPulse data={staffPulse.data} /></div>
+        ) : !isNewPitcher ? (
+          <div style={{ marginTop: 12 }}>
+            <LockedState
+              emoji={'\uD83D\uDC65'}
+              title="Your teammates will appear as they join"
+              description="See who's checked in today and how the staff is tracking"
+            />
+          </div>
+        ) : null}
       </div>
     </div>
   );
