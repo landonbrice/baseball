@@ -95,6 +95,13 @@ def build_exercise_pool(
     injury_areas = [i.get("area", "") for i in injuries]
     flag_level = triage_result.get("flag_level", "green")
 
+    # Load pitcher training model for preferences and equipment constraints
+    from bot.services.db import get_training_model
+    pitcher_id = pitcher_profile.get("pitcher_id", "")
+    training_model = get_training_model(pitcher_id) if pitcher_id else {}
+    preferences = training_model.get("exercise_preferences") or {}
+    equipment_constraints = set(training_model.get("equipment_constraints") or [])
+
     # Step 1: Filter eligible exercises
     eligible = []
     for ex in all_exercises:
@@ -135,6 +142,18 @@ def build_exercise_pool(
         if skip:
             continue
 
+        # Skip if equipment constraint matches
+        if equipment_constraints:
+            ex_name_lower = (ex.get("name") or "").lower()
+            skip_equip = False
+            for constraint in equipment_constraints:
+                equip_word = constraint.replace("no_", "").replace("_", " ")
+                if equip_word in ex_name_lower:
+                    skip_equip = True
+                    break
+            if skip_equip:
+                continue
+
         eligible.append(ex)
 
     # Step 2: Categorize
@@ -154,9 +173,9 @@ def build_exercise_pool(
     structure = SESSION_STRUCTURE.get(structure_key, (2, 3, 2, 1))
     n_compound, n_accessory, n_core = structure[0], structure[1], structure[2]
 
-    selected_compounds = _pick(compounds, n_compound, recent_exercise_ids, day_key)
-    selected_accessories = _pick(accessories, n_accessory, recent_exercise_ids, day_key)
-    selected_core = _pick(core, n_core, recent_exercise_ids, day_key)
+    selected_compounds = _pick(compounds, n_compound, recent_exercise_ids, day_key, preferences)
+    selected_accessories = _pick(accessories, n_accessory, recent_exercise_ids, day_key, preferences)
+    selected_core = _pick(core, n_core, recent_exercise_ids, day_key, preferences)
 
     # Step 4: Build blocks with prescriptions
     blocks = []
@@ -198,7 +217,7 @@ def build_exercise_pool(
             if e.get("category") == "plyometric_power"
             and e["id"] not in used_ids
         ]
-        selected_explosive = _pick(plyo_candidates, explosive_count, recent_exercise_ids, day_key)
+        selected_explosive = _pick(plyo_candidates, explosive_count, recent_exercise_ids, day_key, preferences)
         if selected_explosive and blocks:
             # Insert at top of first block (Power/Strength) — explosive before heavy lifts
             formatted = [_format_exercise(ex, "power", injuries) for ex in selected_explosive]
@@ -214,17 +233,20 @@ def build_exercise_pool(
     return blocks
 
 
-def _pick(pool: list, n: int, recent_ids: set, day_key: str) -> list:
-    """Pick n exercises from pool, preferring fresh (not recently used) and recommended for this day."""
+def _pick(pool: list, n: int, recent_ids: set, day_key: str,
+          preferences: dict = None) -> list:
+    """Pick n exercises from pool, preferring preferred, fresh, and recommended."""
     if not pool or n <= 0:
         return []
+    prefs = preferences or {}
 
-    # Score: recommended > acceptable, fresh > stale
     def score(ex):
         usage = ex.get("rotation_day_usage") or {}
         recommended = day_key in (usage.get("recommended") or [])
         fresh = ex["id"] not in recent_ids
-        return (fresh, recommended, random.random())  # random tiebreak for variety
+        pref = prefs.get(ex["id"], "neutral")
+        pref_score = 2 if pref == "prefer" else (1 if pref == "neutral" else 0)
+        return (pref_score, fresh, recommended, random.random())
 
     ranked = sorted(pool, key=score, reverse=True)
     return ranked[:n]

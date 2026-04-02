@@ -179,6 +179,7 @@ Supabase-only. `context_manager.py` queries recent `chat_messages` + `daily_entr
 - Explosive block: 1 `plyometric_power` exercise (med ball slams, plyo pushups, jumps) inserted as first block on all non-recovery/non-light days
 - Training intent mapped from rotation day + triage: power (day 2), strength (day 3-4), endurance (recovery/flagged)
 - Injury modification flags appended as notes (e.g., "reduce to 5 reps" for UCL history)
+- **Model-aware filtering**: exercise_preferences ("dislike" → deprioritized), equipment_constraints (hard filter), swap history (3+ swaps away → auto-dislike)
 - LLM adjusts prescriptions but CANNOT add exercises outside the pre-selected pool
 
 ### Day Phases (DailyCard Block Order)
@@ -265,6 +266,7 @@ Fully implemented 2026-03-29, v2 API migration 2026-03-31, PKCE state persistenc
 **Data:** `/api/pitcher/{id}/profile`, `/log`, `/progression`, `/upcoming`, `/week-summary`, `/morning-status`, `/weekly-narrative`
 **Actions:** `POST /checkin`, `/outing`, `/chat` (unified), `/set-next-outing`, `/complete-exercise`
 **Mobility:** `GET /pitcher/{id}/mobility-today`
+**Swap:** `GET /exercises/{id}/alternatives?pitcher_id=X`, `POST /pitcher/{id}/swap-exercise`
 **WHOOP:** `GET /pitcher/{id}/whoop-today`, `GET /whoop/callback` (OAuth)
 **Plans:** `GET/POST /plans`, `/plans/{id}/activate`, `/deactivate`, `/apply-plan/{id}`, `/generate-plan`
 **Library:** `/api/exercises`, `/api/exercises/slugs`

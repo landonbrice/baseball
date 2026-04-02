@@ -59,3 +59,7 @@ body {
 .chat-markdown h3 { font-size: 0.75rem; font-weight: 600; margin: 8px 0 4px; }
 .chat-markdown ul { padding-left: 14px; margin: 4px 0; }
 .chat-markdown li { margin-bottom: 2px; }
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

@@ -189,3 +189,25 @@ export async function fetchStaffPulse(initData = null) {
 export async function fetchTrend(pitcherId, initData = null) {
   return fetchApi(`/api/pitcher/${pitcherId}/trend`, initData);
 }
+
+/**
+ * Fetch alternative exercises for swapping.
+ */
+export async function fetchAlternatives(pitcherId, exerciseId, date, initData = null) {
+  const params = new URLSearchParams({ pitcher_id: pitcherId });
+  if (date) params.append('date', date);
+  return fetchApi(`/api/exercises/${exerciseId}/alternatives?${params}`, initData);
+}
+
+/**
+ * Swap an exercise in today's plan.
+ */
+export async function swapExercise(pitcherId, date, fromExerciseId, toExerciseId, reason, initData = null) {
+  return postApi(`/api/pitcher/${pitcherId}/swap-exercise`, {
+    date,
+    from_exercise_id: fromExerciseId,
+    to_exercise_id: toExerciseId,
+    reason,
+    source: 'inline_swap',
+  }, initData);
+}

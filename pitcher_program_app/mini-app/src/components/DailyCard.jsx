@@ -6,6 +6,7 @@ import { BallDots, BallColorLegend } from './BallDots';
 import WhyCard from './WhyCard';
 import PostThrowFeel from './PostThrowFeel';
 import MobilityCard from './MobilityCard';
+import ExerciseSwap from './ExerciseSwap';
 import { submitThrowFeel } from '../api';
 
 function resolveExercise(exerciseId, exerciseMap, slugMap) {
@@ -42,6 +43,19 @@ export default function DailyCard({ entry, exerciseMap = {}, slugMap = {}, pitch
   const toggleWhy = useCallback((exerciseId) => {
     setExpandedWhy(prev => ({ ...prev, [exerciseId]: !prev[exerciseId] }));
   }, []);
+
+  // Swap state (lifting block only)
+  const [swappingExerciseId, setSwappingExerciseId] = useState(null);
+  const [swappedExercises, setSwappedExercises] = useState({});
+
+  const handleSwapComplete = useCallback((oldExId, newExercise) => {
+    setSwappedExercises(prev => ({
+      ...prev,
+      [newExercise.exercise_id]: { swapped_from_name: newExercise.swapped_from_name },
+    }));
+    setSwappingExerciseId(null);
+    showToast('Exercise swapped', 'success');
+  }, [showToast]);
 
   if (!entry) {
     return (
@@ -129,6 +143,15 @@ export default function DailyCard({ entry, exerciseMap = {}, slugMap = {}, pitch
             onToggle={readOnly ? null : handleToggle}
             expandedWhy={expandedWhy}
             onToggleWhy={toggleWhy}
+            swappingExerciseId={key === 'lifting' ? swappingExerciseId : null}
+            swappedExercises={key === 'lifting' ? swappedExercises : {}}
+            onStartSwap={key === 'lifting' && !readOnly ? setSwappingExerciseId : null}
+            onSwapComplete={key === 'lifting' && !readOnly ? handleSwapComplete : null}
+            onCancelSwap={key === 'lifting' ? () => setSwappingExerciseId(null) : null}
+            pitcherId={pitcherId}
+            date={entry?.date}
+            initData={initData}
+            readOnly={readOnly}
           />
         );
       })}
@@ -159,7 +182,7 @@ export default function DailyCard({ entry, exerciseMap = {}, slugMap = {}, pitch
 
 // ── Exercise Block (arm_care, lifting) ──
 
-function ExerciseBlock({ blockKey, emoji, label, data, fallbackBlocks, hasStructured, exerciseMap, slugMap, completed, onToggle, expandedWhy, onToggleWhy }) {
+function ExerciseBlock({ blockKey, emoji, label, data, fallbackBlocks, hasStructured, exerciseMap, slugMap, completed, onToggle, expandedWhy, onToggleWhy, swappingExerciseId, swappedExercises, onStartSwap, onSwapComplete, onCancelSwap, pitcherId, date, initData, readOnly }) {
   const [warmupExpanded, setWarmupExpanded] = useState(false);
   const exercises = data?.exercises || [];
   const hasDirect = hasStructured && exercises.length > 0;
@@ -270,6 +293,15 @@ function ExerciseBlock({ blockKey, emoji, label, data, fallbackBlocks, hasStruct
           onToggle={onToggle}
           expandedWhy={expandedWhy}
           onToggleWhy={onToggleWhy}
+          swappingExerciseId={swappingExerciseId}
+          swappedExercises={swappedExercises}
+          onStartSwap={onStartSwap}
+          onSwapComplete={onSwapComplete}
+          onCancelSwap={onCancelSwap}
+          pitcherId={pitcherId}
+          date={date}
+          initData={initData}
+          readOnly={readOnly}
         />
       </div>
     </div>
@@ -449,7 +481,7 @@ function NotesBlock({ notes }) {
 
 // ── Superset renderer ──
 
-function SupersetList({ exercises, exerciseMap, slugMap, completed, onToggle, expandedWhy, onToggleWhy }) {
+function SupersetList({ exercises, exerciseMap, slugMap, completed, onToggle, expandedWhy, onToggleWhy, swappingExerciseId, swappedExercises, onStartSwap, onSwapComplete, onCancelSwap, pitcherId, date, initData, readOnly }) {
   const groups = [];
   let currentGroup = null;
   let letterIndex = 0;
@@ -499,6 +531,15 @@ function SupersetList({ exercises, exerciseMap, slugMap, completed, onToggle, ex
                 onToggle={onToggle ? () => onToggle(exId, !isCompleted) : null}
                 onToggleWhy={() => onToggleWhy(exId)}
                 ballWeight={ex.ball_weight}
+                swappingExerciseId={swappingExerciseId}
+                swappedFrom={swappedExercises?.[exId]}
+                onStartSwap={onStartSwap}
+                onSwapComplete={onSwapComplete}
+                onCancelSwap={onCancelSwap}
+                pitcherId={pitcherId}
+                date={date}
+                initData={initData}
+                readOnly={readOnly}
               />
             );
           })}
@@ -510,7 +551,7 @@ function SupersetList({ exercises, exerciseMap, slugMap, completed, onToggle, ex
 
 // ── Exercise item ──
 
-function ExerciseItem({ exerciseId, exercise, rx, prescription, note: rawNote, label, completed, isFpm, why, whyExpanded, onToggle, onToggleWhy, ballWeight }) {
+function ExerciseItem({ exerciseId, exercise, rx, prescription, note: rawNote, label, completed, isFpm, why, whyExpanded, onToggle, onToggleWhy, ballWeight, swappingExerciseId, swappedFrom, onStartSwap, onSwapComplete, onCancelSwap, pitcherId, date, initData, readOnly }) {
   const note = typeof rawNote === 'string' ? rawNote : '';
   const rowStyle = {
     display: 'flex', alignItems: 'center', gap: 10, padding: '6px 4px',
@@ -589,7 +630,44 @@ function ExerciseItem({ exerciseId, exercise, rx, prescription, note: rawNote, l
             flexShrink: 0, fontWeight: 600, textTransform: 'uppercase',
           }}>FPM</span>
         )}
+
+        {onStartSwap && !completed && !readOnly && swappingExerciseId !== exerciseId && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onStartSwap(exerciseId); }}
+            style={{
+              padding: '3px 8px', borderRadius: 12,
+              border: '1px solid var(--color-cream-border)', background: 'var(--color-cream-bg)',
+              fontSize: 10, color: 'var(--color-ink-muted)', cursor: 'pointer',
+              fontWeight: 500, marginLeft: 4, flexShrink: 0,
+            }}
+          >
+            Swap
+          </button>
+        )}
       </div>
+
+      {/* Inline swap UI */}
+      {swappingExerciseId === exerciseId && (
+        <ExerciseSwap
+          exerciseId={exerciseId}
+          exerciseName={exercise.name}
+          pitcherId={pitcherId}
+          date={date}
+          initData={initData}
+          onSwap={(newEx) => onSwapComplete(exerciseId, newEx)}
+          onCancel={onCancelSwap}
+        />
+      )}
+
+      {/* Swapped indicator */}
+      {swappedFrom && (
+        <div style={{
+          marginLeft: 32, marginTop: 2, fontSize: 10,
+          color: 'var(--color-ink-muted)', fontStyle: 'italic',
+        }}>
+          was: {swappedFrom.swapped_from_name}
+        </div>
+      )}
 
       <ExerciseWhy why={why} expanded={whyExpanded} />
     </div>

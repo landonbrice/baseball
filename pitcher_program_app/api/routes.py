@@ -1061,6 +1061,166 @@ async def get_slug_map():
 
 
 # ---------------------------------------------------------------------------
+# Exercise Swap
+# ---------------------------------------------------------------------------
+
+@router.get("/exercises/{exercise_id}/alternatives")
+async def get_exercise_alternatives(
+    exercise_id: str,
+    request: Request,
+    pitcher_id: str = Query(...),
+    date: str = Query(None),
+):
+    """Return 3-4 alternative exercises for inline swapping."""
+    _require_pitcher_auth(request, pitcher_id)
+    from bot.services.exercise_alternatives import find_alternatives
+
+    profile = load_profile(pitcher_id)
+    flags = profile.get("active_flags") or {}
+    rotation_day = flags.get("days_since_outing", 0)
+
+    if not date:
+        from datetime import datetime
+        date = datetime.now(CHICAGO_TZ).strftime("%Y-%m-%d")
+
+    alternatives = find_alternatives(
+        exercise_id=exercise_id,
+        pitcher_id=pitcher_id,
+        date=date,
+        rotation_day=rotation_day,
+    )
+    return {"alternatives": alternatives}
+
+
+@router.post("/pitcher/{pitcher_id}/swap-exercise")
+async def swap_exercise(pitcher_id: str, request: Request):
+    """Swap an exercise in today's plan and record in pitcher model."""
+    _require_pitcher_auth(request, pitcher_id)
+    body = await request.json()
+
+    date = body.get("date")
+    from_id = body.get("from_exercise_id")
+    to_id = body.get("to_exercise_id")
+    reason = body.get("reason", "preference")
+    source = body.get("source", "inline_swap")
+
+    if not all([date, from_id, to_id]):
+        raise HTTPException(status_code=400, detail="date, from_exercise_id, to_exercise_id required")
+
+    from bot.services.db import (
+        get_daily_entry, upsert_daily_entry, get_training_model,
+        upsert_training_model, get_exercise,
+    )
+
+    # 1. Update daily_entries — replace exercise in plan_generated
+    entry = get_daily_entry(pitcher_id, date)
+    if not entry:
+        raise HTTPException(status_code=404, detail="No entry for this date")
+
+    plan = entry.get("plan_generated") or {}
+    replacement_ex = get_exercise(to_id)
+    if not replacement_ex:
+        raise HTTPException(status_code=404, detail=f"Exercise {to_id} not found")
+
+    # Find and replace in lifting block
+    swapped = False
+    lifting = plan.get("lifting") or {}
+    for ex in (lifting.get("exercises") or []):
+        if ex.get("exercise_id") == from_id:
+            ex["exercise_id"] = to_id
+            ex["name"] = replacement_ex.get("name", to_id)
+            rx_data = replacement_ex.get("prescription") or {}
+            phase = rx_data.get("strength") or rx_data.get("hypertrophy") or rx_data.get("endurance") or {}
+            if phase.get("sets") and phase.get("reps"):
+                ex["prescribed"] = f"{phase['sets']}x{phase['reps']}"
+                if phase.get("intensity"):
+                    ex["prescribed"] += f" @ {phase['intensity']}"
+            ex["rx"] = ex.get("prescribed", ex.get("rx", "3x8"))
+            ex["swapped_from"] = from_id
+            swapped = True
+            break
+
+    # Also check exercise_blocks (legacy format)
+    if not swapped:
+        for block in (plan.get("exercise_blocks") or []):
+            for ex in (block.get("exercises") or []):
+                if ex.get("exercise_id") == from_id:
+                    ex["exercise_id"] = to_id
+                    ex["name"] = replacement_ex.get("name", to_id)
+                    rx_data = replacement_ex.get("prescription") or {}
+                    phase = rx_data.get("strength") or rx_data.get("hypertrophy") or rx_data.get("endurance") or {}
+                    if phase.get("sets") and phase.get("reps"):
+                        ex["prescribed"] = f"{phase['sets']}x{phase['reps']}"
+                    ex["rx"] = ex.get("prescribed", ex.get("rx", "3x8"))
+                    ex["swapped_from"] = from_id
+                    swapped = True
+                    break
+            if swapped:
+                break
+
+    if not swapped:
+        raise HTTPException(status_code=404, detail=f"Exercise {from_id} not found in today's plan")
+
+    # Save updated plan
+    entry["plan_generated"] = plan
+    upsert_daily_entry(pitcher_id, entry)
+
+    # 2. Update pitcher_training_model
+    model = get_training_model(pitcher_id)
+
+    # Append to swap history (keep last 30)
+    swap_history = list(model.get("recent_swap_history") or [])
+    swap_history.append({
+        "date": date,
+        "from_id": from_id,
+        "to_id": to_id,
+        "reason": reason,
+        "source": source,
+    })
+    if len(swap_history) > 30:
+        swap_history = swap_history[-30:]
+
+    # Update equipment constraints if reason is no_equipment
+    equipment = list(model.get("equipment_constraints") or [])
+    if reason == "no_equipment":
+        from_ex = get_exercise(from_id)
+        if from_ex:
+            ex_name = (from_ex.get("name") or "").lower().replace(" ", "_")
+            constraint = f"no_{ex_name}"
+            if constraint not in equipment:
+                equipment.append(constraint)
+
+    # Check if exercise has been swapped away 3+ times → dislike
+    preferences = dict(model.get("exercise_preferences") or {})
+    swap_away_count = sum(1 for s in swap_history if s.get("from_id") == from_id)
+    if swap_away_count >= 3 and preferences.get(from_id) != "dislike":
+        preferences[from_id] = "dislike"
+
+    # Update weekly state
+    week_state = dict(model.get("current_week_state") or {})
+    days = list(week_state.get("days") or [])
+    for d in days:
+        if d.get("date") == date:
+            swaps = list(d.get("exercises_swapped") or [])
+            swaps.append({"from": from_id, "to": to_id})
+            d["exercises_swapped"] = swaps
+            break
+
+    model["recent_swap_history"] = swap_history
+    model["equipment_constraints"] = equipment
+    model["exercise_preferences"] = preferences
+    model["current_week_state"] = week_state
+    upsert_training_model(pitcher_id, model)
+
+    return {
+        "status": "swapped",
+        "from_exercise_id": from_id,
+        "to_exercise_id": to_id,
+        "updated_plan": plan,
+    }
+
+
+# ---------------------------------------------------------------------------
 # Staff / Team endpoints
 # ---------------------------------------------------------------------------
 
