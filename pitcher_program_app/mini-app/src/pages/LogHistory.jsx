@@ -7,6 +7,7 @@ import SeasonTimeline from '../components/SeasonTimeline';
 import SleepScatter from '../components/SleepScatter';
 import WhoopWeekCard from '../components/WhoopWeekCard';
 import RecoveryFingerprint from '../components/RecoveryFingerprint';
+import LockedState, { FakeBarChart } from '../components/LockedState';
 import {
   Chart, BarElement, BarController, LinearScale, CategoryScale, Tooltip,
 } from 'chart.js';
@@ -120,7 +121,13 @@ export default function LogHistory() {
           )}
         </Card>
       ) : (
-        <LockedCard label="🔄 Your Rotation Signature" hint="Unlocks after a few check-ins across your rotation cycle." />
+        <div style={{ margin: '0 12px 10px' }}>
+          <LockedState
+            emoji={'\uD83D\uDD04'}
+            title="Rotation signature builds with starts"
+            description="Unlocks after a few check-ins across your rotation cycle"
+          />
+        </div>
       )}
 
       {/* ── Outing recovery fingerprint ── */}
@@ -156,7 +163,16 @@ export default function LogHistory() {
           ))}
         </Card>
       ) : (
-        <LockedCard label="🩺 Outing Recovery Fingerprint" hint="Log your first outing with /outing in the bot to see recovery curves here." />
+        <div style={{ margin: '0 12px 10px' }}>
+          <LockedState
+            emoji={'\uD83D\uDD04'}
+            title="Recovery fingerprint builds with starts"
+            description="Log 3 outings to see your post-start recovery pattern"
+            current={0}
+            total={3}
+            unit="outings logged"
+          />
+        </div>
       )}
 
       {/* ── Sleep vs arm feel ── */}
@@ -171,7 +187,16 @@ export default function LogHistory() {
           </AskLink>
         </Card>
       ) : (
-        <LockedCard label="😴 Sleep vs Arm Feel" hint={`Need ${5 - (sleep_correlation?.points?.length || 0)} more check-ins to map sleep → arm feel patterns.`} last />
+        <div style={{ margin: '0 12px 16px' }}>
+          <LockedState
+            emoji={'\uD83D\uDE34'}
+            title="Sleep vs Arm Feel pattern"
+            description={`Need ${5 - (sleep_correlation?.points?.length || 0)} more check-ins to map sleep \u2192 arm feel patterns`}
+            current={sleep_correlation?.points?.length || 0}
+            total={5}
+            unit="check-ins"
+          />
+        </div>
       )}
     </div>
   );
@@ -192,23 +217,6 @@ function Card({ label, children, last }) {
         {label}
       </div>
       {children}
-    </div>
-  );
-}
-
-function LockedCard({ label, hint, last }) {
-  return (
-    <div style={{
-      background: '#fff', borderRadius: 12, padding: 14,
-      margin: `0 12px ${last ? 16 : 10}px`, opacity: 0.55,
-    }}>
-      <div style={{
-        fontSize: 11, fontWeight: 700, color: MAROON,
-        letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6,
-      }}>
-        {label}
-      </div>
-      <div style={{ fontSize: 11, color: INK2, lineHeight: 1.5 }}>{hint}</div>
     </div>
   );
 }
@@ -341,12 +349,20 @@ function EmptyState() {
   return (
     <div style={{ background: BG, minHeight: '100vh' }}>
       <div style={{ background: MAROON, padding: '12px 16px 11px' }}>
-        <div style={{ fontSize: 19, fontWeight: 800, color: '#fff' }}>📊 Season</div>
+        <div style={{ fontSize: 19, fontWeight: 800, color: '#fff' }}>{'\uD83D\uDCCA'} Season</div>
       </div>
-      <div style={{ padding: '40px 24px', textAlign: 'center' }}>
-        <div style={{ fontSize: 13, color: INK2, lineHeight: 1.6 }}>
-          No check-in data yet. Start with <span style={{ fontWeight: 700 }}>/checkin</span> in the bot to see your season trends here.
-        </div>
+      <div style={{ padding: '16px 12px' }}>
+        <LockedState
+          emoji={'\uD83D\uDCC8'}
+          title="Your arm feel trends build here"
+          description="Check in 5 days to unlock arm feel and recovery charts"
+          current={0}
+          total={5}
+          unit="check-ins"
+          cta={"Start a check-in \u2192"}
+          onCtaPress={() => {}}
+          previewContent={<FakeBarChart />}
+        />
       </div>
     </div>
   );

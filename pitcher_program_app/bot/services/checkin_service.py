@@ -1,5 +1,6 @@
 """Shared check-in business logic, usable by both Telegram bot and API."""
 
+import json
 import logging
 from datetime import datetime
 
@@ -200,6 +201,10 @@ async def process_checkin(
     except Exception as e:
         logger.error(f"Plan generation failed for {pitcher_id}: {e}", exc_info=True)
         plan_result = None
+
+    # Serialize structured morning_brief dict to JSON string for text column storage
+    if plan_result and isinstance(plan_result.get("morning_brief"), dict):
+        plan_result["morning_brief"] = json.dumps(plan_result["morning_brief"])
 
     # Build full entry and upsert (same date = updates the partial entry)
     entry = {
