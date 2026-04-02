@@ -480,54 +480,70 @@ async def post_chat(pitcher_id: str, request: Request):
                     "flag_level": "green",
                 }
 
-            messages = []
-            flag = result["flag_level"].upper()
+            # Assemble response messages from checkin result
+            try:
+                messages = []
+                flag = result["flag_level"].upper()
 
-            # Handle plan generation failure (check-in data saved, but no plan)
-            if not result.get("plan_narrative") and not result.get("morning_brief") and not result.get("exercise_blocks"):
-                messages.append({"type": "text", "content":
-                    f"{flag} flag. Your check-in data has been saved. "
-                    "Plan generation had an issue. Tap \"Retry plan\" to try again."})
-                messages.append({"type": "status", "content": "plan_failed"})
-                _persist_chat(pitcher_id, f"Check-in: arm {arm_feel}/5 (plan gen failed)", messages)
-                return {"messages": messages, "morning_brief": None, "flag_level": result.get("flag_level", "green")}
+                # Handle plan generation failure (check-in data saved, but no plan)
+                if not result.get("plan_narrative") and not result.get("morning_brief") and not result.get("exercise_blocks"):
+                    messages.append({"type": "text", "content":
+                        f"{flag} flag. Your check-in data has been saved. "
+                        "Plan generation had an issue. Tap \"Retry plan\" to try again."})
+                    messages.append({"type": "status", "content": "plan_failed"})
+                    _persist_chat(pitcher_id, f"Check-in: arm {arm_feel}/5 (plan gen failed)", messages)
+                    return {"messages": messages, "morning_brief": None, "flag_level": result.get("flag_level", "green")}
 
-            # Increment rotation day only on first successful check-in today (not re-check-in)
-            today_str = datetime.now(CHICAGO_TZ).strftime("%Y-%m-%d")
-            existing = load_log(pitcher_id)
-            already_had_plan = any(
-                e.get("date") == today_str and (e.get("plan_narrative") or (e.get("plan_generated") or {}).get("exercise_blocks"))
-                for e in existing.get("entries", [])
-            )
-            if not already_had_plan and (profile_chk.get("active_flags") or {}).get("phase") != "return_to_throwing":
-                increment_days_since_outing(pitcher_id)
+                # Increment rotation day only on first successful check-in today (not re-check-in)
+                today_str = datetime.now(CHICAGO_TZ).strftime("%Y-%m-%d")
+                existing = load_log(pitcher_id)
+                already_had_plan = any(
+                    e.get("date") == today_str and (e.get("plan_narrative") or (e.get("plan_generated") or {}).get("exercise_blocks"))
+                    for e in existing.get("entries", [])
+                )
+                if not already_had_plan and (profile_chk.get("active_flags") or {}).get("phase") != "return_to_throwing":
+                    increment_days_since_outing(pitcher_id)
 
-            messages.append({"type": "text", "content": f"{flag} flag. {result.get('triage_reasoning', '')}"})
+                messages.append({"type": "text", "content": f"{flag} flag. {result.get('triage_reasoning', '')}"})
 
-            for alert in result.get("alerts", []):
-                messages.append({"type": "text", "content": f"⚠️ {alert}"})
+                for alert in result.get("alerts", []):
+                    messages.append({"type": "text", "content": f"⚠️ {alert}"})
 
-            brief = result.get("morning_brief") or result.get("plan_narrative", "")
-            if brief:
-                messages.append({"type": "text", "content": brief})
+                brief = result.get("morning_brief") or result.get("plan_narrative", "")
+                if isinstance(brief, dict):
+                    brief = brief.get("coaching_note", "") or str(brief)
+                brief = str(brief) if brief else ""
+                if brief:
+                    messages.append({"type": "text", "content": brief})
 
-            if result.get("soreness_response"):
-                messages.append({"type": "text", "content": result["soreness_response"]})
+                if result.get("soreness_response"):
+                    messages.append({"type": "text", "content": result["soreness_response"]})
 
-            messages.append({"type": "status", "content": "plan_loaded"})
+                messages.append({"type": "status", "content": "plan_loaded"})
 
-            if result.get("notes"):
-                messages.append({"type": "text", "content": "Anything else you want to know about today's plan?"})
+                if result.get("notes"):
+                    messages.append({"type": "text", "content": "Anything else you want to know about today's plan?"})
 
-            # Persist to chat_messages
-            checkin_summary = f"Check-in: arm {arm_feel}/5, lift {lift_preference or 'auto'}, throw {throw_intent or 'none'}"
-            _persist_chat(pitcher_id, checkin_summary, messages)
+                # Persist to chat_messages
+                checkin_summary = f"Check-in: arm {arm_feel}/5, lift {lift_preference or 'auto'}, throw {throw_intent or 'none'}"
+                _persist_chat(pitcher_id, checkin_summary, messages)
 
-            return {
-                "messages": messages,
-                "morning_brief": brief or None,
-                "flag_level": result.get("flag_level", "green"),
-            }
+                return {
+                    "messages": messages,
+                    "morning_brief": brief or None,
+                    "flag_level": result.get("flag_level", "green"),
+                }
+            except Exception as assembly_err:
+                logger.error(f"Check-in response assembly failed for {pitcher_id}: {assembly_err}", exc_info=True)
+                # Plan was already saved by process_checkin — return success with minimal info
+                return {
+                    "messages": [
+                        {"type": "text", "content": f"Plan saved. Response assembly error: {assembly_err}"},
+                        {"type": "status", "content": "plan_loaded"},
+                    ],
+                    "morning_brief": None,
+                    "flag_level": result.get("flag_level", "green"),
+                }
 
         elif msg_type == "outing":
             # msg is { pitch_count, post_arm_feel, notes? }
