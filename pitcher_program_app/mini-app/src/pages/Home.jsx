@@ -15,89 +15,6 @@ import StreakBadge from '../components/StreakBadge';
 import StaffPulse from '../components/StaffPulse';
 import FlagBadge from '../components/FlagBadge';
 import WhoopCard from '../components/WhoopCard';
-import LockedState from '../components/LockedState';
-
-const BRIEF_STATUS_COLORS = {
-  green: '#1D9E75',
-  yellow: '#BA7517',
-  red: '#A32D2D',
-};
-
-/** Try to parse a structured morning brief from a JSON string. Returns object or null. */
-function parseStructuredBrief(raw) {
-  if (!raw) return null;
-  if (typeof raw === 'object' && raw.arm_verdict) return raw;
-  if (typeof raw !== 'string') return null;
-  try {
-    const obj = JSON.parse(raw);
-    if (obj && typeof obj === 'object' && obj.arm_verdict) return obj;
-  } catch { /* plain text */ }
-  return null;
-}
-
-function MorningBriefCard({ brief, rotationDay, rotationLength }) {
-  const todayDate = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', timeZone: 'America/Chicago' });
-  const nuggets = [
-    brief.arm_verdict && { key: 'arm', emoji: '\uD83D\uDCAA', heading: 'Arm Feel', value: String(brief.arm_verdict.value || ''), verdict: String(brief.arm_verdict.label || ''), status: brief.arm_verdict.status },
-    brief.sleep_verdict && { key: 'sleep', emoji: '\uD83D\uDE34', heading: 'Sleep', value: String(brief.sleep_verdict.value || ''), verdict: String(brief.sleep_verdict.label || ''), status: brief.sleep_verdict.status },
-    brief.today_focus && { key: 'today', emoji: '\uD83C\uDFAF', heading: 'Today', value: String(brief.today_focus.value || ''), verdict: String(brief.today_focus.label || '') },
-    brief.watch_item ? { key: 'watch', emoji: '\u26A1', heading: 'Watch', value: String(brief.watch_item.value || ''), verdict: String(brief.watch_item.label || ''), status: brief.watch_item.status }
-      : { key: 'watch', emoji: '\u2705', heading: 'Watch', value: 'All clear', verdict: 'No concerns', status: 'green' },
-  ].filter(Boolean);
-
-  return (
-    <div style={{ background: '#fff', borderRadius: 12, padding: 14 }}>
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 10 }}>
-        <span style={{ fontSize: 14 }}>{'\u2600\uFE0F'}</span>
-        <span style={{ fontSize: 14, fontWeight: 700, color: '#2a1a18' }}>Morning Brief</span>
-        <span style={{ fontSize: 11, color: '#b0a89e', marginLeft: 'auto' }}>
-          Day {rotationDay ?? '?'} of {rotationLength ?? 7} {'\u00B7'} {todayDate}
-        </span>
-      </div>
-
-      {/* 2x2 nugget grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: brief.coaching_note ? 12 : 0 }}>
-        {nuggets.map(n => (
-          <div key={n.key} style={{
-            background: '#f5f1eb', borderRadius: 10, padding: '10px 12px',
-            border: '1px solid #e4dfd8',
-          }}>
-            <div style={{ fontSize: 10, fontWeight: 600, color: '#b0a89e', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>
-              {n.emoji} {n.heading}
-            </div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: '#2a1a18', lineHeight: 1.2 }}>
-              {n.value}
-            </div>
-            <div style={{
-              fontSize: 11, marginTop: 2,
-              color: BRIEF_STATUS_COLORS[n.status] || '#6b5f58',
-            }}>
-              {n.verdict}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Coaching note */}
-      {brief.coaching_note && (
-        <div style={{
-          borderLeft: '3px solid #BA7517',
-          background: 'rgba(186,117,23,0.08)',
-          borderRadius: '0 8px 8px 0',
-          padding: '10px 12px',
-        }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: '#BA7517', marginBottom: 4 }}>
-            {'\uD83D\uDCA1'} {"Coach\u2019s Note"}
-          </div>
-          <div style={{ fontSize: 12, color: '#6b5f58', lineHeight: 1.5 }}>
-            {String(brief.coaching_note)}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
 
 function NewPitcherWelcome({ profile, navigate }) {
   const firstName = (profile?.name || '').split(' ')[0];
@@ -261,11 +178,7 @@ export default function Home() {
   const isViewingPast = selectedDate && selectedDate !== todayStr;
 
   const rawBrief = todayEntry?.morning_brief || (todayEntry?.plan_generated || {}).morning_brief;
-  const structuredBrief = useMemo(() => parseStructuredBrief(rawBrief), [rawBrief]);
-  // For plain text contexts (check-in banner, fallback), always ensure we have a string or null
-  const morningBrief = structuredBrief
-    ? (structuredBrief.coaching_note ? String(structuredBrief.coaching_note) : null)
-    : (typeof rawBrief === 'string' ? rawBrief : null);
+  const morningBrief = typeof rawBrief === 'string' ? rawBrief : null;
   const sleepHours = typeof (todayEntry?.pre_training || {}).sleep_hours === 'number' ? todayEntry.pre_training.sleep_hours : null;
   const rawDur = (todayEntry?.lifting || {}).estimated_duration_min || (todayEntry?.plan_generated || {}).estimated_duration_min;
   const estDuration = typeof rawDur === 'number' ? rawDur : null;
@@ -324,22 +237,12 @@ export default function Home() {
         </div>
       </div>
 
-      {/* WHOOP Biometrics — data card or locked state */}
-      {whoopData?.data?.linked && whoopData?.data?.data ? (
+      {/* WHOOP Biometrics — only for linked pitchers with data */}
+      {whoopData?.data?.linked && whoopData?.data?.data && (
         <div style={{ padding: '8px 12px 0' }}>
           <WhoopCard data={whoopData.data.data} averages={whoopData.data.averages} />
         </div>
-      ) : !isNewPitcher && whoopData?.data && !whoopData.data.linked ? (
-        <div style={{ padding: '8px 12px 0' }}>
-          <LockedState
-            emoji={'\u231A'}
-            title="Connect WHOOP for recovery data"
-            description="See HRV, strain, and recovery alongside your daily plan"
-            cta="Connect WHOOP"
-            onCtaPress={() => navigate('/profile')}
-          />
-        </div>
-      ) : null}
+      )}
 
       {/* SessionProgress */}
       {totalEx > 0 && hasCheckedIn && (
@@ -380,13 +283,8 @@ export default function Home() {
         </div>
       )}
 
-      {/* Morning brief — structured card or plain text fallback */}
-      {hasCheckedIn && structuredBrief && (
-        <div style={{ padding: '8px 12px 0' }}>
-          <MorningBriefCard brief={structuredBrief} rotationDay={flags.days_since_outing} rotationLength={profile?.rotation_length} />
-        </div>
-      )}
-      {hasCheckedIn && !structuredBrief && morningBrief && (
+      {/* Morning brief inline (when checked in) */}
+      {hasCheckedIn && morningBrief && (
         <div style={{ padding: '4px 12px 0' }}>
           <p style={{ fontSize: 11, color: '#6b5f58', lineHeight: 1.6, fontStyle: 'italic', margin: 0 }}>{morningBrief}</p>
         </div>
@@ -427,19 +325,9 @@ export default function Home() {
           </div>
         )}
 
-        {upcoming.data?.upcoming?.length > 0 ? (
+        {upcoming.data?.upcoming?.length > 0 && (
           <div style={{ marginTop: 12 }}>
             <ThrowingWeekPreview days={upcoming.data.upcoming} />
-          </div>
-        ) : !isNewPitcher && (
-          <div style={{ marginTop: 12 }}>
-            <LockedState
-              emoji={'\uD83D\uDCC5'}
-              title="Set your next outing"
-              description={"I'll build your throwing week around your start date"}
-              cta={"Tell Coach your next start \u2192"}
-              onCtaPress={() => navigate('/coach')}
-            />
           </div>
         )}
 
@@ -450,17 +338,7 @@ export default function Home() {
           narrativeHeadline={narrativeData.data?.headline}
           narrativeWeek={narrativeData.data?.week_start}
         />
-        {staffPulse.data && staffPulse.data.total_pitchers > 0 ? (
-          <div style={{ marginTop: 12 }}><StaffPulse data={staffPulse.data} /></div>
-        ) : !isNewPitcher && (
-          <div style={{ marginTop: 12 }}>
-            <LockedState
-              emoji={'\uD83D\uDC65'}
-              title="Your teammates will appear as they join"
-              description="See who's checked in today and how the staff is tracking"
-            />
-          </div>
-        )}
+        {staffPulse.data && <div style={{ marginTop: 12 }}><StaffPulse data={staffPulse.data} /></div>}
       </div>
     </div>
   );

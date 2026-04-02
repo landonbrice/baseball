@@ -6,13 +6,7 @@ Generate today's training plan as a JSON object. Return ONLY the JSON — no mar
 
 ```
 {
-  "morning_brief": {
-    "arm_verdict": { "value": "4/5", "label": "Solid recovery", "status": "green" },
-    "sleep_verdict": { "value": "7.5h", "label": "Right on target", "status": "green" },
-    "today_focus": { "value": "Lower power", "label": "Light throw day" },
-    "watch_item": { "value": "Forearm", "label": "FPM vol +10% this wk", "status": "yellow" },
-    "coaching_note": "1-2 sentence coaching summary of the day and readiness"
-  },
+  "morning_brief": "1-2 sentence summary of the day and readiness",
 
   "arm_care": {
     "timing": "pre-lift" or "post-lift" or "standalone",
@@ -179,16 +173,6 @@ Generate today's training plan as a JSON object. Return ONLY the JSON — no mar
 - UCL history → elevated FPM frequency, keep pronator and wrist work
 - Shoulder impingement → neutral grip pressing only, reduce overhead
 - Low sleep (<6h) → treat as YELLOW
-
-### Morning Brief (Structured)
-The `morning_brief` must be a JSON object with these fields:
-- **arm_verdict**: `{ "value": "X/5", "label": "short verdict", "status": "green|yellow|red" }` — based on reported arm feel and recent trend
-- **sleep_verdict**: `{ "value": "Xh", "label": "short verdict", "status": "green|yellow|red" }` — based on reported sleep or WHOOP sleep data. Green >= 7h, yellow 5-7h, red < 5h.
-- **today_focus**: `{ "value": "session type", "label": "1-3 word description" }` — what the main training focus is (e.g., "Lower power", "Upper strength", "Recovery")
-- **watch_item**: `{ "value": "area", "label": "short context", "status": "yellow|red" }` or `null` — only include if there is a genuine flag, soreness, or injury-area concern. If nothing to flag, set to `null`.
-- **coaching_note**: string — 1-2 sentences explaining today's plan context and any key coaching points. This is the "why" behind the day.
-
-Status values: "green" (good/on track), "yellow" (monitor/borderline), "red" (concern/action needed).
 
 ### Notes Content
 Include 4-6 notes covering:
