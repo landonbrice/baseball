@@ -126,7 +126,9 @@ export default function Coach() {
           newMsgs.push({
             role: 'bot',
             type: 'plan_ready',
-            content: res.morning_brief || 'Your plan is ready.',
+            content: typeof res.morning_brief === 'string'
+              ? res.morning_brief
+              : (res.morning_brief?.coaching_note || 'Your plan is ready.'),
             flagLevel: res.flag_level || 'green',
           });
         } else if (m.content === 'plan_failed') {
@@ -666,7 +668,7 @@ export default function Coach() {
                   {(m.flagLevel || 'green').toUpperCase()} \u00B7 plan ready
                 </div>
                 <div style={{ fontSize: 10, color: '#2a1a18', lineHeight: 1.5, marginBottom: 7 }}>
-                  {m.content}
+                  {typeof m.content === 'string' ? m.content : String(m.content ?? '')}
                 </div>
                 <div
                   onClick={() => navigate('/')}
