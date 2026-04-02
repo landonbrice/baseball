@@ -158,7 +158,7 @@ pitcher_program_app/
 `get_pitcher_id_by_telegram(telegram_id, username)` — matches by telegram_id first, falls back to telegram_username with auto-backfill on first message.
 
 ### Context System
-Supabase-only. `context_manager.py` queries recent `chat_messages` + `daily_entries` + `active_flags` from Supabase to build LLM context. JSON fallback was removed 2026-04-01 — no filesystem dependencies remain.
+Supabase-only. `context_manager.py` queries recent `chat_messages` + `daily_entries` + `pitcher_training_model` from Supabase to build LLM context. The `pitcher_training_model` table consolidates what was previously `active_flags` plus exercise intelligence (preferences, equipment constraints, swap history) and weekly training arc state. JSON fallback was removed 2026-04-01 — no filesystem dependencies remain.
 
 ### Triage → Plan Pipeline
 1. Rule-based triage (`triage.py`) → green/yellow/red + modifications (includes WHOOP HRV/recovery/sleep thresholds)
@@ -169,7 +169,7 @@ Supabase-only. `context_manager.py` queries recent `chat_messages` + `daily_entr
 6. **Tiered post-throw** (`_select_post_throw_protocol`) selects light/medium/full recovery based on throwing day type
 7. Pre-selected exercises + triage + context → LLM → structured JSON with personalized prescriptions
 8. Fallback to exercise pool blocks if LLM fails (guaranteed valid exercise IDs)
-9. Full entry upserted (same date = updates partial), results persist to active_flags
+9. Full entry upserted (same date = updates partial), results persist to pitcher_training_model
 10. `days_since_outing` incremented AFTER first successful check-in of the day (re-check-ins don't double-increment), capped at `rotation_length * 3`
 
 ### Exercise Selection (`exercise_pool.py`)
@@ -202,6 +202,13 @@ All dates use `CHICAGO_TZ` (from `bot/config.py`). Server-side: `datetime.now(CH
 
 ### DB Column Whitelist
 `db.py` uses `_DAILY_ENTRY_COLUMNS` whitelist to strip unknown fields before upsert, preventing PostgREST 400 errors from schema mismatches.
+
+### Pitcher Training Model
+- Consolidates the old `active_flags` table + new exercise intelligence fields
+- `profile["active_flags"]` dict is still populated via compatibility layer in `_profile_from_row()` — reads from `pitcher_training_model` table
+- New fields (exercise_preferences, equipment_constraints, working_weights, recent_swap_history, current_week_state) accessed via `load_training_model(pitcher_id)` in context_manager
+- `update_active_flags()` writes to `pitcher_training_model` (filtered to flag columns only)
+- `weekly_summaries` table enriched with structured columns (avg_arm_feel, exercise_completion_rate, flag_distribution, etc.) alongside LLM narrative
 
 ### Exercise Library (Dual Source)
 - `exercise_library.json` — read by `_load_exercise_library()` in routes.py (cached with `lru_cache`). This serves the `/api/exercises` and `/api/exercises/slugs` endpoints.
@@ -330,7 +337,7 @@ Project: `pitcher-training-intel` (us-east-1)
 |-------|---------|
 | `pitchers` | Pitcher profiles — id, name, role, physical/pitching/training/biometric JSONB fields |
 | `injury_history` | Per-pitcher injury records with severity, area, flag_level, red_flags |
-| `active_flags` | Current state per pitcher — arm_feel, flag_level, days_since_outing, modifications |
+| `pitcher_training_model` | Consolidated pitcher state — arm_feel, flag_level, days_since_outing, modifications, exercise preferences, equipment constraints, swap history, weekly arc |
 | `daily_entries` | Daily training logs — pre_training, plan_generated, actual_logged, completed_exercises |
 | `exercises` | Exercise library (159 exercises) — prescription, tags, contraindications, youtube_url |
 | `templates` | Training templates (9) — rotation day structure, exercise blocks |

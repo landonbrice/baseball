@@ -72,19 +72,78 @@ def get_injury_history(pitcher_id: str) -> list:
 
 
 # ---------------------------------------------------------------------------
-# Active Flags
+# Pitcher Training Model
 # ---------------------------------------------------------------------------
 
+def get_training_model(pitcher_id: str) -> dict:
+    """Return pitcher_training_model row. Returns empty dict if none."""
+    resp = get_client().table("pitcher_training_model").select("*").eq("pitcher_id", pitcher_id).execute()
+    return resp.data[0] if resp.data else {}
+
+
+def upsert_training_model(pitcher_id: str, data: dict) -> None:
+    """Insert or update pitcher_training_model row."""
+    data["pitcher_id"] = pitcher_id
+    data.pop("updated_at", None)  # Let Postgres trigger handle timestamp
+    get_client().table("pitcher_training_model").upsert(data, on_conflict="pitcher_id").execute()
+
+
+def update_training_model_partial(pitcher_id: str, updates: dict) -> None:
+    """Partial update of pitcher_training_model fields (PATCH semantics).
+
+    For top-level columns, merges updates into existing row.
+    For JSONB fields, use upsert_training_model with the full field value.
+    """
+    current = get_training_model(pitcher_id)
+    if not current:
+        updates["pitcher_id"] = pitcher_id
+        get_client().table("pitcher_training_model").insert(updates).execute()
+        return
+    current.update(updates)
+    current.pop("updated_at", None)  # Let Postgres trigger handle timestamp
+    get_client().table("pitcher_training_model").upsert(current, on_conflict="pitcher_id").execute()
+
+
+# ---------------------------------------------------------------------------
+# Active Flags (compatibility layer — backed by pitcher_training_model)
+# ---------------------------------------------------------------------------
+
+# Columns that map to the old active_flags shape.
+_ACTIVE_FLAGS_COLUMNS = (
+    "pitcher_id, current_arm_feel, current_flag_level, days_since_outing, "
+    "last_outing_date, last_outing_pitches, phase, active_modifications, "
+    "next_outing_days, grip_drop_reported"
+)
+
+
 def get_active_flags(pitcher_id: str) -> dict:
-    """Return active_flags for a pitcher. Returns empty dict if none."""
-    resp = get_client().table("active_flags").select("*").eq("pitcher_id", pitcher_id).execute()
+    """Return active_flags-shaped dict from pitcher_training_model.
+
+    Compatibility wrapper — all existing callers continue to work.
+    """
+    resp = (get_client().table("pitcher_training_model")
+            .select(_ACTIVE_FLAGS_COLUMNS)
+            .eq("pitcher_id", pitcher_id)
+            .execute())
     return resp.data[0] if resp.data else {}
 
 
 def upsert_active_flags(pitcher_id: str, flags: dict) -> None:
-    """Insert or update active_flags for a pitcher."""
-    flags["pitcher_id"] = pitcher_id
-    get_client().table("active_flags").upsert(flags, on_conflict="pitcher_id").execute()
+    """Write active_flags-shaped dict to pitcher_training_model.
+
+    Compatibility wrapper — filters to only active_flags columns
+    to prevent accidental overwrites of new model fields.
+    """
+    allowed = {
+        "pitcher_id", "current_arm_feel", "current_flag_level",
+        "days_since_outing", "last_outing_date", "last_outing_pitches",
+        "phase", "active_modifications", "next_outing_days", "grip_drop_reported",
+    }
+    filtered = {k: v for k, v in flags.items() if k in allowed}
+    filtered["pitcher_id"] = pitcher_id
+    get_client().table("pitcher_training_model").upsert(
+        filtered, on_conflict="pitcher_id"
+    ).execute()
 
 
 # ---------------------------------------------------------------------------
@@ -193,12 +252,30 @@ def get_saved_plan(plan_id) -> dict:
 # Weekly Summaries
 # ---------------------------------------------------------------------------
 
-def upsert_weekly_summary(pitcher_id: str, week_start: str, summary: dict) -> None:
+def upsert_weekly_summary(pitcher_id: str, week_start: str, summary: dict,
+                          structured: dict = None) -> None:
+    """Upsert a weekly summary row.
+
+    Args:
+        pitcher_id: Pitcher ID
+        week_start: ISO date string (Monday of week)
+        summary: Dict with narrative, headline, generated_at (stored as JSONB)
+        structured: Optional dict with enriched fields:
+            avg_arm_feel, avg_sleep, exercise_completion_rate,
+            exercises_skipped, throwing_sessions, total_throws,
+            flag_distribution, movement_pattern_balance
+    """
     row = {
         "pitcher_id": pitcher_id,
         "week_start": week_start,
         "summary": summary,
     }
+    if structured:
+        for key in ("avg_arm_feel", "avg_sleep", "exercise_completion_rate",
+                     "exercises_skipped", "throwing_sessions", "total_throws",
+                     "flag_distribution", "movement_pattern_balance"):
+            if key in structured:
+                row[key] = structured[key]
     get_client().table("weekly_summaries").upsert(row, on_conflict="pitcher_id,week_start").execute()
 
 

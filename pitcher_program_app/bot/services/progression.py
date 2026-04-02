@@ -471,11 +471,29 @@ async def generate_weekly_narrative(pitcher_id: str) -> dict | None:
     today = datetime.now(CHICAGO_TZ).date()
     week_start = (today - timedelta(days=today.weekday())).isoformat()  # Monday of this week
     try:
-        _db.upsert_weekly_summary(pitcher_id, week_start, {
-            "narrative": result["narrative"],
-            "headline": result.get("headline", ""),
-            "generated_at": datetime.now(CHICAGO_TZ).isoformat(),
-        })
+        # Build structured summary from the snapshot
+        structured = {
+            "avg_arm_feel": snapshot.get("week", {}).get("arm_feel", {}).get("avg"),
+            "avg_sleep": snapshot.get("week", {}).get("sleep", {}).get("avg"),
+            "exercise_completion_rate": snapshot.get("week", {}).get("exercise_completion", {}).get("rate"),
+            "exercises_skipped": snapshot.get("week", {}).get("skipped_exercises", {}),
+            "throwing_sessions": len(snapshot.get("week", {}).get("throwing", [])),
+            "total_throws": sum(
+                t.get("throw_count", 0) for t in snapshot.get("week", {}).get("throwing", [])
+            ),
+            "flag_distribution": snapshot.get("week", {}).get("flag_levels", {}),
+            "movement_pattern_balance": {},  # Phase 2 will populate this
+        }
+
+        _db.upsert_weekly_summary(
+            pitcher_id, week_start,
+            {
+                "narrative": result.get("narrative", ""),
+                "headline": result.get("headline", ""),
+                "generated_at": datetime.now(CHICAGO_TZ).isoformat(),
+            },
+            structured=structured,
+        )
     except Exception as e:
         logger.error(f"Failed to store weekly narrative for {pitcher_id}: {e}")
 

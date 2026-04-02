@@ -18,6 +18,16 @@ logger = logging.getLogger(__name__)
 # Helpers — reconstruct profile dict from Supabase rows
 # ---------------------------------------------------------------------------
 
+def load_training_model(pitcher_id: str) -> dict:
+    """Load the full pitcher_training_model row.
+
+    Returns the complete model including exercise intelligence
+    and weekly state fields. For active_flags-compatible access,
+    use load_profile() which attaches flags via _profile_from_row().
+    """
+    return _db.get_training_model(pitcher_id)
+
+
 def _profile_from_row(row: dict) -> dict:
     """Convert a pitchers table row back into the profile.json shape
     that all existing code expects."""

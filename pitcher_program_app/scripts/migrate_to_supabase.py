@@ -160,7 +160,11 @@ def migrate_injury_history(sb: Client, dry_run: bool):
 
 
 def migrate_active_flags(sb: Client, dry_run: bool):
-    """Migrate active_flags from each pitcher's profile."""
+    """DEPRECATED: active_flags table replaced by pitcher_training_model.
+
+    Use scripts/migrate_active_flags_to_model.py instead.
+    Kept for reference only.
+    """
     total = 0
     print(f"\n{'='*60}")
     print("ACTIVE FLAGS")
