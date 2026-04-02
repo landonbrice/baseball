@@ -1,7 +1,7 @@
 # Pitcher Training Intelligence — Claude Init
 
 > Last updated: 2026-04-01
-> Sprint status: Phases 1-11 complete. WHOOP PKCE fixed, JSON fallback removed. Next: The Ledger, periodization, exercise progression curves.
+> Sprint status: Phases 1-15 complete. Pitcher training model, exercise swap UI, two-pass plan generation, coach-to-plan bridge all live. Next: The Ledger, periodization, exercise progression curves, guided day flow.
 
 ## What This Is
 
@@ -68,13 +68,43 @@ Full biometric pipeline. See WHOOP Integration section below.
 - All sections degrade gracefully for sparse profiles
 - Pre-onboarding bug fixes: 25 missing exercises migrated, 38 slug-to-ID mappings, RetryPlan signature fix, chat history race condition, days_since_outing cap
 
+### Phase 12: Pitcher Training Model (2026-04-01) — COMPLETE
+- `pitcher_training_model` table consolidates `active_flags` + exercise intelligence + weekly arc
+- Compatibility layer: `profile["active_flags"]` still works, reads from new table
+- `active_flags` table dropped; `weekly_summaries` enriched with structured columns
+- `load_training_model()` helper for full model access (preferences, equipment, week state)
+
+### Phase 13: Exercise Swap UI (2026-04-02) — COMPLETE
+- Approach D inline swap: reason pills (No equipment / Doesn't feel right / Just swap it)
+- `exercise_alternatives.py`: finds 3-4 alternatives by category + muscle overlap
+- Model-aware exercise pool: filters by equipment_constraints, scores by exercise_preferences
+- Swap history → auto-dislike after 3+ swaps from same exercise
+- `ExerciseSwap` component renders in DailyCard lifting block only
+
+### Phase 14: Two-Pass Plan Generation (2026-04-02) — COMPLETE
+- Python constructs complete plan instantly (<1s) — no more LLM timeout failures
+- LLM reviews plan for coherence, adjusts prescriptions, writes morning brief
+- If LLM times out, pitcher gets model-aware plan (not generic template)
+- `weekly_model.py`: next-day suggestions, weekly state tracking after each check-in
+- Morning notifications lead with proactive suggestion when confidence is high
+
+### Phase 15: Coach Bridge + Game Detection (2026-04-02) — COMPLETE
+- Coach chat detects `plan_mutation` JSON → returns mutation preview cards
+- `MutationPreview` component: diff cards with Apply/Keep buttons
+- `POST /apply-mutations` handles swap/add/remove/modify operations
+- `game_scraper.py`: detects game days, prompts unreported relievers at 11pm
+- Coach mutations feed back into pitcher model preferences (auto-dislike learning)
+
 ### What's Not Yet Built
 1. **The Ledger** — Modification history visualization. Data exists in `plan_generated.modifications_applied`. Needs frontend timeline on Profile.
 2. **Periodization** — No multi-week phases (hypertrophy → strength → power). Template repeats identically each week. Exercise pool adds variety but not progressive structure.
 3. **Exercise progression curves** — Volume/intensity trends for key lifts over time.
 4. **Coach dashboard** — Staff-facing view of team readiness, flags, trends.
-5. **Truncated JSON repair** — LLM sometimes returns cut-off JSON. `finish_reason` is surfaced but repair logic not yet built.
+5. **Truncated JSON repair** — LLM sometimes returns cut-off JSON. `finish_reason` is surfaced but repair logic not yet built. Less critical now with two-pass plan gen (Python plan ships if LLM fails).
 6. **Guided day flow** — Sequential phase unlocking in DailyCard (complete warmup → arm care unlocks → lifting → throwing → post-throw). Data structure supports it, frontend not yet wired.
+7. **Weight logging** — `pitcher_training_model.working_weights` column exists but no UI to log actual weights lifted. Currently completion is binary (done/not done).
+8. **Inline coach panel on lifting block** — Coach button on lifting section for in-context refinement without navigating to Coach tab. Coach tab works for now.
+9. **UChicago box score scraping** — `game_scraper.py` detects game days and prompts relievers, but doesn't auto-scrape box scores (requires manual /outing report or prompt response).
 
 ## Stack
 
@@ -112,8 +142,11 @@ pitcher_program_app/
 │   │   ├── triage.py             # Rule-based readiness triage (green/yellow/red), injury-aware
 │   │   ├── triage_llm.py         # LLM refinement for ambiguous triage cases
 │   │   ├── exercise_pool.py      # Dynamic exercise selection from library (replaces static templates), explosive block
+│   │   ├── exercise_alternatives.py # Smart alternative-finding for inline exercise swaps
+│   │   ├── weekly_model.py       # Next-day suggestion logic, weekly state management
+│   │   ├── game_scraper.py       # Game day detection, reliever appearance tracking
 │   │   ├── mobility.py           # 10-week cycling mobility video rotation service
-│   │   ├── plan_generator.py     # LLM-powered daily plan with exercise pool + template fallback
+│   │   ├── plan_generator.py     # Two-pass plan gen: Python constructs instant plan, LLM reviews/enriches
 │   │   ├── progression.py        # Arm feel trends, sleep patterns, recovery curves, weekly summaries, season summary
 │   │   ├── llm.py                # DeepSeek wrapper (call_llm + call_llm_reasoning, 90s/120s timeouts)
 │   │   ├── knowledge_retrieval.py # Exercise library search + auto-research generation
@@ -136,6 +169,8 @@ pitcher_program_app/
 │   │   ├── App.jsx / Layout.jsx  # Router, auth context, TelegramWebApp init, morning badge check
 │   │   ├── hooks/                # useApi, usePitcher, useTelegram, useChatState
 │   │   ├── components/           # DailyCard, WeekStrip, TrendChart, SessionProgress, Sparkline, StreakBadge, StaffPulse, CoachFAB, TrendInsightChart, ExerciseWhy, MobilityCard, etc. (20 total)
+│   │   ├── ExerciseSwap.jsx      # Inline swap UI (Approach D: reason pills + alternatives)
+│   │   ├── MutationPreview.jsx   # Coach mutation diff card with Apply/Keep buttons
 │   │   └── pages/                # Home, Coach, Plans, PlanDetail, ExerciseLibrary, LogHistory, Profile (7 total)
 │   └── .env.production           # VITE_API_URL
 │
@@ -352,6 +387,8 @@ python -m api.main
 # Mini-app (separate terminal)
 cd mini-app && npm install && npm run dev
 ```
+
+**Note:** No Python virtualenv exists locally — the project runs on Railway. Use Supabase MCP for SQL operations and database queries. Python scripts (migrations, data ops) should be run via Supabase SQL when possible, or deployed to Railway for execution.
 
 ## Supabase Schema
 
