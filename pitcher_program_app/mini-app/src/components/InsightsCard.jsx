@@ -1,4 +1,5 @@
 import TrendInsightChart from './TrendInsightChart';
+import LockedState, { FakeInsightRows } from './LockedState';
 
 function categorizeInsight(text) {
   const lower = text.toLowerCase();
@@ -118,12 +119,15 @@ export default function InsightsCard({ observations = [], trendWeeks = [], narra
           })}
         </div>
       ) : !hasNarrative && (
-        <p style={{
-          fontSize: 11, color: 'var(--color-ink-muted)',
-          lineHeight: 1.5, margin: 0, textAlign: 'center', padding: '8px 0',
-        }}>
-          Check in daily to build your weekly insights. Trends appear after 3+ days of data.
-        </p>
+        <LockedState
+          emoji={'\uD83E\uDDE0'}
+          title="Insights unlock after your first week"
+          description={"I'll surface arm feel trends, sleep patterns, and coaching observations"}
+          current={0}
+          total={7}
+          unit="days tracked"
+          previewContent={<FakeInsightRows />}
+        />
       )}
     </div>
   );
