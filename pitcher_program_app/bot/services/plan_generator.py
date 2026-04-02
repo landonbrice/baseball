@@ -288,13 +288,16 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
         python_plan["lifting"]["exercises"] = all_lifting_exercises
 
     # ── Pass 2: LLM review (enriches the plan if it responds in time) ──
+    # Short timeout: Python plan is already complete — LLM just adds polish.
+    # If it doesn't respond in 20s, ship the Python plan rather than blocking.
+    LLM_REVIEW_TIMEOUT = 20
     use_reasoning = phase == "return_to_throwing" or flag_level == "red"
     truncated = False
     try:
         if use_reasoning:
             raw, meta = await call_llm_reasoning(system_prompt, user_prompt, max_tokens=4000, return_metadata=True)
         else:
-            raw, meta = await call_llm(system_prompt, user_prompt, max_tokens=4000, return_metadata=True)
+            raw, meta = await call_llm(system_prompt, user_prompt, max_tokens=4000, timeout=LLM_REVIEW_TIMEOUT, return_metadata=True)
         truncated = meta.get("finish_reason") == "length"
     except (TimeoutError, Exception) as e:
         logger.warning(f"LLM review timed out ({type(e).__name__}: {e}), shipping Python-constructed plan")
