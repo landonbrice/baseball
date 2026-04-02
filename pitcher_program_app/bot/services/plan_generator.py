@@ -262,11 +262,7 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
             soreness_response = plan.get("soreness_response")
 
             # Build narrative from structured data for backward compat
-            # morning_brief may now be a dict (structured) or string (legacy)
-            if isinstance(morning_brief, dict):
-                narrative = morning_brief.get("coaching_note", "")
-            else:
-                narrative = morning_brief
+            narrative = morning_brief
 
             # Build exercise_blocks from structured data for backward compat
             exercise_blocks = []
