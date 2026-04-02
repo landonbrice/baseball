@@ -614,8 +614,18 @@ async def post_chat(pitcher_id: str, request: Request):
             clean_answer = answer
             plan_data = _extract_json_block(answer, "save_plan")
             mod_data = _extract_json_block(answer, "program_modification")
+            mutation_data = _extract_json_block(answer, "plan_mutation")
 
-            if plan_data:
+            if mutation_data and mutation_data.get("mutations"):
+                # Coach suggested plan mutations — return for preview
+                clean_answer = _strip_json_block(answer, "plan_mutation")
+                messages.append({"type": "text", "content": clean_answer.strip()})
+                messages.append({
+                    "type": "plan_mutation",
+                    "content": "Coach suggests changes to your plan",
+                    "mutations": mutation_data["mutations"],
+                })
+            elif plan_data:
                 # Strip the JSON block from the displayed answer
                 clean_answer = _strip_json_block(answer, "save_plan")
                 messages.append({"type": "text", "content": clean_answer.strip()})
@@ -1218,6 +1228,107 @@ async def swap_exercise(pitcher_id: str, request: Request):
         "to_exercise_id": to_id,
         "updated_plan": plan,
     }
+
+
+@router.post("/pitcher/{pitcher_id}/apply-mutations")
+async def apply_mutations(pitcher_id: str, request: Request):
+    """Apply coach-suggested mutations to today's plan."""
+    _require_pitcher_auth(request, pitcher_id)
+    body = await request.json()
+
+    date = body.get("date")
+    mutations = body.get("mutations", [])
+    source = body.get("source", "coach_suggestion")
+
+    if not date or not mutations:
+        raise HTTPException(status_code=400, detail="date and mutations required")
+
+    from bot.services.db import (
+        get_daily_entry, upsert_daily_entry, get_training_model,
+        upsert_training_model, get_exercise,
+    )
+
+    entry = get_daily_entry(pitcher_id, date)
+    if not entry:
+        raise HTTPException(status_code=404, detail="No entry for this date")
+
+    plan = entry.get("plan_generated") or {}
+    model = get_training_model(pitcher_id)
+    swap_history = list(model.get("recent_swap_history") or [])
+
+    for m in mutations:
+        action = m.get("action")
+        lifting = plan.get("lifting") or {}
+        exercises = lifting.get("exercises") or []
+
+        if action == "swap":
+            from_id = m.get("from_exercise_id")
+            to_id = m.get("to_exercise_id")
+            replacement = get_exercise(to_id) if to_id else None
+            for ex in exercises:
+                if ex.get("exercise_id") == from_id:
+                    if replacement:
+                        ex["exercise_id"] = to_id
+                        ex["name"] = replacement.get("name", to_id)
+                    if m.get("rx"):
+                        ex["prescribed"] = m["rx"]
+                        ex["rx"] = m["rx"]
+                    ex["swapped_from"] = from_id
+                    break
+            swap_history.append({"date": date, "from_id": from_id, "to_id": to_id, "reason": "coach", "source": source})
+
+        elif action == "add":
+            ex_id = m.get("exercise_id")
+            new_ex = get_exercise(ex_id) if ex_id else None
+            new_entry = {
+                "exercise_id": ex_id,
+                "name": new_ex.get("name", ex_id) if new_ex else ex_id,
+                "prescribed": m.get("rx", "3x8"),
+                "rx": m.get("rx", "3x8"),
+            }
+            if m.get("note"):
+                new_entry["note"] = m["note"]
+            # Insert after a specific exercise if specified
+            after_id = m.get("after_exercise_id")
+            inserted = False
+            if after_id:
+                for i, ex in enumerate(exercises):
+                    if ex.get("exercise_id") == after_id:
+                        exercises.insert(i + 1, new_entry)
+                        inserted = True
+                        break
+            if not inserted:
+                exercises.append(new_entry)
+
+        elif action == "remove":
+            ex_id = m.get("exercise_id")
+            exercises[:] = [ex for ex in exercises if ex.get("exercise_id") != ex_id]
+
+        elif action == "modify":
+            ex_id = m.get("exercise_id")
+            for ex in exercises:
+                if ex.get("exercise_id") == ex_id:
+                    if m.get("rx"):
+                        ex["prescribed"] = m["rx"]
+                        ex["rx"] = m["rx"]
+                    if m.get("note"):
+                        ex["note"] = m["note"]
+                    break
+
+        lifting["exercises"] = exercises
+        plan["lifting"] = lifting
+
+    # Save updated plan
+    entry["plan_generated"] = plan
+    upsert_daily_entry(pitcher_id, entry)
+
+    # Update swap history in model
+    if len(swap_history) > 30:
+        swap_history = swap_history[-30:]
+    model["recent_swap_history"] = swap_history
+    upsert_training_model(pitcher_id, model)
+
+    return {"status": "mutations_applied", "mutation_count": len(mutations), "updated_plan": plan}
 
 
 # ---------------------------------------------------------------------------

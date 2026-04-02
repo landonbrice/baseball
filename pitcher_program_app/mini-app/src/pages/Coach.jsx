@@ -4,8 +4,9 @@ import ReactMarkdown from 'react-markdown';
 import { useAuth } from '../App';
 import { useAppContext } from '../hooks/useChatState';
 import { usePitcher } from '../hooks/usePitcher';
-import { sendChat, sendChatWithPlan, setNextOuting, savePlan, fetchChatHistory } from '../api';
+import { sendChat, sendChatWithPlan, setNextOuting, savePlan, fetchChatHistory, applyMutations } from '../api';
 import { useToast } from '../hooks/useToast';
+import MutationPreview from '../components/MutationPreview';
 
 export default function Coach() {
   const { pitcherId, initData } = useAuth();
@@ -708,6 +709,27 @@ export default function Coach() {
                       </button>
                     )}
                   </div>
+                )}
+                {/* Plan mutation preview */}
+                {m.type === 'plan_mutation' && m.mutations && (
+                  <MutationPreview
+                    mutations={m.mutations}
+                    applied={!!m.mutationsApplied}
+                    onApply={async () => {
+                      const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+                      await applyMutations(pitcherId, today, m.mutations, initData);
+                      setMessages(prev => prev.map((msg, idx) =>
+                        idx === i ? { ...msg, mutationsApplied: true } : msg
+                      ));
+                      showToast('Plan updated', 'success');
+                      triggerRefresh();
+                    }}
+                    onKeep={() => {
+                      setMessages(prev => prev.map((msg, idx) =>
+                        idx === i ? { ...msg, mutationsApplied: 'declined' } : msg
+                      ));
+                    }}
+                  />
                 )}
               </div>
             )}

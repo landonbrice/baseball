@@ -220,6 +220,18 @@ All dates use `CHICAGO_TZ` (from `bot/config.py`). Server-side: `datetime.now(CH
 - Relievers: suggestion derived from actual throwing events (bullpen, game), not fixed rotation
 - Starters: existing rotation enhanced with weekly movement pattern gap detection
 
+### Coach-to-Plan Bridge
+- Coach chat detects `plan_mutation` JSON blocks in LLM responses → returns `type: "plan_mutation"` message with `mutations` array
+- `MutationPreview` component renders diff cards with Apply/Keep buttons
+- `POST /apply-mutations` applies swap/add/remove/modify operations to daily entry
+- Mutation format: `{ action: "swap|add|remove|modify", exercise_id, from_exercise_id, to_exercise_id, rx, note }`
+- Applied mutations recorded in `pitcher_training_model.recent_swap_history`
+
+### Game Appearance Detection
+- `game_scraper.py`: detects game days from `schedule` table, prompts unreported relievers via Telegram
+- 11pm daily job checks for relievers who didn't log outings on game days
+- `update_pitcher_game_appearance()` records game appearances in weekly state and recomputes next-day suggestion
+
 ### Exercise Library (Dual Source)
 - `exercise_library.json` — read by `_load_exercise_library()` in routes.py (cached with `lru_cache`). This serves the `/api/exercises` and `/api/exercises/slugs` endpoints.
 - Supabase `exercises` table — read by `db.get_exercises()` and `exercise_pool.py` for plan generation.
@@ -276,6 +288,7 @@ Fully implemented 2026-03-29, v2 API migration 2026-03-31, PKCE state persistenc
 **Actions:** `POST /checkin`, `/outing`, `/chat` (unified), `/set-next-outing`, `/complete-exercise`
 **Mobility:** `GET /pitcher/{id}/mobility-today`
 **Swap:** `GET /exercises/{id}/alternatives?pitcher_id=X`, `POST /pitcher/{id}/swap-exercise`
+**Mutations:** `POST /pitcher/{id}/apply-mutations` (coach-suggested plan changes)
 **WHOOP:** `GET /pitcher/{id}/whoop-today`, `GET /whoop/callback` (OAuth)
 **Plans:** `GET/POST /plans`, `/plans/{id}/activate`, `/deactivate`, `/apply-plan/{id}`, `/generate-plan`
 **Library:** `/api/exercises`, `/api/exercises/slugs`

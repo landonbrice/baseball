@@ -211,3 +211,14 @@ export async function swapExercise(pitcherId, date, fromExerciseId, toExerciseId
     source: 'inline_swap',
   }, initData);
 }
+
+/**
+ * Apply coach-suggested mutations to today's plan.
+ */
+export async function applyMutations(pitcherId, date, mutations, initData = null) {
+  return postApi(`/api/pitcher/${pitcherId}/apply-mutations`, {
+    date,
+    mutations,
+    source: 'coach_suggestion',
+  }, initData);
+}

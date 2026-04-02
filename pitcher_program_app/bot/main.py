@@ -728,6 +728,22 @@ def _schedule_jobs(application: Application) -> None:
     )
     logger.info("Scheduled daily 6am WHOOP pull")
 
+    # Post-game reliever check — runs at 11pm on game days
+    async def _post_game_reliever_check(context):
+        """Check if relievers appeared in today's game and prompt if unreported."""
+        try:
+            from bot.services.game_scraper import prompt_relievers_after_game
+            await prompt_relievers_after_game(context.bot)
+        except Exception as e:
+            logger.error(f"Post-game reliever check failed: {e}")
+
+    job_queue.run_daily(
+        _post_game_reliever_check,
+        time=dt_time(hour=23, minute=0, tzinfo=CHICAGO_TZ),
+        name="post_game_reliever_check",
+    )
+    logger.info("Scheduled daily 11pm post-game reliever check")
+
 
 async def post_init(application: Application) -> None:
     """Set bot commands and schedule jobs after startup."""
