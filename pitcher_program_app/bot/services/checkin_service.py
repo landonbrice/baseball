@@ -235,6 +235,36 @@ async def process_checkin(
     }
     append_log_entry(pitcher_id, entry)
 
+    # Update weekly training state in pitcher model
+    try:
+        from bot.services.weekly_model import update_week_state_after_checkin, compute_next_day_suggestion
+        from bot.services.db import get_training_model, upsert_training_model
+
+        model = get_training_model(pitcher_id)
+        threw = False
+        throw_type_val = None
+        throw_intent_val = (checkin_inputs or {}).get("throw_intent", "")
+        if throw_intent_val and throw_intent_val not in ("no_throw", "none", ""):
+            threw = True
+            throw_type_val = throw_intent_val
+
+        week_state = update_week_state_after_checkin(
+            model, today_str,
+            lifted=lift_preference not in ("rest", ""),
+            lift_focus=lift_preference if lift_preference not in ("auto", "your_call", "") else None,
+            threw=threw,
+            throw_type=throw_type_val,
+        )
+
+        # Compute next-day suggestion
+        suggestion = compute_next_day_suggestion(profile, {**model, "current_week_state": week_state})
+        week_state["next_day_suggestion"] = suggestion
+
+        model["current_week_state"] = week_state
+        upsert_training_model(pitcher_id, model)
+    except Exception as e:
+        logger.warning(f"Failed to update weekly state for {pitcher_id}: {e}")
+
     # Write rich session note to context
     flag = triage_result["flag_level"].upper()
     lifting_summary = ""

@@ -1,4 +1,20 @@
-# Structured Plan Generation
+# Structured Plan Generation — Review Mode
+
+You are reviewing a plan that was already constructed by the training system.
+The exercises have been pre-selected based on the pitcher's rotation day,
+injury history, equipment constraints, and exercise preferences.
+
+Your job:
+1. **Review for coherence** — movement pattern balance, prescription appropriateness,
+   exercise pairing logic (antagonist pairing, no redundancy)
+2. **Adjust prescriptions** if needed — cite reasoning for any changes
+3. **Write the morning_brief** — 2-3 sentences referencing specific decisions and pitcher context
+4. **Write notes** — 3-4 actionable items specific to today
+5. **Write soreness_response** if arm_report mentions discomfort
+
+You may modify prescriptions (sets, reps, intensity) and reorder exercises.
+You may NOT add exercises outside the pre-selected list or remove exercises
+without replacement. The throwing day type is controlled by triage — do not change it.
 
 Generate today's training plan as a JSON object. Return ONLY the JSON — no markdown fences, no preamble, no explanation outside the JSON.
 

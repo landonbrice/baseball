@@ -167,10 +167,12 @@ Supabase-only. `context_manager.py` queries recent `chat_messages` + `daily_entr
 4. **Dynamic warmup** (`_build_warmup_block`) loads `dynamic_warmup.json`, picks activation option + FPM addon
 5. **Dynamic exercise pool** (`exercise_pool.py`) selects 7-8 lifting exercises + 1 explosive from the 159-exercise library
 6. **Tiered post-throw** (`_select_post_throw_protocol`) selects light/medium/full recovery based on throwing day type
-7. Pre-selected exercises + triage + context → LLM → structured JSON with personalized prescriptions
-8. Fallback to exercise pool blocks if LLM fails (guaranteed valid exercise IDs)
-9. Full entry upserted (same date = updates partial), results persist to pitcher_training_model
-10. `days_since_outing` incremented AFTER first successful check-in of the day (re-check-ins don't double-increment), capped at `rotation_length * 3`
+7. **Python constructs complete plan** (instant) from exercise pool + pitcher model + triage — always succeeds
+8. **LLM reviews plan** (async) — adjusts prescriptions, writes morning brief + notes. If LLM times out, Python plan ships as-is
+9. Fallback to Python-constructed plan if LLM fails (model-aware exercises, not generic template)
+10. Full entry upserted (same date = updates partial), results persist to pitcher_training_model
+11. `days_since_outing` incremented AFTER first successful check-in of the day (re-check-ins don't double-increment), capped at `rotation_length * 3`
+12. Weekly state updated in `pitcher_training_model.current_week_state` after each check-in
 
 ### Exercise Selection (`exercise_pool.py`)
 - Filters library by: day focus (upper/lower/full), rotation_day_usage, contraindications, modification_flags
@@ -210,6 +212,13 @@ All dates use `CHICAGO_TZ` (from `bot/config.py`). Server-side: `datetime.now(CH
 - New fields (exercise_preferences, equipment_constraints, working_weights, recent_swap_history, current_week_state) accessed via `load_training_model(pitcher_id)` in context_manager
 - `update_active_flags()` writes to `pitcher_training_model` (filtered to flag columns only)
 - `weekly_summaries` table enriched with structured columns (avg_arm_feel, exercise_completion_rate, flag_distribution, etc.) alongside LLM narrative
+
+### Weekly Model + Proactive Suggestions
+- `weekly_model.py`: `compute_next_day_suggestion()` runs after each check-in
+- `current_week_state.next_day_suggestion` stores focus, throw_suggestion, reasoning, confidence
+- Morning notification uses suggestion: high confidence → lead with direction, medium → suggest softly, low → ask
+- Relievers: suggestion derived from actual throwing events (bullpen, game), not fixed rotation
+- Starters: existing rotation enhanced with weekly movement pattern gap detection
 
 ### Exercise Library (Dual Source)
 - `exercise_library.json` — read by `_load_exercise_library()` in routes.py (cached with `lru_cache`). This serves the `/api/exercises` and `/api/exercises/slugs` endpoints.

@@ -37,11 +37,54 @@ def get_rotation_day(pitcher_profile: dict) -> int:
     return (pitcher_profile.get("active_flags") or {}).get("days_since_outing", 0)
 
 
+def _build_python_brief(rotation_day, flag_level, triage_result, checkin_inputs, day_key):
+    """Build a serviceable morning brief without LLM."""
+    parts = [f"Day {rotation_day}"]
+
+    flag = flag_level.upper()
+    parts.append(f"{flag} flag")
+
+    lift_pref = (checkin_inputs or {}).get("lift_preference", "")
+    if lift_pref and lift_pref not in ("auto", "your_call", ""):
+        parts.append(f"{lift_pref} focus")
+
+    whoop = (checkin_inputs or {}).get("whoop_biometrics") or {}
+    if whoop.get("recovery"):
+        parts.append(f"WHOOP {whoop['recovery']}% recovery")
+
+    mods = triage_result.get("modifications", [])
+    if mods:
+        parts.append(f"Mods: {', '.join(mods[:2])}")
+
+    return " — ".join(parts) + "."
+
+
+def _build_python_notes(triage_result, flag_level, checkin_inputs):
+    """Build actionable notes without LLM."""
+    notes = []
+    if flag_level in ("red", "yellow"):
+        notes.append(f"Flagged {flag_level.upper()} — intensity capped per triage.")
+    mods = triage_result.get("modifications", [])
+    for mod in mods[:3]:
+        notes.append(mod)
+    arm_report = (checkin_inputs or {}).get("arm_report", "")
+    if arm_report:
+        notes.append(f'Arm report noted: "{arm_report}"')
+    if not notes:
+        notes.append("Full protocol today. Focus on form and intent.")
+    return notes
+
+
 async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: dict = None) -> dict:
     """Generate today's training protocol for a pitcher.
 
-    The LLM returns structured JSON with arm_care, lifting, throwing,
-    notes, and superset_group fields.  Falls back to template-derived
+    Two-pass architecture:
+    - Pass 1 (Python): Constructs complete plan instantly from exercise pool,
+      pitcher model, triage, and templates. Always succeeds.
+    - Pass 2 (LLM): Reviews plan for coherence, adjusts prescriptions, writes
+      morning brief and notes. If LLM times out, Python plan ships as-is.
+
+    Falls back to Python-constructed plan if the LLM response can't be parsed.
     exercise blocks if the LLM response can't be parsed.
 
     Returns dict with keys:
@@ -218,7 +261,33 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
     else:
         user_prompt = user_prompt.replace("{checkin_inputs}", "No check-in inputs provided.")
 
-    # Use reasoning model for RTT pitchers or complex injury profiles
+    # ── Pass 1: Python-constructed plan (instant, always succeeds) ──
+    python_plan = {
+        "narrative": f"Day {rotation_day} plan ready.",
+        "morning_brief": _build_python_brief(rotation_day, flag_level, triage_result, checkin_inputs, day_key),
+        "arm_care": arm_care_blocks[0] if arm_care_blocks else None,
+        "lifting": {"intent": training_intent, "exercises": [], "estimated_duration_min": estimated_duration_min} if lifting_blocks else None,
+        "throwing": fallback_throwing_plan,
+        "notes": _build_python_notes(triage_result, flag_level, checkin_inputs),
+        "soreness_response": None,
+        "exercise_blocks": fallback_exercise_blocks,
+        "throwing_plan": fallback_throwing_plan,
+        "warmup": warmup_block,
+        "mobility": mobility_data,
+        "estimated_duration_min": estimated_duration_min,
+        "modifications_applied": triage_result.get("modifications", []),
+        "template_day": day_key,
+    }
+
+    # Populate lifting exercises from pool into the structured format
+    if lifting_blocks:
+        all_lifting_exercises = []
+        for block in lifting_blocks:
+            for ex in block.get("exercises", []):
+                all_lifting_exercises.append(ex)
+        python_plan["lifting"]["exercises"] = all_lifting_exercises
+
+    # ── Pass 2: LLM review (enriches the plan if it responds in time) ──
     use_reasoning = phase == "return_to_throwing" or flag_level == "red"
     truncated = False
     try:
@@ -228,23 +297,8 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
             raw, meta = await call_llm(system_prompt, user_prompt, max_tokens=4000, return_metadata=True)
         truncated = meta.get("finish_reason") == "length"
     except (TimeoutError, Exception) as e:
-        logger.warning(f"LLM call failed for plan generation ({type(e).__name__}: {e}), using template fallback")
-        return {
-            "narrative": f"Your Day {rotation_day} plan is ready (built from your template).",
-            "morning_brief": f"Day {rotation_day} — plan generated from template due to slow AI response.",
-            "arm_care": None,
-            "lifting": None,
-            "throwing": fallback_throwing_plan,
-            "notes": ["Plan was generated from your template. Check back later for a fully personalized version."],
-            "soreness_response": None,
-            "exercise_blocks": fallback_exercise_blocks,
-            "throwing_plan": fallback_throwing_plan,
-            "warmup": warmup_block,
-            "mobility": mobility_data,
-            "estimated_duration_min": estimated_duration_min,
-            "modifications_applied": triage_result.get("modifications", []),
-            "template_day": day_key,
-        }
+        logger.warning(f"LLM review timed out ({type(e).__name__}: {e}), shipping Python-constructed plan")
+        return python_plan
 
     # Parse structured JSON from LLM response
     plan = _parse_plan_json(raw, truncated=truncated)
@@ -315,28 +369,14 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
                 "template_day": day_key,
             }
         except Exception as e:
-            logger.warning(f"Error assembling LLM plan ({type(e).__name__}: {e}), using template fallback")
-            # Fall through to template fallback below
+            logger.warning(f"Error assembling LLM plan ({type(e).__name__}: {e}), using Python-constructed plan")
+            return python_plan
 
-    # Fallback: LLM returned unparseable text, or plan assembly crashed
+    # Fallback: LLM returned unparseable text — use Python-constructed plan
     if not plan:
-        logger.warning("LLM returned non-JSON plan, using template fallback")
-    return {
-        "narrative": raw if raw else f"Your Day {rotation_day} plan is ready (built from your template).",
-        "morning_brief": f"Day {rotation_day} plan from template.",
-        "arm_care": None,
-        "lifting": None,
-        "throwing": fallback_throwing_plan,
-        "notes": ["Plan was generated from your template."],
-        "soreness_response": None,
-        "exercise_blocks": fallback_exercise_blocks,
-        "throwing_plan": fallback_throwing_plan,
-        "warmup": warmup_block,
-        "mobility": mobility_data,
-        "estimated_duration_min": estimated_duration_min,
-        "modifications_applied": triage_result.get("modifications", []),
-        "template_day": day_key,
-    }
+        logger.warning("LLM returned non-JSON response, using Python-constructed plan")
+    python_plan["narrative"] = raw if raw else python_plan["narrative"]
+    return python_plan
 
 
 def _parse_plan_json(raw: str, truncated: bool = False):

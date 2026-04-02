@@ -506,6 +506,20 @@ async def _send_morning_checkin(context) -> None:
         except Exception:
             pass
 
+        # Next-day suggestion (proactive coaching)
+        try:
+            from bot.services.db import get_training_model
+            model = get_training_model(pitcher_id)
+            suggestion = (model.get("current_week_state") or {}).get("next_day_suggestion") or {}
+            confidence = suggestion.get("confidence", "low")
+            reasoning = suggestion.get("reasoning", "")
+            if confidence == "high" and reasoning:
+                lines.append(f"{reasoning}.")
+            elif confidence == "medium" and reasoning:
+                lines.append(f"Thinking {reasoning.lower()}.")
+        except Exception:
+            pass
+
         lines.append("")
         lines.append("How's the arm? (1-5)")
         msg = "\n".join(lines)
