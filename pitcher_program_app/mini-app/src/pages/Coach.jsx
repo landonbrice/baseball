@@ -183,8 +183,9 @@ export default function Coach() {
         ? await sendChatWithPlan(pitcherId, text, planCtx, initData, history)
         : await sendChat(pitcherId, text, 'text', initData, history);
       setMessages(prev => [...prev, ...processResponse(res)]);
-    } catch {
-      setMessages(prev => [...prev, { role: 'bot', type: 'text', content: 'Something went wrong. Try again.' }]);
+    } catch (err) {
+      console.error('Chat send failed:', err);
+      setMessages(prev => [...prev, { role: 'bot', type: 'text', content: `Something went wrong: ${err.message || 'unknown error'}. Try again.` }]);
     } finally {
       setLoading(false);
     }
@@ -230,8 +231,9 @@ export default function Coach() {
         const without = prev.slice(0, -1);
         return [...without, ...processResponse(res)];
       });
-    } catch {
-      setMessages(prev => [...prev, { role: 'bot', type: 'text', content: 'Check-in failed. Try again.' }]);
+    } catch (err) {
+      console.error('Check-in failed:', err);
+      setMessages(prev => [...prev, { role: 'bot', type: 'text', content: `Check-in failed: ${err.message || 'unknown error'}. Try again.` }]);
       setCheckinInProgress(false);
     } finally {
       setLoading(false);
