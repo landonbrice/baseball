@@ -17,6 +17,15 @@ import FlagBadge from '../components/FlagBadge';
 import WhoopCard from '../components/WhoopCard';
 import LockedState from '../components/LockedState';
 
+function parseStructuredBrief(raw) {
+  if (!raw || typeof raw !== 'string') return null;
+  try {
+    const obj = JSON.parse(raw);
+    if (obj && typeof obj === 'object' && obj.arm_verdict) return obj;
+  } catch (e) { /* plain text */ }
+  return null;
+}
+
 function NewPitcherWelcome({ profile, navigate }) {
   const firstName = (profile?.name || '').split(' ')[0];
   const role = profile?.role || 'starter';
@@ -179,7 +188,9 @@ export default function Home() {
   const isViewingPast = selectedDate && selectedDate !== todayStr;
 
   const rawBrief = todayEntry?.morning_brief || (todayEntry?.plan_generated || {}).morning_brief;
+  const structuredBrief = useMemo(function() { return parseStructuredBrief(typeof rawBrief === 'string' ? rawBrief : null); }, [rawBrief]);
   const morningBrief = typeof rawBrief === 'string' ? rawBrief : null;
+  // structuredBrief is computed but not yet used in rendering — testing for error #310
   const sleepHours = typeof (todayEntry?.pre_training || {}).sleep_hours === 'number' ? todayEntry.pre_training.sleep_hours : null;
   const rawDur = (todayEntry?.lifting || {}).estimated_duration_min || (todayEntry?.plan_generated || {}).estimated_duration_min;
   const estDuration = typeof rawDur === 'number' ? rawDur : null;
