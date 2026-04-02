@@ -126,7 +126,7 @@ export default function Coach() {
           newMsgs.push({
             role: 'bot',
             type: 'plan_ready',
-            content: res.morning_brief || 'Your plan is ready.',
+            content: typeof res.morning_brief === 'string' ? res.morning_brief : 'Your plan is ready.',
             flagLevel: res.flag_level || 'green',
           });
         } else if (m.content === 'plan_failed') {

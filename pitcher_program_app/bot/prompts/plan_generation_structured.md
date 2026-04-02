@@ -6,7 +6,13 @@ Generate today's training plan as a JSON object. Return ONLY the JSON — no mar
 
 ```
 {
-  "morning_brief": "1-2 sentence summary of the day and readiness",
+  "morning_brief": {
+    "arm_verdict": { "value": "4/5", "label": "Solid recovery", "status": "green" },
+    "sleep_verdict": { "value": "7.5h", "label": "Right on target", "status": "green" },
+    "today_focus": { "value": "Lower power", "label": "Light throw day" },
+    "watch_item": { "value": "Forearm", "label": "FPM vol +10% this wk", "status": "yellow" },
+    "coaching_note": "1-2 sentence coaching summary of the day and readiness"
+  },
 
   "arm_care": {
     "timing": "pre-lift" or "post-lift" or "standalone",
@@ -173,6 +179,16 @@ Generate today's training plan as a JSON object. Return ONLY the JSON — no mar
 - UCL history → elevated FPM frequency, keep pronator and wrist work
 - Shoulder impingement → neutral grip pressing only, reduce overhead
 - Low sleep (<6h) → treat as YELLOW
+
+### Morning Brief (Structured)
+The `morning_brief` must be a JSON object with these fields:
+- **arm_verdict**: `{ "value": "X/5", "label": "short verdict", "status": "green|yellow|red" }` — based on reported arm feel and recent trend
+- **sleep_verdict**: `{ "value": "Xh", "label": "short verdict", "status": "green|yellow|red" }` — green >= 7h, yellow 5-7h, red < 5h
+- **today_focus**: `{ "value": "session type", "label": "1-3 word description" }` — main training focus
+- **watch_item**: `{ "value": "area", "label": "short context", "status": "yellow|red" }` or `null` — only if genuine concern
+- **coaching_note**: string — 1-2 sentences explaining today's plan context
+
+Status values: "green" (good), "yellow" (monitor), "red" (concern).
 
 ### Notes Content
 Include 4-6 notes covering:

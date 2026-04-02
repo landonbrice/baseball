@@ -16,6 +16,7 @@ import StaffPulse from '../components/StaffPulse';
 import FlagBadge from '../components/FlagBadge';
 import WhoopCard from '../components/WhoopCard';
 import LockedState from '../components/LockedState';
+import MorningBriefCard, { parseStructuredBrief } from '../components/MorningBriefCard';
 
 function NewPitcherWelcome({ profile, navigate }) {
   const firstName = (profile?.name || '').split(' ')[0];
@@ -294,12 +295,16 @@ export default function Home() {
         </div>
       )}
 
-      {/* Morning brief inline (when checked in) */}
-      {hasCheckedIn && morningBrief && (
+      {/* Morning brief — structured card if JSON, plain text fallback */}
+      {hasCheckedIn && morningBrief && parseStructuredBrief(morningBrief) ? (
+        <div style={{ padding: '8px 12px 0' }}>
+          <MorningBriefCard rawBrief={morningBrief} rotationDay={flags.days_since_outing} rotationLength={profile?.rotation_length} />
+        </div>
+      ) : hasCheckedIn && morningBrief ? (
         <div style={{ padding: '4px 12px 0' }}>
           <p style={{ fontSize: 11, color: '#6b5f58', lineHeight: 1.6, fontStyle: 'italic', margin: 0 }}>{morningBrief}</p>
         </div>
-      )}
+      ) : null}
 
       <div style={{ padding: '0 12px' }}>
         {isNewPitcher ? (
