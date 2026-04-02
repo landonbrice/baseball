@@ -154,11 +154,11 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
 
     # Build dynamic exercise pool from the library (replaces static template selection)
     day_key = f"day_{rotation_day}"
+    day_focus = _DAY_BODY_FOCUS.get(rotation_day, "full")
+    training_intent = _get_training_intent(rotation_day, triage_result)
     try:
         from bot.services.exercise_pool import build_exercise_pool, get_recent_exercise_ids
         recent_ids = get_recent_exercise_ids(pitcher_id, days=7)
-        day_focus = _DAY_BODY_FOCUS.get(rotation_day, "full")
-        training_intent = _get_training_intent(rotation_day, triage_result)
         lifting_blocks = build_exercise_pool(
             rotation_day=rotation_day,
             day_focus=day_focus,

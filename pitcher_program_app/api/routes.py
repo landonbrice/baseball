@@ -1322,10 +1322,21 @@ async def apply_mutations(pitcher_id: str, request: Request):
     entry["plan_generated"] = plan
     upsert_daily_entry(pitcher_id, entry)
 
-    # Update swap history in model
+    # Update swap history and preferences in model
     if len(swap_history) > 30:
         swap_history = swap_history[-30:]
     model["recent_swap_history"] = swap_history
+
+    # Apply preference learning from swap mutations (same as inline swap logic)
+    preferences = dict(model.get("exercise_preferences") or {})
+    for m in mutations:
+        if m.get("action") == "swap" and m.get("from_exercise_id"):
+            from_id = m["from_exercise_id"]
+            swap_away_count = sum(1 for s in swap_history if s.get("from_id") == from_id)
+            if swap_away_count >= 3 and preferences.get(from_id) != "dislike":
+                preferences[from_id] = "dislike"
+    model["exercise_preferences"] = preferences
+
     upsert_training_model(pitcher_id, model)
 
     return {"status": "mutations_applied", "mutation_count": len(mutations), "updated_plan": plan}
