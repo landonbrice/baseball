@@ -8,8 +8,10 @@ const REASONS = [
 ];
 
 /**
- * Inline exercise swap panel (Approach D).
- * Shows reason chips first, then filtered alternatives after selection.
+ * Inline exercise swap UI (Approach D — Coach Hybrid).
+ *
+ * Fast path: "Just swap it" -> instant alternatives, no LLM.
+ * Learning path: "No equipment" / "Doesn't feel right" -> records reason, shows alternatives.
  */
 export default function ExerciseSwap({ exerciseId, exerciseName, pitcherId, date, initData, onSwap, onCancel }) {
   const [step, setStep] = useState('reasons');
@@ -45,31 +47,25 @@ export default function ExerciseSwap({ exerciseId, exerciseName, pitcherId, date
         swapped_from_name: exerciseName,
       });
     } catch (err) {
-      setError('Swap failed — try again');
+      setError('Swap failed \u2014 try again');
       setStep('alternatives');
     }
   }, [pitcherId, date, exerciseId, exerciseName, selectedReason, initData, onSwap]);
 
   return (
-    <div style={{
-      marginTop: 8, marginLeft: 50,
-      padding: '12px 14px', borderRadius: 10,
-      background: '#f5f1eb', border: '1px solid #e4dfd8',
-      transition: 'all 0.15s ease',
-    }}>
-      {/* Reason chips */}
+    <div style={{ marginTop: 8, marginLeft: 50 }}>
       {step === 'reasons' && (
         <div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: error ? 8 : 0 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             {REASONS.map((r) => (
               <button
                 key={r.key}
                 onClick={() => handleReason(r.key)}
                 style={{
-                  padding: '6px 12px', borderRadius: 20,
+                  padding: '6px 11px', borderRadius: 18,
                   border: '1.5px solid #e4dfd8', background: '#ffffff',
                   fontSize: 12, color: '#6b5f58', cursor: 'pointer',
-                  fontWeight: 500, transition: 'all 0.15s ease',
+                  fontWeight: 500,
                 }}
               >
                 {r.label}
@@ -78,21 +74,23 @@ export default function ExerciseSwap({ exerciseId, exerciseName, pitcherId, date
             <button
               onClick={onCancel}
               style={{
-                padding: '6px 12px', borderRadius: 20,
-                border: 'none', background: 'transparent',
+                padding: '6px 11px', borderRadius: 18,
+                border: '1.5px solid #e4dfd8', background: 'transparent',
                 fontSize: 12, color: '#b0a89e', cursor: 'pointer',
               }}
             >
               Cancel
             </button>
           </div>
-          {error && <div style={{ fontSize: 11, color: '#A32D2D', marginTop: 4 }}>{error}</div>}
+          {error && <div style={{ fontSize: 11, color: '#A32D2D', marginTop: 6 }}>{error}</div>}
         </div>
       )}
 
-      {/* Loading */}
       {step === 'loading' && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0' }}>
+        <div style={{
+          padding: 12, borderRadius: 10, background: '#f5f1eb',
+          display: 'flex', alignItems: 'center', gap: 10,
+        }}>
           <div style={{
             width: 18, height: 18, borderRadius: 9,
             border: '2px solid #5c1020', borderTopColor: 'transparent',
@@ -102,40 +100,61 @@ export default function ExerciseSwap({ exerciseId, exerciseName, pitcherId, date
         </div>
       )}
 
-      {/* Alternatives */}
       {step === 'alternatives' && (
-        <div>
+        <div style={{
+          padding: '10px 12px', borderRadius: 10,
+          background: '#f5f1eb', border: '1px solid #e4dfd8',
+        }}>
+          <div style={{
+            fontSize: 11, fontWeight: 600, color: '#b0a89e',
+            marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5,
+          }}>
+            Swap with
+          </div>
           {alternatives.length === 0 && (
-            <div style={{ fontSize: 12, color: '#6b5f58', marginBottom: 8 }}>No alternatives available</div>
+            <div style={{ fontSize: 12, color: '#6b5f58' }}>No alternatives available</div>
           )}
           {alternatives.map((alt, i) => (
             <div
               key={alt.exercise_id}
               onClick={() => handleSwap(alt)}
               style={{
-                padding: '8px 12px', borderRadius: 10, marginBottom: 6,
-                background: '#ffffff', border: '1px solid #e4dfd8',
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                cursor: 'pointer', transition: 'all 0.15s ease',
+                display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0',
+                borderBottom: i < alternatives.length - 1 ? '1px solid #e4dfd840' : 'none',
+                cursor: 'pointer',
               }}
             >
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 500, color: '#2a1a18' }}>{alt.name}</div>
+              <div style={{
+                width: 28, height: 28, borderRadius: 14,
+                background: i === 0 ? '#1D9E7515' : '#5c102008',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 12, color: i === 0 ? '#1D9E75' : '#5c1020', flexShrink: 0,
+              }}>
+                {i === 0 ? '\u2605' : '\u21BB'}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontSize: 13, fontWeight: 500, color: '#2a1a18' }}>{alt.name}</span>
+                  {alt.tag && (
+                    <span style={{
+                      fontSize: 9, padding: '1px 6px', borderRadius: 8,
+                      background: '#1D9E7515', color: '#1D9E75', fontWeight: 600,
+                    }}>{alt.tag}</span>
+                  )}
+                </div>
                 <div style={{ fontSize: 11, color: '#b0a89e' }}>
                   {alt.rx} &middot; {alt.match_reason}
                 </div>
               </div>
-              <span style={{ fontSize: 12, fontWeight: 600, color: '#5c1020', flexShrink: 0 }}>
-                Use this
-              </span>
             </div>
           ))}
-          {error && <div style={{ fontSize: 11, color: '#A32D2D', marginTop: 4 }}>{error}</div>}
+          {error && <div style={{ fontSize: 11, color: '#A32D2D', marginTop: 6 }}>{error}</div>}
           <button
             onClick={onCancel}
             style={{
-              marginTop: 4, border: 'none', background: 'transparent',
-              fontSize: 12, color: '#b0a89e', cursor: 'pointer', padding: '4px 0',
+              marginTop: 8, padding: '4px 10px', borderRadius: 12,
+              border: '1px solid #e4dfd8', background: 'transparent',
+              fontSize: 11, color: '#b0a89e', cursor: 'pointer',
             }}
           >
             Cancel
@@ -143,9 +162,11 @@ export default function ExerciseSwap({ exerciseId, exerciseName, pitcherId, date
         </div>
       )}
 
-      {/* Swapping */}
       {step === 'swapping' && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0' }}>
+        <div style={{
+          padding: 12, borderRadius: 10, background: '#f5f1eb',
+          display: 'flex', alignItems: 'center', gap: 10,
+        }}>
           <div style={{
             width: 18, height: 18, borderRadius: 9,
             border: '2px solid #5c1020', borderTopColor: 'transparent',

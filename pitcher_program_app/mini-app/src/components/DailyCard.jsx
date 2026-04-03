@@ -306,12 +306,19 @@ function ExerciseBlock({ blockKey, emoji, label, data, fallbackBlocks, hasStruct
       {/* Exercise list — with sub-block grouping for lifting */}
       <div style={{ padding: '6px 14px 10px' }}>
         {blockKey === 'lifting' && (() => {
-          // Use fallbackBlockGroups if available (preserves block_name from exercise_blocks),
-          // otherwise try grouping by individual exercise block field
-          let blockGroups = fallbackBlockGroups.length > 0 ? fallbackBlockGroups : [];
+          // Build block groups from exercise_blocks (which always has block_name structure)
+          // Filter to lifting-related blocks (skip arm care blocks)
+          const liftingBlocks = fallbackBlocks
+            .filter(b => {
+              const name = (b.block_name || '').toLowerCase();
+              return !name.includes('arm') && (b.exercises || []).length > 0;
+            })
+            .map(b => ({ label: b.block_name || null, exercises: b.exercises || [] }));
+
+          // If exercise_blocks don't have structure, try individual exercise block fields
+          let blockGroups = liftingBlocks.length > 0 ? liftingBlocks : [];
 
           if (blockGroups.length === 0 && allEx.length > 0) {
-            // Try grouping by exercise-level block field
             let curBlock = null;
             for (const ex of allEx) {
               const bk = ex.block_name || ex.block;
