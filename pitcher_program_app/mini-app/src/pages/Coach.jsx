@@ -798,7 +798,7 @@ export default function Coach() {
               flexShrink: 0, opacity: input.trim() && !inputDisabled ? 1 : 0.4,
             }}
           >
-            <span style={{ color: '#fff', fontSize: 9 }}>\u2191</span>
+            <span style={{ color: '#fff', fontSize: 9 }}>{'\u2191'}</span>
           </div>
         </div>
       </div>
