@@ -219,6 +219,14 @@ Supabase-only. `context_manager.py` queries recent `chat_messages` + `daily_entr
 - **Model-aware filtering**: exercise_preferences ("dislike" → deprioritized), equipment_constraints (hard filter), swap history (3+ swaps away → auto-dislike)
 - LLM adjusts prescriptions but CANNOT add exercises outside the pre-selected pool
 
+### DailyCard Rendering — Dual Data Sources (Critical Gotcha)
+- Lifting has TWO data sources: `lifting.exercises` (from LLM structured plan) and `plan_generated.exercise_blocks` (from Python fallback pool)
+- `exercise_blocks` has `block_name` on parent objects ("Strength", "Accessories", "Core + Stability") — individual exercises do NOT have a `block` field
+- `lifting.exercises` has flat exercises with optional `superset_group` for superset rendering (A1, A2, B1)
+- Block stratification must read from `exercise_blocks` for sub-headers, NOT from individual exercise fields
+- Props thread: DailyCard → ExerciseBlock → SupersetList → ExerciseItem — missing a prop at any level silently fails
+- Swap overrides: `entry` prop is immutable from DailyCard — use local `swapOverrides` state map to reflect swaps without page refresh
+
 ### Day Phases (DailyCard Block Order)
 Each daily plan has 5 phases rendered as blocks in the mini-app:
 1. **Dynamic Warmup** — template-driven, collapsed by default, cuff vs scap activation, FPM addon for injury history
@@ -247,6 +255,11 @@ All dates use `CHICAGO_TZ` (from `bot/config.py`). Server-side: `datetime.now(CH
 - New fields (exercise_preferences, equipment_constraints, working_weights, recent_swap_history, current_week_state) accessed via `load_training_model(pitcher_id)` in context_manager
 - `update_active_flags()` writes to `pitcher_training_model` (filtered to flag columns only)
 - `weekly_summaries` table enriched with structured columns (avg_arm_feel, exercise_completion_rate, flag_distribution, etc.) alongside LLM narrative
+
+### Two-Pass Plan Generation (Critical Path)
+- Pass 1 (Python) builds `python_plan` — variables `training_intent`, `day_focus` MUST be defined before the try/except block around `build_exercise_pool()`, not inside it
+- `active_modifications` is TEXT[] in `pitcher_training_model` (was JSONB in old `active_flags`). PostgREST handles list↔TEXT[] conversion. All callers pass Python lists.
+- LLM timeout → `python_plan` ships. LLM parse failure → `python_plan` ships with raw LLM text as narrative. Both paths must have all fields `checkin_service.py` expects.
 
 ### Weekly Model + Proactive Suggestions
 - `weekly_model.py`: `compute_next_day_suggestion()` runs after each check-in
@@ -441,6 +454,7 @@ GitHub (landonbrice/baseball)
 - **Migrations:** Applied via Supabase MCP or dashboard SQL editor
 - **Migration script:** `python -m scripts.migrate_to_supabase` (idempotent, safe to re-run)
 - **Backup:** Supabase handles persistence. JSON files in `data/` are read-only fallback.
+- **FK pattern**: `pitchers` table PK is `pitcher_id` (not `id`). FK references must use `REFERENCES pitchers(pitcher_id)`
 
 ### Handler Registration
 `register_handlers(application)` in `bot/main.py` is the **single source of truth** for all bot command/message handlers. Both `main.py` (local dev) and `run.py` (Railway) call this function. **Add new commands in `register_handlers()` only** — never add handlers directly in `run.py`.
@@ -481,6 +495,10 @@ GitHub (landonbrice/baseball)
 - `generate_plan()` returns `python_plan` dict on any LLM failure — new plan fields must be added to `python_plan` AND the LLM success path
 - **`morning_brief` can be a string OR a JSON-serialized dict** — always coerce to string before using in message content. The structured brief dict has a `coaching_note` key for the text portion.
 - Template-driven blocks (warmup, post-throw) are injected by plan_generator, not LLM-generated
+
+### UI Change Process
+- Before any DailyCard rendering change, query actual `daily_entries` data from Supabase to verify the shape of `lifting`, `exercise_blocks`, and `plan_generated`
+- Test with at least 2 different dates — LLM-generated plans and Python fallback plans have different field structures
 
 ## Known Issues & Tech Debt
 
