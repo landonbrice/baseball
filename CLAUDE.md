@@ -148,7 +148,7 @@ pitcher_program_app/
 │   │   ├── mobility.py           # 10-week cycling mobility video rotation service
 │   │   ├── plan_generator.py     # Two-pass plan gen: Python constructs instant plan, LLM reviews/enriches
 │   │   ├── progression.py        # Arm feel trends, sleep patterns, recovery curves, weekly summaries, season summary
-│   │   ├── llm.py                # DeepSeek wrapper (call_llm + call_llm_reasoning, 90s/120s timeouts)
+│   │   ├── llm.py                # DeepSeek wrapper (call_llm + call_llm_reasoning, defaults 90s/120s, plan review uses 20s)
 │   │   ├── knowledge_retrieval.py # Exercise library search + auto-research generation
 │   │   └── web_research.py       # Tavily API fallback for Q&A
 │   └── prompts/                  # LLM prompt templates (.md): system, qa, plan_generation, triage, recovery
@@ -464,6 +464,8 @@ GitHub (landonbrice/baseball)
 - "Retry plan" button re-triggers triage + plan gen with saved check-in data
 - "Re-check-in" button allows re-running full check-in on same day (upserts, doesn't duplicate)
 - Rotation day only increments on first successful check-in of the day
+- **Two check-in paths exist:** Telegram (`daily_checkin.py` → `process_checkin`) and mini-app (`/chat` endpoint → `process_checkin`). Both call `process_checkin` but the `/chat` wrapper has its own response assembly that can crash independently. Telegram has no browser timeout; mini-app fetch dies at ~60s.
+- Response assembly in `/chat` checkin path is wrapped in its own try/except — if it crashes, returns `plan_loaded` anyway (plan is already saved by `process_checkin`)
 
 ### Onboarding (`/start`)
 - Personalized intro: references pitcher's role, injury history, rotation day
@@ -475,8 +477,9 @@ GitHub (landonbrice/baseball)
 - Exercise pool builder guarantees valid exercise IDs from the library (no LLM hallucination)
 - `_validate_plan()` strips unknown exercise IDs before minimum-count check, backfills from pool
 - `_parse_plan_json()` surfaces `finish_reason: "length"` for truncation detection
-- `max_tokens=4000` for both fast and reasoning models; `FAST_TIMEOUT=90s`, `REASONING_TIMEOUT=120s`
-- `generate_plan()` has 3 return paths (LLM timeout fallback, successful parse, unparseable fallback) — new plan fields must be added to ALL THREE
+- `max_tokens=4000` for both fast and reasoning models; LLM review timeout=20s (normal), 120s (red/RTT)
+- `generate_plan()` returns `python_plan` dict on any LLM failure — new plan fields must be added to `python_plan` AND the LLM success path
+- **`morning_brief` can be a string OR a JSON-serialized dict** — always coerce to string before using in message content. The structured brief dict has a `coaching_note` key for the text portion.
 - Template-driven blocks (warmup, post-throw) are injected by plan_generator, not LLM-generated
 
 ## Known Issues & Tech Debt
@@ -489,6 +492,7 @@ GitHub (landonbrice/baseball)
 - No truncated JSON repair — `finish_reason` is surfaced but repair logic not built
 - `/testnotify` and `/whooptest` commands exist for dev testing — can be removed before team rollout
 - `_load_exercise_library()` uses `lru_cache(maxsize=1)` — cache never invalidates during a Railway process lifetime. New exercises in JSON require redeploy.
+- `/api/staff/pulse` returns 500 — likely a crash in the pitcher loop (undiagnosed). Home page `StaffPulse` component handles gracefully but the endpoint needs debugging.
 
 ## Bot Scope Boundaries
 
