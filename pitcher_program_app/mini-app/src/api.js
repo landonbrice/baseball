@@ -222,3 +222,30 @@ export async function applyMutations(pitcherId, date, mutations, initData = null
     source: 'coach_suggestion',
   }, initData);
 }
+
+/**
+ * Partial update of pitcher profile fields.
+ */
+export async function patchProfile(pitcherId, partialData, initData = null) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (initData) headers['X-Telegram-Init-Data'] = initData;
+
+  const res = await fetch(`${API_BASE}/api/pitcher/${pitcherId}/profile`, {
+    method: 'PATCH',
+    headers,
+    body: JSON.stringify(partialData),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || `API ${res.status}: ${res.statusText}`);
+  }
+  return res.json();
+}
+
+/**
+ * Fetch 4-week training load + streak for profile chart.
+ */
+export async function fetchTrainingLoad(pitcherId, initData = null) {
+  return fetchApi(`/api/pitcher/${pitcherId}/training-load`, initData);
+}

@@ -4,17 +4,20 @@ import json
 import logging
 import os
 import re
+from datetime import date, timedelta, datetime
 from functools import lru_cache
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
 from bot.config import KNOWLEDGE_DIR, CONTEXT_WINDOW_CHARS, DISABLE_AUTH, CHICAGO_TZ
 from bot.services.context_manager import (
-    load_profile, load_log, save_log, load_context, update_exercise_completion,
+    load_profile, save_profile, load_log, save_log, load_context,
+    update_exercise_completion,
     append_context, increment_days_since_outing, load_saved_plans,
     save_plan, deactivate_plan, update_active_flags, get_recent_entries,
     get_pitcher_dir, activate_plan, update_plan_data, update_throwing_feel,
 )
+from bot.services.db import get_daily_entries
 from bot.services.progression import analyze_progression
 from bot.services.plan_generator import get_upcoming_days
 from bot.services.checkin_service import process_checkin
@@ -77,6 +80,127 @@ async def get_profile(pitcher_id: str, request: Request):
         return load_profile(pitcher_id)
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Pitcher not found")
+
+
+def _deep_merge(base: dict, update: dict) -> dict:
+    """Recursively merge *update* into *base*. Non-dict values in update overwrite base."""
+    merged = dict(base)
+    for key, val in update.items():
+        if key in merged and isinstance(merged[key], dict) and isinstance(val, dict):
+            merged[key] = _deep_merge(merged[key], val)
+        else:
+            merged[key] = val
+    return merged
+
+
+@router.patch("/pitcher/{pitcher_id}/profile")
+async def patch_profile(pitcher_id: str, request: Request):
+    """Partially update a pitcher profile via deep-merge."""
+    _require_pitcher_auth(request, pitcher_id)
+
+    body = await request.json()
+    if not isinstance(body, dict) or not body:
+        raise HTTPException(status_code=400, detail="Request body must be a non-empty JSON object")
+
+    # Block computed fields
+    if "active_flags" in body:
+        raise HTTPException(status_code=400, detail="active_flags cannot be updated via profile PATCH")
+
+    # Validate physical_profile numeric fields when present
+    phys = body.get("physical_profile")
+    if isinstance(phys, dict):
+        for field in ("height_in", "weight_lbs"):
+            if field in phys:
+                v = phys[field]
+                if not isinstance(v, (int, float)) or v <= 0:
+                    raise HTTPException(status_code=400, detail=f"physical_profile.{field} must be a positive number")
+
+    # Validate current_training.current_maxes when present
+    ct = body.get("current_training")
+    if isinstance(ct, dict):
+        maxes = ct.get("current_maxes")
+        if isinstance(maxes, dict):
+            for k, v in maxes.items():
+                if not isinstance(v, (int, float)):
+                    raise HTTPException(status_code=400, detail=f"current_training.current_maxes.{k} must be numeric")
+
+    try:
+        profile = load_profile(pitcher_id)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Pitcher not found")
+
+    updated = _deep_merge(profile, body)
+    save_profile(pitcher_id, updated)
+
+    return load_profile(pitcher_id)
+
+
+@router.get("/pitcher/{pitcher_id}/training-load")
+async def get_training_load(pitcher_id: str, request: Request):
+    """Return 4-week exercise completion breakdown and current streak."""
+    _require_pitcher_auth(request, pitcher_id)
+
+    entries = get_daily_entries(pitcher_id, limit=28)
+    if not entries:
+        return {
+            "weeks": [],
+            "streak": 0,
+            "current_week_pct": 0,
+        }
+
+    today = datetime.now(CHICAGO_TZ).date()
+
+    # Build a date-indexed map of completion data
+    completion_by_date: dict[date, tuple[int, int]] = {}
+    for entry in entries:
+        d = date.fromisoformat(entry["date"])
+        ce = entry.get("completed_exercises") or {}
+        total = len(ce)
+        completed = sum(1 for v in ce.values() if v)
+        completion_by_date[d] = (completed, total)
+
+    # Group into ISO weeks (Mon-Sun), looking at last 4 weeks
+    this_monday = today - timedelta(days=today.weekday())
+    week_labels = ["This week", "1 wk ago", "2 wks ago", "3 wks ago"]
+    weeks = []
+    for i in range(4):
+        week_start = this_monday - timedelta(weeks=i)
+        week_end = week_start + timedelta(days=6)
+        total = 0
+        completed = 0
+        for day_offset in range(7):
+            d = week_start + timedelta(days=day_offset)
+            if d in completion_by_date:
+                c, t = completion_by_date[d]
+                completed += c
+                total += t
+        pct = round(completed / total * 100) if total > 0 else 0
+        weeks.append({
+            "week_label": week_labels[i],
+            "completed": completed,
+            "total": total,
+            "pct": pct,
+        })
+
+    # Streak: consecutive days backwards from today with >= 1 completed exercise
+    streak = 0
+    check_date = today
+    while True:
+        if check_date in completion_by_date:
+            c, _ = completion_by_date[check_date]
+            if c > 0:
+                streak += 1
+                check_date -= timedelta(days=1)
+                continue
+        break
+
+    current_week_pct = weeks[0]["pct"] if weeks else 0
+
+    return {
+        "weeks": weeks,
+        "streak": streak,
+        "current_week_pct": current_week_pct,
+    }
 
 
 @router.get("/pitcher/{pitcher_id}/log")
