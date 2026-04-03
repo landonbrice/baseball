@@ -48,7 +48,15 @@ export default function DailyCard({ entry, exerciseMap = {}, slugMap = {}, pitch
   const [swappingExerciseId, setSwappingExerciseId] = useState(null);
   const [swappedExercises, setSwappedExercises] = useState({});
 
+  // Local overrides for swapped exercises — maps old exercise_id → new exercise data
+  const [swapOverrides, setSwapOverrides] = useState({});
+
   const handleSwapComplete = useCallback((oldExId, newExercise) => {
+    // Store the override so rendering uses the new exercise data
+    setSwapOverrides(prev => ({
+      ...prev,
+      [oldExId]: newExercise,
+    }));
     setSwappedExercises(prev => ({
       ...prev,
       [newExercise.exercise_id]: { swapped_from_name: newExercise.swapped_from_name },
@@ -145,6 +153,7 @@ export default function DailyCard({ entry, exerciseMap = {}, slugMap = {}, pitch
             onToggleWhy={toggleWhy}
             swappingExerciseId={key === 'lifting' ? swappingExerciseId : null}
             swappedExercises={key === 'lifting' ? swappedExercises : {}}
+            swapOverrides={key === 'lifting' ? swapOverrides : {}}
             onStartSwap={key === 'lifting' && !readOnly ? setSwappingExerciseId : null}
             onSwapComplete={key === 'lifting' && !readOnly ? handleSwapComplete : null}
             onCancelSwap={key === 'lifting' ? () => setSwappingExerciseId(null) : null}
@@ -182,13 +191,14 @@ export default function DailyCard({ entry, exerciseMap = {}, slugMap = {}, pitch
 
 // ── Exercise Block (arm_care, lifting) ──
 
-function ExerciseBlock({ blockKey, emoji, label, data, fallbackBlocks, hasStructured, exerciseMap, slugMap, completed, onToggle, expandedWhy, onToggleWhy, swappingExerciseId, swappedExercises, onStartSwap, onSwapComplete, onCancelSwap, pitcherId, date, initData, readOnly }) {
+function ExerciseBlock({ blockKey, emoji, label, data, fallbackBlocks, hasStructured, exerciseMap, slugMap, completed, onToggle, expandedWhy, onToggleWhy, swappingExerciseId, swappedExercises, swapOverrides, onStartSwap, onSwapComplete, onCancelSwap, pitcherId, date, initData, readOnly }) {
   const [warmupExpanded, setWarmupExpanded] = useState(false);
   const exercises = data?.exercises || [];
   const hasDirect = hasStructured && exercises.length > 0;
 
   // Resolve fallback exercises for this block
   let fallbackExercises = [];
+  let fallbackBlockGroups = []; // Preserve block_name structure for lifting
   if (!hasDirect) {
     const isArm = blockKey === 'arm_care';
     const filtered = fallbackBlocks.filter(b => {
@@ -196,6 +206,13 @@ function ExerciseBlock({ blockKey, emoji, label, data, fallbackBlocks, hasStruct
       return isArm ? name.includes('arm') : (!name.includes('arm') && !name.includes('plyo'));
     });
     fallbackExercises = filtered.flatMap(b => b.exercises || []);
+    // For lifting, keep the block groups for stratification
+    if (blockKey === 'lifting') {
+      fallbackBlockGroups = filtered.map(b => ({
+        label: b.block_name || null,
+        exercises: b.exercises || [],
+      })).filter(g => g.exercises.length > 0);
+    }
   }
 
   const allEx = hasDirect ? exercises : fallbackExercises;
@@ -289,23 +306,28 @@ function ExerciseBlock({ blockKey, emoji, label, data, fallbackBlocks, hasStruct
       {/* Exercise list — with sub-block grouping for lifting */}
       <div style={{ padding: '6px 14px 10px' }}>
         {blockKey === 'lifting' && (() => {
-          // Group exercises by their block field (e.g. "Power", "Accessories", "Core + Stability")
-          const blockGroups = [];
-          let curBlock = null;
-          for (const ex of allEx) {
-            const bk = ex.block_name || ex.block;
-            if (bk && bk !== curBlock) {
-              curBlock = bk;
-              blockGroups.push({ label: bk, exercises: [ex] });
-            } else if (bk) {
-              blockGroups[blockGroups.length - 1].exercises.push(ex);
-            } else {
-              // No block field — just add to current group or create ungrouped
-              if (blockGroups.length === 0) blockGroups.push({ label: null, exercises: [] });
-              blockGroups[blockGroups.length - 1].exercises.push(ex);
+          // Use fallbackBlockGroups if available (preserves block_name from exercise_blocks),
+          // otherwise try grouping by individual exercise block field
+          let blockGroups = fallbackBlockGroups.length > 0 ? fallbackBlockGroups : [];
+
+          if (blockGroups.length === 0 && allEx.length > 0) {
+            // Try grouping by exercise-level block field
+            let curBlock = null;
+            for (const ex of allEx) {
+              const bk = ex.block_name || ex.block;
+              if (bk && bk !== curBlock) {
+                curBlock = bk;
+                blockGroups.push({ label: bk, exercises: [ex] });
+              } else if (bk && blockGroups.length > 0) {
+                blockGroups[blockGroups.length - 1].exercises.push(ex);
+              } else {
+                if (blockGroups.length === 0) blockGroups.push({ label: null, exercises: [] });
+                blockGroups[blockGroups.length - 1].exercises.push(ex);
+              }
             }
           }
-          // If only one group or no block fields, skip sub-headers
+
+          // If only one group with no label, render flat
           const hasMultipleBlocks = blockGroups.length > 1 || (blockGroups.length === 1 && blockGroups[0].label);
           if (!hasMultipleBlocks) {
             return (
@@ -314,7 +336,7 @@ function ExerciseBlock({ blockKey, emoji, label, data, fallbackBlocks, hasStruct
                 completed={completed} onToggle={onToggle}
                 expandedWhy={expandedWhy} onToggleWhy={onToggleWhy}
                 swappingExerciseId={swappingExerciseId} swappedExercises={swappedExercises}
-                onStartSwap={onStartSwap} onSwapComplete={onSwapComplete} onCancelSwap={onCancelSwap}
+                swapOverrides={swapOverrides} onStartSwap={onStartSwap} onSwapComplete={onSwapComplete} onCancelSwap={onCancelSwap}
                 pitcherId={pitcherId} date={date} initData={initData} readOnly={readOnly}
               />
             );
@@ -341,7 +363,7 @@ function ExerciseBlock({ blockKey, emoji, label, data, fallbackBlocks, hasStruct
                 completed={completed} onToggle={onToggle}
                 expandedWhy={expandedWhy} onToggleWhy={onToggleWhy}
                 swappingExerciseId={swappingExerciseId} swappedExercises={swappedExercises}
-                onStartSwap={onStartSwap} onSwapComplete={onSwapComplete} onCancelSwap={onCancelSwap}
+                swapOverrides={swapOverrides} onStartSwap={onStartSwap} onSwapComplete={onSwapComplete} onCancelSwap={onCancelSwap}
                 pitcherId={pitcherId} date={date} initData={initData} readOnly={readOnly}
               />
             </div>
@@ -532,7 +554,7 @@ function NotesBlock({ notes }) {
 
 // ── Superset renderer ──
 
-function SupersetList({ exercises, exerciseMap, slugMap, completed, onToggle, expandedWhy, onToggleWhy, swappingExerciseId, swappedExercises, onStartSwap, onSwapComplete, onCancelSwap, pitcherId, date, initData, readOnly }) {
+function SupersetList({ exercises, exerciseMap, slugMap, completed, onToggle, expandedWhy, onToggleWhy, swappingExerciseId, swappedExercises, swapOverrides, onStartSwap, onSwapComplete, onCancelSwap, pitcherId, date, initData, readOnly }) {
   const groups = [];
   let currentGroup = null;
   let letterIndex = 0;
@@ -556,14 +578,18 @@ function SupersetList({ exercises, exerciseMap, slugMap, completed, onToggle, ex
       {groups.map((g, gi) => (
         <div key={gi} style={g.letter ? { borderLeft: '2px solid var(--color-rose-blush)', paddingLeft: 8, marginBottom: 8 } : { marginBottom: 4 }}>
           {g.exercises.map((ex, ei) => {
-            const exId = ex.exercise_id || `flow_${(ex.name || '').replace(/\s+/g, '_').toLowerCase()}`;
+            // Apply swap override if this exercise was swapped
+            const override = swapOverrides?.[ex.exercise_id];
+            const displayEx = override ? { ...ex, exercise_id: override.exercise_id, name: override.name, rx: override.rx, prescribed: override.prescribed || override.rx } : ex;
+
+            const exId = displayEx.exercise_id || `flow_${(displayEx.name || '').replace(/\s+/g, '_').toLowerCase()}`;
             const lib = resolveExercise(exId, exerciseMap, slugMap);
-            const exerciseObj = lib || { name: ex.name || exId, youtube_url: '', muscles_primary: [], pitching_relevance: '' };
+            const exerciseObj = lib || { name: displayEx.name || exId, youtube_url: override?.youtube_url || '', muscles_primary: [], pitching_relevance: '' };
             const isCompleted = completed[exId] === true;
             const label = g.letter ? `${g.letter}${ei + 1}` : null;
-            const noteStr = typeof ex.note === 'string' ? ex.note : '';
+            const noteStr = typeof displayEx.note === 'string' ? displayEx.note : '';
             const isFpm = noteStr.toLowerCase().includes('elevated') || noteStr.toLowerCase().includes('fpm');
-            const rawWhy = ex.why || exerciseObj.pitching_relevance || '';
+            const rawWhy = displayEx.why || exerciseObj.pitching_relevance || '';
             const why = typeof rawWhy === 'string' ? rawWhy : '';
 
             return (
@@ -571,8 +597,8 @@ function SupersetList({ exercises, exerciseMap, slugMap, completed, onToggle, ex
                 key={ei}
                 exerciseId={exId}
                 exercise={exerciseObj}
-                rx={ex.rx || ex.prescribed || ''}
-                prescription={ex.prescription || ''}
+                rx={displayEx.rx || displayEx.prescribed || ''}
+                prescription={displayEx.prescription || ''}
                 note={noteStr}
                 label={label}
                 completed={isCompleted}
@@ -581,7 +607,7 @@ function SupersetList({ exercises, exerciseMap, slugMap, completed, onToggle, ex
                 whyExpanded={!!expandedWhy[exId]}
                 onToggle={onToggle ? () => onToggle(exId, !isCompleted) : null}
                 onToggleWhy={() => onToggleWhy(exId)}
-                ballWeight={ex.ball_weight}
+                ballWeight={displayEx.ball_weight}
                 swappingExerciseId={swappingExerciseId}
                 swappedFrom={swappedExercises?.[exId]}
                 onStartSwap={onStartSwap}
