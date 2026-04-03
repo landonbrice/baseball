@@ -262,7 +262,10 @@ function ExerciseBlock({ blockKey, emoji, label, data, fallbackBlocks, hasStruct
   }
 
   return (
-    <div style={{ background: 'var(--color-white)', borderRadius: 12, overflow: 'hidden' }}>
+    <div style={{
+      background: 'var(--color-white)', borderRadius: blockKey === 'lifting' ? 14 : 12, overflow: 'hidden',
+      boxShadow: blockKey === 'lifting' ? '0 1px 3px rgba(42,26,24,0.06)' : 'none',
+    }}>
       {/* Block header */}
       <div style={{ padding: '10px 14px', borderBottom: '0.5px solid var(--color-cream-border)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -272,7 +275,7 @@ function ExerciseBlock({ blockKey, emoji, label, data, fallbackBlocks, hasStruct
             {subtitle && <span style={{ fontSize: 11, color: 'var(--color-ink-muted)' }}>{'\u2014 '}{subtitle}</span>}
             {duration && <span style={{ fontSize: 10, color: 'var(--color-ink-faint)' }}>{duration} min</span>}
           </div>
-          <span style={{ fontSize: 11, color: doneCount === allEx.length && allEx.length > 0 ? 'var(--color-flag-green)' : 'var(--color-ink-muted)', fontWeight: 600 }}>
+          <span style={{ fontSize: 12, color: doneCount === allEx.length && allEx.length > 0 ? 'var(--color-flag-green)' : 'var(--color-ink-muted)', fontWeight: 600 }}>
             {doneCount}/{allEx.length}
           </span>
         </div>
@@ -283,26 +286,74 @@ function ExerciseBlock({ blockKey, emoji, label, data, fallbackBlocks, hasStruct
         )}
       </div>
 
-      {/* Exercise list */}
+      {/* Exercise list — with sub-block grouping for lifting */}
       <div style={{ padding: '6px 14px 10px' }}>
-        <SupersetList
-          exercises={allEx}
-          exerciseMap={exerciseMap}
-          slugMap={slugMap}
-          completed={completed}
-          onToggle={onToggle}
-          expandedWhy={expandedWhy}
-          onToggleWhy={onToggleWhy}
-          swappingExerciseId={swappingExerciseId}
-          swappedExercises={swappedExercises}
-          onStartSwap={onStartSwap}
-          onSwapComplete={onSwapComplete}
-          onCancelSwap={onCancelSwap}
-          pitcherId={pitcherId}
-          date={date}
-          initData={initData}
-          readOnly={readOnly}
-        />
+        {blockKey === 'lifting' && (() => {
+          // Group exercises by their block field (e.g. "Power", "Accessories", "Core + Stability")
+          const blockGroups = [];
+          let curBlock = null;
+          for (const ex of allEx) {
+            const bk = ex.block_name || ex.block;
+            if (bk && bk !== curBlock) {
+              curBlock = bk;
+              blockGroups.push({ label: bk, exercises: [ex] });
+            } else if (bk) {
+              blockGroups[blockGroups.length - 1].exercises.push(ex);
+            } else {
+              // No block field — just add to current group or create ungrouped
+              if (blockGroups.length === 0) blockGroups.push({ label: null, exercises: [] });
+              blockGroups[blockGroups.length - 1].exercises.push(ex);
+            }
+          }
+          // If only one group or no block fields, skip sub-headers
+          const hasMultipleBlocks = blockGroups.length > 1 || (blockGroups.length === 1 && blockGroups[0].label);
+          if (!hasMultipleBlocks) {
+            return (
+              <SupersetList
+                exercises={allEx} exerciseMap={exerciseMap} slugMap={slugMap}
+                completed={completed} onToggle={onToggle}
+                expandedWhy={expandedWhy} onToggleWhy={onToggleWhy}
+                swappingExerciseId={swappingExerciseId} swappedExercises={swappedExercises}
+                onStartSwap={onStartSwap} onSwapComplete={onSwapComplete} onCancelSwap={onCancelSwap}
+                pitcherId={pitcherId} date={date} initData={initData} readOnly={readOnly}
+              />
+            );
+          }
+          return blockGroups.map((bg, bgi) => (
+            <div key={bgi}>
+              {bg.label && (
+                <div style={{
+                  padding: '8px 0 4px',
+                  background: bgi === 0 ? 'rgba(92,16,32,0.024)' : 'transparent',
+                  borderTop: bgi > 0 ? '1px solid var(--color-cream-border)' : 'none',
+                  margin: bgi > 0 ? '4px 0 0' : '0',
+                }}>
+                  <span style={{
+                    fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1,
+                    color: bgi === 0 ? 'var(--color-maroon)' : 'var(--color-ink-muted)',
+                  }}>
+                    {bg.label}
+                  </span>
+                </div>
+              )}
+              <SupersetList
+                exercises={bg.exercises} exerciseMap={exerciseMap} slugMap={slugMap}
+                completed={completed} onToggle={onToggle}
+                expandedWhy={expandedWhy} onToggleWhy={onToggleWhy}
+                swappingExerciseId={swappingExerciseId} swappedExercises={swappedExercises}
+                onStartSwap={onStartSwap} onSwapComplete={onSwapComplete} onCancelSwap={onCancelSwap}
+                pitcherId={pitcherId} date={date} initData={initData} readOnly={readOnly}
+              />
+            </div>
+          ));
+        })()}
+        {blockKey !== 'lifting' && (
+          <SupersetList
+            exercises={allEx} exerciseMap={exerciseMap} slugMap={slugMap}
+            completed={completed} onToggle={onToggle}
+            expandedWhy={expandedWhy} onToggleWhy={onToggleWhy}
+          />
+        )}
       </div>
     </div>
   );
@@ -553,23 +604,29 @@ function SupersetList({ exercises, exerciseMap, slugMap, completed, onToggle, ex
 
 function ExerciseItem({ exerciseId, exercise, rx, prescription, note: rawNote, label, completed, isFpm, why, whyExpanded, onToggle, onToggleWhy, ballWeight, swappingExerciseId, swappedFrom, onStartSwap, onSwapComplete, onCancelSwap, pitcherId, date, initData, readOnly }) {
   const note = typeof rawNote === 'string' ? rawNote : '';
+  const isSwapping = swappingExerciseId === exerciseId;
+
   const rowStyle = {
-    display: 'flex', alignItems: 'center', gap: 10, padding: '6px 4px',
+    display: 'flex', alignItems: 'center', gap: 10, padding: '10px 4px',
     borderRadius: 8,
-    opacity: completed ? 0.45 : 1,
-    background: isFpm && !completed ? '#fdf8f8' : 'transparent',
+    background: completed ? 'rgba(29,158,117,0.024)'
+      : isFpm ? 'rgba(245,224,228,0.25)'
+      : 'transparent',
+    opacity: isSwapping ? 0.5 : 1,
+    transition: 'all 0.15s ease',
   };
 
   const circleStyle = {
-    width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
+    width: 24, height: 24, borderRadius: 12, flexShrink: 0,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    fontSize: 9, fontWeight: 600, cursor: onToggle ? 'pointer' : 'default',
+    fontSize: 11, fontWeight: 700, cursor: onToggle ? 'pointer' : 'default',
     border: 'none',
+    transition: 'all 0.15s ease',
     ...(completed
       ? { background: 'var(--color-flag-green)', color: '#fff' }
       : isFpm
-        ? { background: 'transparent', border: '1.5px solid var(--color-maroon)', color: 'var(--color-maroon)' }
-        : { background: 'transparent', border: '1.5px solid var(--color-cream-subtle)', color: 'var(--color-ink-muted)' }
+        ? { background: 'rgba(92,16,32,0.08)', color: 'var(--color-maroon)' }
+        : { background: 'var(--color-cream-border)', color: 'var(--color-ink-muted)' }
     ),
   };
 
@@ -588,66 +645,90 @@ function ExerciseItem({ exerciseId, exercise, rx, prescription, note: rawNote, l
 
         <div style={{ flex: 1, minWidth: 0 }}>
           <p style={{
-            fontSize: 13, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-            color: completed ? '#888' : 'var(--color-ink-primary)',
+            fontSize: 14, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+            letterSpacing: -0.2,
+            color: completed ? 'var(--color-ink-muted)' : 'var(--color-ink-primary)',
             textDecoration: completed ? 'line-through' : 'none',
-            fontWeight: isFpm && !completed ? 600 : 400,
+            fontWeight: isFpm && !completed ? 600 : 500,
           }}>
             {exercise.name || 'Unknown exercise'}
             <BallDots weight={ballWeight} />
           </p>
-          <div style={{ fontSize: 11, color: isFpm && !completed ? 'var(--color-maroon)' : 'var(--color-ink-muted)', marginTop: 2 }}>
-            {isFpm && !completed && <span>{'priority \u00B7 '}</span>}
+          <div style={{ fontSize: 12, marginTop: 2, color: isFpm && !completed ? 'var(--color-maroon)' : 'var(--color-ink-muted)', fontWeight: isFpm && !completed ? 500 : 400 }}>
+            {isFpm && !completed && (
+              <span style={{
+                fontSize: 9, padding: '1px 5px', borderRadius: 4,
+                background: 'var(--color-maroon)', color: '#fff',
+                fontWeight: 700, marginRight: 6, letterSpacing: 0.5,
+                verticalAlign: 'middle',
+              }}>FPM</span>
+            )}
             {fullRx}
             {note && !isFpm && <span style={{ color: 'var(--color-maroon)' }}>{' \u00B7 '}{note}</span>}
           </div>
         </div>
 
-        {why && !completed && (
-          <button
-            onClick={onToggleWhy}
-            style={{
-              width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 10, cursor: 'pointer', border: 'none',
-              background: whyExpanded ? 'var(--color-rose-blush)' : 'var(--color-cream-bg)',
-              color: whyExpanded ? '#fff' : 'var(--color-ink-muted)',
-            }}
-          >
-            i
-          </button>
+        {/* Action cluster — hidden when completed */}
+        {!completed && (
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
+            {why && (
+              <button
+                onClick={onToggleWhy}
+                style={{
+                  width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 10, cursor: 'pointer', border: 'none',
+                  background: whyExpanded ? 'var(--color-rose-blush)' : 'var(--color-cream-bg)',
+                  color: whyExpanded ? '#fff' : 'var(--color-ink-muted)',
+                }}
+              >
+                i
+              </button>
+            )}
+
+            {exercise.youtube_url && (
+              <a href={exercise.youtube_url} target="_blank" rel="noopener noreferrer"
+                style={{
+                  width: 28, height: 28, borderRadius: 8, flexShrink: 0,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 12, textDecoration: 'none',
+                  background: 'var(--color-cream-bg)', color: 'var(--color-maroon)',
+                }}>{'\u25B6'}</a>
+            )}
+
+            {onStartSwap && !readOnly && !isSwapping && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onStartSwap(exerciseId); }}
+                style={{
+                  height: 28, borderRadius: 8, border: 'none',
+                  padding: '0 10px',
+                  background: isSwapping ? 'var(--color-maroon)' : 'rgba(92,16,32,0.07)',
+                  color: isSwapping ? '#fff' : 'var(--color-maroon)',
+                  fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  transition: 'all 0.15s ease',
+                  flexShrink: 0,
+                }}
+              >
+                Swap
+              </button>
+            )}
+          </div>
         )}
 
-        {exercise.youtube_url && (
-          <a href={exercise.youtube_url} target="_blank" rel="noopener noreferrer"
-            style={{ fontSize: 11, color: 'var(--color-maroon)', flexShrink: 0, textDecoration: 'none' }}>{'\u25B6'}</a>
-        )}
-
-        {isFpm && !completed && (
+        {/* Done badge — shown when completed */}
+        {completed && (
           <span style={{
-            fontSize: 8, padding: '2px 6px', borderRadius: 8,
-            border: '1px solid var(--color-maroon)', color: 'var(--color-maroon)',
-            flexShrink: 0, fontWeight: 600, textTransform: 'uppercase',
-          }}>FPM</span>
-        )}
-
-        {onStartSwap && !completed && !readOnly && swappingExerciseId !== exerciseId && (
-          <button
-            onClick={(e) => { e.stopPropagation(); onStartSwap(exerciseId); }}
-            style={{
-              padding: '3px 8px', borderRadius: 12,
-              border: '1px solid var(--color-cream-border)', background: 'var(--color-cream-bg)',
-              fontSize: 10, color: 'var(--color-ink-muted)', cursor: 'pointer',
-              fontWeight: 500, marginLeft: 4, flexShrink: 0,
-            }}
-          >
-            Swap
-          </button>
+            fontSize: 10, color: 'var(--color-flag-green)', fontWeight: 600,
+            padding: '2px 8px', borderRadius: 6,
+            background: 'rgba(29,158,117,0.06)',
+            flexShrink: 0,
+          }}>Done</span>
         )}
       </div>
 
       {/* Inline swap UI */}
-      {swappingExerciseId === exerciseId && (
+      {isSwapping && (
         <ExerciseSwap
           exerciseId={exerciseId}
           exerciseName={exercise.name}
@@ -662,10 +743,12 @@ function ExerciseItem({ exerciseId, exercise, rx, prescription, note: rawNote, l
       {/* Swapped indicator */}
       {swappedFrom && (
         <div style={{
-          marginLeft: 32, marginTop: 2, fontSize: 10,
+          marginLeft: 50, marginTop: 2, marginBottom: 6, fontSize: 11,
           color: 'var(--color-ink-muted)', fontStyle: 'italic',
+          display: 'flex', alignItems: 'center', gap: 4,
         }}>
-          was: {swappedFrom.swapped_from_name}
+          <span style={{ color: 'var(--color-flag-green)' }}>{'\u21BB'}</span>
+          swapped from {swappedFrom.swapped_from_name}
         </div>
       )}
 
