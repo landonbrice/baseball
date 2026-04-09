@@ -175,6 +175,7 @@ def compute_daily_digest(date: str = None) -> dict:
         "plan_health": compute_plan_health(date),
         "whoop_health": compute_whoop_health(date),
         "weekly_narrative": compute_weekly_narrative_health(),
+        "qa_health": compute_qa_health(),
     }
 
 
@@ -230,6 +231,19 @@ def format_digest_message(digest: dict) -> str:
             ids = ", ".join(whoop["missing_pitchers"])
             lines.append(f"     Missing: {ids}")
 
+    # Q&A section
+    qa = digest.get("qa_health") or {}
+    if qa.get("total", 0) > 0:
+        err_rate = qa.get("error_rate", 0.0)
+        icon = "✅" if err_rate == 0 else ("🟡" if err_rate < 0.1 else "🔴")
+        lines.append(
+            f"{icon} Q&A: {qa['successes']}/{qa['total']} ok "
+            f"({qa['errors']} errors, {err_rate*100:.0f}% fail rate)"
+        )
+        if qa.get("error_types"):
+            for etype, count in sorted(qa["error_types"].items(), key=lambda x: -x[1]):
+                lines.append(f"     • {count}× {etype}")
+
     # Weekly narrative section (Sunday only)
     if narrative:
         active = narrative.get("pitchers_with_activity", 0)
@@ -248,6 +262,71 @@ def format_digest_message(digest: dict) -> str:
     lines.append("")
     lines.append("Reply /healthcheck any time for on-demand status (v3).")
     return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# V3 — Q&A tracking (in-memory, resets at midnight Chicago)
+# ---------------------------------------------------------------------------
+
+# Q&A errors don't persist to Supabase — they bubble up as generic error
+# messages and disappear into Railway logs. We keep an in-memory counter
+# so the daily digest can surface Q&A health.
+_QA_STATE = {
+    "errors_today": [],           # [(timestamp, pitcher_id, error_type), ...]
+    "successes_today": 0,         # counter
+    "last_reset_date": None,      # Chicago ISO date string
+}
+
+
+def _maybe_reset_qa_state() -> None:
+    """Reset Q&A state if we've crossed into a new Chicago day."""
+    today = _today_iso()
+    if _QA_STATE["last_reset_date"] != today:
+        _QA_STATE["errors_today"] = []
+        _QA_STATE["successes_today"] = 0
+        _QA_STATE["last_reset_date"] = today
+
+
+def record_qa_success(pitcher_id: str = None) -> None:
+    """Increment the Q&A success counter. Never raises."""
+    try:
+        _maybe_reset_qa_state()
+        _QA_STATE["successes_today"] += 1
+    except Exception as e:
+        logger.error(f"record_qa_success failed: {e}")
+
+
+def record_qa_error(pitcher_id: str, error_type: str) -> None:
+    """Record a Q&A error. Never raises."""
+    try:
+        _maybe_reset_qa_state()
+        _QA_STATE["errors_today"].append(
+            (datetime.now(CHICAGO_TZ), pitcher_id, error_type)
+        )
+    except Exception as e:
+        logger.error(f"record_qa_error failed: {e}")
+
+
+def compute_qa_health() -> dict:
+    """Summarize today's Q&A activity."""
+    try:
+        _maybe_reset_qa_state()
+    except Exception:
+        pass
+    errors = _QA_STATE.get("errors_today") or []
+    successes = _QA_STATE.get("successes_today") or 0
+    total = successes + len(errors)
+    rate = (len(errors) / total) if total > 0 else 0.0
+    error_types = {}
+    for _, _, etype in errors:
+        error_types[etype] = error_types.get(etype, 0) + 1
+    return {
+        "total": total,
+        "successes": successes,
+        "errors": len(errors),
+        "error_rate": rate,
+        "error_types": error_types,
+    }
 
 
 # ---------------------------------------------------------------------------

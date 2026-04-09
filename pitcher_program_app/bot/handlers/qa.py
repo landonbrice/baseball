@@ -101,13 +101,30 @@ async def handle_question(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
         append_context(pitcher_id, "interaction", f"Q: {question[:80]} | A: {response[:200]}")
 
+        # Record Q&A success for health monitoring (never raises)
+        try:
+            from bot.services.health_monitor import record_qa_success
+            record_qa_success(pitcher_id)
+        except Exception:
+            pass
+
     except TimeoutError:
         logger.error(f"LLM timeout answering Q&A for {pitcher_id}")
+        try:
+            from bot.services.health_monitor import record_qa_error
+            record_qa_error(pitcher_id, "TimeoutError")
+        except Exception:
+            pass
         await update.message.reply_text(
             "That's taking too long to process right now. Try asking again in a moment."
         )
     except Exception as e:
         logger.error(f"Error handling question: {e}", exc_info=True)
+        try:
+            from bot.services.health_monitor import record_qa_error
+            record_qa_error(pitcher_id, type(e).__name__)
+        except Exception:
+            pass
         await update.message.reply_text(
             "I hit an error trying to answer that. Try again, or ask your coach."
         )

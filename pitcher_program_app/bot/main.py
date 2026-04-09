@@ -687,6 +687,22 @@ async def health_digest_command(update, context):
     await update.message.reply_text("Digest sent.")
 
 
+async def healthcheck_command(update, context):
+    """On-demand health check — admin only. Returns the current digest."""
+    from bot.config import ADMIN_TELEGRAM_CHAT_ID
+    if update.effective_chat.id != ADMIN_TELEGRAM_CHAT_ID:
+        await update.message.reply_text("This command is admin-only.")
+        return
+    try:
+        from bot.services.health_monitor import compute_daily_digest, format_digest_message
+        digest = compute_daily_digest()
+        message = format_digest_message(digest)
+        await update.message.reply_text(message)
+    except Exception as e:
+        logger.error(f"healthcheck_command failed: {e}", exc_info=True)
+        await update.message.reply_text(f"Health check failed: {type(e).__name__}")
+
+
 async def test_emergency_command(update, context):
     """Admin-only: simulate 3 matching failures and fire an emergency alert.
 
@@ -861,6 +877,7 @@ def register_handlers(application) -> None:
     application.add_handler(CommandHandler("whooptest", whooptest))
     application.add_handler(CommandHandler("testnotify", test_notify))
     application.add_handler(CommandHandler("healthdigest", health_digest_command))
+    application.add_handler(CommandHandler("healthcheck", healthcheck_command))
     application.add_handler(CommandHandler("testemergency", test_emergency_command))
     application.add_handler(CommandHandler("gamestart", gamestart))
     application.add_handler(CommandHandler("dashboard", dashboard))

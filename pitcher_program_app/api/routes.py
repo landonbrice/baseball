@@ -72,6 +72,30 @@ async def auth_resolve(initData: str = Query(default="")):
     return {"pitcher_id": pitcher_id}
 
 
+@router.get("/admin/health")
+async def admin_health(request: Request):
+    """Admin-only health endpoint. Returns the full daily digest as JSON.
+
+    Auth: requires the Telegram initData to resolve to ADMIN_TELEGRAM_CHAT_ID.
+    Bypassed when DISABLE_AUTH=true (dev only).
+    """
+    from bot.config import ADMIN_TELEGRAM_CHAT_ID
+    from bot.services.health_monitor import compute_daily_digest
+
+    if not DISABLE_AUTH:
+        init_data = request.headers.get("X-Telegram-Init-Data", "")
+        try:
+            user = validate_init_data(init_data)
+        except Exception as e:
+            raise HTTPException(status_code=401, detail=f"HMAC error: {e}")
+        if not user:
+            raise HTTPException(status_code=401, detail="Invalid initData")
+        if user.get("id") != ADMIN_TELEGRAM_CHAT_ID:
+            raise HTTPException(status_code=403, detail="Admin only")
+
+    return compute_daily_digest()
+
+
 @router.get("/pitcher/{pitcher_id}/profile")
 async def get_profile(pitcher_id: str, request: Request):
     """Return pitcher profile."""
@@ -894,12 +918,25 @@ async def post_chat(pitcher_id: str, request: Request):
             # Persist user question and bot response to chat_messages
             _persist_chat(pitcher_id, question, messages)
 
+            # Record Q&A success for health monitoring (never raises)
+            try:
+                from bot.services.health_monitor import record_qa_success
+                record_qa_success(pitcher_id)
+            except Exception:
+                pass
+
             return {"messages": messages}
 
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Pitcher not found")
     except Exception as e:
         logger.error(f"Chat error for {pitcher_id}: {e}", exc_info=True)
+        # Record Q&A error for health monitoring (never raises)
+        try:
+            from bot.services.health_monitor import record_qa_error
+            record_qa_error(pitcher_id, type(e).__name__)
+        except Exception:
+            pass
         return {"messages": [{"type": "text", "content": "Something went wrong. Try again or rephrase your question."}]}
 
 
