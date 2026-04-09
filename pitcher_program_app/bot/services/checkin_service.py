@@ -19,6 +19,34 @@ from bot.services.context_manager import (
 logger = logging.getLogger(__name__)
 
 
+async def _send_emergency_alert_if_present(plan_result: dict) -> None:
+    """If the plan_result carries an _emergency_alert, fire a Telegram message to admin.
+
+    Uses .pop() so the key is stripped from plan_result before downstream consumers
+    touch it — this guarantees _emergency_alert never reaches Supabase.
+
+    Never raises — monitoring must never break the check-in flow.
+    """
+    alert = (plan_result or {}).pop("_emergency_alert", None)
+    if not alert:
+        return
+
+    try:
+        from bot.services.health_monitor import format_emergency_alert
+        from bot.config import ADMIN_TELEGRAM_CHAT_ID, TELEGRAM_BOT_TOKEN
+        from telegram import Bot
+
+        message = format_emergency_alert(alert)
+        bot = Bot(token=TELEGRAM_BOT_TOKEN)
+        await bot.send_message(chat_id=ADMIN_TELEGRAM_CHAT_ID, text=message)
+        logger.warning(
+            f"Emergency alert fired: {alert.get('pattern')} "
+            f"({alert.get('count')} failures)"
+        )
+    except Exception as e:
+        logger.error(f"Failed to send emergency alert: {e}", exc_info=True)
+
+
 def _build_recent_history_context(pitcher_id, n=5):
     """Build condensed recent history string for LLM context injection.
 
@@ -200,6 +228,12 @@ async def process_checkin(
     except Exception as e:
         logger.error(f"Plan generation failed for {pitcher_id}: {e}", exc_info=True)
         plan_result = None
+
+    # Fire emergency alert if plan_result carries one. This MUST run before
+    # the entry-build block below so the _emergency_alert key is stripped
+    # from plan_result (via .pop) before any persistence path sees it.
+    if plan_result:
+        await _send_emergency_alert_if_present(plan_result)
 
     # Build full entry and upsert (same date = updates the partial entry)
     entry = {
