@@ -7,6 +7,7 @@ from bot.config import TEMPLATES_DIR, KNOWLEDGE_DIR, CONTEXT_WINDOW_CHARS
 from bot.services.llm import call_llm, call_llm_reasoning, load_prompt
 from bot.services.context_manager import load_profile, load_context, get_recent_entries, load_saved_plans
 from bot.services.knowledge_retrieval import retrieve_research_for_plan
+from bot.services.health_monitor import record_and_check_emergency
 
 logger = logging.getLogger(__name__)
 
@@ -303,7 +304,11 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
         truncated = meta.get("finish_reason") == "length"
     except (TimeoutError, Exception) as e:
         logger.warning(f"LLM review timed out ({type(e).__name__}: {e}), shipping Python-constructed plan")
-        python_plan["source_reason"] = f"llm_timeout:{type(e).__name__}"
+        python_plan["source_reason"] = f"llm_timeout:{type(e).__name__}: {e}"
+        # Record for emergency detection (carries up to checkin_service via _emergency_alert)
+        _alert = record_and_check_emergency(python_plan["source_reason"], pitcher_id)
+        if _alert:
+            python_plan["_emergency_alert"] = _alert
         return python_plan
 
     # Parse structured JSON from LLM response
@@ -378,13 +383,19 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
             }
         except Exception as e:
             logger.warning(f"Error assembling LLM plan ({type(e).__name__}: {e}), using Python-constructed plan")
-            python_plan["source_reason"] = f"llm_assembly_error:{type(e).__name__}"
+            python_plan["source_reason"] = f"llm_assembly_error:{type(e).__name__}: {e}"
+            _alert = record_and_check_emergency(python_plan["source_reason"], pitcher_id)
+            if _alert:
+                python_plan["_emergency_alert"] = _alert
             return python_plan
 
     # Fallback: LLM returned unparseable text — use Python-constructed plan
     if not plan:
         logger.warning("LLM returned non-JSON response, using Python-constructed plan")
         python_plan["source_reason"] = "llm_unparseable_json"
+        _alert = record_and_check_emergency(python_plan["source_reason"], pitcher_id)
+        if _alert:
+            python_plan["_emergency_alert"] = _alert
     python_plan["narrative"] = raw if raw else python_plan["narrative"]
     return python_plan
 
