@@ -64,7 +64,19 @@ export async function postApi(path, body, initData = null) {
   });
 
   if (!res.ok) {
-    throw new Error(`API ${res.status}: ${res.statusText}`);
+    // Try to pull the FastAPI `detail` field out of the body so callers can
+    // show a specific message. Falls back to statusText if the body isn't JSON.
+    let detail = null;
+    try {
+      const errBody = await res.json();
+      if (errBody && typeof errBody.detail === 'string') detail = errBody.detail;
+    } catch (_) {
+      // non-JSON error body — keep detail null
+    }
+    const err = new Error(`API ${res.status}: ${detail || res.statusText}`);
+    err.status = res.status;
+    err.detail = detail;
+    throw err;
   }
   return res.json();
 }

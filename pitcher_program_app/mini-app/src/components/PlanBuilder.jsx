@@ -57,7 +57,9 @@ export default function PlanBuilder({ onClose }) {
       }
       onClose?.();
     } catch (e) {
-      setError('Failed to generate plan. Try again.');
+      // Prefer the backend's `detail` message (FastAPI HTTPException) over a generic string.
+      // postApi attaches .detail and .status to the Error when the response body has one.
+      setError(e?.detail || 'Failed to generate plan. Try again.');
     } finally {
       setGenerating(false);
     }

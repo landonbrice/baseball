@@ -277,6 +277,8 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
         "estimated_duration_min": estimated_duration_min,
         "modifications_applied": triage_result.get("modifications", []),
         "template_day": day_key,
+        "source": "python_fallback",
+        "source_reason": None,
     }
 
     # Populate lifting exercises from pool into the structured format
@@ -301,6 +303,7 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
         truncated = meta.get("finish_reason") == "length"
     except (TimeoutError, Exception) as e:
         logger.warning(f"LLM review timed out ({type(e).__name__}: {e}), shipping Python-constructed plan")
+        python_plan["source_reason"] = f"llm_timeout:{type(e).__name__}"
         return python_plan
 
     # Parse structured JSON from LLM response
@@ -370,14 +373,18 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
                 "estimated_duration_min": (lifting_data or {}).get("estimated_duration_min", estimated_duration_min),
                 "modifications_applied": triage_result.get("modifications", []),
                 "template_day": day_key,
+                "source": "llm_enriched",
+                "source_reason": None,
             }
         except Exception as e:
             logger.warning(f"Error assembling LLM plan ({type(e).__name__}: {e}), using Python-constructed plan")
+            python_plan["source_reason"] = f"llm_assembly_error:{type(e).__name__}"
             return python_plan
 
     # Fallback: LLM returned unparseable text — use Python-constructed plan
     if not plan:
         logger.warning("LLM returned non-JSON response, using Python-constructed plan")
+        python_plan["source_reason"] = "llm_unparseable_json"
     python_plan["narrative"] = raw if raw else python_plan["narrative"]
     return python_plan
 

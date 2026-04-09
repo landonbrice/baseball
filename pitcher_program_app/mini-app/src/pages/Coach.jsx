@@ -34,6 +34,8 @@ export default function Coach() {
   const hasCheckedIn = !!(todayEntry?.pre_training?.arm_feel &&
     (todayEntry?.plan_narrative || todayEntry?.plan_generated?.exercise_blocks?.length));
   const checkedInNoPlan = !!(todayEntry?.pre_training?.arm_feel && !hasCheckedIn);
+  // Degraded: plan exists but LLM review failed → let pitcher retry for coach brief
+  const planDegraded = todayEntry?.plan_generated?.source === 'python_fallback';
   const rawBrief = todayEntry?.morning_brief || todayEntry?.plan_generated?.morning_brief;
   const morningBrief = typeof rawBrief === 'string' ? rawBrief : null;
   const isNewPitcher = profile && !profile.active_flags?.last_outing_date && !todayEntry;
@@ -134,6 +136,19 @@ export default function Coach() {
           setCheckinInProgress(false);
           setCheckinCompleted(false);
           showToast('Plan generation failed — tap "Retry plan"', 'error');
+        } else if (m.content === 'plan_degraded') {
+          // Plan is complete but coaching commentary is missing (LLM review failed).
+          // Mark checkin complete so the user sees their plan, but surface a retry option.
+          setCheckinInProgress(false);
+          setCheckinCompleted(true);
+          showToast('Baseline plan ready — coach brief unavailable. Retry for full plan.', 'warning');
+          newMsgs.push({
+            role: 'bot',
+            type: 'plan_ready',
+            content: typeof res.morning_brief === 'string' ? res.morning_brief : 'Baseline plan ready.',
+            flagLevel: res.flag_level || 'green',
+            degraded: true,
+          });
         } else if (m.content === 'plan_updated') {
           showToast('Plan updated', 'success');
           newMsgs.push({
@@ -466,8 +481,11 @@ export default function Coach() {
   if (!hasCheckedIn && !checkinFlow && !checkedInNoPlan) {
     quickActions.push({ label: '✅ Check in', action: startCheckin });
   }
-  if (checkedInNoPlan) {
-    quickActions.push({ label: '🔄 Retry plan', action: retryPlan });
+  if (checkedInNoPlan || planDegraded) {
+    quickActions.push({
+      label: planDegraded ? '🔄 Retry for coach brief' : '🔄 Retry plan',
+      action: retryPlan,
+    });
   }
   if (!outingFlow) {
     quickActions.push({ label: '📊 Log outing', action: startOuting });

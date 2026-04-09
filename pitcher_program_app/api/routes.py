@@ -608,9 +608,10 @@ async def post_chat(pitcher_id: str, request: Request):
             try:
                 messages = []
                 flag = result["flag_level"].upper()
+                plan_source = result.get("source")
 
-                # Handle plan generation failure (check-in data saved, but no plan)
-                if not result.get("plan_narrative") and not result.get("morning_brief") and not result.get("exercise_blocks"):
+                # Hard failure: process_checkin returned with no plan at all
+                if plan_source is None:
                     messages.append({"type": "text", "content":
                         f"{flag} flag. Your check-in data has been saved. "
                         "Plan generation had an issue. Tap \"Retry plan\" to try again."})
@@ -643,7 +644,13 @@ async def post_chat(pitcher_id: str, request: Request):
                 if result.get("soreness_response"):
                     messages.append({"type": "text", "content": result["soreness_response"]})
 
-                messages.append({"type": "status", "content": "plan_loaded"})
+                # Degraded path: python_fallback shipped because LLM review failed.
+                # Plan is complete and usable, but no coaching commentary.
+                if plan_source == "python_fallback":
+                    messages.append({"type": "status", "content": "plan_degraded",
+                                     "reason": result.get("source_reason")})
+                else:
+                    messages.append({"type": "status", "content": "plan_loaded"})
 
                 if result.get("notes"):
                     messages.append({"type": "text", "content": "Anything else you want to know about today's plan?"})
@@ -998,6 +1005,59 @@ async def apply_plan_to_today(pitcher_id: str, plan_id: str, request: Request):
     return {"status": "ok", "applied_plan": plan.get("title", "")}
 
 
+def _relaxed_parse_custom_plan(raw: str, fallback_brief: str = "Custom plan") -> dict | None:
+    """Relaxed JSON parser for the custom-plan endpoint only.
+
+    The shared `_parse_plan_json` in plan_generator requires a top-level
+    `morning_brief` key — load-bearing for the daily check-in path where that
+    field drives the mini-app's morning brief UI. The custom-plan path has no
+    morning context, so the LLM frequently omits it. This helper accepts JSON
+    without `morning_brief` and injects a default so downstream code (which
+    reads arm_care/lifting/throwing/notes) works unchanged.
+
+    Returns the parsed dict or None. Must never raise — caller handles None.
+    """
+    import re as _re
+    if not raw:
+        return None
+    text = raw.strip()
+    # Strip markdown code fences if present
+    fence_match = _re.search(r"```(?:json)?\s*\n?(.*?)```", text, _re.DOTALL)
+    if fence_match:
+        text = fence_match.group(1).strip()
+
+    def _finalize(parsed):
+        if not isinstance(parsed, dict):
+            return None
+        if "morning_brief" not in parsed:
+            parsed["morning_brief"] = fallback_brief
+        return parsed
+
+    # Try direct parse
+    try:
+        return _finalize(json.loads(text))
+    except json.JSONDecodeError:
+        pass
+
+    # Try to find a balanced JSON object in the text
+    brace_start = text.find("{")
+    if brace_start < 0:
+        return None
+    depth = 0
+    for i in range(brace_start, len(text)):
+        ch = text[i]
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                try:
+                    return _finalize(json.loads(text[brace_start:i + 1]))
+                except json.JSONDecodeError:
+                    return None
+    return None
+
+
 @router.post("/pitcher/{pitcher_id}/generate-plan")
 async def generate_custom_plan(pitcher_id: str, request: Request):
     """Generate a custom plan from user selections and save it."""
@@ -1058,13 +1118,60 @@ async def generate_custom_plan(pitcher_id: str, request: Request):
     user_prompt = user_prompt.replace("{triage_result}", '{"flag_level": "green", "modifications": [], "protocol_adjustments": {"arm_care_template": "heavy"}}')
     user_prompt = user_prompt.replace("{templates}", json.dumps(day_data, indent=2))
     user_prompt = user_prompt.replace("{recent_logs}", "[]")
-    user_prompt += f"\n\n## CUSTOM PLAN REQUEST\n{request_text}\n\nGenerate a complete plan matching this request. Ensure appropriate exercise count (6-8 for 45min, 4-5 for 25min, 8-10 for 60min)."
+    # Fill the two placeholders the custom-plan path doesn't use, so they don't
+    # leak as literal "{relevant_research}" / "{checkin_inputs}" into the LLM prompt.
+    user_prompt = user_prompt.replace("{relevant_research}", "No specific research loaded for this custom plan request.")
+    user_prompt = user_prompt.replace("{checkin_inputs}", "No check-in inputs — this is a custom plan request, not a daily check-in.")
+    user_prompt += (
+        f"\n\n## CUSTOM PLAN REQUEST\n{request_text}\n\n"
+        "Generate a complete plan matching this request. "
+        "Ensure appropriate exercise count (6-8 for 45min, 4-5 for 25min, 8-10 for 60min).\n\n"
+        "IMPORTANT — RESPONSE FORMAT:\n"
+        "Return a single JSON object. You MUST include a top-level `morning_brief` key "
+        "(a one-line string describing this session — it can be as simple as the plan title). "
+        "Also include `arm_care`, `lifting`, `throwing`, and `notes` keys as described above. "
+        "Do not wrap the JSON in markdown code fences unless necessary."
+    )
 
-    response = await call_llm(system_prompt, user_prompt, max_tokens=2000)
+    try:
+        response = await call_llm(system_prompt, user_prompt, max_tokens=2000)
+    except TimeoutError:
+        logger.warning(f"Custom plan generation LLM timeout for {pitcher_id}")
+        raise HTTPException(
+            status_code=504,
+            detail="Plan generation is taking longer than expected. Please try again in a moment.",
+        )
+    except Exception as e:
+        logger.error(f"Custom plan LLM call failed for {pitcher_id}: {type(e).__name__}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=502,
+            detail="Upstream AI service is unavailable. Please try again shortly.",
+        )
+
     plan_data = _parse_plan_json(response)
 
+    # Fallback: _parse_plan_json strictly requires a top-level `morning_brief` key,
+    # which the custom-plan path doesn't actually need (there's no morning here).
+    # If the strict parse failed, try a relaxed local parse that injects a default
+    # morning_brief so the shared parser isn't touched (it's load-bearing for the
+    # daily check-in path).
+    if not plan_data and response:
+        plan_data = _relaxed_parse_custom_plan(response, fallback_brief=type_labels.get(plan_type, "Custom plan"))
+        if plan_data:
+            logger.info(f"Custom plan: relaxed parse succeeded for {pitcher_id} (strict parser rejected response)")
+
     if not plan_data:
-        raise HTTPException(status_code=500, detail="Failed to generate structured plan")
+        # Log the first 500 chars of the raw response so we can diagnose prompt/LLM drift
+        raw_preview = (response or "")[:500].replace("\n", " ")
+        logger.error(
+            f"Custom plan parse failed for {pitcher_id}. "
+            f"plan_type={plan_type} duration={duration_min} emphasis={emphasis}. "
+            f"Raw response preview: {raw_preview!r}"
+        )
+        raise HTTPException(
+            status_code=502,
+            detail="The AI returned an unexpected format. Please try again, or adjust your emphasis selections.",
+        )
 
     title = type_labels.get(plan_type, "Custom plan")
     if emphasis:

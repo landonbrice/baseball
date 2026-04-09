@@ -228,6 +228,8 @@ async def process_checkin(
                 else triage_result.get("modifications", [])
             ),
             "estimated_duration_min": plan_result.get("estimated_duration_min") if plan_result else None,
+            "source": plan_result.get("source") if plan_result else None,
+            "source_reason": plan_result.get("source_reason") if plan_result else None,
         },
         "actual_logged": None,
         "completed_exercises": {},
@@ -319,4 +321,6 @@ async def process_checkin(
         ),
         "template_day": plan_result.get("template_day") if plan_result else None,
         "rotation_day": rotation_day,
+        "source": plan_result.get("source") if plan_result else None,
+        "source_reason": plan_result.get("source_reason") if plan_result else None,
     }
