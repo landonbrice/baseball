@@ -17,6 +17,10 @@ LLM_CONFIG = {
 
 MINI_APP_URL = os.getenv("MINI_APP_URL", "").rstrip("/")
 
+# Admin Telegram chat_id for health monitoring alerts.
+# Defaults to Landon Brice (8589499360) — override in Railway env if needed.
+ADMIN_TELEGRAM_CHAT_ID = int(os.getenv("ADMIN_TELEGRAM_CHAT_ID", "8589499360"))
+
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
 PITCHERS_DIR = os.environ.get(
     "PITCHERS_VOLUME_DIR",
