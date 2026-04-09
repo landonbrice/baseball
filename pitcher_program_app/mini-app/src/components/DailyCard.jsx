@@ -1,4 +1,12 @@
-import { useState, useCallback, useEffect } from 'react';
+// TEMP NOTE — Guided flow phase model (remove after V1 ships):
+// - 5 phases: warmup, arm_care, lifting, throwing (includes post_throw nested), mobility
+// - Phase order computed per-render from entry shape (arm_care.timing + presence of throwing)
+// - Active = first incomplete phase. Complete = all items checked OR in manuallyDonePhases Set
+// - Mobility is always "complete" for flow purposes (terminal, optional)
+// - Visual: active gets inset box-shadow stripe + subtle bg tint + NOW pill + Done button
+// - Locked: full opacity, small "after X" subtitle in header
+// - Complete: collapses to one-line summary with check badge + count pill + chevron, re-expandable
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { toggleExercise } from '../api';
 import { useToast } from '../hooks/useToast';
 import ExerciseWhy from './ExerciseWhy';
@@ -22,6 +30,146 @@ const BLOCKS = [
   { key: 'lifting', emoji: '\uD83C\uDFCB\uFE0F', label: 'Lifting' },
   { key: 'throwing', emoji: '\u26BE', label: 'Throwing' },
 ];
+
+// ---------------------------------------------------------------------------
+// Guided day flow — phase model
+// ---------------------------------------------------------------------------
+
+// Short label + emoji + human label for each phase. Shared between the
+// BLOCKS rendering chain and the guided-flow visual states.
+const PHASE_DEFS = {
+  warmup:   { id: 'warmup',   label: 'Warmup' },
+  arm_care: { id: 'arm_care', label: 'Arm Care' },
+  lifting:  { id: 'lifting',  label: 'Lifting' },
+  throwing: { id: 'throwing', label: 'Throwing' },
+  mobility: { id: 'mobility', label: 'Mobility' },
+};
+
+/**
+ * Returns an ordered array of phase IDs for this entry.
+ * Skips phases with no content. Respects arm_care.timing ("pre_throw" | "pre_lift").
+ * 5-phase model: warmup, arm_care, lifting, throwing (includes nested post-throw), mobility.
+ */
+function computePhaseOrder(entry, mobilityData) {
+  if (!entry) return [];
+
+  const warmupData = entry.warmup || entry.plan_generated?.warmup;
+  const armCareData = entry.arm_care || entry.plan_generated?.arm_care || {};
+  const liftingData = entry.lifting || entry.plan_generated?.lifting;
+  const liftingBlocks = entry.plan_generated?.exercise_blocks || [];
+  const throwingData = entry.throwing || entry.plan_generated?.throwing;
+
+  const hasWarmup = !!(warmupData && (
+    (Array.isArray(warmupData.blocks) && warmupData.blocks.some(b => b.exercises?.length > 0)) ||
+    (Array.isArray(warmupData.exercises) && warmupData.exercises.length > 0)
+  ));
+
+  const hasArmCare = !!(
+    (Array.isArray(armCareData.exercises) && armCareData.exercises.length > 0) ||
+    liftingBlocks.some(b => (b.block_name || '').toLowerCase().includes('arm'))
+  );
+  const armCareTiming = armCareData.timing || 'pre_lift';
+
+  const hasLifting = !!(
+    (liftingData?.exercises?.length > 0) ||
+    liftingBlocks.some(b => !(b.block_name || '').toLowerCase().includes('arm') && (b.exercises || []).length > 0)
+  );
+
+  const throwingType = throwingData?.type;
+  const hasThrowing = throwingType && throwingType !== 'none' && throwingType !== 'no_throw';
+
+  const hasMobility = !!(mobilityData && (
+    (Array.isArray(mobilityData.videos) && mobilityData.videos.length > 0) ||
+    mobilityData.video_id
+  ));
+
+  const order = [];
+  if (hasWarmup) order.push('warmup');
+
+  // Arm care timing dictates whether it comes before throwing or before lifting
+  if (armCareTiming === 'pre_throw' && hasThrowing) {
+    if (hasArmCare) order.push('arm_care');
+    order.push('throwing');
+    if (hasLifting) order.push('lifting');
+  } else {
+    if (hasArmCare) order.push('arm_care');
+    if (hasLifting) order.push('lifting');
+    if (hasThrowing) order.push('throwing');
+  }
+
+  if (hasMobility) order.push('mobility');
+  return order;
+}
+
+/**
+ * Returns an array of item completion keys for the phase, used to check
+ * against entry.completed_exercises. Empty array means "no items to track."
+ * Throwing rolls up ALL exercises across ALL phases including nested post-throw recovery.
+ */
+function getPhaseItems(phaseId, entry) {
+  if (!entry) return [];
+  const plan = entry.plan_generated || {};
+
+  if (phaseId === 'warmup') {
+    const warmup = entry.warmup || plan.warmup;
+    const blocks = warmup?.blocks || [];
+    return blocks.flatMap(b => (b.exercises || []).map(ex => ex.exercise_id || ex.name)).filter(Boolean);
+  }
+
+  if (phaseId === 'arm_care') {
+    const armCare = entry.arm_care || plan.arm_care;
+    const directExs = armCare?.exercises || [];
+    if (directExs.length > 0) {
+      return directExs.map(ex => ex.exercise_id || ex.name).filter(Boolean);
+    }
+    // Fallback: arm care blocks from plan_generated.exercise_blocks
+    const armBlocks = (plan.exercise_blocks || [])
+      .filter(b => (b.block_name || '').toLowerCase().includes('arm'));
+    return armBlocks.flatMap(b => (b.exercises || []).map(ex => ex.exercise_id || ex.name)).filter(Boolean);
+  }
+
+  if (phaseId === 'lifting') {
+    // Dual source per CLAUDE.md "DailyCard Rendering — Dual Data Sources"
+    const lifting = entry.lifting || plan.lifting;
+    const directExs = lifting?.exercises || [];
+    if (directExs.length > 0) {
+      return directExs.map(ex => ex.exercise_id || ex.name).filter(Boolean);
+    }
+    // Fallback to exercise_blocks, excluding arm care
+    const liftBlocks = (plan.exercise_blocks || [])
+      .filter(b => !(b.block_name || '').toLowerCase().includes('arm'));
+    return liftBlocks.flatMap(b => (b.exercises || []).map(ex => ex.exercise_id || ex.name)).filter(Boolean);
+  }
+
+  if (phaseId === 'throwing') {
+    const throwing = entry.throwing || plan.throwing || plan.throwing_plan;
+    const phases = throwing?.phases || [];
+    // Rolls up all throwing phase exercises (includes post-throw recovery)
+    return phases.flatMap(p =>
+      (p.exercises || []).map(ex => ex.exercise_id || ex.name || ex.drill)
+    ).filter(Boolean);
+  }
+
+  if (phaseId === 'mobility') return []; // terminal, no items to track
+
+  return [];
+}
+
+/**
+ * Returns true if the phase should be considered complete for guided-flow purposes.
+ * - Mobility is always "complete" (terminal, optional)
+ * - Empty phases (no items) are complete
+ * - Manually-marked-done phases (via button) are complete
+ * - Otherwise, all items must be in completed_exercises with true
+ */
+function isPhaseComplete(phaseId, entry, completed, manuallyDone) {
+  if (phaseId === 'mobility') return true;
+  if (manuallyDone && manuallyDone.has(phaseId)) return true;
+  const items = getPhaseItems(phaseId, entry);
+  if (items.length === 0) return true;
+  const completedMap = completed || {};
+  return items.every(itemKey => completedMap[itemKey] === true);
+}
 
 export default function DailyCard({ entry, exerciseMap = {}, slugMap = {}, pitcherId, initData, readOnly = false }) {
   const { showToast } = useToast();
