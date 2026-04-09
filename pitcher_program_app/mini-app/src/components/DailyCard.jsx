@@ -192,6 +192,27 @@ export default function DailyCard({ entry, exerciseMap = {}, slugMap = {}, pitch
     setExpandedWhy(prev => ({ ...prev, [exerciseId]: !prev[exerciseId] }));
   }, []);
 
+  // Guided flow state (ephemeral, resets on reload)
+  const [manuallyDonePhases, setManuallyDonePhases] = useState(() => new Set());
+  const [expandedCompletedPhases, setExpandedCompletedPhases] = useState(() => new Set());
+
+  const handleMarkPhaseDone = useCallback((phaseId) => {
+    setManuallyDonePhases(prev => {
+      const next = new Set(prev);
+      next.add(phaseId);
+      return next;
+    });
+  }, []);
+
+  const handleToggleCompletedPhaseExpand = useCallback((phaseId) => {
+    setExpandedCompletedPhases(prev => {
+      const next = new Set(prev);
+      if (next.has(phaseId)) next.delete(phaseId);
+      else next.add(phaseId);
+      return next;
+    });
+  }, []);
+
   // Swap state (lifting block only)
   const [swappingExerciseId, setSwappingExerciseId] = useState(null);
   const [swappedExercises, setSwappedExercises] = useState({});
@@ -256,6 +277,39 @@ export default function DailyCard({ entry, exerciseMap = {}, slugMap = {}, pitch
   const notes = Array.isArray(rawNotes) ? rawNotes : [];
   const hasStructured = !!(blockData.arm_care?.exercises?.length || blockData.lifting?.exercises?.length);
   const fallbackBlocks = plan_generated?.exercise_blocks || [];
+
+  // Guided flow: compute phase order + active phase from entry state
+  const phaseOrder = useMemo(
+    () => computePhaseOrder(entry, activeMobility),
+    [entry, activeMobility]
+  );
+  const activePhaseId = useMemo(() => {
+    for (const pid of phaseOrder) {
+      if (!isPhaseComplete(pid, entry, completed, manuallyDonePhases)) return pid;
+    }
+    // All phases complete — return the last one so no "active" state is shown
+    return null;
+  }, [phaseOrder, entry, completed, manuallyDonePhases]);
+
+  const phaseStateFor = (phaseId) => {
+    if (isPhaseComplete(phaseId, entry, completed, manuallyDonePhases)) return 'complete';
+    if (phaseId === activePhaseId) return 'active';
+    return 'locked';
+  };
+
+  const prevPhaseLabelFor = (phaseId) => {
+    const idx = phaseOrder.indexOf(phaseId);
+    if (idx <= 0) return null;
+    const prevId = phaseOrder[idx - 1];
+    return PHASE_DEFS[prevId]?.label || null;
+  };
+
+  const phaseItemCounts = (phaseId) => {
+    const items = getPhaseItems(phaseId, entry);
+    const total = items.length;
+    const done = items.filter(k => completed[k] === true).length;
+    return { done, total };
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
