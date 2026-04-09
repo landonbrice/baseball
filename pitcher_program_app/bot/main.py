@@ -687,6 +687,40 @@ async def health_digest_command(update, context):
     await update.message.reply_text("Digest sent.")
 
 
+async def test_emergency_command(update, context):
+    """Admin-only: simulate 3 matching failures and fire an emergency alert.
+
+    Uses a TEST marker in the source_reason so it won't collide with real
+    incidents. Respects dedup — call twice in a 2hr window and the second
+    call is silently skipped (that's expected behavior).
+    """
+    from bot.config import ADMIN_TELEGRAM_CHAT_ID
+    if update.effective_chat.id != ADMIN_TELEGRAM_CHAT_ID:
+        await update.message.reply_text("This command is admin-only.")
+        return
+
+    from bot.services.health_monitor import (
+        record_and_check_emergency, format_emergency_alert,
+    )
+    # Simulate 3 failures of the same pattern
+    alert = None
+    for _ in range(3):
+        alert = record_and_check_emergency(
+            "llm_assembly_error:APIStatusError: TEST emergency from /testemergency",
+            "test_pitcher",
+        )
+
+    if alert:
+        message = format_emergency_alert(alert)
+        await update.message.reply_text(message)
+    else:
+        await update.message.reply_text(
+            "Emergency check returned None. "
+            "Likely dedup — pattern was already alerted within the last 2h. "
+            "Wait or restart the Railway deploy to clear in-memory state."
+        )
+
+
 def _schedule_jobs(application: Application) -> None:
     """Set up scheduled jobs for morning check-ins and weekly summaries.
 
@@ -827,6 +861,7 @@ def register_handlers(application) -> None:
     application.add_handler(CommandHandler("whooptest", whooptest))
     application.add_handler(CommandHandler("testnotify", test_notify))
     application.add_handler(CommandHandler("healthdigest", health_digest_command))
+    application.add_handler(CommandHandler("testemergency", test_emergency_command))
     application.add_handler(CommandHandler("gamestart", gamestart))
     application.add_handler(CommandHandler("dashboard", dashboard))
     application.add_handler(CommandHandler("backup", backup_command))
