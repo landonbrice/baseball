@@ -1,0 +1,250 @@
+"""Silent degradation monitoring — queries Supabase for health signals.
+
+Stateless by design. All functions take a date and return a dict.
+No module-level state. Composed by send_daily_digest() into a Telegram message.
+"""
+
+import logging
+from datetime import datetime, timedelta
+from bot.config import CHICAGO_TZ
+from bot.services import db as _db
+
+logger = logging.getLogger(__name__)
+
+
+def _today_iso() -> str:
+    return datetime.now(CHICAGO_TZ).strftime("%Y-%m-%d")
+
+
+def compute_plan_health(date: str = None) -> dict:
+    """Count plan_generated.source values across today's daily_entries.
+
+    Returns:
+        {
+            "date": "2026-04-09",
+            "total_plans": 10,
+            "llm_enriched": 9,
+            "python_fallback": 1,
+            "no_plan": 2,         # partial entries where plan gen didn't run
+            "degradation_rate": 0.10,  # python_fallback / total_plans
+            "source_reason_counts": {"llm_timeout:TimeoutError": 1},
+            "degraded_pitchers": ["pitcher_wilson_001"],
+        }
+    """
+    if date is None:
+        date = _today_iso()
+
+    try:
+        entries = _db.get_client().table("daily_entries").select(
+            "pitcher_id, plan_generated"
+        ).eq("date", date).execute().data or []
+    except Exception as e:
+        logger.error(f"health_monitor: failed to query daily_entries for {date}: {e}")
+        return {
+            "date": date, "total_plans": 0, "llm_enriched": 0,
+            "python_fallback": 0, "no_plan": 0, "degradation_rate": 0.0,
+            "source_reason_counts": {}, "degraded_pitchers": [],
+            "query_error": str(e),
+        }
+
+    llm_enriched = 0
+    python_fallback = 0
+    no_plan = 0
+    source_reason_counts = {}
+    degraded_pitchers = []
+
+    for entry in entries:
+        plan_gen = entry.get("plan_generated") or {}
+        source = plan_gen.get("source")
+        if source == "llm_enriched":
+            llm_enriched += 1
+        elif source == "python_fallback":
+            python_fallback += 1
+            reason = plan_gen.get("source_reason") or "unknown"
+            source_reason_counts[reason] = source_reason_counts.get(reason, 0) + 1
+            degraded_pitchers.append(entry.get("pitcher_id"))
+        else:
+            # source is None → partial entry (check-in saved, plan didn't ship)
+            # OR this is an old row from before source tagging (pre-2026-04-09)
+            no_plan += 1
+
+    total = llm_enriched + python_fallback
+    rate = (python_fallback / total) if total > 0 else 0.0
+
+    return {
+        "date": date,
+        "total_plans": total,
+        "llm_enriched": llm_enriched,
+        "python_fallback": python_fallback,
+        "no_plan": no_plan,
+        "degradation_rate": rate,
+        "source_reason_counts": source_reason_counts,
+        "degraded_pitchers": degraded_pitchers,
+    }
+
+
+def compute_whoop_health(date: str = None) -> dict:
+    """Check which linked pitchers have a whoop_daily row for today.
+
+    Returns:
+        {
+            "date": "2026-04-09",
+            "linked_count": 4,
+            "pulled_count": 3,
+            "missing_pitchers": ["pitcher_richert_001"],
+        }
+    """
+    if date is None:
+        date = _today_iso()
+
+    try:
+        linked = _db.list_whoop_linked_pitchers() or []
+    except Exception as e:
+        logger.error(f"health_monitor: failed to list_whoop_linked_pitchers: {e}")
+        return {"date": date, "linked_count": 0, "pulled_count": 0,
+                "missing_pitchers": [], "query_error": str(e)}
+
+    pulled = []
+    missing = []
+    for pitcher_id in linked:
+        try:
+            resp = (_db.get_client().table("whoop_daily")
+                    .select("pitcher_id")
+                    .eq("pitcher_id", pitcher_id)
+                    .eq("date", date)
+                    .execute())
+            if resp.data:
+                pulled.append(pitcher_id)
+            else:
+                missing.append(pitcher_id)
+        except Exception:
+            missing.append(pitcher_id)
+
+    return {
+        "date": date,
+        "linked_count": len(linked),
+        "pulled_count": len(pulled),
+        "missing_pitchers": missing,
+    }
+
+
+def compute_weekly_narrative_health() -> dict | None:
+    """Check if this week's weekly_summaries are present (Sunday check only).
+
+    Returns None on non-Sundays. Otherwise a dict with pitcher activity + narrative counts.
+    """
+    now = datetime.now(CHICAGO_TZ)
+    # weekday: Monday=0, Sunday=6
+    if now.weekday() != 6:
+        return None  # Not Sunday — skip
+
+    monday = (now - timedelta(days=now.weekday())).strftime("%Y-%m-%d")
+
+    try:
+        # Any pitcher who logged activity this week
+        active_entries = (_db.get_client().table("daily_entries")
+                          .select("pitcher_id")
+                          .gte("date", monday)
+                          .execute().data) or []
+        active_pitchers = set(e["pitcher_id"] for e in active_entries)
+
+        # Who has a weekly_summaries row for this week
+        narrative_rows = (_db.get_client().table("weekly_summaries")
+                          .select("pitcher_id")
+                          .eq("week_start", monday)
+                          .execute().data) or []
+        pitchers_with_narrative = set(r["pitcher_id"] for r in narrative_rows)
+    except Exception as e:
+        logger.error(f"health_monitor: failed weekly narrative check: {e}")
+        return {"week_start": monday, "pitchers_with_activity": 0,
+                "pitchers_with_narrative": 0, "missing_pitchers": [],
+                "query_error": str(e)}
+
+    missing = sorted(active_pitchers - pitchers_with_narrative)
+    return {
+        "week_start": monday,
+        "pitchers_with_activity": len(active_pitchers),
+        "pitchers_with_narrative": len(pitchers_with_narrative),
+        "missing_pitchers": missing,
+    }
+
+
+def compute_daily_digest(date: str = None) -> dict:
+    """Compose the full daily health snapshot."""
+    return {
+        "plan_health": compute_plan_health(date),
+        "whoop_health": compute_whoop_health(date),
+        "weekly_narrative": compute_weekly_narrative_health(),
+    }
+
+
+def format_digest_message(digest: dict) -> str:
+    """Format the digest dict as a Telegram message.
+
+    Uses simple text (no markdown parse mode) to avoid escaping issues.
+    """
+    lines = []
+    plan = digest.get("plan_health", {})
+    whoop = digest.get("whoop_health", {})
+    narrative = digest.get("weekly_narrative")
+
+    date = plan.get("date", "?")
+    lines.append(f"🩺 Pitcher Bot Health — {date}")
+    lines.append("")
+
+    # Plan generation section
+    total = plan.get("total_plans", 0)
+    enriched = plan.get("llm_enriched", 0)
+    fallback = plan.get("python_fallback", 0)
+    rate = plan.get("degradation_rate", 0.0)
+
+    if plan.get("query_error"):
+        lines.append(f"⚠️ Plan query failed: {plan['query_error'][:100]}")
+    elif total == 0:
+        lines.append("📋 Plans: no check-ins logged yet today")
+    else:
+        icon = "✅" if rate == 0 else ("🟡" if rate < 0.3 else "🔴")
+        lines.append(f"{icon} Plans: {enriched}/{total} enriched "
+                     f"({fallback} fallback, {rate*100:.0f}% degraded)")
+        if plan.get("source_reason_counts"):
+            for reason, count in sorted(plan["source_reason_counts"].items(),
+                                        key=lambda x: -x[1]):
+                lines.append(f"     • {count}× {reason}")
+        if plan.get("degraded_pitchers"):
+            ids = ", ".join(plan["degraded_pitchers"][:5])
+            suffix = f" (+{len(plan['degraded_pitchers'])-5} more)" if len(plan["degraded_pitchers"]) > 5 else ""
+            lines.append(f"     Affected: {ids}{suffix}")
+
+    # WHOOP section
+    linked = whoop.get("linked_count", 0)
+    pulled = whoop.get("pulled_count", 0)
+
+    if whoop.get("query_error"):
+        lines.append(f"⚠️ WHOOP query failed: {whoop['query_error'][:100]}")
+    elif linked == 0:
+        pass  # nobody linked — skip
+    else:
+        icon = "✅" if pulled == linked else "🟡"
+        lines.append(f"{icon} WHOOP: {pulled}/{linked} pulled today")
+        if whoop.get("missing_pitchers"):
+            ids = ", ".join(whoop["missing_pitchers"])
+            lines.append(f"     Missing: {ids}")
+
+    # Weekly narrative section (Sunday only)
+    if narrative:
+        active = narrative.get("pitchers_with_activity", 0)
+        with_nar = narrative.get("pitchers_with_narrative", 0)
+        if narrative.get("query_error"):
+            lines.append(f"⚠️ Narrative query failed: {narrative['query_error'][:100]}")
+        elif active == 0:
+            pass
+        else:
+            icon = "✅" if with_nar == active else "🟡"
+            lines.append(f"{icon} Weekly narratives: {with_nar}/{active} written")
+            if narrative.get("missing_pitchers"):
+                ids = ", ".join(narrative["missing_pitchers"][:5])
+                lines.append(f"     Missing: {ids}")
+
+    lines.append("")
+    lines.append("Reply /healthcheck any time for on-demand status (v3).")
+    return "\n".join(lines)
