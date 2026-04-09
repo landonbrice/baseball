@@ -35,8 +35,18 @@ export default function ExerciseSwap({ exerciseId, exerciseName, pitcherId, date
 
   const handleSwap = useCallback(async (alt) => {
     setStep('swapping');
+    // Step 1: call the API. If this fails, show the "swap failed" error.
     try {
       await swapExercise(pitcherId, date, exerciseId, alt.exercise_id, selectedReason, initData);
+    } catch (err) {
+      setError('Swap failed \u2014 try again');
+      setStep('alternatives');
+      return;
+    }
+    // Step 2: backend write succeeded. Notify the parent.
+    // If the parent callback throws, log it but DON'T show "swap failed" —
+    // the swap is persisted, we just hit a frontend issue updating local state.
+    try {
       onSwap({
         exercise_id: alt.exercise_id,
         name: alt.name,
@@ -47,8 +57,9 @@ export default function ExerciseSwap({ exerciseId, exerciseName, pitcherId, date
         swapped_from_name: exerciseName,
       });
     } catch (err) {
-      setError('Swap failed \u2014 try again');
-      setStep('alternatives');
+      // eslint-disable-next-line no-console
+      console.error('onSwap callback threw after successful backend swap:', err);
+      // Let the component unmount naturally — the swap DID persist
     }
   }, [pitcherId, date, exerciseId, exerciseName, selectedReason, initData, onSwap]);
 

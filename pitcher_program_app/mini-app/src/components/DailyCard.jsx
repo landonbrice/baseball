@@ -390,6 +390,9 @@ export default function DailyCard({ entry, exerciseMap = {}, slugMap = {}, pitch
         // Not in guided flow (e.g. readOnly mode) — render plain block
         if (!inFlow || readOnly) return blockElement;
 
+        // Re-expanded completed phase: show collapse affordance
+        const isReExpandedComplete = state === 'complete' && expandedCompletedPhases.has(key);
+
         // Wrap in position:relative container for NOW pill overlay + Mark Done button
         return (
           <div key={key} style={{ position: 'relative' }}>
@@ -399,6 +402,12 @@ export default function DailyCard({ entry, exerciseMap = {}, slugMap = {}, pitch
               <MarkPhaseDoneButton
                 phaseLabel={PHASE_DEFS[key]?.label || label}
                 onClick={() => handleMarkPhaseDone(key)}
+              />
+            )}
+            {isReExpandedComplete && (
+              <CollapsePhaseButton
+                phaseLabel={PHASE_DEFS[key]?.label || label}
+                onClick={() => handleToggleCompletedPhaseExpand(key)}
               />
             )}
           </div>
@@ -534,6 +543,40 @@ function NowPill() {
     }}>
       NOW
     </div>
+  );
+}
+
+/**
+ * Subtle "Collapse [phase] ↑" button, rendered beneath a re-expanded
+ * completed phase to let the user hide it again. Outline-maroon styling
+ * (quieter than MarkPhaseDoneButton) — this is an optional affordance,
+ * not the primary action.
+ */
+function CollapsePhaseButton({ phaseLabel, onClick }) {
+  const [hover, setHover] = useState(false);
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        marginTop: 6,
+        width: '100%',
+        padding: '9px 20px',
+        borderRadius: 10,
+        border: '1px solid rgba(92,16,32,0.18)',
+        background: hover ? 'rgba(92,16,32,0.04)' : 'transparent',
+        color: '#5c1020',
+        fontSize: 11,
+        fontWeight: 600,
+        letterSpacing: '0.3px',
+        cursor: 'pointer',
+        transition: 'background 0.15s ease, border-color 0.15s ease',
+        fontFamily: 'inherit',
+      }}
+    >
+      Collapse {phaseLabel.toLowerCase()} ↑
+    </button>
   );
 }
 
