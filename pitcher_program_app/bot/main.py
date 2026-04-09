@@ -655,6 +655,38 @@ async def _pull_all_whoop(context) -> None:
             logger.error("WHOOP pull failed for %s: %s", pitcher_id, e)
 
 
+async def _send_health_digest(context) -> None:
+    """Daily 9am Chicago health digest sent to the admin chat_id.
+
+    Queries degradation signals from Supabase and posts a formatted summary.
+    Never raises — monitoring should never crash the scheduler.
+    """
+    try:
+        from bot.services.health_monitor import compute_daily_digest, format_digest_message
+        from bot.config import ADMIN_TELEGRAM_CHAT_ID
+
+        digest = compute_daily_digest()
+        message = format_digest_message(digest)
+
+        await context.bot.send_message(
+            chat_id=ADMIN_TELEGRAM_CHAT_ID,
+            text=message,
+        )
+        logger.info("Health digest sent to admin chat_id=%s", ADMIN_TELEGRAM_CHAT_ID)
+    except Exception as e:
+        logger.error("Failed to send health digest: %s", e, exc_info=True)
+
+
+async def health_digest_command(update, context):
+    """Admin-only: force-send the health digest right now. Dev/test use."""
+    from bot.config import ADMIN_TELEGRAM_CHAT_ID
+    if update.effective_chat.id != ADMIN_TELEGRAM_CHAT_ID:
+        await update.message.reply_text("This command is admin-only.")
+        return
+    await _send_health_digest(context)
+    await update.message.reply_text("Digest sent.")
+
+
 def _schedule_jobs(application: Application) -> None:
     """Set up scheduled jobs for morning check-ins and weekly summaries.
 
@@ -744,6 +776,14 @@ def _schedule_jobs(application: Application) -> None:
     )
     logger.info("Scheduled daily 11pm post-game reliever check")
 
+    # Daily health digest — 9am Chicago
+    job_queue.run_daily(
+        _send_health_digest,
+        time=dt_time(hour=9, minute=0, tzinfo=CHICAGO_TZ),
+        name="health_digest_daily",
+    )
+    logger.info("Scheduled daily health digest for 9:00 AM Chicago time")
+
 
 async def post_init(application: Application) -> None:
     """Set bot commands and schedule jobs after startup."""
@@ -786,6 +826,7 @@ def register_handlers(application) -> None:
     application.add_handler(CommandHandler("reauth", reauth_whoop))
     application.add_handler(CommandHandler("whooptest", whooptest))
     application.add_handler(CommandHandler("testnotify", test_notify))
+    application.add_handler(CommandHandler("healthdigest", health_digest_command))
     application.add_handler(CommandHandler("gamestart", gamestart))
     application.add_handler(CommandHandler("dashboard", dashboard))
     application.add_handler(CommandHandler("backup", backup_command))
