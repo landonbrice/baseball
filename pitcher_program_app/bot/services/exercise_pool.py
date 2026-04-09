@@ -169,8 +169,19 @@ def build_exercise_pool(
     core = [ex for ex in eligible if ex.get("category") == "core"]
 
     # Step 3: Select with variety (prefer fresh exercises)
-    structure_key = "light" if flag_level in ("red", "yellow") else day_focus
-    structure = SESSION_STRUCTURE.get(structure_key, (2, 3, 2, 1))
+    # Flag-level volume adjustment:
+    # - RED: full shutdown → light structure (1 compound + 2 accessories + 1 core, no explosive)
+    # - YELLOW: caution, not shutdown → normal day_focus minus 1 accessory (keeps explosive + core)
+    # - GREEN: full day_focus structure
+    # This avoids the prior behavior where yellow pitchers (a large share of the
+    # roster with chronic but managed conditions) got a 4-exercise plan every day.
+    if flag_level == "red":
+        structure = SESSION_STRUCTURE["light"]
+    elif flag_level == "yellow":
+        base = SESSION_STRUCTURE.get(day_focus, SESSION_STRUCTURE["full"])
+        structure = (base[0], max(1, base[1] - 1), base[2], base[3])
+    else:
+        structure = SESSION_STRUCTURE.get(day_focus, SESSION_STRUCTURE["full"])
     n_compound, n_accessory, n_core = structure[0], structure[1], structure[2]
 
     selected_compounds = _pick(compounds, n_compound, recent_exercise_ids, day_key, preferences)
