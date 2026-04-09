@@ -1,11 +1,3 @@
-// TEMP NOTE — Guided flow phase model (remove after V1 ships):
-// - 5 phases: warmup, arm_care, lifting, throwing (includes post_throw nested), mobility
-// - Phase order computed per-render from entry shape (arm_care.timing + presence of throwing)
-// - Active = first incomplete phase. Complete = all items checked OR in manuallyDonePhases Set
-// - Mobility is always "complete" for flow purposes (terminal, optional)
-// - Visual: active gets inset box-shadow stripe + subtle bg tint + NOW pill + Done button
-// - Locked: full opacity, small "after X" subtitle in header
-// - Complete: collapses to one-line summary with check badge + count pill + chevron, re-expandable
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { toggleExercise } from '../api';
 import { useToast } from '../hooks/useToast';
@@ -315,30 +307,58 @@ export default function DailyCard({ entry, exerciseMap = {}, slugMap = {}, pitch
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       {BLOCKS.map(({ key, emoji, label }) => {
         const data = blockData[key];
-        if (key === 'throwing') {
+
+        // Guided flow: is this phase in the computed order at all?
+        const inFlow = phaseOrder.includes(key);
+        const state = inFlow ? phaseStateFor(key) : null;
+
+        // Completed + not re-expanded: render collapsed summary instead of the block
+        if (state === 'complete' && !expandedCompletedPhases.has(key) && !readOnly) {
+          const { done, total } = phaseItemCounts(key);
           return (
-            <ThrowingBlock
+            <CompletedPhaseSummary
               key={key}
-              emoji={emoji}
-              label={label}
-              throwing={data}
-              fallbackPlan={plan_generated?.throwing_plan}
-              exerciseMap={exerciseMap}
-              slugMap={slugMap}
-              completed={completed}
-              onToggle={readOnly ? null : handleToggle}
-              expandedWhy={expandedWhy}
-              onToggleWhy={toggleWhy}
-              collapsedPhases={collapsedPhases}
-              onTogglePhase={(phaseKey) => setCollapsedPhases(prev => ({ ...prev, [phaseKey]: !prev[phaseKey] }))}
-              entry={entry}
-              pitcherId={pitcherId}
-              initData={initData}
-              readOnly={readOnly}
+              phaseLabel={PHASE_DEFS[key]?.label || label}
+              doneCount={done}
+              totalCount={total}
+              markedDone={manuallyDonePhases.has(key)}
+              onClick={() => handleToggleCompletedPhaseExpand(key)}
             />
           );
         }
-        return (
+
+        // Active: container adds box-shadow stripe + bg tint + relative positioning for NOW pill
+        const isActive = state === 'active';
+        const wrapperStyle = isActive
+          ? {
+              boxShadow: 'inset 3px 0 0 #5c1020, 0 1px 3px rgba(92,16,32,0.08)',
+              background: 'rgba(92,16,32,0.018)',
+              transition: 'box-shadow 0.2s ease',
+            }
+          : undefined;
+
+        const blockElement = key === 'throwing' ? (
+          <ThrowingBlock
+            key={key}
+            emoji={emoji}
+            label={label}
+            throwing={data}
+            fallbackPlan={plan_generated?.throwing_plan}
+            exerciseMap={exerciseMap}
+            slugMap={slugMap}
+            completed={completed}
+            onToggle={readOnly ? null : handleToggle}
+            expandedWhy={expandedWhy}
+            onToggleWhy={toggleWhy}
+            collapsedPhases={collapsedPhases}
+            onTogglePhase={(phaseKey) => setCollapsedPhases(prev => ({ ...prev, [phaseKey]: !prev[phaseKey] }))}
+            entry={entry}
+            pitcherId={pitcherId}
+            initData={initData}
+            readOnly={readOnly}
+            wrapperStyle={wrapperStyle}
+          />
+        ) : (
           <ExerciseBlock
             key={key}
             blockKey={key}
@@ -363,7 +383,25 @@ export default function DailyCard({ entry, exerciseMap = {}, slugMap = {}, pitch
             date={entry?.date}
             initData={initData}
             readOnly={readOnly}
+            wrapperStyle={wrapperStyle}
           />
+        );
+
+        // Not in guided flow (e.g. readOnly mode) — render plain block
+        if (!inFlow || readOnly) return blockElement;
+
+        // Wrap in position:relative container for NOW pill overlay + Mark Done button
+        return (
+          <div key={key} style={{ position: 'relative' }}>
+            {isActive && <NowPill />}
+            {blockElement}
+            {isActive && (
+              <MarkPhaseDoneButton
+                phaseLabel={PHASE_DEFS[key]?.label || label}
+                onClick={() => handleMarkPhaseDone(key)}
+              />
+            )}
+          </div>
         );
       })}
 
@@ -391,9 +429,156 @@ export default function DailyCard({ entry, exerciseMap = {}, slugMap = {}, pitch
   );
 }
 
+// ── Guided Flow — visual helpers ──
+
+/**
+ * Collapsed one-line summary for a completed phase.
+ * Renders: [green check badge] Phase Name [count pill] [chevron]
+ * Tap to re-expand.
+ */
+function CompletedPhaseSummary({ phaseLabel, doneCount, totalCount, markedDone, onClick }) {
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        background: 'var(--color-white)',
+        borderRadius: 12,
+        padding: '12px 16px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        cursor: 'pointer',
+        minHeight: 44,
+        transition: 'background 0.15s ease',
+      }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(42,26,24,0.02)'; }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--color-white)'; }}
+    >
+      {/* Green check badge */}
+      <div style={{
+        width: 22,
+        height: 22,
+        borderRadius: '50%',
+        background: 'var(--color-flag-green)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexShrink: 0,
+      }}>
+        <span style={{ color: '#ffffff', fontSize: 13, fontWeight: 700, lineHeight: 1 }}>✓</span>
+      </div>
+
+      {/* Label */}
+      <span style={{
+        flex: 1,
+        fontSize: 13,
+        fontWeight: 500,
+        color: 'var(--color-ink-secondary, #6b5f58)',
+      }}>
+        {phaseLabel}
+      </span>
+
+      {/* Count pill (or em-dash if no items) */}
+      {totalCount > 0 ? (
+        <span style={{
+          fontSize: 11,
+          fontWeight: 600,
+          padding: '3px 9px',
+          borderRadius: 8,
+          background: 'rgba(29,158,117,0.09)',
+          color: 'var(--color-flag-green)',
+          fontVariantNumeric: 'tabular-nums',
+          letterSpacing: '0.2px',
+        }}>
+          {doneCount}/{totalCount}
+        </span>
+      ) : markedDone ? (
+        <span style={{ fontSize: 13, color: 'var(--color-ink-muted)', fontWeight: 400 }}>—</span>
+      ) : null}
+
+      {/* Chevron — indicates re-expandable */}
+      <span style={{
+        fontSize: 15,
+        color: 'var(--color-ink-muted)',
+        fontWeight: 400,
+        lineHeight: 1,
+        marginLeft: 2,
+      }}>
+        ›
+      </span>
+    </div>
+  );
+}
+
+/**
+ * Active phase "NOW" pill — absolutely positioned on the phase container.
+ * Appears top-right, slightly peeking above the card edge like a tab tag.
+ */
+function NowPill() {
+  return (
+    <div style={{
+      position: 'absolute',
+      top: -6,
+      right: 14,
+      fontSize: 9,
+      fontWeight: 700,
+      letterSpacing: '0.9px',
+      background: 'linear-gradient(165deg, #5c1020 0%, #7a1a2e 100%)',
+      color: '#ffffff',
+      padding: '3px 10px',
+      borderRadius: 10,
+      boxShadow: '0 2px 8px rgba(92,16,32,0.28)',
+      zIndex: 2,
+      pointerEvents: 'none',
+      textTransform: 'none', // letter-spacing alone does the job
+    }}>
+      NOW
+    </div>
+  );
+}
+
+/**
+ * "Done with [phase] →" button, rendered beneath the active phase card.
+ * Maroon gradient (matches Profile identity header), tactile hover/tap.
+ */
+function MarkPhaseDoneButton({ phaseLabel, onClick }) {
+  const [hover, setHover] = useState(false);
+  const [pressed, setPressed] = useState(false);
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => { setHover(false); setPressed(false); }}
+      onMouseDown={() => setPressed(true)}
+      onMouseUp={() => setPressed(false)}
+      style={{
+        marginTop: 8,
+        width: '100%',
+        padding: '11px 20px',
+        borderRadius: 10,
+        border: 'none',
+        background: 'linear-gradient(165deg, #5c1020 0%, #7a1a2e 100%)',
+        color: '#ffffff',
+        fontSize: 12,
+        fontWeight: 600,
+        letterSpacing: '0.3px',
+        cursor: 'pointer',
+        transform: pressed ? 'scale(0.98)' : (hover ? 'translateY(-1px)' : 'none'),
+        boxShadow: hover && !pressed
+          ? '0 4px 12px rgba(92,16,32,0.22)'
+          : '0 1px 3px rgba(92,16,32,0.15)',
+        transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+        fontFamily: 'inherit',
+      }}
+    >
+      Done with {phaseLabel.toLowerCase()} →
+    </button>
+  );
+}
+
 // ── Exercise Block (arm_care, lifting) ──
 
-function ExerciseBlock({ blockKey, emoji, label, data, fallbackBlocks, hasStructured, exerciseMap, slugMap, completed, onToggle, expandedWhy, onToggleWhy, swappingExerciseId, swappedExercises, swapOverrides, onStartSwap, onSwapComplete, onCancelSwap, pitcherId, date, initData, readOnly }) {
+function ExerciseBlock({ blockKey, emoji, label, data, fallbackBlocks, hasStructured, exerciseMap, slugMap, completed, onToggle, expandedWhy, onToggleWhy, swappingExerciseId, swappedExercises, swapOverrides, onStartSwap, onSwapComplete, onCancelSwap, pitcherId, date, initData, readOnly, wrapperStyle }) {
   const [warmupExpanded, setWarmupExpanded] = useState(false);
   const exercises = data?.exercises || [];
   const hasDirect = hasStructured && exercises.length > 0;
@@ -439,7 +624,7 @@ function ExerciseBlock({ blockKey, emoji, label, data, fallbackBlocks, hasStruct
     }
 
     return (
-      <div style={{ background: 'var(--color-white)', borderRadius: 12, overflow: 'hidden' }}>
+      <div style={{ background: 'var(--color-white)', borderRadius: 12, overflow: 'hidden', ...wrapperStyle }}>
         <div
           onClick={() => setWarmupExpanded(prev => !prev)}
           style={{ padding: '10px 14px', borderBottom: warmupExpanded ? '0.5px solid var(--color-cream-border)' : 'none', cursor: 'pointer' }}
@@ -484,6 +669,7 @@ function ExerciseBlock({ blockKey, emoji, label, data, fallbackBlocks, hasStruct
     <div style={{
       background: 'var(--color-white)', borderRadius: blockKey === 'lifting' ? 14 : 12, overflow: 'hidden',
       boxShadow: blockKey === 'lifting' ? '0 1px 3px rgba(42,26,24,0.06)' : 'none',
+      ...wrapperStyle,
     }}>
       {/* Block header */}
       <div style={{ padding: '10px 14px', borderBottom: '0.5px solid var(--color-cream-border)' }}>
@@ -592,7 +778,7 @@ function ExerciseBlock({ blockKey, emoji, label, data, fallbackBlocks, hasStruct
 
 // ── Throwing Block ──
 
-function ThrowingBlock({ emoji, label, throwing, fallbackPlan, exerciseMap, slugMap, completed, onToggle, expandedWhy, onToggleWhy, collapsedPhases, onTogglePhase, entry, pitcherId, initData, readOnly }) {
+function ThrowingBlock({ emoji, label, throwing, fallbackPlan, exerciseMap, slugMap, completed, onToggle, expandedWhy, onToggleWhy, collapsedPhases, onTogglePhase, entry, pitcherId, initData, readOnly, wrapperStyle }) {
   const data = throwing || fallbackPlan;
   if (!data) return null;
 
@@ -619,7 +805,7 @@ function ThrowingBlock({ emoji, label, throwing, fallbackPlan, exerciseMap, slug
             currentDayType={dayLabel}
           />
         )}
-        <div style={{ background: 'var(--color-white)', borderRadius: 12, overflow: 'hidden' }}>
+        <div style={{ background: 'var(--color-white)', borderRadius: 12, overflow: 'hidden', ...wrapperStyle }}>
         {/* Header */}
         <div style={{ padding: '10px 14px', borderBottom: '0.5px solid var(--color-cream-border)' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -719,7 +905,7 @@ function ThrowingBlock({ emoji, label, throwing, fallbackPlan, exerciseMap, slug
   if (type === 'none' && !detail) return null;
 
   return (
-    <div style={{ background: 'var(--color-white)', borderRadius: 12, overflow: 'hidden' }}>
+    <div style={{ background: 'var(--color-white)', borderRadius: 12, overflow: 'hidden', ...wrapperStyle }}>
       <div style={{ padding: '10px 14px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
