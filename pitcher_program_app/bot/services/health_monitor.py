@@ -248,3 +248,126 @@ def format_digest_message(digest: dict) -> str:
     lines.append("")
     lines.append("Reply /healthcheck any time for on-demand status (v3).")
     return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# V2 — Real-time emergency detection
+# ---------------------------------------------------------------------------
+
+# In-memory emergency state (resets on Railway restart — acceptable loss).
+# Worst case after restart: one re-alert on the next matching failure.
+_EMERGENCY_STATE = {
+    "recent_failures": [],           # [(timestamp, source_reason, pitcher_id), ...]
+    "last_alert_times": {},          # {pattern: timestamp}
+}
+
+# Failure patterns that should trigger immediate alerts.
+# Substring matching against source_reason strings.
+EMERGENCY_PATTERNS = (
+    "APIStatusError",
+    "APIError",
+    "AuthenticationError",
+    "PermissionDeniedError",
+    "InsufficientBalance",
+    "insufficient_balance",
+    "RateLimitError",
+    "rate_limit",
+)
+
+# Thresholds
+EMERGENCY_THRESHOLD = 3           # failures of same pattern to trigger
+EMERGENCY_WINDOW_MIN = 30         # within N minutes
+DEDUP_WINDOW_HOURS = 2            # don't re-alert for same pattern within N hours
+
+
+def _matches_emergency_pattern(source_reason: str) -> str | None:
+    """Return the matched pattern name if source_reason contains a known bad signal."""
+    if not source_reason:
+        return None
+    for pattern in EMERGENCY_PATTERNS:
+        if pattern in source_reason:
+            return pattern
+    return None
+
+
+def record_and_check_emergency(source_reason: str, pitcher_id: str = None) -> dict | None:
+    """Record a plan-gen failure and return alert info if threshold crossed.
+
+    Never raises. Safe to call from sync code — no I/O.
+
+    Args:
+        source_reason: The `source_reason` string from plan_generator.
+        pitcher_id: Optional — which pitcher triggered this failure.
+
+    Returns:
+        None if no alert should fire, else a dict:
+            {"pattern": "APIStatusError", "count": 3, "window_min": 30,
+             "reasons": [...], "pitchers": [...]}
+    """
+    try:
+        pattern = _matches_emergency_pattern(source_reason)
+        if not pattern:
+            return None
+
+        now = datetime.now(CHICAGO_TZ)
+        # Prune stale entries outside the detection window
+        cutoff = now - timedelta(minutes=EMERGENCY_WINDOW_MIN)
+        _EMERGENCY_STATE["recent_failures"] = [
+            (ts, reason, pid)
+            for (ts, reason, pid) in _EMERGENCY_STATE["recent_failures"]
+            if ts > cutoff
+        ]
+        # Record this failure
+        _EMERGENCY_STATE["recent_failures"].append((now, source_reason, pitcher_id))
+
+        # Count matches for this specific pattern
+        matches = [
+            (ts, reason, pid) for (ts, reason, pid)
+            in _EMERGENCY_STATE["recent_failures"]
+            if pattern in reason
+        ]
+        if len(matches) < EMERGENCY_THRESHOLD:
+            return None
+
+        # Check dedup window
+        last_alert = _EMERGENCY_STATE["last_alert_times"].get(pattern)
+        if last_alert and (now - last_alert) < timedelta(hours=DEDUP_WINDOW_HOURS):
+            return None  # Already alerted recently
+
+        # Fire the alert
+        _EMERGENCY_STATE["last_alert_times"][pattern] = now
+        return {
+            "pattern": pattern,
+            "count": len(matches),
+            "window_min": EMERGENCY_WINDOW_MIN,
+            "reasons": list({reason for _, reason, _ in matches}),
+            "pitchers": list({pid for _, _, pid in matches if pid}),
+        }
+    except Exception as e:
+        logger.error(f"record_and_check_emergency failed: {e}", exc_info=True)
+        return None
+
+
+def format_emergency_alert(alert: dict) -> str:
+    """Format an emergency alert dict as a Telegram message."""
+    lines = [
+        "🚨 Pitcher Bot Emergency",
+        "",
+        f"Pattern: {alert.get('pattern', '?')}",
+        f"Failures: {alert.get('count', 0)} in last {alert.get('window_min', 0)} min",
+    ]
+    pitchers = alert.get("pitchers") or []
+    if pitchers:
+        preview = ", ".join(pitchers[:5])
+        suffix = f" (+{len(pitchers)-5} more)" if len(pitchers) > 5 else ""
+        lines.append(f"Affected pitchers: {preview}{suffix}")
+    reasons = alert.get("reasons") or []
+    if reasons:
+        lines.append("")
+        lines.append("Reasons:")
+        for r in reasons[:3]:
+            lines.append(f"  • {r[:100]}")
+    lines.append("")
+    lines.append("Likely cause: DeepSeek billing / auth / rate limit.")
+    lines.append("Check platform.deepseek.com")
+    return "\n".join(lines)
