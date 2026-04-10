@@ -1423,65 +1423,87 @@ async def swap_exercise(pitcher_id: str, request: Request):
         logger.warning("swap_exercise: replacement exercise not found: to_id=%s", to_id)
         raise HTTPException(status_code=404, detail=f"Replacement exercise {to_id} not in library")
 
-    # Find and replace in lifting block
+    # Helper: compute new prescription fields from the replacement exercise
+    rx_data = replacement_ex.get("prescription") or {}
+    rx_phase = rx_data.get("strength") or rx_data.get("hypertrophy") or rx_data.get("endurance") or {}
+    if rx_phase.get("sets") and rx_phase.get("reps"):
+        new_prescribed = f"{rx_phase['sets']}x{rx_phase['reps']}"
+        if rx_phase.get("intensity"):
+            new_prescribed += f" @ {rx_phase['intensity']}"
+    else:
+        new_prescribed = "3x8"
+
+    def _replace_in_exercise(ex):
+        """Mutate an exercise dict in-place to point at the replacement."""
+        ex["exercise_id"] = to_id
+        ex["name"] = replacement_ex.get("name", to_id)
+        ex["prescribed"] = new_prescribed
+        ex["rx"] = new_prescribed
+        ex["swapped_from"] = from_id
+
+    # Find and replace — search multiple locations in priority order:
+    #   1. entry.lifting.exercises (top-level column — where checkin_service writes)
+    #   2. entry.plan_generated.lifting.exercises (legacy / coach mutation path)
+    #   3. entry.plan_generated.exercise_blocks[*].exercises (fallback format)
+    # Note: steps 1 and 2 can BOTH contain the exercise — update whichever has it.
+    # If found in multiple locations, update all of them to keep views consistent.
     swapped = False
-    lifting = plan.get("lifting") or {}
-    for ex in (lifting.get("exercises") or []):
+
+    # Location 1: top-level entry.lifting.exercises (the canonical modern path)
+    top_lifting = entry.get("lifting") or {}
+    for ex in (top_lifting.get("exercises") or []):
         if ex.get("exercise_id") == from_id:
-            ex["exercise_id"] = to_id
-            ex["name"] = replacement_ex.get("name", to_id)
-            rx_data = replacement_ex.get("prescription") or {}
-            phase = rx_data.get("strength") or rx_data.get("hypertrophy") or rx_data.get("endurance") or {}
-            if phase.get("sets") and phase.get("reps"):
-                ex["prescribed"] = f"{phase['sets']}x{phase['reps']}"
-                if phase.get("intensity"):
-                    ex["prescribed"] += f" @ {phase['intensity']}"
-            ex["rx"] = ex.get("prescribed", ex.get("rx", "3x8"))
-            ex["swapped_from"] = from_id
+            _replace_in_exercise(ex)
+            swapped = True
+            # Don't break — may also exist in nested location, update both
+            break
+
+    # Location 2: nested plan_generated.lifting.exercises (legacy)
+    nested_lifting = plan.get("lifting") or {}
+    for ex in (nested_lifting.get("exercises") or []):
+        if ex.get("exercise_id") == from_id:
+            _replace_in_exercise(ex)
             swapped = True
             break
 
-    # Also check exercise_blocks (legacy format)
+    # Location 3: plan_generated.exercise_blocks (older fallback format)
     if not swapped:
         for block in (plan.get("exercise_blocks") or []):
             for ex in (block.get("exercises") or []):
                 if ex.get("exercise_id") == from_id:
-                    ex["exercise_id"] = to_id
-                    ex["name"] = replacement_ex.get("name", to_id)
-                    rx_data = replacement_ex.get("prescription") or {}
-                    phase = rx_data.get("strength") or rx_data.get("hypertrophy") or rx_data.get("endurance") or {}
-                    if phase.get("sets") and phase.get("reps"):
-                        ex["prescribed"] = f"{phase['sets']}x{phase['reps']}"
-                    ex["rx"] = ex.get("prescribed", ex.get("rx", "3x8"))
-                    ex["swapped_from"] = from_id
+                    _replace_in_exercise(ex)
                     swapped = True
                     break
             if swapped:
                 break
 
     if not swapped:
-        # Diagnostic: log what's actually in the plan so we can compare with from_id
-        plan_lifting_ids = [
-            ex.get("exercise_id", "?") for ex in (plan.get("lifting", {}).get("exercises") or [])
+        # Diagnostic: log every location we searched
+        top_ids = [
+            ex.get("exercise_id", "?") for ex in (top_lifting.get("exercises") or [])
         ]
-        plan_block_ids = [
+        nested_ids = [
+            ex.get("exercise_id", "?") for ex in (nested_lifting.get("exercises") or [])
+        ]
+        block_ids = [
             ex.get("exercise_id", "?")
             for block in (plan.get("exercise_blocks") or [])
             for ex in (block.get("exercises") or [])
         ]
         logger.warning(
-            "swap_exercise: from_id=%s NOT FOUND in plan. "
-            "lifting.exercises ids=%s | exercise_blocks ids=%s",
-            from_id, plan_lifting_ids, plan_block_ids,
+            "swap_exercise: from_id=%s NOT FOUND anywhere. "
+            "top_lifting=%s | nested_lifting=%s | exercise_blocks=%s",
+            from_id, top_ids, nested_ids, block_ids,
         )
         raise HTTPException(
             status_code=404,
-            detail=f"Exercise {from_id} not found in today's plan (have: {plan_lifting_ids + plan_block_ids})",
+            detail=f"Exercise {from_id} not found in today's plan",
         )
 
     logger.info("swap_exercise: SUCCESS pitcher=%s from=%s to=%s", pitcher_id, from_id, to_id)
 
-    # Save updated plan
+    # Save updated plan — write both the top-level lifting and the nested one
+    entry["lifting"] = top_lifting
     entry["plan_generated"] = plan
     upsert_daily_entry(pitcher_id, entry)
 
@@ -1566,10 +1588,18 @@ async def apply_mutations(pitcher_id: str, request: Request):
     model = get_training_model(pitcher_id)
     swap_history = list(model.get("recent_swap_history") or [])
 
+    # Mutations operate on the top-level entry.lifting.exercises (where
+    # checkin_service writes). The nested plan_generated.lifting is legacy
+    # and can drift; we prefer top-level as the source of truth.
+    top_lifting = entry.get("lifting") or {}
+    if not isinstance(top_lifting, dict):
+        top_lifting = {}
+    if "exercises" not in top_lifting or not isinstance(top_lifting.get("exercises"), list):
+        top_lifting["exercises"] = []
+
     for m in mutations:
         action = m.get("action")
-        lifting = plan.get("lifting") or {}
-        exercises = lifting.get("exercises") or []
+        exercises = top_lifting["exercises"]
 
         if action == "swap":
             from_id = m.get("from_exercise_id")
@@ -1625,10 +1655,12 @@ async def apply_mutations(pitcher_id: str, request: Request):
                         ex["note"] = m["note"]
                     break
 
-        lifting["exercises"] = exercises
-        plan["lifting"] = lifting
+        top_lifting["exercises"] = exercises
 
-    # Save updated plan
+    # Save updated plan — top-level lifting is the canonical location.
+    # Also sync to plan_generated.lifting for any legacy consumers.
+    entry["lifting"] = top_lifting
+    plan["lifting"] = top_lifting
     entry["plan_generated"] = plan
     upsert_daily_entry(pitcher_id, entry)
 
