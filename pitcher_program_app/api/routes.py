@@ -1398,6 +1398,11 @@ async def swap_exercise(pitcher_id: str, request: Request):
     reason = body.get("reason", "preference")
     source = body.get("source", "inline_swap")
 
+    logger.info(
+        "swap_exercise REQUEST: pitcher=%s date=%s from=%s to=%s reason=%s",
+        pitcher_id, date, from_id, to_id, reason,
+    )
+
     if not all([date, from_id, to_id]):
         raise HTTPException(status_code=400, detail="date, from_exercise_id, to_exercise_id required")
 
@@ -1409,12 +1414,14 @@ async def swap_exercise(pitcher_id: str, request: Request):
     # 1. Update daily_entries — replace exercise in plan_generated
     entry = get_daily_entry(pitcher_id, date)
     if not entry:
+        logger.warning("swap_exercise: no entry for pitcher=%s date=%s", pitcher_id, date)
         raise HTTPException(status_code=404, detail="No entry for this date")
 
     plan = entry.get("plan_generated") or {}
     replacement_ex = get_exercise(to_id)
     if not replacement_ex:
-        raise HTTPException(status_code=404, detail=f"Exercise {to_id} not found")
+        logger.warning("swap_exercise: replacement exercise not found: to_id=%s", to_id)
+        raise HTTPException(status_code=404, detail=f"Replacement exercise {to_id} not in library")
 
     # Find and replace in lifting block
     swapped = False
@@ -1453,7 +1460,26 @@ async def swap_exercise(pitcher_id: str, request: Request):
                 break
 
     if not swapped:
-        raise HTTPException(status_code=404, detail=f"Exercise {from_id} not found in today's plan")
+        # Diagnostic: log what's actually in the plan so we can compare with from_id
+        plan_lifting_ids = [
+            ex.get("exercise_id", "?") for ex in (plan.get("lifting", {}).get("exercises") or [])
+        ]
+        plan_block_ids = [
+            ex.get("exercise_id", "?")
+            for block in (plan.get("exercise_blocks") or [])
+            for ex in (block.get("exercises") or [])
+        ]
+        logger.warning(
+            "swap_exercise: from_id=%s NOT FOUND in plan. "
+            "lifting.exercises ids=%s | exercise_blocks ids=%s",
+            from_id, plan_lifting_ids, plan_block_ids,
+        )
+        raise HTTPException(
+            status_code=404,
+            detail=f"Exercise {from_id} not found in today's plan (have: {plan_lifting_ids + plan_block_ids})",
+        )
+
+    logger.info("swap_exercise: SUCCESS pitcher=%s from=%s to=%s", pitcher_id, from_id, to_id)
 
     # Save updated plan
     entry["plan_generated"] = plan

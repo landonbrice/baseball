@@ -39,7 +39,11 @@ export default function ExerciseSwap({ exerciseId, exerciseName, pitcherId, date
     try {
       await swapExercise(pitcherId, date, exerciseId, alt.exercise_id, selectedReason, initData);
     } catch (err) {
-      setError('Swap failed \u2014 try again');
+      // eslint-disable-next-line no-console
+      console.error('swap API call failed:', { exerciseId, to: alt.exercise_id, status: err?.status, detail: err?.detail, err });
+      // Surface the backend detail when present (e.g. "Exercise X not found in today's plan")
+      const detail = err?.detail || err?.message || 'try again';
+      setError(`Swap failed: ${detail}`);
       setStep('alternatives');
       return;
     }
