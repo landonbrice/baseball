@@ -1,6 +1,21 @@
 ---
+id: driveline_lifting_programs
+title: Driveline Lifting Programs Reference
 keywords: [lifting, driveline, periodization, strength, plyometrics, rir, accessory, in-season, off-season, power, volume, squat, deadlift, bench]
-type: program_reference
+type: core_research
+applies_to:
+  - any
+triggers:
+  - lifting
+  - strength
+  - programming
+phase: any
+priority: reference
+contexts:
+  - coach_chat
+summary: >
+  Driveline's approach to in-season and off-season lifting — set/rep schemes,
+  exercise selection philosophy, and periodization templates.
 ---
 
 # Driveline Lifting Programs — Extracted Knowledge

@@ -1,6 +1,19 @@
 ---
+id: gemini_researching_lifting
+title: Gemini Lifting Research — Exercise Library Reference
 keywords: [exercise, fpm, scapular, pull push ratio, landmine press, bench alternative, barbell free, hip hinge, split squat, power clean, exercise library, strength exercise, in-season lifting]
 type: core_research
+applies_to:
+  - any
+triggers:
+  - reference
+phase: any
+priority: reference
+contexts:
+  - coach_chat
+summary: >
+  Gemini-sourced exercise research — FPM loading protocols, scapular exercises,
+  push/pull ratio guidelines, and exercise alternatives for pitcher-specific lifting.
 ---
 
 Gemmini Research Plan

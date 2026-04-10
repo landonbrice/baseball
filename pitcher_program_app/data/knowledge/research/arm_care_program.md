@@ -1,6 +1,24 @@
 ---
-keywords: [arm care, pronator, scapular, external rotation, superset, warm-up, elbow health, shoulder stability, band, activation]
-type: program_reference
+id: arm_care_program
+title: Arm Care Programming Reference
+keywords: [arm care, shoulder, scapular, external rotation, band, cuff, rotator, prehab, stability, impingement, gird]
+type: core_research
+applies_to:
+  - shoulder
+triggers:
+  - arm_care
+  - shoulder_protection
+  - scapular
+  - rotator_cuff
+phase: any
+priority: standard
+contexts:
+  - plan_gen
+  - coach_chat
+  - daily_plan_why
+summary: >
+  Arm care template logic and exercise selection for shoulder health — heavy vs light
+  templates, scapular activation, and injury-specific cuff work.
 ---
 
 # Arm Care Program — Extracted from Team Past Programs

@@ -163,12 +163,94 @@ function isPhaseComplete(phaseId, entry, completed, manuallyDone) {
   return items.every(itemKey => completedMap[itemKey] === true);
 }
 
+function ResearchWhySheet({ researchSources, onClose }) {
+  const [docs, setDocs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const apiUrl = import.meta.env.VITE_API_URL;
+
+  useEffect(() => {
+    if (!researchSources?.length) {
+      setLoading(false);
+      return;
+    }
+    fetch(`${apiUrl}/api/research/docs?ids=${researchSources.join(',')}`)
+      .then(r => r.json())
+      .then(data => { setDocs(data); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [researchSources, apiUrl]);
+
+  if (loading) return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 50,
+      display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+      backgroundColor: 'rgba(0,0,0,0.4)'
+    }} onClick={onClose}>
+      <div style={{
+        width: '100%', maxWidth: 480, borderRadius: '16px 16px 0 0',
+        backgroundColor: '#fff', padding: '20px 20px 32px'
+      }} onClick={e => e.stopPropagation()}>
+        <p style={{ textAlign: 'center', color: '#9ca3af' }}>Loading...</p>
+      </div>
+    </div>
+  );
+
+  if (!docs.length) return null;
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 50,
+      display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+      backgroundColor: 'rgba(0,0,0,0.4)'
+    }} onClick={onClose}>
+      <div style={{
+        width: '100%', maxWidth: 480, borderRadius: '16px 16px 0 0',
+        backgroundColor: '#fff', padding: '20px 20px 32px'
+      }} onClick={e => e.stopPropagation()}>
+        <div style={{
+          width: 40, height: 4, borderRadius: 2,
+          backgroundColor: '#d1d5db', margin: '0 auto 16px'
+        }} />
+        <h3 style={{ fontSize: 18, fontWeight: 600, color: '#111827', marginBottom: 12 }}>
+          Why today looks different
+        </h3>
+        <p style={{ fontSize: 14, color: '#6b7280', marginBottom: 16 }}>
+          Your plan is informed by:
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {docs.map(doc => (
+            <div key={doc.id} style={{
+              borderRadius: 8, border: '1px solid #e5e7eb', padding: 12
+            }}>
+              <p style={{ fontWeight: 500, color: '#1f2937' }}>{doc.title}</p>
+              <p style={{ fontSize: 14, color: '#6b7280', marginTop: 4 }}>{doc.summary}</p>
+            </div>
+          ))}
+        </div>
+        <button
+          onClick={onClose}
+          style={{
+            marginTop: 16, width: '100%', borderRadius: 8,
+            backgroundColor: '#800000', color: '#fff',
+            padding: '10px 0', fontSize: 14, fontWeight: 500,
+            border: 'none', cursor: 'pointer'
+          }}
+        >
+          Got it
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function DailyCard({ entry, exerciseMap = {}, slugMap = {}, pitcherId, initData, readOnly = false }) {
   const { showToast } = useToast();
   const rawCE = entry?.completed_exercises;
   const [completed, setCompleted] = useState((rawCE && !Array.isArray(rawCE)) ? rawCE : {});
   const [expandedWhy, setExpandedWhy] = useState({});
   const [collapsedPhases, setCollapsedPhases] = useState({});
+  const [showWhySheet, setShowWhySheet] = useState(false);
+
+  const researchSources = entry?.plan_generated?.research_sources || entry?.research_sources || [];
 
   const handleToggle = useCallback((exerciseId, newState) => {
     if (readOnly) return;
@@ -384,6 +466,8 @@ export default function DailyCard({ entry, exerciseMap = {}, slugMap = {}, pitch
             initData={initData}
             readOnly={readOnly}
             wrapperStyle={wrapperStyle}
+            researchSources={key === 'lifting' ? researchSources : []}
+            onShowWhySheet={key === 'lifting' && !readOnly ? () => setShowWhySheet(true) : null}
           />
         );
 
@@ -433,6 +517,13 @@ export default function DailyCard({ entry, exerciseMap = {}, slugMap = {}, pitch
             </p>
           )}
         </div>
+      )}
+
+      {showWhySheet && (
+        <ResearchWhySheet
+          researchSources={researchSources}
+          onClose={() => setShowWhySheet(false)}
+        />
       )}
     </div>
   );
@@ -621,7 +712,7 @@ function MarkPhaseDoneButton({ phaseLabel, onClick }) {
 
 // ── Exercise Block (arm_care, lifting) ──
 
-function ExerciseBlock({ blockKey, emoji, label, data, fallbackBlocks, hasStructured, exerciseMap, slugMap, completed, onToggle, expandedWhy, onToggleWhy, swappingExerciseId, swappedExercises, swapOverrides, onStartSwap, onSwapComplete, onCancelSwap, pitcherId, date, initData, readOnly, wrapperStyle }) {
+function ExerciseBlock({ blockKey, emoji, label, data, fallbackBlocks, hasStructured, exerciseMap, slugMap, completed, onToggle, expandedWhy, onToggleWhy, swappingExerciseId, swappedExercises, swapOverrides, onStartSwap, onSwapComplete, onCancelSwap, pitcherId, date, initData, readOnly, wrapperStyle, researchSources = [], onShowWhySheet }) {
   const [warmupExpanded, setWarmupExpanded] = useState(false);
   const exercises = data?.exercises || [];
   const hasDirect = hasStructured && exercises.length > 0;
@@ -722,6 +813,20 @@ function ExerciseBlock({ blockKey, emoji, label, data, fallbackBlocks, hasStruct
             <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-ink-primary)' }}>{label}</span>
             {subtitle && <span style={{ fontSize: 11, color: 'var(--color-ink-muted)' }}>{'\u2014 '}{subtitle}</span>}
             {duration && <span style={{ fontSize: 10, color: 'var(--color-ink-faint)' }}>{duration} min</span>}
+            {blockKey === 'lifting' && researchSources.length > 0 && !readOnly && (
+              <button
+                onClick={onShowWhySheet}
+                style={{
+                  marginLeft: 4, display: 'inline-flex', alignItems: 'center',
+                  borderRadius: 9999, backgroundColor: '#f3f4f6',
+                  padding: '2px 8px', fontSize: 12, color: '#6b7280',
+                  border: 'none', cursor: 'pointer'
+                }}
+                title="Why today looks different"
+              >
+                &#9432; why
+              </button>
+            )}
           </div>
           <span style={{ fontSize: 12, color: doneCount === allEx.length && allEx.length > 0 ? 'var(--color-flag-green)' : 'var(--color-ink-muted)', fontWeight: 600 }}>
             {doneCount}/{allEx.length}

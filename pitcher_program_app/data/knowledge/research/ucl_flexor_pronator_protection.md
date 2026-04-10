@@ -1,6 +1,27 @@
 ---
+id: ucl_flexor_pronator_protection
+title: UCL Flexor-Pronator Protection Protocol
 keywords: [ucl, flexor, pronator, medial, elbow, forearm, tight, tightness, valgus, ligament, dynamic stabilization, fpm, injury, protect, prevent, arm]
 type: core_research
+applies_to:
+  - medial_elbow
+  - forearm
+triggers:
+  - fpm
+  - ucl_history
+  - flexor
+  - pronator
+  - medial_elbow
+phase: any
+priority: critical
+contexts:
+  - plan_gen
+  - coach_chat
+  - morning
+  - daily_plan_why
+summary: >
+  Protective protocol for pitchers with UCL or flexor-pronator history — defines
+  pressing restrictions, FPM addon prescriptions, and yellow-day modifications.
 ---
 
 # Research: Flexor-Pronator Complex & UCL Protection

@@ -1,6 +1,27 @@
 ---
+id: tightness_triage_framework
+title: Tightness Triage Protocol Decision Framework
 keywords: [triage, protocol, flag, red, yellow, green, worried, concern, sharp, numb, tingling, swelling, shut down, skip, day off, should i throw, modify, modification, back off, push through, can i throw, what should i do]
 type: core_research
+applies_to:
+  - any
+triggers:
+  - triage
+  - flag
+  - modification
+  - worried
+  - concern
+  - should_i_throw
+phase: any
+priority: critical
+contexts:
+  - plan_gen
+  - coach_chat
+  - morning
+  - daily_plan_why
+summary: >
+  Codifies clinical reasoning for protocol decisions — translates symptom inputs
+  into flag levels and protocol adjustments based on injury history.
 ---
 
 # Tightness Triage: Protocol Decision Framework

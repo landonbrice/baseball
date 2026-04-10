@@ -1,5 +1,6 @@
 """Q&A handler. Routes free-text questions to the LLM with context."""
 
+import json
 import logging
 import re
 from telegram import Update
@@ -222,3 +223,30 @@ Use the following to avoid repeating plans already given, reference prior conver
         pass
 
     return "\n".join(parts)
+
+
+def _parse_coach_response(raw: str) -> dict | None:
+    """Parse structured JSON from the LLM's coach chat response.
+
+    Returns dict with reply, mutation_card, lookahead or None if malformed.
+    """
+    try:
+        cleaned = raw.strip()
+        if cleaned.startswith("```"):
+            cleaned = re.sub(r"^```(?:json)?\s*\n?", "", cleaned)
+            cleaned = re.sub(r"\n?```\s*$", "", cleaned)
+
+        parsed = json.loads(cleaned)
+        if "reply" in parsed:
+            return parsed
+        return None
+    except (json.JSONDecodeError, ValueError):
+        return None
+
+
+def _extract_reply_fallback(raw: str) -> str:
+    """Best-effort extraction of the reply field from malformed JSON."""
+    match = re.search(r'"reply"\s*:\s*"((?:[^"\\]|\\.)*)"', raw)
+    if match:
+        return match.group(1).replace('\\"', '"').replace('\\n', '\n')
+    return raw[:500]

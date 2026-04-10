@@ -1,6 +1,26 @@
 ---
+id: recovery_physiology
+title: Post-Outing Recovery Physiology
 keywords: [recovery, sore, soreness, ice, inflammation, sleep, hrv, rest, fatigue, tired, ache, stiff, pain, hurt, nsaid, ibuprofen, stretch, mobility, warm, heat, blood flow, massage, foam roll, doms, post-outing, cool down]
 type: core_research
+applies_to:
+  - any
+triggers:
+  - recovery
+  - soreness
+  - rest
+  - post_outing
+  - doms
+phase: any
+priority: critical
+contexts:
+  - plan_gen
+  - coach_chat
+  - morning
+  - daily_plan_why
+summary: >
+  Explains the physiological cascade after pitching — eccentric loading, DOMS timeline,
+  and evidence-based recovery protocols for the 24-72hr window.
 ---
 
 # Research: Post-Outing Recovery Physiology

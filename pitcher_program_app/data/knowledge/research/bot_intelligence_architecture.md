@@ -1,3 +1,21 @@
+---
+id: bot_intelligence_architecture
+title: Bot Intelligence Architecture Reference
+keywords: [bot, architecture, context, retrieval, knowledge, pitcher, profile, log, conversation, memory, system]
+type: system_reference
+applies_to:
+  - any
+triggers:
+  - reference
+phase: any
+priority: reference
+contexts:
+  - coach_chat
+summary: >
+  Documents the bot's context growth and knowledge retrieval architecture — per-pitcher
+  context files, conversation persistence, and how intelligence accumulates over time.
+---
+
 # Bot Intelligence Architecture: Context Growth + Knowledge Retrieval
 
 ---

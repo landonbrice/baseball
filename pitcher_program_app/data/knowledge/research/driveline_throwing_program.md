@@ -1,6 +1,22 @@
 ---
+id: driveline_throwing_program
+title: Driveline Throwing Program Reference
 keywords: [throwing, plyo ball, plyocare, j-band, wrist weight, long toss, velocity, bullpen, weighted ball, throwing phases, arm care, recovery, flat ground, mound work]
-type: program_reference
+type: core_research
+applies_to:
+  - any
+triggers:
+  - throwing
+  - plyocare
+  - long_toss
+  - velo
+phase: any
+priority: reference
+contexts:
+  - coach_chat
+summary: >
+  Driveline throwing development protocol — plyocare progression, long toss structure,
+  pulldown integration, and in-season maintenance approach.
 ---
 
 # Driveline 16-Week Throwing Program — Extracted Knowledge

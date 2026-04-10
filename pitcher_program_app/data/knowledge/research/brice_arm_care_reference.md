@@ -1,6 +1,21 @@
 ---
+id: brice_arm_care_reference
+title: Brice Arm Care Reference
 keywords: [brice, personal, soft tissue, mobility, eldoa, nerve glide, ulnar, post-outing, daily arm health, lacrosse ball, thoracic]
-type: program_reference
+type: personal_reference
+applies_to:
+  - shoulder
+  - medial_elbow
+triggers:
+  - arm_care
+  - personal_protocol
+phase: any
+priority: reference
+contexts:
+  - coach_chat
+summary: >
+  Personal arm care reference for Landon Brice — specific exercise selections,
+  cuff activation preferences, and historical protocol notes.
 ---
 
 # Brice Arm Care Protocol — Reference Material

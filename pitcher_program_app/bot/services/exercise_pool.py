@@ -8,6 +8,7 @@ pre-selected exercises and personalizes prescriptions/narrative.
 import logging
 import random
 from bot.services.db import get_exercises
+from bot.services.vocabulary import INJURY_AREAS
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +24,12 @@ def _load_exercises() -> list:
     return _EXERCISE_CACHE
 
 
-# Map injury areas from pitcher profiles to modification_flags keys
+# Build INJURY_TO_FLAG from vocabulary for exercise library compatibility
+# The exercise library uses modification_flags keys like "ucl_history", "shoulder_impingement"
+# These map from vocabulary injury areas to exercise library flag keys
+# NOTE: INJURY_TO_FLAG stays because exercise library modification_flags use different
+# keys than vocabulary.py. The vocabulary unifies research routing; this dict maps
+# to exercise library schema. They coexist intentionally.
 INJURY_TO_FLAG = {
     "medial_elbow": "ucl_history",
     "ucl": "ucl_history",

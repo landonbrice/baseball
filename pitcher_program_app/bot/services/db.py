@@ -177,7 +177,7 @@ _DAILY_ENTRY_COLUMNS = {
     "pitcher_id", "date", "rotation_day", "days_since_outing", "pre_training",
     "plan_narrative", "morning_brief", "plan_generated", "actual_logged",
     "bot_observations", "arm_care", "lifting", "throwing", "warmup", "mobility", "notes",
-    "completed_exercises", "soreness_response",
+    "completed_exercises", "soreness_response", "research_sources",
 }
 
 

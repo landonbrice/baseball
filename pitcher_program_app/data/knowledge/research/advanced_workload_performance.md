@@ -1,6 +1,23 @@
 ---
+id: advanced_workload_performance
+title: Advanced Workload & Performance Management
 keywords: [workload, pitch count, bfr, blood flow restriction, collagen, vitamin c, pitch clock, velocity, innings, volume, training, periodization, strength, in-season, load management, connective tissue, a:c ratio]
 type: core_research
+applies_to:
+  - lower_back
+  - oblique
+triggers:
+  - workload
+  - load_management
+  - deload
+phase: any
+priority: standard
+contexts:
+  - plan_gen
+  - coach_chat
+summary: >
+  Workload management frameworks — acute:chronic ratios, volume progression,
+  and deload triggers for college pitchers managing in-season training loads.
 ---
 
 # Research: Advanced Workload Management, Periodization & Performance

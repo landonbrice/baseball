@@ -17,6 +17,7 @@ import os
 import re
 import logging
 from bot.config import KNOWLEDGE_DIR
+from bot.services.research_resolver import resolve_research, clear_cache as _clear_resolver_cache
 
 logger = logging.getLogger(__name__)
 
@@ -95,29 +96,17 @@ def _load_research_index() -> dict[str, tuple[list[str], str, str]]:
     return _research_cache
 
 
-def retrieve_knowledge(question: str, max_docs: int = 3, max_chars: int = 8000) -> str:
+def retrieve_knowledge(question: str, pitcher_profile: dict = None, max_docs: int = 3, max_chars: int = 8000) -> str:
     """Keyword-match a question against research docs + exercise library.
 
     Used for Q&A. Returns formatted context string for prompt injection.
     """
-    query_lower = question.lower()
-    results = []
+    # Use resolver for research docs
+    profile = pitcher_profile or {}
+    payload = resolve_research(profile, "coach_chat", user_message=question, max_chars=max_chars)
+    results = [payload.combined_text] if payload.combined_text else []
 
-    # 1. Keyword-match research docs
-    index = _load_research_index()
-    scored_docs = []
-    for filename, (keywords, doc_type, content) in index.items():
-        matches = sum(1 for kw in keywords if kw in query_lower)
-        if matches > 0:
-            scored_docs.append((filename, matches, content))
-
-    # Sort by match count, take top N
-    scored_docs.sort(key=lambda x: x[1], reverse=True)
-    for filename, score, content in scored_docs[:max_docs]:
-        results.append(content)
-        logger.info(f"Knowledge match: {filename} (score={score})")
-
-    # 2. Search exercise library
+    # Exercise library search (not in resolver — different data source)
     keywords = _extract_keywords(question)
     exercises = _search_exercises(question, keywords)
     for ex in exercises[:3]:
@@ -136,76 +125,10 @@ def retrieve_knowledge(question: str, max_docs: int = 3, max_chars: int = 8000) 
 def retrieve_research_for_plan(pitcher_profile: dict, max_chars: int = 12000) -> str:
     """Load research docs relevant to a pitcher's profile for plan generation.
 
-    Always loads: tightness_triage_framework, recovery_physiology.
-    Conditionally loads based on injury areas:
-      - medial_elbow/forearm → ucl_flexor_pronator_protection, FPM
-      - shoulder → arm_care_program
-    Also loads docs matching the pitcher's active modifications.
-
-    Returns combined research text for injection into plan prompt.
+    Thin wrapper around resolve_research() for backward compatibility.
     """
-    index = _load_research_index()
-    loaded = {}  # filename -> content (dedup)
-
-    # Always load triage + recovery for plan generation
-    always_load = ["tightness_triage_framework.md", "recovery_physiology.md"]
-    for filename in always_load:
-        if filename in index:
-            loaded[filename] = index[filename][2]
-
-    # Load based on pitcher injury areas
-    injury_areas = set()
-    for injury in pitcher_profile.get("injury_history", []):
-        area = injury.get("area", "").lower()
-        if area:
-            injury_areas.add(area)
-
-    # Map injury areas to research keywords for matching
-    injury_keywords = set()
-    for area in injury_areas:
-        if area in ("medial_elbow", "forearm"):
-            injury_keywords.update(["ucl", "flexor", "pronator", "fpm", "forearm", "medial", "elbow"])
-        elif area in ("shoulder",):
-            injury_keywords.update(["shoulder", "scapular", "arm care", "external rotation"])
-        elif area in ("lower_back",):
-            injury_keywords.update(["workload", "load management", "strength"])
-        elif area in ("oblique",):
-            injury_keywords.update(["workload", "training"])
-
-    # Match injury keywords against research docs
-    for filename, (keywords, doc_type, content) in index.items():
-        if filename in loaded:
-            continue
-        if any(ik in keywords for ik in injury_keywords):
-            loaded[filename] = content
-
-    # Also load based on active modifications
-    mods = (pitcher_profile.get("active_flags") or {}).get("active_modifications", [])
-    mod_keywords = set()
-    for mod in mods:
-        mod_lower = mod.lower()
-        if "fpm" in mod_lower or "pronator" in mod_lower:
-            mod_keywords.update(["fpm", "flexor", "pronator", "ucl"])
-        if "pressing" in mod_lower or "shoulder" in mod_lower:
-            mod_keywords.update(["shoulder", "arm care"])
-        if "axial" in mod_lower:
-            mod_keywords.update(["workload", "load"])
-
-    for filename, (keywords, doc_type, content) in index.items():
-        if filename in loaded:
-            continue
-        if any(mk in keywords for mk in mod_keywords):
-            loaded[filename] = content
-
-    if not loaded:
-        return ""
-
-    combined = "\n\n---\n\n".join(loaded.values())
-    if len(combined) > max_chars:
-        combined = combined[:max_chars]
-
-    logger.info(f"Plan research: loaded {len(loaded)} docs ({', '.join(loaded.keys())})")
-    return combined
+    payload = resolve_research(pitcher_profile, "plan_gen", max_chars=max_chars)
+    return payload.combined_text
 
 
 def _search_exercises(question: str, keywords: list[str]) -> list[dict]:
@@ -374,6 +297,7 @@ async def classify_and_generate_research(question: str):
         # Clear cache so new doc is discoverable
         global _research_cache
         _research_cache = {}
+        _clear_resolver_cache()
 
         # data_sync disabled — Supabase is source of truth
 

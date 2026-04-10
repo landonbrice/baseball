@@ -1,3 +1,21 @@
+---
+id: research_gap_analysis
+title: Research Gap Analysis & Exercise Library Additions
+keywords: [exercise, library, gap, missing, front squat, split squat, nordic, hip thrust, sled, upper body, pull, push, core, plyo]
+type: system_reference
+applies_to:
+  - any
+triggers:
+  - reference
+phase: any
+priority: reference
+contexts:
+  - coach_chat
+summary: >
+  Documents gaps in the original exercise library and adds missing exercises across
+  lower body, upper body, and core categories based on Gemini v3 research output.
+---
+
 # Research Gap Analysis & Additions
 ## Based on Gemini v3 Output — What to Add Before Parsing
 

@@ -444,7 +444,7 @@ async def dashboard(update: Update, context) -> None:
 # --- Scheduled jobs ---
 
 async def _send_morning_checkin(context) -> None:
-    """Send a contextual morning check-in — personal, not structural."""
+    """Send a contextual morning check-in — research-aware with LLM enrichment."""
     pitcher_id = context.job.data["pitcher_id"]
     chat_id = context.job.data["chat_id"]
 
@@ -465,9 +465,9 @@ async def _send_morning_checkin(context) -> None:
         yesterday = (datetime.now(CHICAGO_TZ).date() - timedelta(days=1)).isoformat()
         yesterday_entry = next((e for e in entries if e.get("date") == yesterday), None)
 
+        # ── Pass 1: Build deterministic draft (always exists) ──
         lines = []
 
-        # Line 1: Personal context
         if days <= 1:
             pitches = flags.get("last_outing_pitches")
             if pitches:
@@ -489,7 +489,8 @@ async def _send_morning_checkin(context) -> None:
         else:
             lines.append(f"{first_name} — day {days}, let's get your plan set.")
 
-        # Line 2: WHOOP context (conversational) — fresh pull, not just cache
+        # WHOOP context
+        whoop_context = ""
         try:
             from bot.services.whoop import pull_whoop_data, is_linked
             wd = pull_whoop_data(pitcher_id) if is_linked(pitcher_id) else None
@@ -497,16 +498,21 @@ async def _send_morning_checkin(context) -> None:
                 rec = wd["recovery_score"]
                 if rec >= 67:
                     lines.append(f"WHOOP has you at {rec}% recovery — green light.")
+                    whoop_context = f"WHOOP recovery: {rec}% (green)"
                 elif rec >= 34:
                     lines.append(f"WHOOP recovery at {rec}% — I'll factor that into your plan.")
+                    whoop_context = f"WHOOP recovery: {rec}% (moderate)"
                 else:
                     lines.append(f"WHOOP recovery low at {rec}% — dialing things back today.")
+                    whoop_context = f"WHOOP recovery: {rec}% (low)"
             elif wd and wd.get("yesterday_strain") is not None:
                 lines.append(f"Yesterday's strain: {wd['yesterday_strain']:.1f}")
+                whoop_context = f"Yesterday strain: {wd['yesterday_strain']:.1f}"
         except Exception:
             pass
 
-        # Next-day suggestion (proactive coaching)
+        # Next-day suggestion
+        suggestion_context = ""
         try:
             from bot.services.db import get_training_model
             model = get_training_model(pitcher_id)
@@ -515,14 +521,73 @@ async def _send_morning_checkin(context) -> None:
             reasoning = suggestion.get("reasoning", "")
             if confidence == "high" and reasoning:
                 lines.append(f"{reasoning}.")
+                suggestion_context = reasoning
             elif confidence == "medium" and reasoning:
                 lines.append(f"Thinking {reasoning.lower()}.")
+                suggestion_context = reasoning
         except Exception:
             pass
 
         lines.append("")
         lines.append("How's the arm? (1-5)")
-        msg = "\n".join(lines)
+        draft_msg = "\n".join(lines)
+
+        # ── Research check: should we enrich with LLM? ──
+        from bot.services.research_resolver import should_fire_research, resolve_research
+
+        recent_triage = None
+        if yesterday_entry:
+            pre = yesterday_entry.get("pre_training") or {}
+            if pre.get("flag_level"):
+                recent_triage = {
+                    "flag_level": pre["flag_level"],
+                    "modifications": (yesterday_entry.get("plan_generated") or {}).get("modifications_applied", []),
+                }
+
+        should_fire, fire_reason = should_fire_research(profile, recent_triage)
+
+        if should_fire:
+            # ── Pass 2: LLM enrichment (15s deadline) ──
+            try:
+                payload = resolve_research(profile, "morning", recent_triage)
+                research_context = payload.combined_text or "No specific research loaded."
+
+                from bot.services.llm import call_llm, load_prompt
+                morning_prompt = load_prompt("morning_message.md")
+
+                role = profile.get("role", "starter")
+                yesterday_ctx = ""
+                if yesterday_entry:
+                    pre = yesterday_entry.get("pre_training") or {}
+                    yesterday_ctx = f"Arm feel: {pre.get('arm_feel', 'N/A')}/5, Flag: {pre.get('flag_level', 'green')}"
+
+                prompt = morning_prompt.replace("{first_name}", first_name)
+                prompt = prompt.replace("{role}", role)
+                prompt = prompt.replace("{days_since_outing}", str(days))
+                prompt = prompt.replace("{rotation_length}", str(rotation_len))
+                prompt = prompt.replace("{yesterday_context}", yesterday_ctx)
+                prompt = prompt.replace("{whoop_context}", whoop_context or "No WHOOP data")
+                prompt = prompt.replace("{suggestion_context}", suggestion_context or "No suggestion")
+                prompt = prompt.replace("{research_context}", research_context)
+                prompt = prompt.replace("{draft_message}", draft_msg)
+
+                llm_msg = await call_llm(
+                    "You write concise morning check-in messages for college pitchers.",
+                    prompt, timeout=15,
+                )
+
+                if llm_msg and len(llm_msg.strip()) > 10:
+                    if "1-5" not in llm_msg and "arm" not in llm_msg.lower():
+                        llm_msg += "\n\nHow's the arm? (1-5)"
+                    msg = llm_msg.strip()
+                else:
+                    msg = draft_msg
+            except Exception as e:
+                logger.warning("Morning LLM enrichment failed for %s: %s", pitcher_id, e)
+                msg = draft_msg
+        else:
+            msg = draft_msg
+
     except Exception:
         msg = "Morning — how's the arm? (1-5)"
 

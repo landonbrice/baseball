@@ -726,7 +726,7 @@ async def post_chat(pitcher_id: str, request: Request):
             }
 
         else:
-            # Free-text Q&A
+            # Free-text Q&A — research-aware path
             question = msg if isinstance(msg, str) else str(msg)
             if not question.strip():
                 return {"messages": [{"type": "text", "content": "What's on your mind?"}]}
@@ -734,198 +734,167 @@ async def post_chat(pitcher_id: str, request: Request):
             profile = load_profile(pitcher_id)
             flags = profile.get("active_flags", {})
 
-            # Build context (shared with Telegram Q&A — includes injuries, goals, phase, etc.)
-            from bot.handlers.qa import _build_qa_context
+            from bot.handlers.qa import _build_qa_context, _parse_coach_response, _extract_reply_fallback, _REASONING_KEYWORDS
+            from bot.services.research_resolver import should_fire_research, resolve_research
             pitcher_context = _build_qa_context(profile, pitcher_id)
 
-            # Include last generated plan for continuity
+            # Get recent triage
             recent = get_recent_entries(pitcher_id, n=1)
+            recent_triage = None
             if recent:
                 last = recent[0]
-                lifting = last.get("lifting", {})
-                if lifting and lifting.get("exercises"):
-                    exercise_names = [ex.get("name", "") for ex in lifting["exercises"]]
-                    pitcher_context += f"\n\nLast prescribed lift ({last.get('date', '?')}, Day {last.get('rotation_day', '?')}): {', '.join(exercise_names)}"
+                pre = last.get("pre_training") or {}
+                if pre.get("flag_level"):
+                    recent_triage = {
+                        "flag_level": pre["flag_level"],
+                        "modifications": (last.get("plan_generated") or {}).get("modifications_applied", []),
+                    }
 
-            # Include plan_context if pitcher is viewing a specific plan
+            should_fire, fire_reason = should_fire_research(profile, recent_triage, question)
+
+            # Include plan context if viewing a specific plan
             plan_context = body.get("plan_context")
             if plan_context:
                 plan_data = plan_context.get("plan_data", {})
-                pc_lifting = plan_data.get("lifting", {})
-                pc_exercises = pc_lifting.get("exercises", [])
+                pc_exercises = plan_data.get("lifting", {}).get("exercises", [])
                 if pc_exercises:
                     exercise_list = ", ".join(f"{ex['name']} {ex.get('rx','')}" for ex in pc_exercises)
-                    pitcher_context += f"\n\nThe pitcher is viewing and asking about this specific plan:\n"
-                    pitcher_context += f"Title: {plan_data.get('title', '')}\n"
-                    pitcher_context += f"Exercises: {exercise_list}\n"
-                    pitcher_context += "When making modifications, return a program_modification JSON block with the updated exercise list."
-
-            system_prompt = load_prompt("system_prompt.md")
-            qa_prompt = load_prompt("qa_prompt.md")
-            knowledge = retrieve_knowledge(question)
-
-            user_prompt = qa_prompt.replace("{pitcher_context}", pitcher_context)
-            user_prompt = user_prompt.replace("{question}", question)
-            user_prompt = user_prompt.replace("{knowledge_context}", knowledge)
+                    pitcher_context += f"\n\nViewing plan:\nTitle: {plan_data.get('title', '')}\nExercises: {exercise_list}"
 
             history = body.get("history", [])
 
-            # Route complex protocol requests to reasoning model
-            from bot.handlers.qa import _REASONING_KEYWORDS
-            from bot.services.llm import call_llm_reasoning
-            q_lower = question.lower()
-            if any(kw in q_lower for kw in _REASONING_KEYWORDS):
-                answer = await call_llm_reasoning(system_prompt, user_prompt, max_tokens=4000, history=history)
+            if should_fire:
+                # Research-aware path
+                payload = resolve_research(profile, "coach_chat", recent_triage, question)
+                coach_prompt = load_prompt("coach_chat_prompt.md")
+
+                if recent_triage:
+                    triage_state = f"Flag: {recent_triage['flag_level']}\nModifications: {', '.join(str(m) for m in recent_triage.get('modifications', []))}"
+                else:
+                    triage_state = f"Flag: {flags.get('current_flag_level', 'unknown')}\nArm feel: {flags.get('current_arm_feel', 'N/A')}/5"
+
+                user_prompt = coach_prompt.replace("{pitcher_context}", pitcher_context)
+                user_prompt = user_prompt.replace("{triage_state}", triage_state)
+                user_prompt = user_prompt.replace("{research_context}", payload.combined_text or "No specific research loaded.")
+                user_prompt = user_prompt.replace("{recent_history}", "")
+                user_prompt = user_prompt.replace("{user_message}", question)
+                system_prompt = load_prompt("system_prompt.md")
+
+                from bot.services.llm import call_llm_reasoning
+                q_lower = question.lower()
+                if any(kw in q_lower for kw in _REASONING_KEYWORDS):
+                    answer = await call_llm_reasoning(system_prompt, user_prompt, max_tokens=4000, history=history)
+                else:
+                    answer = await call_llm(system_prompt, user_prompt, history=history)
+
+                messages = []
+                parsed = _parse_coach_response(answer)
+                if parsed:
+                    messages.append({"type": "text", "content": parsed["reply"]})
+                    if parsed.get("lookahead"):
+                        messages.append({"type": "text", "content": parsed["lookahead"]})
+                    if parsed.get("mutation_card"):
+                        card = parsed["mutation_card"]
+                        if card.get("actions"):
+                            messages.append({
+                                "type": "plan_mutation",
+                                "content": card.get("title", "Suggested change"),
+                                "mutations": card["actions"],
+                                "rationale": card.get("rationale", ""),
+                            })
+                        else:
+                            messages.append({
+                                "type": "text",
+                                "content": f"**{card.get('title', 'Rest')}** — {card.get('rationale', '')}",
+                            })
+                else:
+                    fallback = _extract_reply_fallback(answer)
+                    messages.append({"type": "text", "content": fallback})
+
+                _persist_chat(pitcher_id, f"Q: {question[:60]}", messages)
+
+                # Record Q&A success for health monitoring
+                try:
+                    from bot.services.health_monitor import record_qa_success
+                    record_qa_success(pitcher_id)
+                except Exception:
+                    pass
+
+                # Append context summary
+                reply_text = parsed["reply"] if parsed else answer[:200]
+                append_context(pitcher_id, "interaction", f"Q: {question[:80]} | A: {reply_text[:200]}")
+
+                return {"messages": messages}
+
             else:
-                answer = await call_llm(system_prompt, user_prompt, history=history)
+                # Standard Q&A path (no research trigger)
+                system_prompt = load_prompt("system_prompt.md")
+                qa_prompt = load_prompt("qa_prompt.md")
+                knowledge = retrieve_knowledge(question, pitcher_profile=profile)
 
-            messages = []
+                # Include last generated plan for continuity
+                recent_for_context = get_recent_entries(pitcher_id, n=1)
+                if recent_for_context:
+                    last = recent_for_context[0]
+                    lifting = last.get("lifting", {})
+                    if lifting and lifting.get("exercises"):
+                        exercise_names = [ex.get("name", "") for ex in lifting["exercises"]]
+                        pitcher_context += f"\n\nLast prescribed lift ({last.get('date', '?')}, Day {last.get('rotation_day', '?')}): {', '.join(exercise_names)}"
 
-            # Try to parse save_plan or program_modification from LLM response
-            clean_answer = answer
-            plan_data = _extract_json_block(answer, "save_plan")
-            mod_data = _extract_json_block(answer, "program_modification")
-            mutation_data = _extract_json_block(answer, "plan_mutation")
+                user_prompt = qa_prompt.replace("{pitcher_context}", pitcher_context)
+                user_prompt = user_prompt.replace("{question}", question)
+                user_prompt = user_prompt.replace("{knowledge_context}", knowledge)
 
-            if mutation_data and mutation_data.get("mutations"):
-                # Coach suggested plan mutations — return for preview
-                clean_answer = _strip_json_block(answer, "plan_mutation")
-                messages.append({"type": "text", "content": clean_answer.strip()})
-                messages.append({
-                    "type": "plan_mutation",
-                    "content": "Coach suggests changes to your plan",
-                    "mutations": mutation_data["mutations"],
-                })
-            elif plan_data:
-                # Strip the JSON block from the displayed answer
-                clean_answer = _strip_json_block(answer, "save_plan")
-                messages.append({"type": "text", "content": clean_answer.strip()})
-                messages.append({
-                    "type": "save_plan",
-                    "content": plan_data.get("title", "Suggested plan"),
-                    "plan": plan_data,
-                })
-            elif mod_data:
-                clean_answer = _strip_json_block(answer, "program_modification")
-                messages.append({"type": "text", "content": clean_answer.strip()})
+                from bot.services.llm import call_llm_reasoning
+                from bot.handlers.qa import _REASONING_KEYWORDS as _RK2
+                q_lower = question.lower()
+                if any(kw in q_lower for kw in _RK2):
+                    answer = await call_llm_reasoning(system_prompt, user_prompt, max_tokens=4000, history=history)
+                else:
+                    answer = await call_llm(system_prompt, user_prompt, history=history)
 
-                # Log if exercises array is missing from modification
-                if not mod_data.get("exercises"):
-                    logger.warning(f"program_modification missing exercises array — changes: {mod_data.get('changes', [])}")
+                messages = []
+                clean_answer = answer
+                plan_data = _extract_json_block(answer, "save_plan")
+                mod_data = _extract_json_block(answer, "program_modification")
+                mutation_data = _extract_json_block(answer, "plan_mutation")
 
-                # Auto-save as plan if requested
-                if mod_data.get("save_as_plan"):
-                    plan_context = body.get("plan_context")
-                    if plan_context and plan_context.get("plan_id"):
-                        # Update existing plan in place
-                        plan_updates = {}
-                        if mod_data.get("exercises"):
-                            plan_updates["lifting"] = {"exercises": mod_data["exercises"]}
-                        if mod_data.get("title"):
-                            plan_updates["title"] = mod_data["title"]
-                        plan_updates["summary"] = ", ".join(mod_data.get("changes", []))
-                        update_plan_data(pitcher_id, plan_context["plan_id"], plan_updates)
-                        messages.append({
-                            "type": "text",
-                            "content": f"Updated plan: {mod_data.get('title', 'Program modification')}.",
-                        })
-                        messages.append({"type": "status", "content": "plan_updated"})
-                    else:
-                        saved = save_plan(pitcher_id, {
-                            "title": mod_data.get("title", "Program modification"),
-                            "category": "program_modification",
-                            "summary": ", ".join(mod_data.get("changes", [])),
-                            "content": "\n".join(mod_data.get("changes", [])),
-                            "structured_changes": mod_data.get("exercises", []),
-                            "modifies_daily_plan": True,
-                            "active": True,
-                        })
-                        messages.append({
-                            "type": "text",
-                            "content": f"Saved as active plan: {saved['title']}. This will influence your daily programming.",
-                        })
+                if mutation_data and mutation_data.get("mutations"):
+                    clean_answer = _strip_json_block(answer, "plan_mutation")
+                    messages.append({"type": "text", "content": clean_answer.strip()})
+                    messages.append({
+                        "type": "plan_mutation",
+                        "content": "Coach suggests changes to your plan",
+                        "mutations": mutation_data["mutations"],
+                    })
+                elif plan_data:
+                    clean_answer = _strip_json_block(answer, "save_plan")
+                    messages.append({"type": "text", "content": clean_answer.strip()})
+                    messages.append({
+                        "type": "save_plan",
+                        "content": plan_data.get("title", "Suggested plan"),
+                        "plan": plan_data,
+                    })
+                elif mod_data:
+                    clean_answer = _strip_json_block(answer, "program_modification")
+                    messages.append({"type": "text", "content": clean_answer.strip()})
+                else:
+                    messages.append({"type": "text", "content": answer})
 
-                    # If mod has exercises, directly update today's log (fast path)
-                    if mod_data.get("exercises"):
-                        from datetime import datetime as _dt_fast
-                        today_fast = _dt_fast.now().strftime("%Y-%m-%d")
-                        log_fast = load_log(pitcher_id)
-                        for entry in log_fast["entries"]:
-                            if entry.get("date") == today_fast:
-                                if "lifting" not in entry:
-                                    entry["lifting"] = {}
-                                entry["lifting"]["exercises"] = mod_data["exercises"]
-                                break
-                        save_log(pitcher_id, log_fast)
-                        messages.append({"type": "status", "content": "plan_loaded"})
-                    else:
-                        # No exercises — regenerate today's plan (slow path)
-                        try:
-                            from bot.services.plan_generator import generate_plan
-                            from bot.services.triage import triage
-                            from datetime import datetime as _dt
+                # Append context summary
+                summary = f"Q: {question[:80]} | A: {clean_answer[:200]}"
+                append_context(pitcher_id, "interaction", summary)
 
-                            profile = load_profile(pitcher_id)
-                            arm_feel = flags.get("current_arm_feel", 4)
-                            triage_result = triage(
-                                arm_feel=arm_feel, sleep_hours=7.0,
-                                pitcher_profile=profile, energy=3,
-                            )
-                            new_plan = await generate_plan(pitcher_id, triage_result)
+                _persist_chat(pitcher_id, question, messages)
 
-                            today = _dt.now().strftime("%Y-%m-%d")
-                            log = load_log(pitcher_id)
-                            for entry in log["entries"]:
-                                if entry.get("date") == today:
-                                    if new_plan.get("arm_care"):
-                                        entry["arm_care"] = new_plan["arm_care"]
-                                    if new_plan.get("lifting"):
-                                        entry["lifting"] = new_plan["lifting"]
-                                    if new_plan.get("throwing"):
-                                        entry["throwing"] = new_plan["throwing"]
-                                    if new_plan.get("warmup"):
-                                        entry["warmup"] = new_plan["warmup"]
-                                    if new_plan.get("notes"):
-                                        entry["notes"] = new_plan["notes"]
-                                    entry["morning_brief"] = new_plan.get("morning_brief")
-                                    entry["plan_narrative"] = new_plan.get("narrative")
-                                    break
-                            save_log(pitcher_id, log)
-                            messages.append({"type": "status", "content": "plan_loaded"})
-                        except Exception as e:
-                            logger.warning(f"Failed to regenerate plan after modification: {e}")
+                # Record Q&A success for health monitoring
+                try:
+                    from bot.services.health_monitor import record_qa_success
+                    record_qa_success(pitcher_id)
+                except Exception:
+                    pass
 
-                # Update active_modifications in profile
-                mod_title = mod_data.get("title", "")
-                if mod_title:
-                    current_mods = flags.get("active_modifications", [])
-                    if mod_title not in current_mods:
-                        current_mods.append(mod_title)
-                        update_active_flags(pitcher_id, {"active_modifications": current_mods})
-
-                messages.append({"type": "status", "content": "profile_updated"})
-            else:
-                messages.append({"type": "text", "content": answer})
-
-            # Append context summary — always include answer excerpt
-            summary = f"Q: {question[:80]} | A: {clean_answer[:200]}"
-            if plan_data:
-                summary += f" | Saved plan: {plan_data.get('title', '')}"
-            if mod_data:
-                summary += f" | Mod: {', '.join(mod_data.get('changes', [])[:2])}"
-            append_context(pitcher_id, "interaction", summary)
-
-            # Persist user question and bot response to chat_messages
-            _persist_chat(pitcher_id, question, messages)
-
-            # Record Q&A success for health monitoring (never raises)
-            try:
-                from bot.services.health_monitor import record_qa_success
-                record_qa_success(pitcher_id)
-            except Exception:
-                pass
-
-            return {"messages": messages}
+                return {"messages": messages}
 
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Pitcher not found")
@@ -1352,6 +1321,24 @@ async def get_slug_map():
             normalized = alias.lower().replace(" ", "_").replace("-", "_")
             slug_map[f"ex_{normalized}"] = ex["id"]
     return slug_map
+
+
+@router.get("/research/docs")
+async def get_research_docs(ids: str = Query(...)):
+    """Return metadata for research docs by ID list."""
+    from bot.services.research_resolver import _load_index
+    doc_ids = [d.strip() for d in ids.split(",") if d.strip()]
+    index = _load_index()
+    result = []
+    for doc_id in doc_ids:
+        if doc_id in index:
+            fm, _ = index[doc_id]
+            result.append({
+                "id": doc_id,
+                "title": fm.get("title", doc_id),
+                "summary": fm.get("summary", ""),
+            })
+    return result
 
 
 # ---------------------------------------------------------------------------

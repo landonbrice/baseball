@@ -6,7 +6,7 @@ import logging
 from bot.config import TEMPLATES_DIR, KNOWLEDGE_DIR, CONTEXT_WINDOW_CHARS
 from bot.services.llm import call_llm, call_llm_reasoning, load_prompt
 from bot.services.context_manager import load_profile, load_context, get_recent_entries, load_saved_plans
-from bot.services.knowledge_retrieval import retrieve_research_for_plan
+from bot.services.research_resolver import resolve_research
 from bot.services.health_monitor import record_and_check_emergency
 
 logger = logging.getLogger(__name__)
@@ -55,7 +55,8 @@ def _build_python_brief(rotation_day, flag_level, triage_result, checkin_inputs,
 
     mods = triage_result.get("modifications", [])
     if mods:
-        parts.append(f"Mods: {', '.join(mods[:2])}")
+        from bot.services.vocabulary import get_mod_description
+        parts.append(f"Mods: {', '.join(get_mod_description(m) for m in mods[:2])}")
 
     return " — ".join(parts) + "."
 
@@ -65,9 +66,10 @@ def _build_python_notes(triage_result, flag_level, checkin_inputs):
     notes = []
     if flag_level in ("red", "yellow"):
         notes.append(f"Flagged {flag_level.upper()} — intensity capped per triage.")
+    from bot.services.vocabulary import get_mod_description
     mods = triage_result.get("modifications", [])
     for mod in mods[:3]:
-        notes.append(mod)
+        notes.append(get_mod_description(mod))
     arm_report = (checkin_inputs or {}).get("arm_report", "")
     if arm_report:
         notes.append(f'Arm report noted: "{arm_report}"')
@@ -207,7 +209,8 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
     pitcher_context = _build_pitcher_context(profile, context)
 
     # Load research relevant to this pitcher's injury profile
-    relevant_research = retrieve_research_for_plan(profile)
+    research_payload = resolve_research(profile, "plan_gen", triage_result)
+    relevant_research = research_payload.combined_text
 
     # Load structured prompt and call LLM
     prompt_template = load_prompt("plan_generation_structured.md")
@@ -280,6 +283,7 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
         "template_day": day_key,
         "source": "python_fallback",
         "source_reason": None,
+        "research_sources": [doc.id for doc in research_payload.loaded_docs],
     }
 
     # Populate lifting exercises from pool into the structured format
@@ -289,6 +293,11 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
             for ex in block.get("exercises", []):
                 all_lifting_exercises.append(ex)
         python_plan["lifting"]["exercises"] = all_lifting_exercises
+
+    # Enhance Python fallback brief with research context
+    if research_payload.loaded_docs:
+        top_doc = research_payload.loaded_docs[0]
+        python_plan["morning_brief"] += f" Today's plan is informed by the {top_doc.title}."
 
     # ── Pass 2: LLM review (enriches the plan if it responds in time) ──
     # Short timeout: Python plan is already complete — LLM just adds polish.
@@ -380,6 +389,7 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
                 "template_day": day_key,
                 "source": "llm_enriched",
                 "source_reason": None,
+                "research_sources": [doc.id for doc in research_payload.loaded_docs],
             }
         except Exception as e:
             logger.warning(f"Error assembling LLM plan ({type(e).__name__}: {e}), using Python-constructed plan")

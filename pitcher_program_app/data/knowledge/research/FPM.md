@@ -1,6 +1,27 @@
 ---
+id: fpm_strain_protocol
+title: Flexor-Pronator Mass Strain Protocol
 keywords: [fpm, flexor, pronator, medial elbow, ucl, tightness, strain, isometric, acute, pain, yellow flag, loading, wrist flexion, forearm, guarding]
 type: core_research
+applies_to:
+  - medial_elbow
+  - forearm
+triggers:
+  - fpm
+  - ucl_history
+  - flexor
+  - strain
+  - forearm_tightness
+phase: any
+priority: critical
+contexts:
+  - plan_gen
+  - coach_chat
+  - morning
+  - daily_plan_why
+summary: >
+  Acute FPM strain management — isometric loading protocol, yellow-flag criteria,
+  and return-to-throwing decision framework for flexor-pronator injuries.
 ---
 
 When a pitcher experiences tightness in the UCL area during full flexion or contraction, research suggests this is likely a **Flexor-Pronator Mass (FPM) strain** or a protective guarding response. Because the FPM (specifically the FCU and FDS) originates at the medial epicondyle and overlays the UCL, its contraction provides the "dynamic varus" force needed to protect the ligament.

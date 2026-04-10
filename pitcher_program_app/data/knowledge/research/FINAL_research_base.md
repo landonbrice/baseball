@@ -1,6 +1,19 @@
 ---
+id: final_research_base
+title: UChicago Pitcher Training Synthesized Research Base
 keywords: [training, exercise, program, lift, strength, rom, screening, push, pull, squat, deadlift, bench, principles, evidence, research, triage, decision, cycling, periodization]
 type: core_research
+applies_to:
+  - any
+triggers:
+  - reference
+phase: any
+priority: reference
+contexts:
+  - coach_chat
+summary: >
+  Synthesized research base from Driveline, Cressey Sports Performance, and Tread Athletics —
+  universal training principles, exercise selection rules, and in-season programming guidelines.
 ---
 
 # UChicago Pitcher Training System — Synthesized Research Base
