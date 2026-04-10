@@ -1398,11 +1398,6 @@ async def swap_exercise(pitcher_id: str, request: Request):
     reason = body.get("reason", "preference")
     source = body.get("source", "inline_swap")
 
-    logger.info(
-        "swap_exercise REQUEST: pitcher=%s date=%s from=%s to=%s reason=%s",
-        pitcher_id, date, from_id, to_id, reason,
-    )
-
     if not all([date, from_id, to_id]):
         raise HTTPException(status_code=400, detail="date, from_exercise_id, to_exercise_id required")
 
@@ -1499,8 +1494,6 @@ async def swap_exercise(pitcher_id: str, request: Request):
             status_code=404,
             detail=f"Exercise {from_id} not found in today's plan",
         )
-
-    logger.info("swap_exercise: SUCCESS pitcher=%s from=%s to=%s", pitcher_id, from_id, to_id)
 
     # Save updated plan — write both the top-level lifting and the nested one
     entry["lifting"] = top_lifting

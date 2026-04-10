@@ -35,14 +35,12 @@ export default function ExerciseSwap({ exerciseId, exerciseName, pitcherId, date
 
   const handleSwap = useCallback(async (alt) => {
     setStep('swapping');
-    // Step 1: call the API. If this fails, show the "swap failed" error.
+    // Step 1: call the API. If this fails, show the backend detail in the error.
     try {
       await swapExercise(pitcherId, date, exerciseId, alt.exercise_id, selectedReason, initData);
     } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error('swap API call failed:', { exerciseId, to: alt.exercise_id, status: err?.status, detail: err?.detail, err });
-      // Surface the backend detail when present (e.g. "Exercise X not found in today's plan")
-      const detail = err?.detail || err?.message || 'try again';
+      // Surface the backend `detail` string if present (postApi attaches it to the Error)
+      const detail = err?.detail || 'try again';
       setError(`Swap failed: ${detail}`);
       setStep('alternatives');
       return;
