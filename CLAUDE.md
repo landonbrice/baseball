@@ -1,7 +1,7 @@
 # Pitcher Training Intelligence — Claude Init
 
-> Last updated: 2026-04-01
-> Sprint status: Phases 1-15 complete. Pitcher training model, exercise swap UI, two-pass plan generation, coach-to-plan bridge all live. Next: The Ledger, periodization, exercise progression curves, guided day flow.
+> Last updated: 2026-04-09
+> Sprint status: Phases 1-18 complete. Plan source tagging, silent degradation monitoring, guided day flow all live. Next: The Ledger, periodization, exercise progression curves, inline coach panel.
 
 ## What This Is
 
@@ -95,16 +95,50 @@ Full biometric pipeline. See WHOOP Integration section below.
 - `game_scraper.py`: detects game days, prompts unreported relievers at 11pm
 - Coach mutations feed back into pitcher model preferences (auto-dislike learning)
 
+### Phase 16: Plan Source Tagging + Error-Path Hardening (2026-04-09) — COMPLETE
+- **Yellow-flag trim fix** — `exercise_pool.py:172` was collapsing ANY yellow or red flag to the "light" session structure (1 compound + 2 accessories + 1 core = 4 exercises). Roughly half the roster has chronic managed conditions keeping them persistently yellow, so they were getting 4-exercise plans daily. Fix: red still collapses to light, yellow now trims -1 accessory from the normal day_focus structure (7 exercises instead of 4). Red behavior unchanged.
+- **Plan source tagging** — `plan_generator.py` now tags every plan with `source` (`"python_fallback"` | `"llm_enriched"`) and `source_reason` (`llm_timeout:X`, `llm_unparseable_json`, `llm_assembly_error:X`). Threaded through `checkin_service.py` into `daily_entries.plan_generated.source`/`source_reason` JSONB, and into the return dict.
+- **`plan_degraded` status** — `/chat` checkin response gate previously keyed off emptiness (`not narrative AND not brief AND not blocks`), which almost never fired because `python_plan` always populated those. New gate: `source is None` → `plan_failed`, `source == "python_fallback"` → `plan_degraded`, otherwise `plan_loaded`. `Coach.jsx` handles `plan_degraded` with a warning toast and `planDegraded` derived state (from `todayEntry.plan_generated.source`) so the retry pill survives reload with label "Retry for coach brief".
+- **Custom plan endpoint fix** — `/api/pitcher/{id}/generate-plan` was near-deterministically 500ing. Root causes: (a) strict `_parse_plan_json` requires a top-level `morning_brief` that the custom-plan prompt never asked for, (b) 2 unsubstituted prompt placeholders leaking as literal `{var}` strings. Fix: substitute all placeholders, append explicit JSON schema instruction to prompt, add local `_relaxed_parse_custom_plan` that injects a default `morning_brief` when missing (shared `_parse_plan_json` left untouched — load-bearing for the check-in path). Specific HTTP codes: 504 on timeout, 502 on upstream errors, 502 with actionable detail on unparseable.
+- **`postApi` error detail surfacing** — `mini-app/src/api.js` `postApi` now attaches `.status` and `.detail` to thrown Errors by parsing the FastAPI `detail` field out of error response bodies. Additive/backward-compatible (`.message` format unchanged). Callers like `PlanBuilder.jsx` and `ExerciseSwap.jsx` use `err?.detail` to show real backend reasons instead of generic toasts.
+
+### Phase 17: Silent Degradation Monitoring (2026-04-09) — COMPLETE
+Closes the observability gap that let a DeepSeek 402 "Insufficient Balance" outage go unnoticed for a full day.
+- **`bot/services/health_monitor.py`** — new stateless service module. Queries `daily_entries.plan_generated.source`, WHOOP pull completeness, Sunday weekly narrative presence, and in-memory Q&A counters. Composes a daily digest dict.
+- **Daily digest** — scheduled 9am Chicago via APScheduler. Telegram-DMs the admin (`ADMIN_TELEGRAM_CHAT_ID`, defaults to Landon's 8589499360). Shows plan source breakdown (enriched vs fallback), source_reason counts, degraded pitcher IDs, WHOOP pull count, weekly narrative status, Q&A error rate.
+- **Real-time emergency alerts** — `record_and_check_emergency` tracks failure patterns in-memory. Fires when 3+ matching `source_reason` values (APIStatusError, AuthenticationError, InsufficientBalance, RateLimitError, etc.) hit within a 30-min window. 2-hour per-pattern dedup prevents spam. Hooked into `plan_generator.py` at all 3 `source_reason` assignment sites via `_emergency_alert` key on `python_plan` dict; `checkin_service._send_emergency_alert_if_present()` pops and Telegrams the alert, strips the key before persistence.
+- **Q&A tracking** — in-memory success/error counters with midnight-Chicago reset. Hooked into both `routes.py /chat` Q&A branch and `bot/handlers/qa.py handle_question`. Included in digest under the Q&A section.
+- **Admin commands** — `/healthdigest` (force digest now), `/healthcheck` (on-demand digest), `/testemergency` (simulate 3 failures to verify the alert path). All gated on `effective_chat.id == ADMIN_TELEGRAM_CHAT_ID`.
+- **Admin endpoint** — `GET /api/admin/health` returns the raw digest JSON. Admin-authenticated via initData resolving to `ADMIN_TELEGRAM_CHAT_ID`. Future-proof for dashboards.
+- **All monitoring wrapped in try/except with `pass`** — monitoring must never regress the user path.
+
+### Phase 18: Guided Day Flow (2026-04-09) — COMPLETE
+Every daily phase (warmup → arm care → lifting → throwing → mobility) now guides the pitcher through in order without dimming future content or hiding anything on first open.
+- **Phase computation** — `computePhaseOrder(entry, mobility)` in `DailyCard.jsx` builds a 5-phase sequence per-render. Respects `arm_care.timing` (`pre_throw` vs `pre_lift`) and the presence of throwing. Skips phases with no items. Post-throw recovery is NOT a separate phase — it's nested inside throwing.
+- **Phase completion** — `isPhaseComplete(phaseId, entry, completed, manuallyDone)`: mobility is always "complete" (terminal/optional), empty phases are complete, phases in `manuallyDonePhases` Set are complete, otherwise all items must be in `completed_exercises`.
+- **Active phase accent** — 3px maroon `box-shadow: inset` stripe on the block's left edge (respects the block's `borderRadius: 12`), subtle `rgba(92,16,32,0.018)` bg tint (felt more than seen), and a floating "NOW" pill absolutely positioned at `top: -6px, right: 14px` with a maroon gradient (matches the Profile identity header treatment). Pill fades in with `transition: opacity 0.2s`.
+- **No dimming** — locked phases render at full opacity and remain fully tappable. The guide is additive (active accent + completion collapse), not subtractive. Preserves full-plan readability on first open.
+- **Completion collapse** — when all items in a phase are checked OR the pitcher taps "Mark done", the block collapses to a one-line `CompletedPhaseSummary` row: [green check badge] phase name [tabular-nums count pill `6/6`] [chevron]. Tap anywhere to re-expand.
+- **"Done with [phase] →" button** — maroon gradient button (same `165deg #5c1020 → #7a1a2e` as identity header), sentence-case label, tactile hover (`translateY(-1px)` + shadow lift) and tap (`scale(0.98)`) micro-interactions. Renders only on the active phase, never on mobility. Tapping adds the phase to `manuallyDonePhases` Set, which advances `activePhaseId` via `useMemo` re-derivation.
+- **Re-collapse affordance** — when a completed phase is re-expanded, a subtle outline-maroon `CollapsePhaseButton` appears at the bottom: "Collapse [phase] ↑". Taps `handleToggleCompletedPhaseExpand(key)`.
+- **Ephemeral state** — `manuallyDonePhases` and `expandedCompletedPhases` Sets are component-local. Lost on reload; re-derives from `completed_exercises` via the first-incomplete-phase rule. Persistence is deliberately deferred to v2.
+- **Guided flow bypassed when `readOnly=true`** (e.g. past-day log views). Past entries render in the pre-guided-flow shape.
+- **`wrapperStyle` prop** added to `ExerciseBlock` and `ThrowingBlock` — merges into their outer divs for the stripe + tint. Backward-compatible (undefined in readOnly / non-guided paths).
+
+### Phase 18a: Swap endpoint dual-write fix (2026-04-09) — COMPLETE
+Pre-existing bug surfaced during guided-flow testing: `swap_exercise` and `apply_mutations` were reading from `entry.plan_generated.lifting.exercises` (nested JSONB) but `checkin_service` writes the plan to `entry.lifting.exercises` (top-level column). The swap endpoint returned 404 on every modern plan; the only reason it appeared to work before was that `ExerciseSwap` uses frontend-only `swapOverrides` state that masks backend failures visually. Fix: both endpoints now search top-level `entry.lifting.exercises` first, fall back to nested legacy locations, and write back BOTH locations for consistency. One-off `UPDATE` cleaned a ghost `plan_generated.lifting` from landon_brice's 2026-04-09 entry.
+
 ### What's Not Yet Built
-1. **The Ledger** — Modification history visualization. Data exists in `plan_generated.modifications_applied`. Needs frontend timeline on Profile.
-2. **Periodization** — No multi-week phases (hypertrophy → strength → power). Template repeats identically each week. Exercise pool adds variety but not progressive structure.
-3. **Exercise progression curves** — Volume/intensity trends for key lifts over time.
-4. **Coach dashboard** — Staff-facing view of team readiness, flags, trends.
-5. **Truncated JSON repair** — LLM sometimes returns cut-off JSON. `finish_reason` is surfaced but repair logic not yet built. Less critical now with two-pass plan gen (Python plan ships if LLM fails).
-6. **Guided day flow** — Sequential phase unlocking in DailyCard (complete warmup → arm care unlocks → lifting → throwing → post-throw). Data structure supports it, frontend not yet wired.
-7. **Weight logging** — `pitcher_training_model.working_weights` column exists but no UI to log actual weights lifted. Currently completion is binary (done/not done).
-8. **Inline coach panel on lifting block** — Coach button on lifting section for in-context refinement without navigating to Coach tab. Coach tab works for now.
-9. **UChicago box score scraping** — `game_scraper.py` detects game days and prompts relievers, but doesn't auto-scrape box scores (requires manual /outing report or prompt response).
+1. **The Ledger** — Modification history visualization. Data exists in `plan_generated.modifications_applied` and `pitcher_training_model.recent_swap_history`. Needs frontend timeline on Profile.
+2. **Periodization** — No multi-week phases (hypertrophy → strength → power → deload). Template repeats identically each week. Exercise pool adds variety but not progressive block structure. Biggest remaining architectural item in the PROJECT_VISION.
+3. **Exercise progression curves** — Volume/intensity trends for key lifts over time. Blocked on weight logging (#7).
+4. **Coach dashboard** — Staff-facing view of team readiness, flags, trends. `/api/staff/pulse` endpoint exists but returns 500 intermittently — needs debugging before scope expands.
+5. **Truncated JSON repair** — `_repair_truncated_json` exists in `plan_generator.py:439` and runs when `finish_reason == "length"`, but doesn't handle non-length cutoffs (network drops mid-stream). Minor — two-pass plan gen ships Python fallback on any failure.
+6. **Weight logging** — `pitcher_training_model.working_weights` column exists but no UI to log actual weights lifted. Currently completion is binary (done/not done). Unblocks #3.
+7. **Inline coach panel on lifting block** — Coach button on lifting section for in-context refinement without navigating to Coach tab. Coach tab works for now.
+8. **UChicago box score scraping** — `game_scraper.py` detects game days and prompts relievers, but doesn't auto-scrape box scores.
+9. **Guided flow v2 persistence** — `manuallyDonePhases` is ephemeral (resets on reload). v2 would persist a `phase_progress` JSONB column on `daily_entries` so "mark done" survives reloads. Low priority — most pitchers don't reopen mid-session.
+10. **Guided flow progress dots** — v2 polish. Horizontal row of phase dots at the top of DailyCard showing sequence (●○○○○). Click a dot to scroll to that phase.
 
 ## Stack
 
@@ -212,8 +246,8 @@ Supabase-only. `context_manager.py` queries recent `chat_messages` + `daily_entr
 ### Exercise Selection (`exercise_pool.py`)
 - Filters library by: day focus (upper/lower/full), rotation_day_usage, contraindications, modification_flags
 - Prefers exercises NOT used in last 7 days (weekly variety)
-- Session structure: 1 explosive + 2 compounds + 3 accessories + 2 core (full day), fewer for light/flagged days
-- Explosive block: 1 `plyometric_power` exercise (med ball slams, plyo pushups, jumps) inserted as first block on all non-recovery/non-light days
+- **Session structure (flag-aware, 2026-04-09)**: green → full day_focus structure (2 compounds + 3 accessories + 2 core + 1 explosive = 8). YELLOW → day_focus minus 1 accessory (2 + 2 + 2 + 1 = 7) — caution trim, not shutdown. RED → light structure (1 + 2 + 1 + 0 = 4). The flag-level check is at `exercise_pool.py:172`. Prior to the fix, any yellow OR red collapsed to light (4 exercises) regardless of day_focus — undercutting roughly half the roster who are persistently yellow.
+- Explosive block: 1 `plyometric_power` exercise (med ball slams, plyo pushups, jumps) inserted as first block on all green + yellow days (red skips)
 - Training intent mapped from rotation day + triage: power (day 2), strength (day 3-4), endurance (recovery/flagged)
 - Injury modification flags appended as notes (e.g., "reduce to 5 reps" for UCL history)
 - **Model-aware filtering**: exercise_preferences ("dislike" → deprioritized), equipment_constraints (hard filter), swap history (3+ swaps away → auto-dislike)
@@ -330,8 +364,42 @@ Fully implemented 2026-03-29, v2 API migration 2026-03-31, PKCE state persistenc
 - Plan gen uses `max_tokens=4000` for both models
 - Keyword detection in qa.py routes to appropriate model
 
+### Plan Source Tagging
+- `generate_plan()` returns `source: "python_fallback" | "llm_enriched"` + `source_reason` on every plan
+- `source_reason` captures the specific failure mode when the LLM path degrades: `llm_timeout:{ExcType}`, `llm_unparseable_json`, `llm_assembly_error:{ExcType}`
+- Threaded through `checkin_service.py` into `daily_entries.plan_generated.source` (JSONB) — persists for later analysis
+- `/chat` checkin response status gate: `None → plan_failed`, `"python_fallback" → plan_degraded`, else `plan_loaded`
+- `Coach.jsx` listens for `plan_degraded` and shows a warning toast + "Retry for coach brief" pill (derived from `todayEntry.plan_generated.source === 'python_fallback'` so it survives reload)
+- The `_emergency_alert` key on `python_plan` is an internal carry-up to checkin_service for real-time Telegram alerts; `_send_emergency_alert_if_present()` pops it before persistence so it never reaches Supabase
+
+### Silent Degradation Monitoring (`bot/services/health_monitor.py`)
+- **Daily digest**: 9am Chicago Telegram DM to `ADMIN_TELEGRAM_CHAT_ID` (defaults to Landon's 8589499360). Shows plan source breakdown, source_reason counts, degraded pitcher IDs, WHOOP pull completeness, Sunday weekly narrative presence, Q&A error rate.
+- **Emergency alerts**: real-time Telegram DM when 3+ matching failure patterns hit in 30 min. Known-bad patterns: `APIStatusError`, `APIError`, `AuthenticationError`, `PermissionDeniedError`, `InsufficientBalance`, `insufficient_balance`, `RateLimitError`, `rate_limit`. Per-pattern 2-hour dedup prevents spam. State is in-memory — Railway restart wipes counters (acceptable loss).
+- **Q&A tracking**: in-memory success/error counters with midnight-Chicago reset. Hooked into both `routes.py /chat` Q&A branch and `bot/handlers/qa.py`.
+- **Admin commands**: `/healthdigest` (force send), `/healthcheck` (on-demand), `/testemergency` (simulate 3 failures). All gated on `effective_chat.id == ADMIN_TELEGRAM_CHAT_ID`.
+- **Admin endpoint**: `GET /api/admin/health` returns raw digest JSON, auth via initData match.
+- **All instrumentation is try/except-wrapped with `pass`** — monitoring must never regress the user path.
+- `ADMIN_TELEGRAM_CHAT_ID` env var in `bot/config.py` overrides the default.
+
+### Guided Day Flow (DailyCard.jsx)
+- **5 phases** computed per-entry via `computePhaseOrder(entry, mobility)`: warmup → arm_care → lifting → throwing → mobility. Order respects `arm_care.timing` (`pre_throw` vs `pre_lift`). Post-throw recovery is NOT a separate phase — nested inside throwing. Empty phases are skipped.
+- **Active phase** = first-incomplete via `useMemo`. Derived from `completed_exercises` + `manuallyDonePhases` Set. Completion rule: mobility is always complete (terminal), empty phases are complete, manually-marked phases are complete, otherwise all items must be in `completed_exercises`.
+- **Visual states**: `active` (3px maroon `box-shadow: inset` stripe + subtle `rgba(92,16,32,0.018)` bg tint + floating "NOW" pill + "Done with [phase] →" gradient button), `locked` (full opacity, tappable, no extra chrome), `complete` (collapsed one-line `CompletedPhaseSummary` row with check badge + count pill + chevron, re-expandable).
+- **"Mark done" button** — maroon gradient, sentence case, advances `manuallyDonePhases`. Auto-advance also happens when all items are checked (derived).
+- **Re-collapse** — re-expanded completed phases get a subtle `CollapsePhaseButton` (outline maroon) at the bottom.
+- **Ephemeral state** — `manuallyDonePhases` and `expandedCompletedPhases` are component-local. V1 scope; persistence is v2.
+- **Bypassed when `readOnly=true`** (past-day log views).
+- **Helper functions are pure and module-level**: `PHASE_DEFS`, `computePhaseOrder`, `getPhaseItems`, `isPhaseComplete`. All in DailyCard.jsx.
+- **`wrapperStyle` prop** on `ExerciseBlock` and `ThrowingBlock` — merges into the outer div for the stripe + tint. Backward-compatible.
+
+### Swap / Mutation Dual-Write (Critical Gotcha)
+- `daily_entries` has **two places** lifting can live: top-level `lifting` JSONB column (written by `checkin_service`) AND nested `plan_generated.lifting` (written by `apply_mutations` / coach chat). Before 2026-04-09 these could drift, causing 404s on `swap_exercise`.
+- `swap_exercise` and `apply_mutations` now search top-level `entry.lifting.exercises` FIRST (canonical modern path), fall back to `plan_generated.lifting.exercises`, then `plan_generated.exercise_blocks`. On success, both locations are written back for consistency.
+- The frontend (DailyCard line ~88: `lifting: entry.lifting || plan_generated?.lifting`) always reads top-level first, so "what the frontend shows" is the source of truth.
+
 ### API Endpoints (routes.py)
 **Auth:** `/api/auth/resolve`
+**Admin:** `GET /admin/health` (admin-only, initData match to `ADMIN_TELEGRAM_CHAT_ID`)
 **Data:** `/api/pitcher/{id}/profile`, `/log`, `/progression`, `/upcoming`, `/week-summary`, `/morning-status`, `/weekly-narrative`
 **Actions:** `POST /checkin`, `/outing`, `/chat` (unified), `/set-next-outing`, `/complete-exercise`
 **Mobility:** `GET /pitcher/{id}/mobility-today`
@@ -340,7 +408,7 @@ Fully implemented 2026-03-29, v2 API migration 2026-03-31, PKCE state persistenc
 **WHOOP:** `GET /pitcher/{id}/whoop-today`, `GET /whoop/callback` (OAuth)
 **Plans:** `GET/POST /plans`, `/plans/{id}/activate`, `/deactivate`, `/apply-plan/{id}`, `/generate-plan`
 **Library:** `/api/exercises`, `/api/exercises/slugs`
-**Team:** `/api/staff/pulse`
+**Team:** `/api/staff/pulse` (known issue: intermittent 500s)
 **Trends:** `/api/pitcher/{id}/trend`, `/api/pitcher/{id}/chat-history`
 
 ### Scheduled Jobs (all from Supabase, not filesystem)
@@ -349,6 +417,8 @@ Fully implemented 2026-03-29, v2 API migration 2026-03-31, PKCE state persistenc
 - Sunday 6pm weekly narrative + summary
 - `/gamestart` → 2hr delayed outing reminder
 - 6am daily WHOOP pull for all linked pitchers (sends re-link message if auth expired)
+- **9am daily health digest** to admin (`health_monitor._send_health_digest`)
+- 11pm post-game reliever check
 
 ## Current Pitchers
 
@@ -384,6 +454,7 @@ Fully implemented 2026-03-29, v2 API migration 2026-03-31, PKCE state persistenc
 | TAVILY_API_KEY | no | — | Web research fallback |
 | PORT | no | 8000 | API port |
 | DISABLE_AUTH | no | false | Skip HMAC auth (dev only) |
+| ADMIN_TELEGRAM_CHAT_ID | no | 8589499360 (Landon) | Admin chat for health monitoring DMs |
 
 ## Running Locally
 
@@ -507,10 +578,13 @@ GitHub (landonbrice/baseball)
 - WHOOP 6am pull may get partial data (strain before recovery/sleep) — handled by force_refresh on check-in and score_state guards
 - Reliever template (`reliever_flexible.json`) uses text descriptions, not exercise IDs — not validated
 - No periodization layer — exercise pool adds variety but not multi-week progressive structure
-- No truncated JSON repair — `finish_reason` is surfaced but repair logic not built
-- `/testnotify` and `/whooptest` commands exist for dev testing — can be removed before team rollout
-- `_load_exercise_library()` uses `lru_cache(maxsize=1)` — cache never invalidates during a Railway process lifetime. New exercises in JSON require redeploy.
-- `/api/staff/pulse` returns 500 — likely a crash in the pitcher loop (undiagnosed). Home page `StaffPulse` component handles gracefully but the endpoint needs debugging.
+- Truncated JSON repair exists (`plan_generator.py:439` `_repair_truncated_json`) but only runs when `finish_reason == "length"`. Doesn't handle network cutoffs that leave `finish_reason == "stop"` on a partial body. Low priority — two-pass gen ships `python_plan` on any parse failure.
+- `/testnotify`, `/whooptest`, `/healthdigest`, `/testemergency` dev commands exist — can be removed before team rollout
+- `_load_exercise_library()` and `_EXERCISE_CACHE` both use module-level caching with no invalidation — new exercises in JSON/Supabase require a Railway redeploy
+- `/api/staff/pulse` returns 500 intermittently — likely a crash in the pitcher loop (undiagnosed). Home page `StaffPulse` component handles gracefully but the endpoint needs debugging. Blocks coach dashboard work.
+- `morning_brief` string/dict coercion is duplicated in 4 places: `plan_generator.py:314`, `routes.py:636`, `Coach.jsx:130`, and the /chat response assembly. Every consumer has to re-coerce. Should be normalized once at the checkin_service return boundary.
+- `context_manager.py:173` does `msg.get("content","")[:200]` with no `str()` coercion. If any `chat_messages` row has a dict in `content`, slicing raises TypeError. Currently not triggering in practice (`_persist_chat` only writes strings) but latent.
+- Guided flow state is ephemeral — `manuallyDonePhases` resets on reload. Not a bug, a v2 deferral.
 
 ## Bot Scope Boundaries
 
