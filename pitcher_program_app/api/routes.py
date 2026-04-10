@@ -1975,6 +1975,11 @@ def _build_week_arc(pitcher_id: str, program: dict, training_model: dict) -> dic
       - starter: [last_outing_date, last_outing_date + rotation_length - 1]
       - reliever: [last_appearance_date, last_appearance_date + 6]
       - new pitcher (no last outing): current calendar week (Sun-Sat, Chicago tz)
+
+    Rotation_day for today is sourced from training_model.days_since_outing (canonical,
+    controlled by check-in flow) rather than recomputed from (today - last_outing_date).days,
+    which can drift when last_outing_date is stale. The window_start is back-derived so that
+    today lands on the correct rotation_day offset.
     """
     from bot.services import db as _db
 
@@ -1987,8 +1992,17 @@ def _build_week_arc(pitcher_id: str, program: dict, training_model: dict) -> dic
 
     if last_outing:
         anchor_date = date.fromisoformat(last_outing) if isinstance(last_outing, str) else last_outing
-        window_start = anchor_date
-        window_end = anchor_date + timedelta(days=rotation_length - 1 if role == "starter" else 6)
+
+        # Use days_since_outing as canonical rotation_day for today (matches /upcoming).
+        # Back-derive window_start so the displayed arc aligns with check-in state.
+        days_since = training_model.get("days_since_outing")
+        if days_since is not None:
+            # today = window_start + days_since  →  window_start = today - days_since
+            window_start = today_chicago - timedelta(days=int(days_since))
+        else:
+            window_start = anchor_date
+
+        window_end = window_start + timedelta(days=rotation_length - 1 if role == "starter" else 6)
         anchor_type = "calendar" if role == "starter" else "appearance"
     else:
         # Calendar fallback: Sunday → Saturday containing today
@@ -2077,16 +2091,82 @@ def _fetch_schedule_for_window(start_iso: str, end_iso: str, pitcher_id: str) ->
     ]
 
 
-def _build_today_detail(arc: dict, training_model: dict) -> dict | None:
+def _build_today_detail(arc: dict, training_model: dict, pitcher_id: str = None) -> dict | None:
     today_day = next((d for d in arc["days"] if d["state"] == "today"), None)
     if not today_day:
         return None
+
+    pills = []
+    subtitle = ""
+
+    if pitcher_id:
+        try:
+            from bot.services import db as _db
+            today_str = datetime.now(CHICAGO_TZ).strftime("%Y-%m-%d")
+            resp = (
+                _db.get_client()
+                .table("daily_entries")
+                .select("plan_generated, pre_training")
+                .eq("pitcher_id", pitcher_id)
+                .eq("date", today_str)
+                .execute()
+            )
+            if resp.data:
+                plan = (resp.data[0].get("plan_generated") or {})
+
+                # --- Arm care pill: first exercise_block whose block_name starts with "Arm Care"
+                blocks = plan.get("exercise_blocks") or []
+                lift_blocks = []
+                for block in blocks:
+                    bname = block.get("block_name", "")
+                    if bname.lower().startswith("arm care"):
+                        # Extract the parenthetical type, e.g. "Arm Care (Arm Care Heavy)" → "Heavy"
+                        import re as _re
+                        m = _re.search(r"\(.*?(heavy|light)\)", bname, _re.IGNORECASE)
+                        care_label = m.group(0).strip("()").capitalize() if m else "Arm care"
+                        pills.append({"emoji": "💪", "label": care_label, "type": "care"})
+                    else:
+                        lift_blocks.append(bname)
+
+                # --- Lifting pill: first non-arm-care block name (e.g. "Strength")
+                if lift_blocks:
+                    pills.append({"emoji": "🏋️", "label": lift_blocks[0], "type": "lift"})
+
+                # --- Throwing pill: from throwing_plan (actual field name in plan_generated)
+                throwing_plan = plan.get("throwing_plan") or {}
+                if isinstance(throwing_plan, dict):
+                    # Prefer day_type_label (e.g. "Hybrid A — Extension + Compression"),
+                    # fall back to type (e.g. "hybrid_a")
+                    throw_label = throwing_plan.get("day_type_label") or throwing_plan.get("type") or ""
+                    # Truncate long labels at the em-dash
+                    if "—" in throw_label:
+                        throw_label = throw_label.split("—")[0].strip()
+                    if throw_label:
+                        pills.append({"emoji": "⚾", "label": throw_label, "type": "throw"})
+
+                # --- Subtitle: morning_brief if present, else template_day label
+                brief = plan.get("morning_brief") or ""
+                if isinstance(brief, dict):
+                    brief = brief.get("coaching_note", "") or brief.get("text", "") or ""
+                if not brief:
+                    # Derive a short description from template_day + source
+                    template_day = plan.get("template_day", "")
+                    source = plan.get("source", "")
+                    if template_day:
+                        subtitle = template_day.replace("_", " ").capitalize()
+                        if source == "python_fallback":
+                            subtitle += " · auto-generated"
+                else:
+                    subtitle = str(brief)[:200]
+        except Exception:
+            pass  # Graceful degradation — return stub pills/subtitle
+
     return {
         "rotation_day": today_day["rotation_day"],
         "label": f"{today_day['label']} day",
         "title": today_day["label"],
-        "subtitle": "",
-        "pills": [],
+        "subtitle": subtitle,
+        "pills": pills,
     }
 
 
@@ -2130,7 +2210,7 @@ async def get_pitcher_program(pitcher_id: str, request: Request):
         "program": program_payload,
         "week_arc": arc,
         "schedule": schedule,
-        "today_detail": _build_today_detail(arc, training_model),
+        "today_detail": _build_today_detail(arc, training_model, pitcher_id=pitcher_id),
     }
 
 
