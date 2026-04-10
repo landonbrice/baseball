@@ -301,6 +301,13 @@ async def process_checkin(
     except Exception as e:
         logger.warning(f"Failed to update weekly state for {pitcher_id}: {e}")
 
+    # Recompute phase state from active program (non-blocking — must never fail a check-in)
+    try:
+        from bot.services.weekly_model import update_phase_state
+        update_phase_state(pitcher_id)
+    except Exception as exc:
+        logger.warning(f"update_phase_state failed for {pitcher_id}: {exc}")
+
     # Write rich session note to context
     flag = triage_result["flag_level"].upper()
     lifting_summary = ""
