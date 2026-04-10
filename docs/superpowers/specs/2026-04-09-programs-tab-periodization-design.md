@@ -347,7 +347,7 @@ SetThrowModal.jsx                     (NEW — type chips + date picker)
 
 ### Data fetching
 
-`Programs.jsx` calls `GET /api/pitcher/{id}/program`, which returns a single payload:
+`Programs.jsx` calls `GET /api/pitcher/{id}/program`, which returns a single payload. The week window is **anchored to the pitcher's last outing**: for a starter, the window is `[last_outing_date, last_outing_date + rotation_length - 1]` which produces the 7-day arc from outing day forward; for a reliever, it's `[last_appearance_date, last_appearance_date + 6]` regardless of rotation length so the visualization always shows a full week. If no last outing exists yet (new pitcher, pre-season), the window defaults to the current calendar week (Sun–Sat, Chicago tz).
 
 ```json
 {
@@ -534,5 +534,6 @@ These are deferred to the implementation planning step (writing-plans), not bloc
 - Whether `Programs.jsx` and `Plans.jsx` cohabitate during deployment or get swapped atomically
 - Throw intent parser: regex-only in v1 or LLM fallback from day one
 - Backfill `start_date` — single global date, or per-pitcher based on first check-in
+- Whether the week window roll-over happens server-side on `compute_current_phase` invocation or via a cron job at midnight Chicago time
 
 End of design.
