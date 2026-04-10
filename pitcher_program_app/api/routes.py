@@ -1542,30 +1542,17 @@ async def swap_exercise(pitcher_id: str, request: Request):
     }
 
 
-@router.post("/pitcher/{pitcher_id}/apply-mutations")
-async def apply_mutations(pitcher_id: str, request: Request):
-    """Apply coach-suggested mutations to today's plan."""
-    _require_pitcher_auth(request, pitcher_id)
-    body = await request.json()
+def _apply_mutations_to_entry(entry: dict, mutations: list, source: str = "coach") -> dict:
+    """Apply mutations to a daily entry's plan. Returns the modified entry.
 
-    date = body.get("date")
-    mutations = body.get("mutations", [])
-    source = body.get("source", "coach_suggestion")
+    Also updates pitcher training model (swap history, preferences).
+    """
+    from bot.services.db import get_training_model, upsert_training_model, get_exercise
 
-    if not date or not mutations:
-        raise HTTPException(status_code=400, detail="date and mutations required")
-
-    from bot.services.db import (
-        get_daily_entry, upsert_daily_entry, get_training_model,
-        upsert_training_model, get_exercise,
-    )
-
-    entry = get_daily_entry(pitcher_id, date)
-    if not entry:
-        raise HTTPException(status_code=404, detail="No entry for this date")
-
+    pitcher_id = entry.get("pitcher_id")
+    date = entry.get("date")
     plan = entry.get("plan_generated") or {}
-    model = get_training_model(pitcher_id)
+    model = get_training_model(pitcher_id) if pitcher_id else {}
     swap_history = list(model.get("recent_swap_history") or [])
 
     # Mutations operate on the top-level entry.lifting.exercises (where
@@ -1608,7 +1595,6 @@ async def apply_mutations(pitcher_id: str, request: Request):
             }
             if m.get("note"):
                 new_entry["note"] = m["note"]
-            # Insert after a specific exercise if specified
             after_id = m.get("after_exercise_id")
             inserted = False
             if after_id:
@@ -1642,26 +1628,42 @@ async def apply_mutations(pitcher_id: str, request: Request):
     entry["lifting"] = top_lifting
     plan["lifting"] = top_lifting
     entry["plan_generated"] = plan
-    upsert_daily_entry(pitcher_id, entry)
 
     # Update swap history and preferences in model
-    if len(swap_history) > 30:
-        swap_history = swap_history[-30:]
-    model["recent_swap_history"] = swap_history
+    if pitcher_id:
+        if len(swap_history) > 30:
+            swap_history = swap_history[-30:]
+        model["recent_swap_history"] = swap_history
+        preferences = dict(model.get("exercise_preferences") or {})
+        for m in mutations:
+            if m.get("action") == "swap" and m.get("from_exercise_id"):
+                from_id = m["from_exercise_id"]
+                swap_away_count = sum(1 for s in swap_history if s.get("from_id") == from_id)
+                if swap_away_count >= 3 and preferences.get(from_id) != "dislike":
+                    preferences[from_id] = "dislike"
+        model["exercise_preferences"] = preferences
+        upsert_training_model(pitcher_id, model)
 
-    # Apply preference learning from swap mutations (same as inline swap logic)
-    preferences = dict(model.get("exercise_preferences") or {})
-    for m in mutations:
-        if m.get("action") == "swap" and m.get("from_exercise_id"):
-            from_id = m["from_exercise_id"]
-            swap_away_count = sum(1 for s in swap_history if s.get("from_id") == from_id)
-            if swap_away_count >= 3 and preferences.get(from_id) != "dislike":
-                preferences[from_id] = "dislike"
-    model["exercise_preferences"] = preferences
+    return entry
 
-    upsert_training_model(pitcher_id, model)
 
-    return {"status": "mutations_applied", "mutation_count": len(mutations), "updated_plan": plan}
+@router.post("/pitcher/{pitcher_id}/apply-mutations")
+async def apply_mutations(pitcher_id: str, request: Request):
+    """Apply coach-suggested mutations to today's plan."""
+    _require_pitcher_auth(request, pitcher_id)
+    body = await request.json()
+    date = body.get("date")
+    mutations = body.get("mutations", [])
+    source = body.get("source", "coach_suggestion")
+    if not date or not mutations:
+        raise HTTPException(status_code=400, detail="date and mutations required")
+    from bot.services.db import get_daily_entry, upsert_daily_entry
+    entry = get_daily_entry(pitcher_id, date)
+    if not entry:
+        raise HTTPException(status_code=404, detail="No entry for this date")
+    updated = _apply_mutations_to_entry(entry, mutations, source)
+    upsert_daily_entry(pitcher_id, updated)
+    return {"status": "ok", "mutations_applied": len(mutations)}
 
 
 # ---------------------------------------------------------------------------
