@@ -1963,3 +1963,179 @@ async def whoop_callback(code: str = Query(...), state: str = Query(...)):
     except Exception as e:
         logger.error("WHOOP callback failed: %s", e)
         raise HTTPException(status_code=500, detail="Failed to connect WHOOP. Try again.")
+
+
+# === Programs tab endpoint (Task 5.1) ===
+
+from bot.services import programs as programs_svc
+from bot.services.weekly_model import (
+    add_scheduled_throw,
+    remove_scheduled_throw,
+    update_phase_state,
+)
+
+
+def _build_week_arc(pitcher_id: str, program: dict, training_model: dict) -> dict:
+    """Build the week arc payload for a pitcher's active program.
+
+    Window anchoring (per spec):
+      - starter: [last_outing_date, last_outing_date + rotation_length - 1]
+      - reliever: [last_appearance_date, last_appearance_date + 6]
+      - new pitcher (no last outing): current calendar week (Sun-Sat, Chicago tz)
+    """
+    from bot.services import db as _db
+
+    template = _db.get_program_template(program["template_id"])
+    role = (template or {}).get("role", "starter")
+    rotation_length = (template or {}).get("rotation_length", 7)
+
+    last_outing = training_model.get("last_outing_date")
+    today_chicago = datetime.now(CHICAGO_TZ).date()
+
+    if last_outing:
+        anchor_date = date.fromisoformat(last_outing) if isinstance(last_outing, str) else last_outing
+        window_start = anchor_date
+        window_end = anchor_date + timedelta(days=rotation_length - 1 if role == "starter" else 6)
+        anchor_type = "calendar" if role == "starter" else "appearance"
+    else:
+        # Calendar fallback: Sunday → Saturday containing today
+        window_start = today_chicago - timedelta(days=(today_chicago.weekday() + 1) % 7)
+        window_end = window_start + timedelta(days=6)
+        anchor_type = "calendar"
+
+    state = training_model.get("current_week_state") or {}
+    scheduled_throws = state.get("scheduled_throws") or []
+    throws_by_date = {t["date"]: t for t in scheduled_throws}
+
+    days = []
+    for offset in range((window_end - window_start).days + 1):
+        d = window_start + timedelta(days=offset)
+        rotation_day = (d - window_start).days  # 0-indexed; day 0 = anchor (outing day)
+        is_today = d == today_chicago
+        is_past = d < today_chicago
+        scheduled = throws_by_date.get(d.isoformat())
+
+        emoji, label = _day_emoji_and_label(rotation_day, scheduled, is_anchor=(offset == 0))
+        state_key = "outing" if offset == 0 else ("today" if is_today else ("done" if is_past else "upcoming"))
+
+        days.append({
+            "date": d.isoformat(),
+            "day_label": d.strftime("%a").upper(),
+            "rotation_day": rotation_day,
+            "state": state_key,
+            "emoji": emoji,
+            "label": label,
+            "logged": bool(scheduled and scheduled.get("source") in ("chat", "button")),
+            "has_game": False,  # filled in by schedule overlay
+        })
+
+    return {"anchor_type": anchor_type, "days": days}
+
+
+def _day_emoji_and_label(rotation_day: int, scheduled: dict | None, *, is_anchor: bool) -> tuple[str, str]:
+    """Pick the bubble emoji + label for a day."""
+    if is_anchor:
+        return ("⚾", "Start")
+    if scheduled:
+        type_to_emoji = {"bullpen": "🎯", "side": "🎯", "long_toss": "🎯", "catch": "🧢", "game": "⚾"}
+        type_to_label = {"bullpen": "Bullpen", "side": "Side", "long_toss": "Long toss", "catch": "Catch", "game": "Game"}
+        return (type_to_emoji.get(scheduled["type"], "🎯"), type_to_label.get(scheduled["type"], "Throw"))
+    rotation_emoji = {1: "🛁", 2: "🏋️", 3: "🎯", 4: "🏋️", 5: "🎯", 6: "💪"}
+    rotation_label = {1: "Recovery", 2: "Heavy lift", 3: "Bullpen", 4: "Strength", 5: "Side", 6: "Prep"}
+    return (rotation_emoji.get(rotation_day, "·"), rotation_label.get(rotation_day, ""))
+
+
+def _overlay_schedule_on_arc(arc: dict, schedule: list[dict]) -> None:
+    """Mutate arc.days[*].has_game based on schedule entries."""
+    game_dates = {g["date"] for g in schedule}
+    for day in arc["days"]:
+        if day["date"] in game_dates:
+            day["has_game"] = True
+
+
+def _fetch_schedule_for_window(start_iso: str, end_iso: str, pitcher_id: str) -> list[dict]:
+    """Read UChicago games in the window from the schedule table."""
+    from bot.services import db as _db
+
+    try:
+        resp = (
+            _db.get_client()
+            .table("schedule")
+            .select("*")
+            .gte("date", start_iso)
+            .lte("date", end_iso)
+            .order("date")
+            .execute()
+        )
+    except Exception:
+        return []
+    games = resp.data or []
+    return [
+        {
+            "date": g["date"],
+            "opponent": g.get("opponent", "TBD"),
+            "home": g.get("home", True),
+            "time": g.get("time"),
+            "result": g.get("result"),
+            "doubleheader": g.get("doubleheader", False),
+            "is_your_start": False,
+        }
+        for g in games
+    ]
+
+
+def _build_today_detail(arc: dict, training_model: dict) -> dict | None:
+    today_day = next((d for d in arc["days"] if d["state"] == "today"), None)
+    if not today_day:
+        return None
+    return {
+        "rotation_day": today_day["rotation_day"],
+        "label": f"{today_day['label']} day",
+        "title": today_day["label"],
+        "subtitle": "",
+        "pills": [],
+    }
+
+
+@router.get("/pitcher/{pitcher_id}/program")
+async def get_pitcher_program(pitcher_id: str, request: Request):
+    """Return the active program with computed phase, week arc, schedule, and today detail."""
+    from bot.services import db as _db
+
+    _require_pitcher_auth(request, pitcher_id)
+
+    program = programs_svc.get_active_program(pitcher_id)
+    if not program:
+        return {"program": None, "week_arc": None, "schedule": [], "today_detail": None}
+
+    phase = programs_svc.compute_current_phase(program)
+
+    training_model_resp = (
+        _db.get_client()
+        .table("pitcher_training_model")
+        .select("*")
+        .eq("pitcher_id", pitcher_id)
+        .execute()
+    )
+    training_model = (training_model_resp.data or [{}])[0]
+
+    arc = _build_week_arc(pitcher_id, program, training_model)
+    schedule = _fetch_schedule_for_window(arc["days"][0]["date"], arc["days"][-1]["date"], pitcher_id)
+    _overlay_schedule_on_arc(arc, schedule)
+
+    program_payload = {
+        "id": program["id"],
+        "name": program["name"],
+        "current_phase": phase,
+        "phase_progress": {
+            "week": phase["week_in_program"],
+            "total": program.get("total_weeks") or sum(p.get("week_count", 0) for p in program.get("phases_snapshot", [])),
+        },
+    }
+
+    return {
+        "program": program_payload,
+        "week_arc": arc,
+        "schedule": schedule,
+        "today_detail": _build_today_detail(arc, training_model),
+    }
