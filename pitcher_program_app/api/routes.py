@@ -2139,3 +2139,99 @@ async def get_pitcher_program(pitcher_id: str, request: Request):
         "schedule": schedule,
         "today_detail": _build_today_detail(arc, training_model),
     }
+
+
+@router.get("/pitcher/{pitcher_id}/program/history")
+async def get_program_history(pitcher_id: str, request: Request):
+    _require_pitcher_auth(request, pitcher_id)
+    history = programs_svc.list_program_history(pitcher_id)
+    return {"programs": [
+        {
+            "id": p["id"],
+            "name": p["name"],
+            "template_id": p["template_id"],
+            "start_date": p["start_date"],
+            "end_date": p.get("end_date"),
+            "deactivated_at": p.get("deactivated_at"),
+            "deactivation_reason": p.get("deactivation_reason"),
+            "current_phase": p.get("_current_phase"),
+        }
+        for p in history
+    ]}
+
+
+@router.get("/program/{program_id}")
+async def get_program_detail(program_id: int, request: Request):
+    """Program detail. No pitcher auth — anyone with the id can read program structure."""
+    from bot.services import db as _db
+    program = _db.get_training_program(program_id)
+    if not program:
+        raise HTTPException(status_code=404, detail="Program not found")
+    template = _db.get_program_template(program["template_id"])
+    phase = programs_svc.compute_current_phase(program)
+    return {
+        "program": program,
+        "template": template,
+        "current_phase": phase,
+    }
+
+
+@router.get("/schedule/this-week")
+async def get_schedule_this_week(pitcher_id: str, request: Request):
+    """UChicago games for the pitcher's current rotation week, with is_your_start flag."""
+    _require_pitcher_auth(request, pitcher_id)
+
+    program = programs_svc.get_active_program(pitcher_id)
+    if not program:
+        return {"games": []}
+
+    from bot.services import db as _db
+    training_model_resp = (
+        _db.get_client()
+        .table("pitcher_training_model")
+        .select("*")
+        .eq("pitcher_id", pitcher_id)
+        .execute()
+    )
+    training_model = (training_model_resp.data or [{}])[0]
+    arc = _build_week_arc(pitcher_id, program, training_model)
+    schedule = _fetch_schedule_for_window(arc["days"][0]["date"], arc["days"][-1]["date"], pitcher_id)
+
+    last_outing = training_model.get("last_outing_date")
+    if last_outing:
+        last_outing_iso = last_outing if isinstance(last_outing, str) else last_outing.isoformat()
+        for game in schedule:
+            if game["date"] == last_outing_iso:
+                game["is_your_start"] = True
+
+    return {"games": schedule}
+
+
+@router.post("/pitcher/{pitcher_id}/scheduled-throw")
+async def post_scheduled_throw(pitcher_id: str, request: Request):
+    _require_pitcher_auth(request, pitcher_id)
+    body = await request.json()
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="Body must be an object")
+    try:
+        throw = add_scheduled_throw(
+            pitcher_id,
+            {
+                "date": body.get("date"),
+                "type": body.get("type"),
+                "source": "button",
+                "notes": body.get("notes"),
+            },
+        )
+    except (ValueError, KeyError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return {"throw": throw}
+
+
+@router.delete("/pitcher/{pitcher_id}/scheduled-throw/{throw_id}")
+async def delete_scheduled_throw(pitcher_id: str, throw_id: str, request: Request):
+    _require_pitcher_auth(request, pitcher_id)
+    removed = remove_scheduled_throw(pitcher_id, throw_id)
+    if not removed:
+        raise HTTPException(status_code=404, detail="Throw not found")
+    return {"removed": True}
