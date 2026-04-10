@@ -1,6 +1,7 @@
 -- Migration: Programs tab + periodization scaffolding
 -- Adds program_templates (seed library) and training_programs (per-pitcher instances).
 -- Adds pitcher_training_model.active_program_id FK.
+-- Applied: 2026-04-09
 
 CREATE TABLE IF NOT EXISTS program_templates (
   id                      TEXT PRIMARY KEY,
