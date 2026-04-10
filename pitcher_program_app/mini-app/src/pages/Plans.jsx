@@ -4,11 +4,16 @@ import ProgramHero from '../components/ProgramHero';
 import WeekArc from '../components/WeekArc';
 import ScheduleCard from '../components/ScheduleCard';
 import TodayDetailCard from '../components/TodayDetailCard';
+import ProgramHistoryTimeline from '../components/ProgramHistoryTimeline';
 
 export default function Programs() {
   const { pitcherId, initData } = useAuth();
   const { data, loading, refetch } = useApi(
     pitcherId ? `/api/pitcher/${pitcherId}/program` : null,
+    initData
+  );
+  const { data: historyData } = useApi(
+    pitcherId ? `/api/pitcher/${pitcherId}/program/history` : null,
     initData
   );
 
@@ -60,6 +65,7 @@ export default function Programs() {
       <WeekArc arc={data.week_arc} onAddThrow={handleAddThrow} />
       <ScheduleCard schedule={data.schedule} />
       <TodayDetailCard today={data.today_detail} />
+      <ProgramHistoryTimeline programs={historyData?.programs} />
     </div>
   );
 }
