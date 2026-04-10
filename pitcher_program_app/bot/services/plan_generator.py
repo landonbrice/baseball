@@ -826,8 +826,30 @@ _PRESCRIPTION_DEFAULTS = {
 }
 
 
-def _get_training_intent(rotation_day: int, triage_result: dict) -> str:
-    """Map rotation day + triage to training intent (prescription phase)."""
+def _get_training_intent(
+    rotation_day: int,
+    triage_result: dict,
+    *,
+    pitcher_model: dict | None = None,
+) -> str:
+    """Map rotation day + triage to training intent (prescription phase).
+
+    Phase-aware gate (added 2026-04-09): if the pitcher has an active program
+    whose phase_type is NOT in_season, consult the phase's training_intent.
+    For in-season pitchers (every current UChicago pitcher), this function
+    returns from the legacy code path below — byte-identical to pre-phase-gate
+    behavior. Verified by scripts/verify_plan_gen_unchanged.py.
+    """
+    # === Phase gate ===
+    if pitcher_model:
+        phase_state = (pitcher_model.get("current_week_state") or {}).get("phase") or {}
+        phase_type = phase_state.get("phase_type")
+        if phase_type and phase_type != "in_season":
+            phase_intent = phase_state.get("training_intent")
+            if phase_intent:
+                return _blend_phase_with_rotation(phase_intent, rotation_day, triage_result)
+
+    # === Legacy in-season path — UNCHANGED from pre-2026-04-09 ===
     flag = triage_result.get("flag_level", "green")
     if flag in ("red", "yellow"):
         return "endurance"
@@ -839,6 +861,22 @@ def _get_training_intent(rotation_day: int, triage_result: dict) -> str:
         5: "endurance",
     }
     return day_intent.get(rotation_day, "strength")
+
+
+def _blend_phase_with_rotation(
+    phase_intent: str,
+    rotation_day: int,
+    triage_result: dict,
+) -> str:
+    """Blend phase intent with rotation-day context. v1 stub: phase wins.
+
+    Triage flags still suppress to endurance — safety first.
+    Full blending logic ships in the off-season activation spec.
+    """
+    flag = triage_result.get("flag_level", "green")
+    if flag in ("red", "yellow"):
+        return "endurance"
+    return phase_intent
 
 
 def _build_arm_care_blocks(arm_care: dict, plyocare) -> list:
