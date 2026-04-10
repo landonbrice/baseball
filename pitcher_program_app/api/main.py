@@ -14,29 +14,44 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from api.routes import router
 
+try:
+    from api.coach_routes import coach_router
+    _has_coach_routes = True
+except ImportError:
+    _has_coach_routes = False
+
 app = FastAPI(title="Pitcher Dashboard API", version="0.1.0")
 
-# CORS — allow mini-app origins
+# CORS — allow mini-app and coach-app origins
 ALLOWED_ORIGINS = [
-    "http://localhost:5173",   # Vite dev
-    "http://localhost:4173",   # Vite preview
+    "http://localhost:5173",   # Vite dev (mini-app)
+    "http://localhost:4173",   # Vite preview (mini-app)
+    "http://localhost:5174",   # Vite dev (coach-app)
     "https://uchi-baseball-app.vercel.app",
 ]
 
-# Add production URL if set
+# Add production mini-app URL if set
 mini_app_url = os.getenv("MINI_APP_URL", "").rstrip("/")
 if mini_app_url:
     ALLOWED_ORIGINS.append(mini_app_url)
+
+# Add production coach-app URL if set
+coach_app_url = os.getenv("COACH_APP_URL", "").rstrip("/")
+if coach_app_url:
+    ALLOWED_ORIGINS.append(coach_app_url)
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["GET", "POST"],
+    allow_methods=["GET", "POST", "PATCH", "DELETE"],
     allow_headers=["*"],
 )
 
 app.include_router(router)
+
+if _has_coach_routes:
+    app.include_router(coach_router)
 
 from bot.config import TELEGRAM_BOT_TOKEN, DEEPSEEK_API_KEY, MINI_APP_URL, DISABLE_AUTH
 
