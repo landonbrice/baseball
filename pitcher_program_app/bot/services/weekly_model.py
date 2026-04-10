@@ -185,3 +185,93 @@ def update_week_state_after_checkin(
 
     week_state["days"] = days
     return week_state
+
+
+# ---------------------------------------------------------------------------
+# Phase 3 additions: phase recompute + scheduled_throws CRUD
+# ---------------------------------------------------------------------------
+
+import uuid as _uuid
+from datetime import date, timezone
+from bot.services import db
+from bot.services.programs import compute_current_phase, get_active_program
+
+SCHEDULED_THROW_TYPES = {"catch", "long_toss", "bullpen", "side", "game"}
+SCHEDULED_THROW_RETENTION_DAYS = 14
+
+
+def update_phase_state(pitcher_id: str, as_of: date | None = None) -> dict | None:
+    """Recompute current_week_state.phase from the active program. Returns the new phase dict.
+
+    Called from checkin_service after each check-in. Safe to call when no active program
+    exists — returns None and does not write.
+    """
+    program = get_active_program(pitcher_id)
+    if not program:
+        return None
+    phase = compute_current_phase(program, as_of=as_of or date.today())
+
+    # Read-modify-write current_week_state
+    model = db.get_client().table("pitcher_training_model").select("current_week_state").eq("pitcher_id", pitcher_id).execute()
+    if not model.data:
+        return None
+    state = model.data[0].get("current_week_state") or {}
+    state["phase"] = phase
+    db.get_client().table("pitcher_training_model").update({"current_week_state": state}).eq("pitcher_id", pitcher_id).execute()
+    return phase
+
+
+def add_scheduled_throw(pitcher_id: str, throw: dict) -> dict:
+    """Append a scheduled throw to current_week_state.scheduled_throws.
+
+    `throw` must contain: date (ISO str), type (one of SCHEDULED_THROW_TYPES),
+    source ('chat'|'button'|'template'|'scraper'). Optional: notes.
+
+    Auto-prunes entries older than 14 days. Returns the appended throw with
+    a generated id and logged_at.
+    """
+    if throw.get("type") not in SCHEDULED_THROW_TYPES:
+        raise ValueError(f"Invalid throw type: {throw.get('type')}")
+    if not throw.get("date"):
+        raise ValueError("throw missing 'date'")
+    if not throw.get("source"):
+        raise ValueError("throw missing 'source'")
+
+    enriched = {
+        "id": str(_uuid.uuid4()),
+        "date": throw["date"],
+        "type": throw["type"],
+        "source": throw["source"],
+        "logged_at": datetime.now(timezone.utc).isoformat(),
+        "notes": throw.get("notes"),
+    }
+
+    model = db.get_client().table("pitcher_training_model").select("current_week_state").eq("pitcher_id", pitcher_id).execute()
+    if not model.data:
+        raise KeyError(f"pitcher_training_model not found for {pitcher_id}")
+
+    state = model.data[0].get("current_week_state") or {}
+    throws = state.get("scheduled_throws") or []
+
+    cutoff = (date.today() - timedelta(days=SCHEDULED_THROW_RETENTION_DAYS)).isoformat()
+    throws = [t for t in throws if t.get("date", "9999") >= cutoff]
+    throws.append(enriched)
+
+    state["scheduled_throws"] = throws
+    db.get_client().table("pitcher_training_model").update({"current_week_state": state}).eq("pitcher_id", pitcher_id).execute()
+    return enriched
+
+
+def remove_scheduled_throw(pitcher_id: str, throw_id: str) -> bool:
+    """Remove a scheduled throw by id. Returns True if removed."""
+    model = db.get_client().table("pitcher_training_model").select("current_week_state").eq("pitcher_id", pitcher_id).execute()
+    if not model.data:
+        return False
+    state = model.data[0].get("current_week_state") or {}
+    throws = state.get("scheduled_throws") or []
+    filtered = [t for t in throws if t.get("id") != throw_id]
+    if len(filtered) == len(throws):
+        return False
+    state["scheduled_throws"] = filtered
+    db.get_client().table("pitcher_training_model").update({"current_week_state": state}).eq("pitcher_id", pitcher_id).execute()
+    return True
