@@ -18,6 +18,8 @@ from __future__ import annotations
 from datetime import date, timedelta
 from typing import Optional
 
+from bot.services import db
+
 
 def compute_current_phase(program: dict, as_of: Optional[date] = None) -> dict:
     """Walk a program's phases_snapshot to determine current phase + week.
@@ -123,3 +125,55 @@ def _resolve_phase_intent(phase: dict, week_in_phase: int) -> Optional[str]:
             if week_def.get("week") == week_in_phase:
                 return week_def.get("training_intent")
     return phase.get("default_training_intent")
+
+
+def create_program_for_pitcher(
+    pitcher_id: str,
+    template_id: str,
+    start_date: date,
+    *,
+    deactivate_existing: bool = True,
+    deactivation_reason: str = "switched",
+) -> int:
+    """Instantiate a training_programs row from a template, set as active.
+
+    Returns the new program id.
+    """
+    template = db.get_program_template(template_id)
+    if not template:
+        raise ValueError(f"Unknown template: {template_id}")
+
+    if deactivate_existing:
+        existing = db.get_active_training_program(pitcher_id)
+        if existing:
+            db.deactivate_training_program(existing["id"], deactivation_reason)
+
+    row = {
+        "pitcher_id": pitcher_id,
+        "template_id": template_id,
+        "name": template["name"],
+        "start_date": start_date.isoformat(),
+        "total_weeks": template.get("default_total_weeks"),
+        "phases_snapshot": template["phases"],
+    }
+    new_id = db.insert_training_program(row)
+    db.set_active_program_id(pitcher_id, new_id)
+    return new_id
+
+
+def get_active_program(pitcher_id: str) -> Optional[dict]:
+    """Returns the active program dict, or None."""
+    return db.get_active_training_program(pitcher_id)
+
+
+def list_program_history(pitcher_id: str) -> list[dict]:
+    """All programs for a pitcher, newest first, with computed phase for the active one."""
+    rows = db.list_training_programs_for_pitcher(pitcher_id)
+    for row in rows:
+        if row.get("deactivated_at") is None:
+            row["_current_phase"] = compute_current_phase(row)
+    return rows
+
+
+def deactivate_program(program_id: int, reason: str) -> None:
+    db.deactivate_training_program(program_id, reason)
