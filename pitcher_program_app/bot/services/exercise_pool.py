@@ -101,6 +101,30 @@ def build_exercise_pool(
     injury_areas = [i.get("area", "") for i in injuries]
     flag_level = triage_result.get("flag_level", "green")
 
+    # Phase emphasis override — team periodization phase shifts training intent
+    # Triage overrides (red/yellow → endurance) always take precedence
+    try:
+        from bot.services.db import get_current_phase
+        import datetime as _dt
+        import importlib as _il
+        _cfg = _il.import_module("bot.config")
+        _today_str = _dt.datetime.now(_cfg.CHICAGO_TZ).strftime("%Y-%m-%d")
+        _team_id = pitcher_profile.get("team_id", "uchicago_baseball")
+        current_phase = get_current_phase(_team_id, _today_str)
+        if current_phase and current_phase.get("emphasis"):
+            phase_emphasis = current_phase["emphasis"]
+            emphasis_to_intent = {
+                "hypertrophy": "hypertrophy",
+                "strength": "strength",
+                "power": "power",
+                "maintenance": "endurance",
+                "gpp": "hypertrophy",
+            }
+            if training_intent != "endurance":  # triage override (red/yellow) always wins
+                training_intent = emphasis_to_intent.get(phase_emphasis, training_intent)
+    except Exception as _e:
+        logger.debug("Phase emphasis lookup failed (%s), using default intent", _e)
+
     # Load pitcher training model for preferences and equipment constraints
     from bot.services.db import get_training_model
     pitcher_id = pitcher_profile.get("pitcher_id", "")

@@ -135,6 +135,27 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
     else:
         today_template = rotation_template["days"].get(f"day_{rotation_day}", {})
 
+    # --- Team block + forward-looking start resolution ---
+    from bot.services.team_programs import resolve_team_block, compute_days_until_next_start
+    from bot.config import CHICAGO_TZ
+    from datetime import datetime
+
+    team_id = profile.get("team_id", "uchicago_baseball")
+    today_str = datetime.now(CHICAGO_TZ).strftime("%Y-%m-%d")
+
+    # Check for team-assigned throwing block
+    team_block = resolve_team_block(pitcher_id, team_id, today_str)
+
+    # Check for upcoming start assignment
+    days_until_start = compute_days_until_next_start(pitcher_id, team_id, today_str)
+
+    # If pitcher has an assigned start coming up, override rotation_day
+    if days_until_start is not None and days_until_start <= 7:
+        effective_rotation_day = days_until_start
+        template_day = f"day_{effective_rotation_day}"
+        today_template = rotation_template["days"].get(template_day, today_template)
+        logger.info(f"{pitcher_id}: days_until_start={days_until_start}, overriding to {template_day}")
+
     # Arm care template
     arm_care_type = triage_result["protocol_adjustments"]["arm_care_template"]
     arm_care = load_template(f"arm_care_{arm_care_type}.json")
@@ -187,6 +208,7 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
     fallback_throwing_plan = _build_throwing_plan(
         today_template, rotation_day=rotation_day, role=pitcher_role,
         throwing_adjustments=throwing_adjustments, throw_intent=throw_intent,
+        team_block=team_block,
     )
     estimated_duration_min = None
     if today_template.get("lifting"):
@@ -1142,7 +1164,8 @@ def _resolve_throwing_phases(day_type_template: dict, jband: dict, day_type_key:
 
 
 def _build_throwing_plan(today_template: dict, rotation_day: int = None, role: str = "starter",
-                         throwing_adjustments: dict = None, throw_intent: str = ""):
+                         throwing_adjustments: dict = None, throw_intent: str = "",
+                         team_block=None):
     """Build a structured throwing plan from templates.
 
     Returns a dict with type, label, intent, intensity_range, estimated_duration_min,
@@ -1152,6 +1175,24 @@ def _build_throwing_plan(today_template: dict, rotation_day: int = None, role: s
     Applies triage throwing_adjustments (max_day_type, skip_phases, override_to)
     and respects pitcher throw_intent (can downgrade but not upgrade past triage cap).
     """
+    # Team-assigned block overrides default rotation throwing template
+    if team_block and not team_block.get("is_rest_day"):
+        phase = team_block.get("day_content") or {}
+        return {
+            "day_type": f"team_block_{team_block['template_id']}",
+            "day_label": phase.get("name", "Team Program"),
+            "week": team_block.get("week"),
+            "day_of_week": team_block.get("day_of_week"),
+            "intensity": f"{phase.get('effort_pct', 50)}% effort",
+            "distances": phase.get("distances", []),
+            "total_throws": phase.get("total_throws_range", [0, 0]),
+            "intent_notes": phase.get("intent_notes", ""),
+            "drills": phase.get("drills", []),
+            "recovery": team_block.get("post_session_recovery", "medium"),
+            "team_block_id": team_block.get("block_id"),
+            "team_block_tag": f"Week {team_block['week']}, Day {team_block['day_of_week']}",
+        }
+
     day_types, rotation_map, jband = _load_throwing_templates()
     adj = throwing_adjustments or {}
 
