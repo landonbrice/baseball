@@ -620,3 +620,89 @@ async def dismiss_insight(suggestion_id: str, request: Request):
     _db.upsert_suggestion(suggestion)
 
     return {"status": "ok"}
+
+
+# ---- Block Compliance ----
+
+@coach_router.get("/team-programs/{block_id}/compliance")
+async def block_compliance(block_id: str, request: Request):
+    """Per-pitcher compliance for an active team block."""
+    await require_coach_auth(request)
+    team_id = request.state.team_id
+    today_str = datetime.now(CHICAGO_TZ).strftime("%Y-%m-%d")
+
+    # Verify block belongs to team
+    active = _db.get_active_team_blocks(team_id)
+    block = next((b for b in active if b["block_id"] == block_id), None)
+    if not block:
+        raise HTTPException(status_code=404, detail="Block not found")
+
+    pitchers = list_team_pitchers(team_id)
+    today_entries = (
+        _db.get_client().table("daily_entries")
+        .select("pitcher_id, active_team_block_id, completed_exercises, plan_generated, throwing")
+        .eq("team_id", team_id)
+        .eq("date", today_str)
+        .execute()
+    ).data or []
+    entry_map = {e["pitcher_id"]: e for e in today_entries}
+
+    compliance = []
+    for p in pitchers:
+        pid = p["pitcher_id"]
+        entry = entry_map.get(pid)
+        status = "skipped"
+        modification_reason = None
+
+        if entry:
+            throwing = entry.get("throwing") or (entry.get("plan_generated") or {}).get("throwing_plan") or {}
+            if throwing.get("team_block_id") == block_id:
+                status = "full"
+            elif entry.get("active_team_block_id") == block_id:
+                status = "modified"
+                mods = (entry.get("plan_generated") or {}).get("modifications_applied") or []
+                if mods:
+                    modification_reason = "; ".join(str(m) for m in mods[:3])
+
+        compliance.append({
+            "pitcher_id": pid,
+            "name": p.get("name", ""),
+            "status": status,
+            "modification_reason": modification_reason,
+        })
+
+    full = sum(1 for c in compliance if c["status"] == "full")
+    modified = sum(1 for c in compliance if c["status"] == "modified")
+    skipped = sum(1 for c in compliance if c["status"] == "skipped")
+
+    return {
+        "block": block,
+        "today": {
+            "prescribed": len(pitchers),
+            "full": full,
+            "modified": modified,
+            "skipped": skipped,
+            "details": compliance,
+        },
+    }
+
+
+# ---- Internal ----
+
+@coach_router.post("/internal/insights/run")
+async def run_insights(request: Request):
+    """Cron-triggered insight generation. Protected by shared secret."""
+    auth_header = request.headers.get("X-Internal-Secret", "")
+    expected = os.getenv("INTERNAL_API_SECRET", "")
+    if not expected or auth_header != expected:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    from bot.services.coach_insights import run_insights_for_team
+    # Run for all teams
+    teams = _db.get_client().table("teams").select("team_id").execute().data or []
+    total = 0
+    for team in teams:
+        new = run_insights_for_team(team["team_id"])
+        total += len(new)
+
+    return {"status": "ok", "new_suggestions": total}
