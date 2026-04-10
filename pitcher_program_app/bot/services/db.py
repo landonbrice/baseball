@@ -177,7 +177,7 @@ _DAILY_ENTRY_COLUMNS = {
     "pitcher_id", "date", "rotation_day", "days_since_outing", "pre_training",
     "plan_narrative", "morning_brief", "plan_generated", "actual_logged",
     "bot_observations", "arm_care", "lifting", "throwing", "warmup", "mobility", "notes",
-    "completed_exercises", "soreness_response", "research_sources",
+    "completed_exercises", "soreness_response", "research_sources", "team_id", "active_team_block_id",
 }
 
 
@@ -409,8 +409,8 @@ def get_whoop_daily_range(pitcher_id: str, days: int = 7) -> list:
 # ---------------------------------------------------------------------------
 
 def get_schedule(limit: int = 50) -> list:
-    """Return schedule rows ordered by game_date."""
-    resp = (get_client().table("schedule")
+    """Return team_games rows ordered by game_date (backward-compat with schedule table)."""
+    resp = (get_client().table("team_games")
             .select("*")
             .order("game_date", desc=False)
             .limit(limit)
@@ -419,28 +419,25 @@ def get_schedule(limit: int = 50) -> list:
 
 
 def get_schedule_by_dates(dates: list) -> dict:
-    """Return schedule rows keyed by game_date for a list of date strings."""
+    """Return team_games rows keyed by game_date for a list of date strings."""
     if not dates:
         return {}
-    resp = (get_client().table("schedule")
-            .select("game_date,opponent,home_away,location,start_time,is_doubleheader")
+    resp = (get_client().table("team_games")
+            .select("game_date,opponent,home_away,game_time,is_doubleheader_g2")
             .in_("game_date", dates)
             .execute())
-    result = {}
-    for row in (resp.data or []):
-        result[row["game_date"]] = row
-    return result
+    return {row["game_date"]: row for row in (resp.data or [])}
 
 
 def get_upcoming_games(from_date: str, days: int = 30) -> list:
-    """Return schedule rows for the next N days from a given date."""
+    """Return team_games rows for the next N days from a given date."""
     from datetime import date as _date, timedelta
     end_date = (_date.fromisoformat(from_date) + timedelta(days=days)).isoformat()
-    resp = (get_client().table("schedule")
-            .select("game_date,opponent,home_away,location,start_time,is_doubleheader")
+    resp = (get_client().table("team_games")
+            .select("game_date,opponent,home_away,game_time,is_doubleheader_g2")
             .gte("game_date", from_date)
             .lte("game_date", end_date)
-            .order("game_date", desc=False)
+            .order("game_date")
             .execute())
     return resp.data or []
 
@@ -535,3 +532,125 @@ def set_active_program_id(pitcher_id: str, program_id: Optional[int]) -> None:
     get_client().table("pitcher_training_model").update(
         {"active_program_id": program_id}
     ).eq("pitcher_id", pitcher_id).execute()
+
+
+# --- team_games ---
+
+def get_team_game(game_id: str) -> dict:
+    """Return a single team_games row by game_id."""
+    resp = (get_client().table("team_games")
+            .select("*")
+            .eq("game_id", game_id)
+            .single()
+            .execute())
+    return resp.data or {}
+
+
+def upsert_team_game(game: dict) -> dict:
+    """Insert or update a team_games row."""
+    resp = (get_client().table("team_games")
+            .upsert(game, on_conflict="game_id")
+            .execute())
+    return resp.data[0] if resp.data else {}
+
+
+def delete_team_game(game_id: str) -> None:
+    """Delete a team_games row."""
+    get_client().table("team_games").delete().eq("game_id", game_id).execute()
+
+
+# --- block_library ---
+
+def list_block_library() -> list:
+    """Return all block_library rows."""
+    resp = (get_client().table("block_library")
+            .select("*")
+            .order("name")
+            .execute())
+    return resp.data or []
+
+
+# --- team_assigned_blocks ---
+
+def get_active_team_blocks(team_id: str) -> list:
+    """Return active team_assigned_blocks for a team."""
+    resp = (get_client().table("team_assigned_blocks")
+            .select("*")
+            .eq("team_id", team_id)
+            .eq("status", "active")
+            .execute())
+    return resp.data or []
+
+
+def upsert_team_block(block: dict) -> dict:
+    resp = (get_client().table("team_assigned_blocks")
+            .upsert(block, on_conflict="block_id")
+            .execute())
+    return resp.data[0] if resp.data else {}
+
+
+# --- coach_suggestions ---
+
+def get_pending_suggestions(team_id: str) -> list:
+    """Return pending coach_suggestions for a team."""
+    resp = (get_client().table("coach_suggestions")
+            .select("*")
+            .eq("team_id", team_id)
+            .eq("status", "pending")
+            .order("created_at", desc=True)
+            .execute())
+    return resp.data or []
+
+
+def upsert_suggestion(suggestion: dict) -> dict:
+    resp = (get_client().table("coach_suggestions")
+            .upsert(suggestion, on_conflict="suggestion_id")
+            .execute())
+    return resp.data[0] if resp.data else {}
+
+
+# --- training_phase_blocks ---
+
+def get_phase_blocks(team_id: str) -> list:
+    """Return training_phase_blocks for a team, ordered by start_date."""
+    resp = (get_client().table("training_phase_blocks")
+            .select("*")
+            .eq("team_id", team_id)
+            .order("start_date")
+            .execute())
+    return resp.data or []
+
+
+def get_current_phase(team_id: str, today_str: str) -> dict | None:
+    """Return the phase block containing today's date."""
+    resp = (get_client().table("training_phase_blocks")
+            .select("*")
+            .eq("team_id", team_id)
+            .lte("start_date", today_str)
+            .gte("end_date", today_str)
+            .limit(1)
+            .execute())
+    return resp.data[0] if resp.data else None
+
+
+def upsert_phase_block(block: dict) -> dict:
+    resp = (get_client().table("training_phase_blocks")
+            .upsert(block, on_conflict="phase_block_id")
+            .execute())
+    return resp.data[0] if resp.data else {}
+
+
+def delete_phase_block(phase_block_id: str) -> None:
+    get_client().table("training_phase_blocks").delete().eq("phase_block_id", phase_block_id).execute()
+
+
+# --- coaches ---
+
+def get_coach_by_supabase_id(supabase_user_id: str) -> dict | None:
+    """Look up coach by Supabase Auth user ID."""
+    resp = (get_client().table("coaches")
+            .select("*")
+            .eq("supabase_user_id", supabase_user_id)
+            .limit(1)
+            .execute())
+    return resp.data[0] if resp.data else None
