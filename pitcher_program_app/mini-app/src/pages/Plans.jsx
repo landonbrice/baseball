@@ -1,5 +1,6 @@
 import { useAuth } from '../App';
 import { useApi } from '../hooks/useApi';
+import { postScheduledThrow } from '../api';
 import ProgramHero from '../components/ProgramHero';
 import WeekArc from '../components/WeekArc';
 import ScheduleCard from '../components/ScheduleCard';
@@ -18,19 +19,12 @@ export default function Programs() {
   );
 
   async function handleAddThrow(throwData) {
-    const resp = await fetch(`/api/pitcher/${pitcherId}/scheduled-throw`, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'X-Telegram-Init-Data': initData || '',
-      },
-      body: JSON.stringify(throwData),
-    });
-    if (!resp.ok) {
-      console.error('Failed to add throw:', await resp.text());
-      return;
+    try {
+      await postScheduledThrow(pitcherId, throwData, initData);
+      refetch();
+    } catch (err) {
+      console.error('Failed to add throw:', err);
     }
-    refetch();
   }
 
   if (loading) {

@@ -261,3 +261,24 @@ export async function patchProfile(pitcherId, partialData, initData = null) {
 export async function fetchTrainingLoad(pitcherId, initData = null) {
   return fetchApi(`/api/pitcher/${pitcherId}/training-load`, initData);
 }
+
+/**
+ * Add a scheduled throw (button path).
+ */
+export async function postScheduledThrow(pitcherId, throwData, initData = null) {
+  return postApi(`/api/pitcher/${pitcherId}/scheduled-throw`, throwData, initData);
+}
+
+/**
+ * Remove a scheduled throw.
+ */
+export async function deleteScheduledThrow(pitcherId, throwId, initData = null) {
+  const headers = {};
+  if (initData) headers['X-Telegram-Init-Data'] = initData;
+  const res = await fetch(`${API_BASE}/api/pitcher/${pitcherId}/scheduled-throw/${throwId}`, {
+    method: 'DELETE',
+    headers,
+  });
+  if (!res.ok) throw new Error(`API ${res.status}: ${res.statusText}`);
+  return res.json();
+}
