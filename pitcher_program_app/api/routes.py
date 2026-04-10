@@ -2055,9 +2055,9 @@ def _fetch_schedule_for_window(start_iso: str, end_iso: str, pitcher_id: str) ->
             _db.get_client()
             .table("schedule")
             .select("*")
-            .gte("date", start_iso)
-            .lte("date", end_iso)
-            .order("date")
+            .gte("game_date", start_iso)
+            .lte("game_date", end_iso)
+            .order("game_date")
             .execute()
         )
     except Exception:
@@ -2065,12 +2065,12 @@ def _fetch_schedule_for_window(start_iso: str, end_iso: str, pitcher_id: str) ->
     games = resp.data or []
     return [
         {
-            "date": g["date"],
+            "date": g["game_date"],
             "opponent": g.get("opponent", "TBD"),
-            "home": g.get("home", True),
-            "time": g.get("time"),
+            "home": g.get("home_away") == "home",
+            "time": g.get("start_time"),
             "result": g.get("result"),
-            "doubleheader": g.get("doubleheader", False),
+            "doubleheader": g.get("is_doubleheader", False),
             "is_your_start": False,
         }
         for g in games
