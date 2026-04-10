@@ -1,7 +1,7 @@
 # Pitcher Training Intelligence — Claude Init
 
-> Last updated: 2026-04-09
-> Sprint status: Phases 1-18 complete. Plan source tagging, silent degradation monitoring, guided day flow all live. Next: The Ledger, periodization, exercise progression curves, inline coach panel.
+> Last updated: 2026-04-10
+> Sprint status: Phases 1-19 complete. Research-aware coaching layer live. Next: The Ledger, periodization, exercise progression curves, inline coach panel.
 
 ## What This Is
 
@@ -128,6 +128,19 @@ Every daily phase (warmup → arm care → lifting → throwing → mobility) no
 ### Phase 18a: Swap endpoint dual-write fix (2026-04-09) — COMPLETE
 Pre-existing bug surfaced during guided-flow testing: `swap_exercise` and `apply_mutations` were reading from `entry.plan_generated.lifting.exercises` (nested JSONB) but `checkin_service` writes the plan to `entry.lifting.exercises` (top-level column). The swap endpoint returned 404 on every modern plan; the only reason it appeared to work before was that `ExerciseSwap` uses frontend-only `swapOverrides` state that masks backend failures visually. Fix: both endpoints now search top-level `entry.lifting.exercises` first, fall back to nested legacy locations, and write back BOTH locations for consistency. One-off `UPDATE` cleaned a ghost `plan_generated.lifting` from landon_brice's 2026-04-09 entry.
 
+### Phase 19: Research-Aware Coaching Layer (2026-04-10) — COMPLETE
+Wires the knowledge base into four surfaces through a unified resolver with deterministic safety guarantees.
+- **`bot/services/vocabulary.py`** — Canonical `INJURY_AREAS` (8 areas) and `MODIFICATION_TAGS` (14 tags). Single source of truth for injury keywords, research triggers, and modification descriptions. Triage now emits tag keys (e.g. `"fpm_volume"`) instead of freeform strings; `get_mod_description(tag)` converts back to human-readable for display.
+- **`bot/services/research_resolver.py`** — Unified resolver replacing split routing in `knowledge_retrieval.py`. Parses YAML frontmatter (`id`, `applies_to`, `triggers`, `priority`, `contexts`, `summary`) from all 14 research docs. Four-step selection: (1) critical docs matching `applies_to` ∩ pitcher's injury areas, (2) trigger-intersection from triage modifications, (3) user message keyword match (coach_chat only), (4) standard docs filling remaining char budget. Returns `ResearchPayload(combined_text, loaded_docs, trigger_reason)`. Module-level `_index_cache` with `clear_cache()`.
+- **`should_fire_research(profile, triage, user_message)`** — Three OR'd conditions: non-green flag, active modifications, injury keyword in message. Gates all four surfaces.
+- **Research doc frontmatter** — All 14 docs in `data/knowledge/research/` migrated to new schema. Old `keywords` + `type` kept for backward compat; new fields: `id`, `title`, `applies_to`, `triggers`, `phase`, `priority` (critical/standard/reference), `contexts` (plan_gen/coach_chat/morning/daily_plan_why), `summary`.
+- **Coach chat structured output** — `bot/prompts/coach_chat_prompt.md` instructs LLM to return JSON `{reply, mutation_card, lookahead}`. `mutation_card` has `type` (swap/rest/hold/addition), `title`, `rationale` (must cite loaded research), `actions[]`, `applies_to_date`. Parsed by `_parse_coach_response()` in `qa.py`; fallback via `_extract_reply_fallback()`. API `/chat` returns mutation cards as `type: "plan_mutation"` messages for the mini-app MutationPreview component.
+- **Morning notification two-pass** — Pass 1 builds deterministic draft (unchanged). Pass 2: if `should_fire_research()`, loads `morning_message.md` prompt, calls `call_llm()` with 15s timeout to rewrite draft with research context woven in. Falls back to draft on failure.
+- **Daily plan "why" affordance** — `ResearchWhySheet` component in `DailyCard.jsx`. "ⓘ why" button on lifting block header (visible when `research_sources.length > 0` and `!readOnly`). Bottom sheet fetches `GET /api/research/docs?ids=...` and displays doc titles + summaries.
+- **`research_sources` persistence** — `plan_generator.py` adds `research_sources: [doc.id, ...]` to both `python_plan` and LLM success path. Stored in `daily_entries.research_sources` (text[] column). `research_load_log` table tracks every resolver call (pitcher, context, trigger_reason, doc_ids, total_chars, degraded).
+- **Coverage tests** — `test_research_coverage.py`: every mod tag's triggers exist in some doc's frontmatter, every injury area has a critical doc, no orphan docs. `test_vocabulary.py` (5), `test_research_resolver.py` (8), `test_coach_chat.py` (5) = 21 total tests.
+- **Dead file audit** — `data/knowledge/FINAL_research_base.md` (top-level) moved to `_archive/` (superseded by research/ copy). `extended_knowledge.md` left in place (empty stub). Repo-root `research/` left as strategic reference (not runtime).
+
 ### What's Not Yet Built
 1. **The Ledger** — Modification history visualization. Data exists in `plan_generated.modifications_applied` and `pitcher_training_model.recent_swap_history`. Needs frontend timeline on Profile.
 2. **Periodization** — No multi-week phases (hypertrophy → strength → power → deload). Template repeats identically each week. Exercise pool adds variety but not progressive block structure. Biggest remaining architectural item in the PROJECT_VISION.
@@ -183,9 +196,11 @@ pitcher_program_app/
 │   │   ├── plan_generator.py     # Two-pass plan gen: Python constructs instant plan, LLM reviews/enriches
 │   │   ├── progression.py        # Arm feel trends, sleep patterns, recovery curves, weekly summaries, season summary
 │   │   ├── llm.py                # DeepSeek wrapper (call_llm + call_llm_reasoning, defaults 90s/120s, plan review uses 20s)
-│   │   ├── knowledge_retrieval.py # Exercise library search + auto-research generation
+│   │   ├── knowledge_retrieval.py # Exercise library search + auto-research generation (thin wrappers around resolver)
+│   │   ├── research_resolver.py  # Unified research resolver — frontmatter-driven doc routing for all surfaces
+│   │   ├── vocabulary.py         # Canonical injury areas + modification tags (single source of truth)
 │   │   └── web_research.py       # Tavily API fallback for Q&A
-│   └── prompts/                  # LLM prompt templates (.md): system, qa, plan_generation, triage, recovery
+│   └── prompts/                  # LLM prompt templates (.md): system, qa, plan_generation, triage, recovery, coach_chat, morning_message
 │
 ├── api/                          # FastAPI sidecar for mini-app
 │   ├── main.py                   # App, CORS, health check
@@ -397,6 +412,24 @@ Fully implemented 2026-03-29, v2 API migration 2026-03-31, PKCE state persistenc
 - `swap_exercise` and `apply_mutations` now search top-level `entry.lifting.exercises` FIRST (canonical modern path), fall back to `plan_generated.lifting.exercises`, then `plan_generated.exercise_blocks`. On success, both locations are written back for consistency.
 - The frontend (DailyCard line ~88: `lifting: entry.lifting || plan_generated?.lifting`) always reads top-level first, so "what the frontend shows" is the source of truth.
 
+### Research Resolver (`bot/services/research_resolver.py`)
+- **Single door for all surfaces** — `resolve_research(profile, context, triage, user_message, max_chars)` replaces all research routing. Context is one of: `plan_gen`, `coach_chat`, `morning`, `daily_plan_why`.
+- **Frontmatter-driven** — each research doc in `data/knowledge/research/` has YAML with `id`, `applies_to` (injury areas or `any`), `triggers` (tag keys), `priority` (critical/standard/reference), `contexts` (which surfaces can load it).
+- **Four-step selection** — (1) critical + applies_to match, (2) trigger intersection from triage mods, (3) user message keyword match (coach_chat only), (4) standard docs for remaining budget.
+- **`should_fire_research(profile, triage, user_message)`** — gates all surfaces. Three OR'd conditions: non-green flag, active modifications, injury keyword in message.
+- **Observability** — every `resolve_research()` call logs to `research_load_log` table (pitcher_id, context, trigger_reason, loaded_doc_ids, total_chars, degraded). Non-blocking.
+- **Module-level `_index_cache`** — persists for process lifetime. `clear_cache()` resets. Called when new research is generated via `classify_and_generate_research()`.
+
+### Vocabulary (`bot/services/vocabulary.py`)
+- **`INJURY_AREAS`** — 8 canonical areas (medial_elbow, forearm, shoulder, lower_back, oblique, hip, knee, ulnar_nerve). Each has `keywords` (for free-text matching) and `research_triggers` (for doc routing).
+- **`MODIFICATION_TAGS`** — 14 canonical tags (fpm_volume, rpe_cap_56, no_lifting, etc.). Each has `description` (human-readable) and `research_triggers`. Triage emits tag keys; `get_mod_description(tag)` converts to description for display.
+- **Consumed by** — `triage.py` (emits tag keys), `exercise_pool.py` (imports `INJURY_AREAS`), `research_resolver.py` (uses triggers for routing), `plan_generator.py` (uses `get_mod_description` for brief/notes).
+
+### Research-Aware Coach Chat
+- **Structured output** — when `should_fire_research()` fires, coach chat uses `coach_chat_prompt.md` which instructs LLM to return JSON `{reply, mutation_card, lookahead}`. `_parse_coach_response()` in `qa.py` handles parsing; `_extract_reply_fallback()` extracts reply from malformed JSON.
+- **mutation_card** — `{type, title, rationale, actions[], applies_to_date}`. Actions use same format as existing `apply_mutations` endpoint. API `/chat` returns cards as `type: "plan_mutation"` messages.
+- **Fallback** — if research doesn't fire, standard Q&A path runs (qa_prompt.md + retrieve_knowledge). Both paths coexist in `api/routes.py` `post_chat`.
+
 ### API Endpoints (routes.py)
 **Auth:** `/api/auth/resolve`
 **Admin:** `GET /admin/health` (admin-only, initData match to `ADMIN_TELEGRAM_CHAT_ID`)
@@ -407,6 +440,7 @@ Fully implemented 2026-03-29, v2 API migration 2026-03-31, PKCE state persistenc
 **Mutations:** `POST /pitcher/{id}/apply-mutations` (coach-suggested plan changes)
 **WHOOP:** `GET /pitcher/{id}/whoop-today`, `GET /whoop/callback` (OAuth)
 **Plans:** `GET/POST /plans`, `/plans/{id}/activate`, `/deactivate`, `/apply-plan/{id}`, `/generate-plan`
+**Research:** `GET /research/docs?ids=...` (doc metadata for daily plan "why" bottom sheet)
 **Library:** `/api/exercises`, `/api/exercises/slugs`
 **Team:** `/api/staff/pulse` (known issue: intermittent 500s)
 **Trends:** `/api/pitcher/{id}/trend`, `/api/pitcher/{id}/chat-history`
@@ -493,6 +527,7 @@ Project: `pitcher-training-intel` (us-east-1)
 | `whoop_daily` | Daily WHOOP biometrics — recovery, HRV, sleep, strain, raw API data |
 | `mobility_videos` | 21 follow-along mobility videos — id, title, youtube_url, type (P/R, Hip, Full, etc.) |
 | `mobility_weekly_rotation` | 10-week rotation schedule — week (1-10), slot (1-4), video_id FK |
+| `research_load_log` | Observability: every `resolve_research()` call — pitcher_id, context, trigger_reason, loaded_doc_ids, total_chars, degraded |
 
 ## Deployment
 
