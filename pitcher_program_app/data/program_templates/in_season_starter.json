@@ -1,0 +1,20 @@
+{
+  "id": "in_season_starter",
+  "name": "In-Season Starter Protocol",
+  "role": "starter",
+  "phase_type": "in_season",
+  "rotation_length": 7,
+  "default_total_weeks": 12,
+  "description": "7-day rotation for in-season starting pitchers. Phase is descriptive only; daily plan generation continues to use rotation day + triage.",
+  "phases": [
+    {
+      "phase_id": "in_season_main",
+      "name": "Maintenance",
+      "phase_type": "in_season",
+      "week_count": 12,
+      "default_training_intent": null,
+      "microcycle": null
+    }
+  ],
+  "rotation_template_keys": ["starter_7day"]
+}

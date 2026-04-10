@@ -1,0 +1,20 @@
+{
+  "id": "in_season_short_relief",
+  "name": "In-Season Short Relief Protocol",
+  "role": "short_relief",
+  "phase_type": "in_season",
+  "rotation_length": 3,
+  "default_total_weeks": 12,
+  "description": "Flexible 3-day cycle for short relievers. Anchored to last appearance, not calendar.",
+  "phases": [
+    {
+      "phase_id": "in_season_main",
+      "name": "Maintenance",
+      "phase_type": "in_season",
+      "week_count": 12,
+      "default_training_intent": null,
+      "microcycle": null
+    }
+  ],
+  "rotation_template_keys": ["reliever_flexible"]
+}
