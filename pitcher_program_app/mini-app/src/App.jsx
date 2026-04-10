@@ -12,6 +12,7 @@ import LogHistory from './pages/LogHistory';
 import Profile from './pages/Profile';
 import Plans from './pages/Plans';
 import PlanDetail from './pages/PlanDetail';
+import ProgramDetail from './pages/ProgramDetail';
 
 class ErrorBoundary extends Component {
   constructor(props) { super(props); this.state = { error: null, errorInfo: null }; }
@@ -102,6 +103,7 @@ export default function App() {
                   <Route path="coach" element={<Coach />} />
                   <Route path="plans" element={<Plans />} />
                   <Route path="plans/:planId" element={<PlanDetail />} />
+                  <Route path="programs/:programId" element={<ProgramDetail />} />
                   <Route path="log" element={<LogHistory />} />
                   <Route path="exercises" element={<ExerciseLibrary />} />
                   <Route path="profile" element={<Profile />} />

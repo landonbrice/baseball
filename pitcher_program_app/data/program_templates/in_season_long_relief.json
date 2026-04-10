@@ -1,0 +1,20 @@
+{
+  "id": "in_season_long_relief",
+  "name": "In-Season Long Relief Protocol",
+  "role": "long_relief",
+  "phase_type": "in_season",
+  "rotation_length": 4,
+  "default_total_weeks": 12,
+  "description": "4-day cycle for multi-inning relievers. Slightly longer recovery window than short relief.",
+  "phases": [
+    {
+      "phase_id": "in_season_main",
+      "name": "Maintenance",
+      "phase_type": "in_season",
+      "week_count": 12,
+      "default_training_intent": null,
+      "microcycle": null
+    }
+  ],
+  "rotation_template_keys": ["reliever_flexible"]
+}

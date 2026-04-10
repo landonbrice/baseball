@@ -1,0 +1,36 @@
+{
+  "id": "return_to_throwing",
+  "name": "Return to Throwing",
+  "role": "any",
+  "phase_type": "return_to_throwing",
+  "rotation_length": 7,
+  "default_total_weeks": 6,
+  "description": "Six-week ramp for pitchers returning from injury. Phase progression drives training_intent. Not assigned to any pitcher in v1; coach must swap a pitcher to it explicitly.",
+  "phases": [
+    {
+      "phase_id": "rtt_acclimation",
+      "name": "Acclimation",
+      "phase_type": "return_to_throwing",
+      "week_count": 2,
+      "default_training_intent": "endurance",
+      "microcycle": null
+    },
+    {
+      "phase_id": "rtt_build",
+      "name": "Build",
+      "phase_type": "return_to_throwing",
+      "week_count": 2,
+      "default_training_intent": "hypertrophy",
+      "microcycle": null
+    },
+    {
+      "phase_id": "rtt_intent",
+      "name": "Intent",
+      "phase_type": "return_to_throwing",
+      "week_count": 2,
+      "default_training_intent": "strength",
+      "microcycle": null
+    }
+  ],
+  "rotation_template_keys": ["starter_7day"]
+}

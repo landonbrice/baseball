@@ -86,6 +86,29 @@ async def handle_question(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
         history = context.user_data.get("conversation_history", [])
 
+        # Detect throwing intent (Task 4.2 — non-blocking)
+        throw_confirmation = None
+        try:
+            from bot.services.throw_intent_parser import parse_throw_intent
+            from bot.services.weekly_model import add_scheduled_throw
+            from datetime import datetime
+            from bot.config import CHICAGO_TZ
+
+            today_chicago = datetime.now(CHICAGO_TZ).date()
+            throw_intent = parse_throw_intent(question, today_chicago)
+            if throw_intent:
+                try:
+                    add_scheduled_throw(
+                        pitcher_id,
+                        {**throw_intent, "source": "chat"},
+                    )
+                    type_label = throw_intent['type'].replace('_', ' ')
+                    throw_confirmation = f"Got it — {type_label} on {throw_intent['date']} added to your week. (Reply 'cancel last' to undo.)"
+                except Exception as exc:
+                    logger.warning(f"add_scheduled_throw failed for {pitcher_id}: {exc}")
+        except Exception as exc:
+            logger.warning(f"throw intent detection failed for {pitcher_id}: {exc}")
+
         # Route complex protocol requests to reasoning model
         q_lower = question.lower()
         needs_reasoning = any(kw in q_lower for kw in _REASONING_KEYWORDS)
@@ -93,6 +116,9 @@ async def handle_question(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             response = await call_llm_reasoning(system_prompt, user_prompt, max_tokens=4000, history=history)
         else:
             response = await call_llm(system_prompt, user_prompt, history=history)
+
+        if throw_confirmation:
+            response = f"{throw_confirmation}\n\n{response}"
         await update.message.reply_text(response)
 
         history.append({"role": "user", "content": question})

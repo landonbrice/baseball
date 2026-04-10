@@ -6,6 +6,7 @@ and any other module that needs persistent data access.
 
 import logging
 import os
+from typing import Optional
 
 from supabase import create_client, Client
 
@@ -442,3 +443,95 @@ def get_upcoming_games(from_date: str, days: int = 30) -> list:
             .order("game_date", desc=False)
             .execute())
     return resp.data or []
+
+
+# === Program templates + training programs ===
+
+def get_program_template(template_id: str) -> Optional[dict]:
+    """Load a program template by id, or None if not found."""
+    resp = (
+        get_client()
+        .table("program_templates")
+        .select("*")
+        .eq("id", template_id)
+        .execute()
+    )
+    return resp.data[0] if resp.data else None
+
+
+def list_program_templates() -> list[dict]:
+    """All program templates, ordered by id."""
+    resp = (
+        get_client()
+        .table("program_templates")
+        .select("*")
+        .order("id")
+        .execute()
+    )
+    return resp.data or []
+
+
+def upsert_program_template(template: dict) -> None:
+    """Insert or update a template by id."""
+    get_client().table("program_templates").upsert(template, on_conflict="id").execute()
+
+
+def insert_training_program(row: dict) -> int:
+    """Insert a training_programs row, returning the new id."""
+    resp = get_client().table("training_programs").insert(row).execute()
+    return resp.data[0]["id"]
+
+
+def get_training_program(program_id: int) -> Optional[dict]:
+    resp = (
+        get_client()
+        .table("training_programs")
+        .select("*")
+        .eq("id", program_id)
+        .execute()
+    )
+    return resp.data[0] if resp.data else None
+
+
+def get_active_training_program(pitcher_id: str) -> Optional[dict]:
+    """Return the pitcher's currently active program (deactivated_at IS NULL)."""
+    resp = (
+        get_client()
+        .table("training_programs")
+        .select("*")
+        .eq("pitcher_id", pitcher_id)
+        .is_("deactivated_at", "null")
+        .order("created_at", desc=True)
+        .limit(1)
+        .execute()
+    )
+    return resp.data[0] if resp.data else None
+
+
+def list_training_programs_for_pitcher(pitcher_id: str) -> list[dict]:
+    """All programs for a pitcher, newest first."""
+    resp = (
+        get_client()
+        .table("training_programs")
+        .select("*")
+        .eq("pitcher_id", pitcher_id)
+        .order("created_at", desc=True)
+        .execute()
+    )
+    return resp.data or []
+
+
+def deactivate_training_program(program_id: int, reason: str) -> None:
+    from datetime import datetime, timezone
+    get_client().table("training_programs").update(
+        {
+            "deactivated_at": datetime.now(timezone.utc).isoformat(),
+            "deactivation_reason": reason,
+        }
+    ).eq("id", program_id).execute()
+
+
+def set_active_program_id(pitcher_id: str, program_id: Optional[int]) -> None:
+    get_client().table("pitcher_training_model").update(
+        {"active_program_id": program_id}
+    ).eq("pitcher_id", pitcher_id).execute()
