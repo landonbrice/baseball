@@ -970,6 +970,11 @@ function ThrowingBlock({ emoji, label, throwing, fallbackPlan, exerciseMap, slug
             {intensity && <PillBadge>{intensity}</PillBadge>}
             {duration && <PillBadge>{duration} min</PillBadge>}
             {vol?.total_throws_estimate > 0 && <PillBadge>~{vol.total_throws_estimate} throws</PillBadge>}
+            {data.team_block_tag && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', borderRadius: 9999, fontSize: 11, fontWeight: 500, backgroundColor: 'rgba(92, 16, 32, 0.1)', color: '#5c1020' }}>
+                {data.team_block_tag}
+              </span>
+            )}
           </div>
           {reasoning && typeof reasoning === 'string' && !data.triage_modified && (
             <p style={{ fontSize: 11, color: 'var(--color-ink-muted)', fontStyle: 'italic', lineHeight: 1.5, margin: '4px 0 0' }}>
