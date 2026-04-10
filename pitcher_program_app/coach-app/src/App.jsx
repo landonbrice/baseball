@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useCoachAuth } from './hooks/useCoachAuth'
+import { ToastProvider } from './components/Toast'
 import Shell from './components/Shell'
 import Login from './pages/Login'
 import TeamOverview from './pages/TeamOverview'
@@ -38,10 +39,12 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/*" element={<ProtectedRoutes />} />
-        </Routes>
+        <ToastProvider>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/*" element={<ProtectedRoutes />} />
+          </Routes>
+        </ToastProvider>
       </AuthProvider>
     </BrowserRouter>
   )
