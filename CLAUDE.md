@@ -1,7 +1,7 @@
 # Pitcher Training Intelligence — Claude Init
 
-> Last updated: 2026-04-10
-> Sprint status: Phases 1-19 complete. Research-aware coaching layer live. Next: The Ledger, periodization, exercise progression curves, inline coach panel.
+> Last updated: 2026-04-13
+> Sprint status: Phases 1-19 complete. Coach Dashboard v0 built + pushed (not yet fully deployed). Next: finish coach dashboard deployment, The Ledger, periodization, exercise progression curves, inline coach panel.
 
 ## What This Is
 
@@ -141,17 +141,49 @@ Wires the knowledge base into four surfaces through a unified resolver with dete
 - **Coverage tests** — `test_research_coverage.py`: every mod tag's triggers exist in some doc's frontmatter, every injury area has a critical doc, no orphan docs. `test_vocabulary.py` (5), `test_research_resolver.py` (8), `test_coach_chat.py` (5) = 21 total tests.
 - **Dead file audit** — `data/knowledge/FINAL_research_base.md` (top-level) moved to `_archive/` (superseded by research/ copy). `extended_knowledge.md` left in place (empty stub). Repo-root `research/` left as strategic reference (not runtime).
 
+### Phase 20: Coach Dashboard v0 (2026-04-12) — CODE COMPLETE, DEPLOYMENT IN PROGRESS
+Full coach-facing web dashboard. Monorepo sibling app (`coach-app/`) with Supabase Auth.
+
+**Backend (pushed to main, deployed on Railway):**
+- Migration 006: 7 new tables (`teams`, `coaches`, `team_games`, `block_library`, `team_assigned_blocks`, `coach_suggestions`, `training_phase_blocks`) + `team_id` column on 5 existing tables
+- `api/coach_auth.py` — Supabase JWT validation middleware, `require_coach_auth` dependency
+- `api/coach_routes.py` — 30 endpoints under `/api/coach/*` (auth, team overview, player detail, overrides, schedule CRUD, team programs, phases CRUD, insights accept/dismiss, block compliance)
+- `bot/services/team_scope.py` — Team-scoped query helpers (roster overview, compliance, game queries)
+- `bot/services/team_programs.py` — Resolves active team blocks for plan gen, `days_until_next_start`
+- `bot/services/coach_insights.py` — Pre-start nudge generation (heuristic: >12 sets within 2 days of start)
+- Engine hooks: `plan_generator.py` (team block → throwing override, start date → rotation override), `exercise_pool.py` (phase emphasis → training_intent)
+- `_apply_mutations_to_entry()` extracted from `routes.py` for reuse by coach routes
+- 3 seed scripts: `seed_schedule.py`, `seed_block_library.py`, `seed_demo_coach.py`
+- Mini-app: `team_block_tag` rendered in DailyCard throwing section
+
+**Frontend (pushed to main, Vercel project created):**
+- `coach-app/` — React 18 + Vite + Tailwind CSS, Supabase Auth (email/password)
+- Auth: `useCoachAuth` hook (Supabase session → JWT exchange with backend), `api.js` (fetch/post/patch/delete with Bearer token)
+- Shell: sidebar nav, protected routes, `ToastProvider`
+- 6 screens: Login, TeamOverview, Schedule, TeamPrograms, Phases, Insights
+- 13 components: ComplianceRing, RosterTable, PlayerSlideOver, PlayerToday/Week/History, AdjustTodayModal, AddRestrictionModal, GamePanel, BlockCard, PhaseTimeline, InsightCard, Toast
+
+**Deployment status (as of 2026-04-12):**
+- DB migration applied ✅, block library seeded ✅, phases seeded ✅, coach row created ✅
+- Railway env vars set (`SUPABASE_JWT_SECRET`) ✅, coach routes live at `/api/coach/*` ✅
+- Vercel project created at `baseball-copiblin-landonbrices-projects.vercel.app`
+- **BLOCKED: CORS error on login.** The `COACH_APP_URL` env var in Railway must be set to exactly `https://baseball-copiblin-landonbrices-projects.vercel.app` (no trailing slash). Once set, Railway needs a redeploy so `api/main.py` picks up the new origin in `ALLOWED_ORIGINS`. This is the only remaining blocker — auth exchange POST to `/api/coach/auth/exchange` is rejected by CORS preflight.
+- `VITE_SUPABASE_ANON_KEY` confirmed set in Vercel env vars
+- Auth user: `landonbrice2005@gmail.com` in Supabase Auth, linked to coaches row via `supabase_user_id`
+
+**Design spec:** `docs/superpowers/specs/2026-04-09-coach-dashboard-v0-design.md`
+**Implementation plan:** `docs/superpowers/plans/2026-04-10-coach-dashboard-v0.md`
+
 ### What's Not Yet Built
 1. **The Ledger** — Modification history visualization. Data exists in `plan_generated.modifications_applied` and `pitcher_training_model.recent_swap_history`. Needs frontend timeline on Profile.
 2. **Periodization** — No multi-week phases (hypertrophy → strength → power → deload). Template repeats identically each week. Exercise pool adds variety but not progressive block structure. Biggest remaining architectural item in the PROJECT_VISION.
 3. **Exercise progression curves** — Volume/intensity trends for key lifts over time. Blocked on weight logging (#7).
-4. **Coach dashboard** — Staff-facing view of team readiness, flags, trends. `/api/staff/pulse` endpoint exists but returns 500 intermittently — needs debugging before scope expands.
-5. **Truncated JSON repair** — `_repair_truncated_json` exists in `plan_generator.py:439` and runs when `finish_reason == "length"`, but doesn't handle non-length cutoffs (network drops mid-stream). Minor — two-pass plan gen ships Python fallback on any failure.
-6. **Weight logging** — `pitcher_training_model.working_weights` column exists but no UI to log actual weights lifted. Currently completion is binary (done/not done). Unblocks #3.
-7. **Inline coach panel on lifting block** — Coach button on lifting section for in-context refinement without navigating to Coach tab. Coach tab works for now.
-8. **UChicago box score scraping** — `game_scraper.py` detects game days and prompts relievers, but doesn't auto-scrape box scores.
-9. **Guided flow v2 persistence** — `manuallyDonePhases` is ephemeral (resets on reload). v2 would persist a `phase_progress` JSONB column on `daily_entries` so "mark done" survives reloads. Low priority — most pitchers don't reopen mid-session.
-10. **Guided flow progress dots** — v2 polish. Horizontal row of phase dots at the top of DailyCard showing sequence (●○○○○). Click a dot to scroll to that phase.
+4. **Truncated JSON repair** — `_repair_truncated_json` exists in `plan_generator.py:439` and runs when `finish_reason == "length"`, but doesn't handle non-length cutoffs (network drops mid-stream). Minor — two-pass plan gen ships Python fallback on any failure.
+5. **Weight logging** — `pitcher_training_model.working_weights` column exists but no UI to log actual weights lifted. Currently completion is binary (done/not done). Unblocks #3.
+6. **Inline coach panel on lifting block** — Coach button on lifting section for in-context refinement without navigating to Coach tab. Coach tab works for now.
+7. **UChicago box score scraping** — `game_scraper.py` detects game days and prompts relievers, but doesn't auto-scrape box scores.
+8. **Guided flow v2 persistence** — `manuallyDonePhases` is ephemeral (resets on reload). v2 would persist a `phase_progress` JSONB column on `daily_entries` so "mark done" survives reloads. Low priority — most pitchers don't reopen mid-session.
+9. **Guided flow progress dots** — v2 polish. Horizontal row of phase dots at the top of DailyCard showing sequence (●○○○○). Click a dot to scroll to that phase.
 
 ## Stack
 
@@ -193,7 +225,10 @@ pitcher_program_app/
 │   │   ├── weekly_model.py       # Next-day suggestion logic, weekly state management
 │   │   ├── game_scraper.py       # Game day detection, reliever appearance tracking
 │   │   ├── mobility.py           # 10-week cycling mobility video rotation service
-│   │   ├── plan_generator.py     # Two-pass plan gen: Python constructs instant plan, LLM reviews/enriches
+│   │   ├── plan_generator.py     # Two-pass plan gen: Python constructs instant plan, LLM reviews/enriches. Team block + days_until_start hooks.
+│   │   ├── team_scope.py         # Team-scoped query helpers for coach dashboard (roster overview, compliance, game queries)
+│   │   ├── team_programs.py      # Resolves active team blocks for plan gen, days_until_next_start computation
+│   │   ├── coach_insights.py     # Pre-start nudge generation for coach suggestions
 │   │   ├── progression.py        # Arm feel trends, sleep patterns, recovery curves, weekly summaries, season summary
 │   │   ├── llm.py                # DeepSeek wrapper (call_llm + call_llm_reasoning, defaults 90s/120s, plan review uses 20s)
 │   │   ├── knowledge_retrieval.py # Exercise library search + auto-research generation (thin wrappers around resolver)
@@ -202,9 +237,11 @@ pitcher_program_app/
 │   │   └── web_research.py       # Tavily API fallback for Q&A
 │   └── prompts/                  # LLM prompt templates (.md): system, qa, plan_generation, triage, recovery, coach_chat, morning_message
 │
-├── api/                          # FastAPI sidecar for mini-app
-│   ├── main.py                   # App, CORS, health check
+├── api/                          # FastAPI sidecar for mini-app + coach dashboard
+│   ├── main.py                   # App, CORS (mini-app + coach-app origins), health check
 │   ├── auth.py                   # Telegram initData HMAC validation
+│   ├── coach_auth.py             # Supabase JWT validation, require_coach_auth decorator
+│   ├── coach_routes.py           # 30 /api/coach/* endpoints (auth, overview, detail, overrides, schedule, programs, phases, insights)
 │   └── routes.py                 # 25+ endpoints: auth, checkin, outing, chat, plans, exercises, progression
 │
 ├── data/
@@ -222,6 +259,16 @@ pitcher_program_app/
 │   │   ├── MutationPreview.jsx   # Coach mutation diff card with Apply/Keep buttons
 │   │   └── pages/                # Home, Coach, Plans, PlanDetail, ExerciseLibrary, LogHistory, Profile (7 total)
 │   └── .env.production           # VITE_API_URL
+│
+├── coach-app/                    # React Coach Dashboard (Vercel)
+│   ├── src/
+│   │   ├── App.jsx               # Router, AuthProvider, ToastProvider
+│   │   ├── api.js                # fetchCoachApi, postCoachApi, patchCoachApi, deleteCoachApi
+│   │   ├── hooks/                # useCoachAuth (Supabase Auth + JWT exchange), useApi
+│   │   ├── components/           # Shell, ComplianceRing, RosterTable, PlayerSlideOver, PlayerToday/Week/History, AdjustTodayModal, AddRestrictionModal, GamePanel, BlockCard, PhaseTimeline, InsightCard, Toast (13 total)
+│   │   └── pages/                # Login, TeamOverview, Schedule, TeamPrograms, Phases, Insights (6 total)
+│   ├── .env.production           # VITE_API_URL, VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY
+│   └── vercel.json               # SPA rewrites
 │
 ├── scripts/                      # intake_to_profile.py, seed scripts, data_sync.py, backup_data.sh
 ├── research/                     # Reference material (NOT loaded at runtime)
@@ -528,6 +575,13 @@ Project: `pitcher-training-intel` (us-east-1)
 | `mobility_videos` | 21 follow-along mobility videos — id, title, youtube_url, type (P/R, Hip, Full, etc.) |
 | `mobility_weekly_rotation` | 10-week rotation schedule — week (1-10), slot (1-4), video_id FK |
 | `research_load_log` | Observability: every `resolve_research()` call — pitcher_id, context, trigger_reason, loaded_doc_ids, total_chars, degraded |
+| `teams` | Team identity — team_id, name, level, training_phase, timezone, settings |
+| `coaches` | Coach accounts — links to Supabase Auth user, team_id scoped |
+| `team_games` | Schedule (replaces old `schedule` table) — game_date, opponent, starter assignment, status |
+| `block_library` | Throwing program templates — velocity_12wk, longtoss_6wk, offseason_4wk |
+| `team_assigned_blocks` | Active team programs — links block_library template to team with start_date |
+| `coach_suggestions` | AI-generated coaching insights — pre_start_nudge category, accept/dismiss workflow |
+| `training_phase_blocks` | Off-season phase timeline — GPP, Strength, Power, Preseason, In-Season with emphasis |
 
 ## Deployment
 
@@ -535,8 +589,9 @@ Project: `pitcher-training-intel` (us-east-1)
 ```
 GitHub (landonbrice/baseball)
   └─ pitcher_program_app/          ← Railway root
-       ├─ bot/ + api/              ← Python backend (Railway)
-       ├─ mini-app/                ← React frontend (Vercel)
+       ├─ bot/ + api/              ← Python backend (Railway) — includes coach_routes + coach_auth
+       ├─ mini-app/                ← React pitcher frontend (Vercel)
+       ├─ coach-app/               ← React coach dashboard (Vercel, separate project)
        └─ data/                    ← JSON fallback (read-only, Supabase is primary)
 ```
 
@@ -544,8 +599,8 @@ GitHub (landonbrice/baseball)
 - **Service:** Single process via `Procfile: web: python -m bot.run`
 - **Root directory:** `pitcher_program_app` (or repo root with `cd pitcher_program_app`)
 - **Auto-deploy:** On push to `main`
-- **Required env vars:** `TELEGRAM_BOT_TOKEN`, `DEEPSEEK_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`
-- **Optional env vars:** `MINI_APP_URL`, `DISABLE_AUTH` (dev only)
+- **Required env vars:** `TELEGRAM_BOT_TOKEN`, `DEEPSEEK_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `SUPABASE_JWT_SECRET`
+- **Optional env vars:** `MINI_APP_URL`, `COACH_APP_URL`, `DISABLE_AUTH` (dev only)
 
 ### Vercel (Mini App)
 - **Root directory:** `pitcher_program_app/mini-app`
@@ -553,6 +608,14 @@ GitHub (landonbrice/baseball)
 - **Build:** `npm run build` → `dist/`
 - **Auto-deploy:** On push to `main`
 - **Env vars:** `VITE_API_URL=https://baseball-production-9d28.up.railway.app` (set in `.env.production`)
+
+### Vercel (Coach App)
+- **Root directory:** `pitcher_program_app/coach-app`
+- **Framework:** Vite
+- **Build:** `npm run build` → `dist/`
+- **URL:** `baseball-copiblin-landonbrices-projects.vercel.app`
+- **Env vars:** `VITE_API_URL`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`
+- **CORS:** `COACH_APP_URL` in Railway must match the Vercel URL exactly (no trailing slash)
 
 ### Supabase (Database)
 - **Project:** `pitcher-training-intel` (us-east-1, free tier)
@@ -616,7 +679,8 @@ GitHub (landonbrice/baseball)
 - Truncated JSON repair exists (`plan_generator.py:439` `_repair_truncated_json`) but only runs when `finish_reason == "length"`. Doesn't handle network cutoffs that leave `finish_reason == "stop"` on a partial body. Low priority — two-pass gen ships `python_plan` on any parse failure.
 - `/testnotify`, `/whooptest`, `/healthdigest`, `/testemergency` dev commands exist — can be removed before team rollout
 - `_load_exercise_library()` and `_EXERCISE_CACHE` both use module-level caching with no invalidation — new exercises in JSON/Supabase require a Railway redeploy
-- `/api/staff/pulse` returns 500 intermittently — likely a crash in the pitcher loop (undiagnosed). Home page `StaffPulse` component handles gracefully but the endpoint needs debugging. Blocks coach dashboard work.
+- `/api/staff/pulse` returns 500 intermittently — likely a crash in the pitcher loop (undiagnosed). Home page `StaffPulse` component handles gracefully but the endpoint needs debugging.
+- **Coach dashboard CORS blocker** — `COACH_APP_URL` env var in Railway must be set to exactly `https://baseball-copiblin-landonbrices-projects.vercel.app` (no trailing slash). Without it, the Supabase JWT exchange POST to `/api/coach/auth/exchange` is blocked by CORS preflight. Backend routes are verified live (`/openapi.json` shows all 30 `/api/coach/*` endpoints). Auth user + coaches row exist. The fix is setting the env var and redeploying Railway. Confirmed: `SUPABASE_JWT_SECRET` is set (invalid tokens return 401, not crash), `VITE_SUPABASE_ANON_KEY` is set in Vercel.
 - `morning_brief` string/dict coercion is duplicated in 4 places: `plan_generator.py:314`, `routes.py:636`, `Coach.jsx:130`, and the /chat response assembly. Every consumer has to re-coerce. Should be normalized once at the checkin_service return boundary.
 - `context_manager.py:173` does `msg.get("content","")[:200]` with no `str()` coercion. If any `chat_messages` row has a dict in `content`, slicing raises TypeError. Currently not triggering in practice (`_persist_chat` only writes strings) but latent.
 - Guided flow state is ephemeral — `manuallyDonePhases` resets on reload. Not a bug, a v2 deferral.
