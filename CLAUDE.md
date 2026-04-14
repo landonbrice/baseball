@@ -37,7 +37,7 @@ A training intelligence system for the UChicago baseball pitching staff. Telegra
 | 0.5 | Scale Migration | 04-13 | arm_feel/energy rescaled 1-5→1-10 across bot, API, mini-app, coach-app, prompts, data templates. Supabase data migrated ×2. Chart axes reworked. |
 
 ### What's Next
-1. **Unblock coach dashboard** — Set `COACH_APP_URL` env var in Railway, redeploy. Only remaining blocker.
+1. **Unblock coach dashboard** — `COACH_APP_URL` now set to `https://baseball-self.vercel.app`, CORS fixed. JWT validator patched for ES256/JWKS — verify end-to-end login post-redeploy.
 2. **The Ledger** — Modification history timeline on Profile. Data exists in `plan_generated.modifications_applied` + `pitcher_training_model.recent_swap_history`.
 3. **Weight logging UI** — `working_weights` column exists, no UI. Unblocks exercise progression curves.
 4. **Exercise progression curves** — Volume/intensity trends for key lifts over time. Blocked on weight logging.
@@ -57,7 +57,7 @@ A training intelligence system for the UChicago baseball pitching staff. Telegra
 **Deployment URLs:**
 - API: `https://baseball-production-9d28.up.railway.app`
 - Mini App: Vercel (configured in `mini-app/.env.production`)
-- Coach App: `baseball-copiblin-landonbrices-projects.vercel.app`
+- Coach App: `baseball-self.vercel.app`
 - Bot: `@uchi_pitcher_bot` on Telegram
 
 ## Repo Structure
@@ -196,6 +196,7 @@ pitcher_program_app/
 - `coach_auth.py`: `require_coach_auth` dependency extracts `supabase_user_id`, looks up `coaches` row, provides `team_id` scope
 - All `/api/coach/*` endpoints are team-scoped — a coach only sees their team's data
 - `COACH_APP_URL` must be in Railway CORS origins for auth exchange to work
+- **JWT signing**: Supabase issues `ES256` (asymmetric) JWTs on newer projects, `HS256` on legacy. `_decode_token()` inspects `alg` and routes to JWKS (`{SUPABASE_URL}/auth/v1/.well-known/jwks.json`, cached by `PyJWKClient`) or `SUPABASE_JWT_SECRET`. `PyJWT[crypto]` extra is required for ES256 verification.
 
 ### Check-in Flow
 - Two paths: Telegram (`daily_checkin.py` → `process_checkin`) and mini-app (`/chat` → `process_checkin`). Mini-app fetch dies at ~60s.
@@ -328,7 +329,7 @@ GitHub (landonbrice/baseball)
 
 ### Vercel (Coach App)
 - Root: `pitcher_program_app/coach-app`, Vite
-- URL: `baseball-copiblin-landonbrices-projects.vercel.app`
+- URL: `baseball-self.vercel.app`
 - Env: `VITE_API_URL`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`
 - **CORS**: `COACH_APP_URL` in Railway must match exactly (no trailing slash)
 
@@ -360,7 +361,7 @@ No Python virtualenv locally — project runs on Railway. Use Supabase MCP for S
 
 ## Known Issues & Tech Debt
 
-- **Coach dashboard CORS blocker** — `COACH_APP_URL` env var not yet set in Railway. Only deploy blocker.
+- **Coach dashboard login** — CORS resolved (Railway `COACH_APP_URL=https://baseball-self.vercel.app`). JWT validator upgraded to JWKS/ES256 on 2026-04-14; redeploy Railway + verify login end-to-end.
 - **Repo bloat from untracked dev artifacts** — `graphify-out/`, `past_arm_programs/*.xlsx`, root-level `scripts/`, `ui-elevation-mockup.jsx` have leaked into commits. Need proper `.gitignore` + `git rm --cached` pass.
 - `morning_brief` string/dict coercion duplicated in 4 places — should normalize at checkin_service boundary
 - `context_manager.py:173` `msg.get("content","")[:200]` — no `str()` coercion, latent TypeError if content is dict
