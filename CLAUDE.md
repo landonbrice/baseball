@@ -1,7 +1,7 @@
 # Pitcher Training Intelligence — Claude Init
 
 > Last updated: 2026-04-14
-> Sprint status: Phases 1-20.1 + Sprint 0.5 complete. Coach Dashboard live end-to-end (CORS, ES256/JWKS auth, Shell children, team_scope schema realigned). Next: schema-drift sweep on `bot/services/`, auth-exchange response enrichment, The Ledger, weight logging UI.
+> Sprint status: Phases 1-20.1 + Sprint 0.5 complete. Coach Dashboard live end-to-end (CORS, ES256/JWKS auth, Shell children, team_scope schema realigned). Schema-drift sweep on `bot/services/` complete — `team_scope.py` was the only offender. Next: auth-exchange response enrichment, The Ledger, weight logging UI.
 
 ## What This Is
 
@@ -38,12 +38,11 @@ A training intelligence system for the UChicago baseball pitching staff. Telegra
 | 20.1 | Coach Dashboard Unblock | 04-14 | Coach app live end-to-end. CORS (`COACH_APP_URL=https://baseball-self.vercel.app`), ES256/JWKS JWT validator (`PyJWT[crypto]`), `Shell` children-render fix, `team_scope` schema realignment (`physical`→`physical_profile` dropped, `flag_level`→`current_flag_level`, `injury_history.status` removed). |
 
 ### What's Next
-1. **Schema-drift sweep on `bot/services/`** — `team_scope.py` had three stale column refs (`physical`, `flag_level`, `injury_history.status`). Likely other services written against older schema; grep and reconcile before next surface ships.
-2. **Coach auth-exchange response enrichment** — `/api/coach/auth/exchange` + `/me` return only `coach_id/team_id/coach_name/role`. Shell sidebar falls back to "Dashboard" because `team_name` missing. Join `teams.name` into response.
-3. **The Ledger** — Modification history timeline on Profile. Data exists in `plan_generated.modifications_applied` + `pitcher_training_model.recent_swap_history`.
-4. **Weight logging UI** — `working_weights` column exists, no UI. Unblocks exercise progression curves.
-5. **Exercise progression curves** — Volume/intensity trends for key lifts over time. Blocked on weight logging.
-6. **Inline coach panel** — Coach button on lifting block for in-context refinement without navigating to Coach tab.
+1. **Coach auth-exchange response enrichment** — `/api/coach/auth/exchange` + `/me` return only `coach_id/team_id/coach_name/role`. Shell sidebar falls back to "Dashboard" because `team_name` missing. Join `teams.name` into response.
+2. **The Ledger** — Modification history timeline on Profile. Data exists in `plan_generated.modifications_applied` + `pitcher_training_model.recent_swap_history`.
+3. **Weight logging UI** — `working_weights` column exists, no UI. Unblocks exercise progression curves.
+4. **Exercise progression curves** — Volume/intensity trends for key lifts over time. Blocked on weight logging.
+5. **Inline coach panel** — Coach button on lifting block for in-context refinement without navigating to Coach tab.
 
 ## Stack
 
@@ -363,7 +362,7 @@ No Python virtualenv locally — project runs on Railway. Use Supabase MCP for S
 
 ## Known Issues & Tech Debt
 
-- **Schema drift in `team_scope.py`** — file was written against an older schema (used `physical`/`pitching`/`flag_level`/`injury_history.status`). Realigned 2026-04-14, but other `bot/services/` files may still carry stale column names — do a sweep before shipping new coach-dashboard endpoints.
+- **Schema drift in `team_scope.py`** — file was written against an older schema (used `physical`/`pitching`/`flag_level`/`injury_history.status`). Realigned 2026-04-14. Follow-up sweep across `bot/services/` + `api/` (2026-04-14) confirmed no other offenders: remaining `flag_level` references are all triage-result dict keys, `daily_entries.pre_training` JSONB keys, or legitimate `injury_history.flag_level` column reads. `physical_profile`/`pitching_profile` already consistent.
 - **FastAPI unhandled-exception responses skip CORS middleware** — a 500 from an uncaught exception surfaces as "Origin is not allowed by Access-Control-Allow-Origin" in Safari/Chrome, even though CORS is correctly configured. Always check Railway logs for the real traceback before chasing CORS.
 - **Repo bloat from untracked dev artifacts** — `graphify-out/`, `past_arm_programs/*.xlsx`, root-level `scripts/`, `ui-elevation-mockup.jsx` have leaked into commits. Need proper `.gitignore` + `git rm --cached` pass.
 - `morning_brief` string/dict coercion duplicated in 4 places — should normalize at checkin_service boundary
