@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink } from 'react-router-dom'
 import { useCoachAuth } from '../hooks/useCoachAuth'
 
 const NAV = [
@@ -9,7 +9,7 @@ const NAV = [
   { to: '/insights', label: 'Insights' },
 ]
 
-export default function Shell() {
+export default function Shell({ children }) {
   const { coach, logout } = useCoachAuth()
 
   return (
@@ -43,7 +43,7 @@ export default function Shell() {
 
       {/* Main content */}
       <main className="flex-1 overflow-auto">
-        <Outlet />
+        {children}
       </main>
     </div>
   )
