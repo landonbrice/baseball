@@ -509,7 +509,7 @@ export default function DailyCard({ entry, exerciseMap = {}, slugMap = {}, pitch
             <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-ink-primary)' }}>Outing</span>
           </div>
           <p style={{ fontSize: 13, color: 'var(--color-ink-primary)', margin: 0 }}>
-            {entry.outing.pitch_count} pitches · Post feel: {entry.outing.arm_feel ?? entry.outing.post_arm_feel}/5
+            {entry.outing.pitch_count} pitches · Post feel: {entry.outing.arm_feel ?? entry.outing.post_arm_feel}/10
           </p>
           {entry.outing.notes && (
             <p style={{ fontSize: 11, color: 'var(--color-ink-muted)', marginTop: 4, margin: '4px 0 0' }}>

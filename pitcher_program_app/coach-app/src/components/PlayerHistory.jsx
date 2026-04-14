@@ -14,9 +14,9 @@ export default function PlayerHistory({ data }) {
             .reverse()
             .map((e, i) => {
               const feel = e.pre_training?.arm_feel || 0
-              const h = Math.max(4, (feel / 5) * 100)
+              const h = Math.max(4, (feel / 10) * 100)
               const color =
-                feel >= 4 ? '#2d5a3d' : feel >= 3 ? '#d4a017' : '#c0392b'
+                feel >= 7 ? '#2d5a3d' : feel >= 5 ? '#d4a017' : '#c0392b'
               return (
                 <div key={i} className="flex-1 flex flex-col items-center gap-0.5">
                   <div

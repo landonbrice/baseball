@@ -23,7 +23,7 @@ Generate today's training plan as a JSON object. Return ONLY the JSON — no mar
 ```
 {
   "morning_brief": {
-    "arm_verdict": { "value": "4/5", "label": "Solid recovery", "status": "green" },
+    "arm_verdict": { "value": "7/10", "label": "Solid recovery", "status": "green" },
     "sleep_verdict": { "value": "7.5h", "label": "Right on target", "status": "green" },
     "today_focus": { "value": "Lower power", "label": "Light throw day" },
     "watch_item": { "value": "Forearm", "label": "FPM vol +10% this wk", "status": "yellow" },
@@ -198,7 +198,7 @@ Generate today's training plan as a JSON object. Return ONLY the JSON — no mar
 
 ### Morning Brief (Structured)
 The `morning_brief` must be a JSON object with these fields:
-- **arm_verdict**: `{ "value": "X/5", "label": "short verdict", "status": "green|yellow|red" }` — based on reported arm feel and recent trend
+- **arm_verdict**: `{ "value": "X/10", "label": "short verdict", "status": "green|yellow|red" }` — based on reported arm feel and recent trend
 - **sleep_verdict**: `{ "value": "Xh", "label": "short verdict", "status": "green|yellow|red" }` — green >= 7h, yellow 5-7h, red < 5h
 - **today_focus**: `{ "value": "session type", "label": "1-3 word description" }` — main training focus
 - **watch_item**: `{ "value": "area", "label": "short context", "status": "yellow|red" }` or `null` — only if genuine concern

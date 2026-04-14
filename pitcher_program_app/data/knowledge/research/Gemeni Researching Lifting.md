@@ -230,7 +230,7 @@ Recommended **Pull:Push ratio is 2:1** for overhead athletes. Horizontal pulls (
 | **6** | **Tune-up** | Light Sprints (50% intent) | Core: Bird-Dog / Ab Wheel: 2x10 | Pre-start RAMP protocol |
 
 * **Reliever Modification:** Lift Mon/Thu regardless of outing. If reliever throws >2 innings, perform Day 1 Strength lift the following morning. If short outing, keep schedule.
-* **Yellow Flag (Arm Feel < 3/5):** Reduce lifting intensity to RPE < 6; remove med ball throws and weighted ball work.
+* **Yellow Flag (Arm Feel < 5/10):** Reduce lifting intensity to RPE < 6; remove med ball throws and weighted ball work.
 * **Red Flag (WHOOP/HRV < 33%):** Cut total training volume by 50%; remove all high-intent speed/power work; focus exclusively on mobility.
 
 ---

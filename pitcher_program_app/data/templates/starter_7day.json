@@ -20,7 +20,7 @@
         "avoid": ["ice_on_arm_unless_acute_injury", "NSAIDs", "heavy_stretching"]
       },
       "throwing": "game_outing",
-      "notes": "No lifting. Focus on fueling and sleep. Log pitch count, arm feel (1-5), and any flags."
+      "notes": "No lifting. Focus on fueling and sleep. Log pitch count, arm feel (1-10), and any flags."
     },
     "day_1": {
       "label": "Day After — Active Recovery",
@@ -55,7 +55,7 @@
         ]
       },
       "throwing": "none_or_light_catch",
-      "notes": "Minimal CNS load. Goal is blood flow and movement quality. If arm feel < 3, skip lifting entirely."
+      "notes": "Minimal CNS load. Goal is blood flow and movement quality. If arm feel < 5, skip lifting entirely."
     },
     "day_2": {
       "label": "Lower Body — Power Focus",
@@ -237,7 +237,7 @@
     }
   },
   "global_rules": {
-    "arm_feel_override": "If arm feel rating < 3 on any day, drop all upper body pressing and reduce pull volume by 50%. Add extra FPM and scapular work.",
+    "arm_feel_override": "If arm feel rating < 5 on any day, drop all upper body pressing and reduce pull volume by 50%. Add extra FPM and scapular work.",
     "recovery_override": "If WHOOP recovery < 33% (red), convert any strength day to a recovery/mobility day. If 33-66% (yellow), drop volume by ~30% but maintain intensity on compounds.",
     "progressive_overload": "Track working weights. If a pitcher hits all prescribed reps for 2 consecutive sessions, increase load by 5-10lbs on compounds, 2.5-5lbs on accessories.",
     "pull_push_ratio": "Maintain minimum 2:1 pull-to-push volume ratio across the week.",

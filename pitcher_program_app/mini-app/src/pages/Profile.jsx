@@ -275,7 +275,7 @@ function IdentityHeader({ profile, flags, trainingLoad }) {
           }
         />
         <StatDivider />
-        <StatCell label="Arm Feel" value={`${flags.current_arm_feel ?? '—'}/5`} />
+        <StatCell label="Arm Feel" value={`${flags.current_arm_feel ?? '—'}/10`} />
         <StatDivider />
         <StatCell label="This Week" value={`${trainingLoad.current_week_pct}%`} />
         <StatDivider />

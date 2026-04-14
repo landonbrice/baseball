@@ -691,7 +691,7 @@ def _build_pitcher_context(profile: dict, context_md: str) -> str:
 
     # Active flags
     flags = profile.get("active_flags", {})
-    parts.append(f"Current arm feel: {flags.get('current_arm_feel', 'N/A')}/5")
+    parts.append(f"Current arm feel: {flags.get('current_arm_feel', 'N/A')}/10")
     parts.append(f"Flag level: {flags.get('current_flag_level', 'unknown')}")
     parts.append(f"Days since outing: {flags.get('days_since_outing', 'N/A')}")
     parts.append(f"Last outing: {flags.get('last_outing_pitches', 'N/A')} pitches on {flags.get('last_outing_date', 'N/A')}")
@@ -828,7 +828,7 @@ def _build_pitcher_context(profile: dict, context_md: str) -> str:
                         o = entry["outing"]
                         outing_str = f" OUTING: {o.get('pitch_count','?')}pc"
 
-                    parts.append(f"  {date}: Arm {arm}/5 {flag.upper()}.{lift_str}{throw_str}{skip_str}{outing_str}")
+                    parts.append(f"  {date}: Arm {arm}/10 {flag.upper()}.{lift_str}{throw_str}{skip_str}{outing_str}")
     except Exception:
         pass
 

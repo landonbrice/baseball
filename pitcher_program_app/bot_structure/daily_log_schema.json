@@ -9,8 +9,8 @@
       "days_since_outing": 4,
 
       "pre_training": {
-        "arm_feel": 4,
-        "overall_energy": 3,
+        "arm_feel": 7,
+        "overall_energy": 5,
         "sleep_hours": 7.5,
         "whoop_recovery_pct": 58,
         "whoop_hrv": 62,
@@ -48,8 +48,8 @@
         "skipped_exercises": ["ex_lateral_bound — ran out of time"],
         "throwing_completed": true,
         "throwing_notes": "25 throws, felt clean",
-        "post_arm_feel": 4,
-        "post_energy": 3,
+        "post_arm_feel": 7,
+        "post_energy": 5,
         "free_notes": "Good session overall. Want to bump squat next week."
       },
 

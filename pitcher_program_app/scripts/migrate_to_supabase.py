@@ -180,10 +180,10 @@ def migrate_active_flags(sb: Client, dry_run: bool):
         if not flags:
             continue
 
-        # Clamp arm_feel to 1-5
+        # Clamp arm_feel to 1-10
         arm_feel = flags.get("current_arm_feel")
         if arm_feel is not None:
-            arm_feel = max(1, min(5, int(arm_feel)))
+            arm_feel = max(1, min(10, int(arm_feel)))
 
         # Normalize flag_level
         flag_level = flags.get("current_flag_level")

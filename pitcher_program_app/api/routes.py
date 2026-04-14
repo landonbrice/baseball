@@ -414,8 +414,8 @@ async def post_throw_feel(pitcher_id: str, request: Request):
     if not date or post_throw_feel is None:
         raise HTTPException(status_code=400, detail="date and post_throw_feel required")
     post_throw_feel = int(post_throw_feel)
-    if not 1 <= post_throw_feel <= 5:
-        raise HTTPException(status_code=400, detail="post_throw_feel must be 1-5")
+    if not 1 <= post_throw_feel <= 10:
+        raise HTTPException(status_code=400, detail="post_throw_feel must be 1-10")
     update_throwing_feel(pitcher_id, date, post_throw_feel)
     return {"status": "ok", "post_throw_feel": post_throw_feel}
 
@@ -435,7 +435,7 @@ async def post_checkin(pitcher_id: str, request: Request):
             pitcher_id,
             int(arm_feel),
             float(sleep_hours),
-            int(body.get("energy", 3)),
+            int(body.get("energy", 5)),
         )
 
         # Increment rotation day AFTER check-in (skip for return-to-throwing phase)
@@ -640,7 +640,7 @@ async def post_chat(pitcher_id: str, request: Request):
                         f"{flag} flag. Your check-in data has been saved. "
                         "Plan generation had an issue. Tap \"Retry plan\" to try again."})
                     messages.append({"type": "status", "content": "plan_failed"})
-                    _persist_chat(pitcher_id, f"Check-in: arm {arm_feel}/5 (plan gen failed)", messages)
+                    _persist_chat(pitcher_id, f"Check-in: arm {arm_feel}/10 (plan gen failed)", messages)
                     return {"messages": messages, "morning_brief": None, "flag_level": result.get("flag_level", "green")}
 
                 # Increment rotation day only on first successful check-in today (not re-check-in)
@@ -680,7 +680,7 @@ async def post_chat(pitcher_id: str, request: Request):
                     messages.append({"type": "text", "content": "Anything else you want to know about today's plan?"})
 
                 # Persist to chat_messages
-                checkin_summary = f"Check-in: arm {arm_feel}/5, lift {lift_preference or 'auto'}, throw {throw_intent or 'none'}"
+                checkin_summary = f"Check-in: arm {arm_feel}/10, lift {lift_preference or 'auto'}, throw {throw_intent or 'none'}"
                 _persist_chat(pitcher_id, checkin_summary, messages)
 
                 return {
@@ -717,7 +717,7 @@ async def post_chat(pitcher_id: str, request: Request):
             messages.append({"type": "status", "content": "rotation_reset"})
 
             # Persist to chat_messages
-            outing_summary = f"Outing: {pitch_count} pitches, arm feel {post_arm_feel}/5"
+            outing_summary = f"Outing: {pitch_count} pitches, arm feel {post_arm_feel}/10"
             _persist_chat(pitcher_id, outing_summary, messages)
 
             return {
@@ -771,7 +771,7 @@ async def post_chat(pitcher_id: str, request: Request):
                 if recent_triage:
                     triage_state = f"Flag: {recent_triage['flag_level']}\nModifications: {', '.join(str(m) for m in recent_triage.get('modifications', []))}"
                 else:
-                    triage_state = f"Flag: {flags.get('current_flag_level', 'unknown')}\nArm feel: {flags.get('current_arm_feel', 'N/A')}/5"
+                    triage_state = f"Flag: {flags.get('current_flag_level', 'unknown')}\nArm feel: {flags.get('current_arm_feel', 'N/A')}/10"
 
                 user_prompt = coach_prompt.replace("{pitcher_context}", pitcher_context)
                 user_prompt = user_prompt.replace("{triage_state}", triage_state)

@@ -38,7 +38,7 @@ export default function SleepScatter({ points = [] }) {
         plugins: {
           legend: { display: false },
           tooltip: {
-            callbacks: { label: ctx => `Sleep ${ctx.parsed.x}h → Arm ${ctx.parsed.y}/5` },
+            callbacks: { label: ctx => `Sleep ${ctx.parsed.x}h → Arm ${ctx.parsed.y}/10` },
           },
         },
         scales: {
@@ -50,7 +50,7 @@ export default function SleepScatter({ points = [] }) {
             border: { display: false },
           },
           y: {
-            min: 0.5, max: 5.5,
+            min: 0.5, max: 10.5,
             title: { display: true, text: 'arm feel', font: { size: 11 }, color: '#b0a89e' },
             ticks: { stepSize: 1, font: { size: 11 }, color: '#b0a89e' },
             grid: { color: 'rgba(0,0,0,0.04)' },

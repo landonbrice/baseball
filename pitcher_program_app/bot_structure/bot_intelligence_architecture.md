@@ -22,7 +22,7 @@ The bot appends to this after every interaction:
 
 ### Active Status (updated daily/per-interaction)
 - Days since last outing: 3
-- Last outing: 78 pitches, arm feel 4/5 post-game
+- Last outing: 78 pitches, arm feel 7/10 post-game
 - Current arm feel: 4
 - Current flag level: GREEN
 - WHOOP recovery today: 62%

@@ -38,7 +38,7 @@
           "block_name": "Movement",
           "exercises": [
             {"name": "Dynamic warmup", "prescription": "Standard sequence"},
-            {"name": "Light flat ground", "prescription": "20-25 throws, 50-60% intent, IF arm feel >= 3"}
+            {"name": "Light flat ground", "prescription": "20-25 throws, 50-60% intent, IF arm feel >= 5"}
           ]
         },
         {
@@ -59,8 +59,8 @@
         }
       ],
       "arm_feel_override": {
-        "if_arm_feel_lte_2": "Skip throwing. Arm care only. Flag for trainer.",
-        "if_arm_feel_3": "Reduce flat ground to 15 throws. Monitor closely."
+        "if_arm_feel_lte_4": "Skip throwing. Arm care only. Flag for trainer.",
+        "if_arm_feel_5_6": "Reduce flat ground to 15 throws. Monitor closely."
       }
     },
     "day_2": {
@@ -77,7 +77,7 @@
           "block_name": "Arm Care",
           "exercises": [
             {"name": "Arm care routine", "prescription": "Heavy or light based on arm feel"},
-            {"name": "Plyocare", "prescription": "Recovery-level if arm feel >= 4"}
+            {"name": "Plyocare", "prescription": "Recovery-level if arm feel >= 7"}
           ]
         },
         {
@@ -89,8 +89,8 @@
         }
       ],
       "arm_feel_override": {
-        "if_arm_feel_lte_2": "No throwing. Recovery arm care only. Trainer evaluation recommended.",
-        "if_arm_feel_3": "Light flat ground only (20 throws). Reduce lifting to RPE 5-6."
+        "if_arm_feel_lte_4": "No throwing. Recovery arm care only. Trainer evaluation recommended.",
+        "if_arm_feel_5_6": "Light flat ground only (20 throws). Reduce lifting to RPE 5-6."
       }
     }
   },
@@ -104,9 +104,9 @@
     ]
   },
   "low_arm_feel_modifier": {
-    "threshold": 2,
+    "threshold": 4,
     "adjustments": [
-      "No throwing until arm feel >= 3",
+      "No throwing until arm feel >= 5",
       "Trainer evaluation before next throwing session",
       "Light arm care and mobility only",
       "Extra recovery protocols (sleep, nutrition, hydration emphasis)"

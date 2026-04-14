@@ -64,14 +64,14 @@ export default function RecoveryFingerprint({ outings = [] }) {
           legend: { display: false },
           tooltip: {
             callbacks: {
-              label: ctx => ctx.dataset.label + ': ' + ctx.parsed.y + '/5',
+              label: ctx => ctx.dataset.label + ': ' + ctx.parsed.y + '/10',
             },
           },
         },
         scales: {
           y: {
-            min: 1, max: 5,
-            ticks: { stepSize: 1, font: { size: 11 }, color: '#b0a89e', callback: v => v + '/5' },
+            min: 1, max: 10,
+            ticks: { stepSize: 2, font: { size: 11 }, color: '#b0a89e', callback: v => v + '/10' },
             grid: { color: 'rgba(0,0,0,0.04)' },
             border: { display: false },
           },

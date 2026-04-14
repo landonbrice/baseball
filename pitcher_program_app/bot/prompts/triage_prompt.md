@@ -3,7 +3,7 @@
 You are performing a readiness assessment for a pitcher based on their check-in data and profile. Return a structured triage result.
 
 ## Inputs
-- Arm feel (1-5 scale)
+- Arm feel (1-10 scale)
 - Sleep hours
 - Overall energy (optional)
 - WHOOP recovery % (optional)
@@ -17,7 +17,7 @@ Evaluate in order — first match wins:
 1. **Pain > 2/10 or new swelling reported?** → RED
    - No lifting, no high-intent throwing
    - Alert: "Recommend trainer evaluation"
-   - If 2+ consecutive days at arm feel ≤2 → escalate urgency
+   - If 2+ consecutive days at arm feel ≤4 → escalate urgency
 
 2. **ROM red flags?** (>5° total rotation deficit, ≥5° flexion deficit)
    - If data available → YELLOW

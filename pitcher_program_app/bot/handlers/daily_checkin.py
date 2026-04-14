@@ -94,33 +94,33 @@ def _schedule_already_known(flags):
 def _build_arm_acknowledgment(arm_feel, arm_report, days_since, concern_areas=None):
     """Build a coaching response to the arm feel report before asking the next question."""
     if arm_feel is None:
-        arm_feel = 4  # fallback
+        arm_feel = 7  # fallback
 
     # Day-after-outing gets special treatment
     if days_since <= 1:
-        if arm_feel >= 4:
+        if arm_feel >= 7:
             return "Good recovery. We'll keep it light today — recovery flush and blood flow."
-        elif arm_feel == 3:
-            return "Day-after at a 3 — that's normal. Recovery focus, nothing heavy."
+        elif arm_feel >= 5 and arm_feel <= 6:
+            return "Day-after at a 5-6 — that's normal. Recovery focus, nothing heavy."
         else:
             return "That's lower than we'd like day-after. Let's prioritize recovery and keep an eye on it."
 
     # Severe concern — immediate coaching response
-    if arm_feel <= 2:
+    if arm_feel <= 4:
         if concern_areas:
             areas = ", ".join(concern_areas[:2])
             return f"Noted the {areas} concern. We'll go easy today — I'm flagging this."
         return "Noted — we'll keep things light and protective today."
 
     # Mild concern with specific areas
-    if arm_feel == 3:
+    if arm_feel >= 5 and arm_feel <= 6:
         if concern_areas:
             areas = ", ".join(concern_areas[:2])
             return f"Got it — some {areas} stuff going on. I'll factor that into your plan."
         return "Got it — I'll factor that in. We'll be smart about it."
 
     # Feeling good
-    if arm_feel >= 4:
+    if arm_feel >= 7:
         if arm_report and any(w in arm_report.lower() for w in ["great", "perfect", "amazing", "100"]):
             return "Good to hear."
         return "Arm's feeling solid."
@@ -142,10 +142,10 @@ def _build_adaptive_greeting(first_name, pitcher_id, flags, days_since, role):
 
         yesterday_arm = (yesterday.get("pre_training") or {}).get("arm_feel")
         if yesterday_arm is not None:
-            if yesterday_arm <= 2:
-                return base + f" Yesterday you reported your arm at {yesterday_arm}/5 — how's it feeling today?"
-            elif yesterday_arm == 3:
-                return base + " Arm was at a 3 yesterday. Any better today?"
+            if yesterday_arm <= 4:
+                return base + f" Yesterday you reported your arm at {yesterday_arm}/10 — how's it feeling today?"
+            elif yesterday_arm >= 5 and yesterday_arm <= 6:
+                return base + " Arm was at a 5-6 yesterday. Any better today?"
 
         if yesterday.get("skip_notes"):
             return base + " You mentioned skipping some stuff yesterday. How's the arm?"
@@ -279,12 +279,12 @@ async def morning_arm_feel_entry(update: Update, context: ContextTypes.DEFAULT_T
 
     append_context(pitcher_id, "checkin_start", f"Check-in via morning notification (arm feel {arm_feel})")
 
-    await query.edit_message_text(f"Arm feel: {arm_feel}/5 — got it.")
+    await query.edit_message_text(f"Arm feel: {arm_feel}/10 — got it.")
 
     # Route based on situation (same logic as arm_report_handler)
     if _is_recovery_day(days_since, role):
-        feel_comment = f"arm's at a {arm_feel} — solid recovery" if arm_feel >= 4 else \
-                       f"arm's at a {arm_feel} — pretty typical day-after" if arm_feel == 3 else \
+        feel_comment = f"arm's at a {arm_feel} — solid recovery" if arm_feel >= 7 else \
+                       f"arm's at a {arm_feel} — pretty typical day-after" if arm_feel >= 5 and arm_feel <= 6 else \
                        f"arm's at a {arm_feel} — let's be careful"
         keyboard = InlineKeyboardMarkup([
             [
@@ -299,7 +299,7 @@ async def morning_arm_feel_entry(update: Update, context: ContextTypes.DEFAULT_T
         )
         return RECOVERY_CONFIRM
 
-    if arm_feel <= 2:
+    if arm_feel <= 4:
         keyboard = InlineKeyboardMarkup([
             [
                 InlineKeyboardButton("Expected soreness", callback_data="lowarm_expected"),
@@ -369,7 +369,7 @@ async def arm_report_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     concern_areas = []
     try:
         num = int(text)
-        if 1 <= num <= 5:
+        if 1 <= num <= 10:
             arm_feel = num
         else:
             arm_report = text
@@ -391,9 +391,9 @@ async def arm_report_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     if _is_recovery_day(days_since, context.user_data.get("role", "starter")):
         feel_comment = ""
         if arm_feel is not None:
-            if arm_feel >= 4:
+            if arm_feel >= 7:
                 feel_comment = f"arm's at a {arm_feel} — solid recovery"
-            elif arm_feel == 3:
+            elif arm_feel >= 5 and arm_feel <= 6:
                 feel_comment = f"arm's at a {arm_feel} — pretty typical day-after"
             else:
                 feel_comment = f"arm's at a {arm_feel} — let's be careful"
@@ -413,8 +413,8 @@ async def arm_report_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         )
         return RECOVERY_CONFIRM
 
-    # --- REFINEMENT 2: Arm feel 1-2 — probe before assuming protective ---
-    if arm_feel is not None and arm_feel <= 2:
+    # --- REFINEMENT 2: Arm feel 1-4 — probe before assuming protective ---
+    if arm_feel is not None and arm_feel <= 4:
         keyboard = InlineKeyboardMarkup([
             [
                 InlineKeyboardButton("Expected soreness", callback_data="lowarm_expected"),
@@ -466,15 +466,15 @@ def _quick_classify(arm_report):
             areas.append(label)
 
     if any(w in report_lower for w in ["great", "perfect", "amazing", "100", "feel good", "feels good", "no issues"]):
-        return 5, []
+        return 10, []
     if any(w in report_lower for w in ["sharp", "shooting", "numb", "tingling", "swelling", "can't"]):
         return 1, areas or ["immediate_concern"]
     if any(w in report_lower for w in ["terrible", "really bad", "awful"]):
-        return 2, areas or ["significant_concern"]
+        return 3, areas or ["significant_concern"]
     if any(w in report_lower for w in ["tight", "sore", "stiff", "tender"]):
-        return 3, areas or ["mild_concern"]
+        return 5, areas or ["mild_concern"]
     if any(w in report_lower for w in ["good", "fine", "solid", "normal", "decent", "ok", "okay", "alright"]):
-        return 4, []
+        return 8, []
 
     return None, areas  # Unknown — will be LLM-classified later
 
@@ -696,7 +696,7 @@ async def _generate_plan_and_respond(message, context) -> int:
         arm_feel, concern_areas = await _classify_arm_report(arm_report)
         context.user_data["arm_feel"] = arm_feel
     elif arm_feel is None:
-        arm_feel = 4
+        arm_feel = 7
 
     # Update schedule/rotation if specified
     if next_pitch_days and next_pitch_days > 0:
@@ -788,7 +788,7 @@ async def _generate_plan_and_respond(message, context) -> int:
 
 
 async def _classify_arm_report(arm_report):
-    """Classify free-text arm report into arm_feel (1-5) and concern areas via LLM."""
+    """Classify free-text arm report into arm_feel (1-10) and concern areas via LLM."""
     # Try quick classification first
     arm_feel, areas = _quick_classify(arm_report)
     if arm_feel is not None:
@@ -799,16 +799,16 @@ async def _classify_arm_report(arm_report):
         from bot.services.llm import call_llm
         response = await call_llm(
             "You classify pitcher arm reports. Return ONLY valid JSON, no other text.",
-            f'Classify this arm report on a 1-5 scale (1=severe pain, 5=feels great). '
-            f'Return: {{"arm_feel": <1-5>, "areas": ["area1"], "trend": "better|same|worse|unknown"}}\n\n'
+            f'Classify this arm report on a 1-10 scale (1=severe pain, 10=feels great). '
+            f'Return: {{"arm_feel": <1-10>, "areas": ["area1"], "trend": "better|same|worse|unknown"}}\n\n'
             f'Report: "{arm_report}"',
             max_tokens=80,
         )
         data = json.loads(response.strip())
-        return int(data.get("arm_feel", 4)), data.get("areas", [])
+        return int(data.get("arm_feel", 7)), data.get("areas", [])
     except Exception as e:
-        logger.warning(f"Arm report classification failed, defaulting to 4: {e}")
-        return 4, areas
+        logger.warning(f"Arm report classification failed, defaulting to 7: {e}")
+        return 7, areas
 
 
 async def plan_completion_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -891,7 +891,7 @@ def get_checkin_handler() -> ConversationHandler:
     return ConversationHandler(
         entry_points=[
             CommandHandler("checkin", start_checkin),
-            CallbackQueryHandler(morning_arm_feel_entry, pattern=r"^arm_feel_[1-5]$"),
+            CallbackQueryHandler(morning_arm_feel_entry, pattern=r"^arm_feel_([1-9]|10)$"),
         ],
         states={
             RELIEVER_THREW: [CallbackQueryHandler(

@@ -84,7 +84,7 @@ If the FPM is strained or fatigued, it can no longer effectively dissipate the 6
 
 ### Critical Modifications for "Yellow Flag" Pitchers
 
-If a pitcher reports an arm feel of < 3/5 or localized FPM tightness, the following program adjustments are mandatory:
+If a pitcher reports an arm feel of < 5/10 or localized FPM tightness, the following program adjustments are mandatory:
 
 1. **Throwing Integration:** Immediate 50% reduction in high-intent throwing volume; resume low-intensity "massage throws" only after 24 hours of pain-free ADLs.
 2. **Lifting Modification:** Eliminate all vertical pulling (pull-ups/chin-ups) and heavy "fixed-scap" pressing, as these can aggravate medial elbow tension.

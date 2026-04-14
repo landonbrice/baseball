@@ -20,7 +20,7 @@ export default function PostThrowFeel({ preThrowFeel, existingValue, onCapture }
       >
         <span style={{ fontSize: 14 }}>{'\u2713'}</span>
         <span style={{ fontSize: 12, color: 'var(--color-flag-green)', fontWeight: 600 }}>
-          Post-throw feel logged: {val}/5
+          Post-throw feel logged: {val}/10
         </span>
       </div>
     );
@@ -40,22 +40,22 @@ export default function PostThrowFeel({ preThrowFeel, existingValue, onCapture }
       </p>
       {preThrowFeel != null && (
         <p style={{ fontSize: 11, color: 'var(--color-ink-muted)', margin: '0 0 10px' }}>
-          Pre-throw: {preThrowFeel}/5
+          Pre-throw: {preThrowFeel}/10
         </p>
       )}
-      <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: 10 }}>
-        {[1, 2, 3, 4, 5].map(n => (
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center', marginBottom: 10 }}>
+        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => (
           <button
             key={n}
             onClick={() => setSelected(n)}
             style={{
-              width: 40,
-              height: 40,
-              borderRadius: 10,
+              width: 32,
+              height: 36,
+              borderRadius: 8,
               border: selected === n ? '2px solid var(--color-maroon)' : '1.5px solid var(--color-cream-border)',
               background: selected === n ? 'rgba(232, 160, 170, 0.2)' : 'var(--color-white)',
               color: selected === n ? 'var(--color-maroon)' : 'var(--color-ink-primary)',
-              fontSize: 16,
+              fontSize: 14,
               fontWeight: 600,
               cursor: 'pointer',
             }}

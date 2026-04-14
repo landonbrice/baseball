@@ -166,7 +166,7 @@ def _build_qa_context(profile: dict, pitcher_id: str) -> str:
         f"Name: {profile.get('name', 'Unknown')}",
         f"Role: {profile.get('role', 'starter')}",
         f"Throws: {profile.get('throws', 'unknown')}",
-        f"Arm feel: {flags.get('current_arm_feel', 'N/A')}/5",
+        f"Arm feel: {flags.get('current_arm_feel', 'N/A')}/10",
         f"Days since outing: {flags.get('days_since_outing', 'N/A')}",
     ]
 

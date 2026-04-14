@@ -63,7 +63,7 @@ async def process_outing(
     outing_data = (
         f"Date: {today}\n"
         f"Pitch count: {pitch_count} (typical: {typical})\n"
-        f"Arm feel: {post_arm_feel}/5\n"
+        f"Arm feel: {post_arm_feel}/10\n"
         f"Forearm tightness: {forearm_tightness}\n"
         f"UCL sensation: {'present' if ucl_sensation else 'none'}\n"
         f"Triage flag: {flag_level.upper()}\n"
@@ -114,7 +114,7 @@ async def process_outing(
     ucl_str = ", UCL sensation present" if ucl_sensation else ""
     append_context(
         pitcher_id, "outing",
-        f"OUTING: {pitch_count}pc, feel={post_arm_feel}/5, {flag_level.upper()}{tightness_str}{ucl_str}"
+        f"OUTING: {pitch_count}pc, feel={post_arm_feel}/10, {flag_level.upper()}{tightness_str}{ucl_str}"
         + (f". {notes[:80]}" if notes else "")
     )
 

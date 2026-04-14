@@ -31,6 +31,12 @@ KNOWLEDGE_DIR = os.path.join(DATA_DIR, "knowledge")
 
 CONTEXT_WINDOW_CHARS = 12000  # ~3000 tokens, full context.md untruncated for 12 pitchers
 
+# Self-report scales
+ARM_FEEL_MIN = 1
+ARM_FEEL_MAX = 10
+ENERGY_MIN = 1
+ENERGY_MAX = 10
+
 DISABLE_AUTH = os.getenv("DISABLE_AUTH", "").lower() == "true"
 
 # Timezone — all pitchers are in Chicago

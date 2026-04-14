@@ -1,7 +1,7 @@
 /**
  * Season arm feel + recovery timeline — Chart.js dual-axis line chart.
  *
- * Left Y-axis: arm feel (1-5, maroon line with gradient fill)
+ * Left Y-axis: arm feel (1-10, maroon line with gradient fill)
  * Right Y-axis: recovery % (0-100, green/red dots)
  * Outing markers: vertical dashed lines with S1/S2 labels
  * Rotation day labels: second row below x-axis dates
@@ -106,8 +106,8 @@ export default function SeasonTimeline({ timeline = [], hasWhoop = false }) {
         borderColor: MAROON,
         borderWidth: 2.5,
         tension: 0.4,
-        pointBackgroundColor: armFeelData.map(v => v <= 3 ? YELLOW : '#1D9E75'),
-        pointRadius: armFeelData.map(v => v <= 3 ? 6 : 3.5),
+        pointBackgroundColor: armFeelData.map(v => v <= 5 ? YELLOW : '#1D9E75'),
+        pointRadius: armFeelData.map(v => v <= 5 ? 6 : 3.5),
         pointBorderWidth: 0,
         fill: true,
         backgroundColor: (ctx) => {
@@ -161,7 +161,7 @@ export default function SeasonTimeline({ timeline = [], hasWhoop = false }) {
           tooltip: {
             callbacks: {
               label: ctx => {
-                if (ctx.dataset.label === 'Arm feel') return 'Arm: ' + ctx.parsed.y + '/5';
+                if (ctx.dataset.label === 'Arm feel') return 'Arm: ' + ctx.parsed.y + '/10';
                 if (ctx.dataset.label === 'Recovery') return 'Recovery: ' + ctx.parsed.y + '%';
                 return '';
               },
@@ -170,8 +170,8 @@ export default function SeasonTimeline({ timeline = [], hasWhoop = false }) {
         },
         scales: {
           yA: {
-            min: 1, max: 5, position: 'left',
-            ticks: { stepSize: 1, font: { size: 11 }, color: MAROON, callback: v => v + '/5' },
+            min: 1, max: 10, position: 'left',
+            ticks: { stepSize: 2, font: { size: 11 }, color: MAROON, callback: v => v + '/10' },
             grid: { color: 'rgba(0,0,0,0.05)' },
             border: { display: false },
           },

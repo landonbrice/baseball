@@ -4,7 +4,7 @@ Evaluates check-in + outing data against profile-driven decision rules.
 Returns one of 4 flags: red, yellow, modified_green, green.
 
 Derived from arm-care-bot's determine_protocol_flag() with adaptations:
-- 1-5 arm feel scale (not 1-10)
+- 1-10 arm feel scale
 - Profile-driven instant-RED triggers based on injury history
 - Modified Green tier for borderline states
 - Weighted yellow trigger accumulation
@@ -26,10 +26,10 @@ def triage(
     """Run weighted triage on a pitcher's data.
 
     Args:
-        arm_feel: 1-5 scale (1=severe pain, 5=great)
+        arm_feel: 1-10 scale (1=severe pain, 10=great)
         sleep_hours: Hours of sleep last night
         pitcher_profile: Full pitcher profile dict
-        energy: Optional 1-5 energy rating
+        energy: Optional 1-10 energy rating
         whoop_recovery: Optional WHOOP recovery percentage (0-100)
         whoop_hrv: Optional WHOOP HRV rMSSD in ms
         whoop_hrv_7day_avg: Optional 7-day HRV rolling average in ms
@@ -69,9 +69,9 @@ def triage(
     # ── INSTANT RED FLAGS ──
 
     # Universal: severe arm feel
-    if arm_feel <= 1:
+    if arm_feel <= 2:
         return _red_result(
-            "Arm feel critically low (1/5). No training. Trainer evaluation required.",
+            "Arm feel critically low (1-2/10). No training. Trainer evaluation required.",
             active_flags, modifications, alerts, protocol_adjustments,
         )
 
@@ -91,13 +91,13 @@ def triage(
             active_flags, modifications, alerts, protocol_adjustments,
         )
 
-    # Universal: arm feel ≤ 2
-    if arm_feel <= 2:
+    # Universal: arm feel ≤ 4
+    if arm_feel <= 4:
         prev_feel = active_flags.get("current_arm_feel")
-        if prev_feel is not None and prev_feel <= 2:
-            alerts.append("URGENT: 2+ days with arm feel ≤ 2. Strongly recommend in-person trainer evaluation.")
+        if prev_feel is not None and prev_feel <= 4:
+            alerts.append("URGENT: 2+ days with arm feel ≤ 4. Strongly recommend in-person trainer evaluation.")
         return _red_result(
-            f"Arm feel {arm_feel}/5 triggers RED protocol. No training stress until cleared.",
+            f"Arm feel {arm_feel}/10 triggers RED protocol. No training stress until cleared.",
             active_flags, modifications, alerts, protocol_adjustments,
         )
 
@@ -106,9 +106,9 @@ def triage(
     yellow_triggers = 0
     trigger_reasons = []
 
-    if arm_feel <= 3:
+    if arm_feel <= 6:
         yellow_triggers += 1
-        trigger_reasons.append(f"arm feel {arm_feel}/5")
+        trigger_reasons.append(f"arm feel {arm_feel}/10")
 
     if tightness in ("mild", "moderate"):
         yellow_triggers += 1
@@ -124,9 +124,9 @@ def triage(
         yellow_triggers += 1
         trigger_reasons.append(f"low sleep ({sleep_hours}h)")
 
-    if energy is not None and energy <= 2:
+    if energy is not None and energy <= 4:
         yellow_triggers += 1
-        trigger_reasons.append(f"low energy ({energy}/5)")
+        trigger_reasons.append(f"low energy ({energy}/10)")
 
     if whoop_recovery is not None and whoop_recovery < 33:
         yellow_triggers += 1
@@ -176,7 +176,7 @@ def triage(
         protocol_adjustments["lifting_intensity_cap"] = "RPE 6-7"
         protocol_adjustments["remove_exercises"].append("med_ball")
         protocol_adjustments["plyocare_allowed"] = False
-        if arm_feel >= 4:
+        if arm_feel >= 7:
             protocol_adjustments["arm_care_template"] = "heavy"
         protocol_adjustments["throwing_adjustments"] = {
             "max_day_type": "hybrid_b",
@@ -267,7 +267,7 @@ def triage(
 
     return _build_result(
         "green", modifications, alerts, protocol_adjustments,
-        f"All systems green. Arm feel {arm_feel}/5, sleep {sleep_hours}h. Full protocol.",
+        f"All systems green. Arm feel {arm_feel}/10, sleep {sleep_hours}h. Full protocol.",
     )
 
 

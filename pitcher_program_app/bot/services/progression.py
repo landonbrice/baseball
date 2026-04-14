@@ -90,32 +90,32 @@ def _analyze_arm_feel_trend(entries: list) -> tuple[list[str], list[str]]:
                 "Worth monitoring — talk to your trainer if it continues."
             )
         # Improving trend
-        elif all(last_three[i] <= last_three[i + 1] for i in range(len(last_three) - 1)) and last_three[-1] >= 4:
+        elif all(last_three[i] <= last_three[i + 1] for i in range(len(last_three) - 1)) and last_three[-1] >= 7:
             observations.append(
                 f"Arm feel trending up ({' → '.join(str(f) for f in last_three)}). Recovery is tracking well."
             )
 
     if len(feels) >= 5:
         avg = sum(feels) / len(feels)
-        if avg < 3.0:
+        if avg < 5.0:
             flags.append("arm_feel_low_avg")
             observations.append(
-                f"Your 5-day arm feel average is {avg:.1f}/5. "
+                f"Your 5-day arm feel average is {avg:.1f}/10. "
                 "That's below where we'd like it. Consider backing off intensity."
             )
-        elif avg >= 4.0:
+        elif avg >= 7.0:
             observations.append(
-                f"Arm feel averaging {avg:.1f}/5 over your last {len(feels)} check-ins. Strong and consistent."
+                f"Arm feel averaging {avg:.1f}/10 over your last {len(feels)} check-ins. Strong and consistent."
             )
-        elif avg >= 3.0:
+        elif avg >= 5.0:
             observations.append(
-                f"Arm feel averaging {avg:.1f}/5 — solid baseline. Consistency here is what builds durability."
+                f"Arm feel averaging {avg:.1f}/10 — solid baseline. Consistency here is what builds durability."
             )
 
     # Stability observation — low variance is good
     if len(feels) >= 5:
         variance = sum((f - sum(feels)/len(feels))**2 for f in feels) / len(feels)
-        if variance < 0.5 and sum(feels)/len(feels) >= 3.5:
+        if variance < 0.5 and sum(feels)/len(feels) >= 6.0:
             observations.append(
                 "Arm feel has been very stable recently. That consistency matters more than any single day."
             )
@@ -199,7 +199,7 @@ def _analyze_recovery_curve(entries: list) -> tuple[list[str], list[str]]:
         if len(post_feels) >= 2:
             # Arm feel should be trending up or stable by day 2-3
             if all(post_feels[i] >= post_feels[i + 1] for i in range(len(post_feels) - 1)):
-                if post_feels[-1] <= 3:
+                if post_feels[-1] <= 6:
                     flags.append("slow_recovery")
                     observations.append(
                         "Arm feel isn't recovering as expected post-outing. "
@@ -229,7 +229,7 @@ def _generate_weekly_summary(pitcher_id: str, entries: list):
 
     if feels:
         avg_feel = sum(feels) / len(feels)
-        parts.append(f"  Arm feel: avg {avg_feel:.1f}/5 (range {min(feels)}-{max(feels)})")
+        parts.append(f"  Arm feel: avg {avg_feel:.1f}/10 (range {min(feels)}-{max(feels)})")
 
     if sleeps:
         avg_sleep = sum(sleeps) / len(sleeps)
@@ -614,7 +614,7 @@ def build_season_summary(pitcher_id: str) -> dict:
 
         valid_bars = [b for b in bars if b["avg_feel"] is not None]
         best_day = max(valid_bars, key=lambda b: b["avg_feel"])["day"] if valid_bars else None
-        low_days = [b["day"] for b in valid_bars if b["avg_feel"] is not None and b["avg_feel"] < 4.0]
+        low_days = [b["day"] for b in valid_bars if b["avg_feel"] is not None and b["avg_feel"] < 7.0]
 
         insight = ""
         ask_prompt = ""
@@ -654,10 +654,10 @@ def build_season_summary(pitcher_id: str) -> dict:
                 if next_af is not None:
                     recovery.append({"day": f"D+{offset}", "arm_feel": next_af})
 
-        # How many days to get back to 4+
+        # How many days to get back to 7+
         recovery_days = None
         for r in recovery:
-            if r["arm_feel"] >= 4:
+            if r["arm_feel"] >= 7:
                 recovery_days = int(r["day"].split("+")[1])
                 break
 
@@ -667,13 +667,13 @@ def build_season_summary(pitcher_id: str) -> dict:
             if recovery_days <= 2:
                 insight = f"{recovery_days}-day recovery."
                 if pitch_count and pitch_count < 75:
-                    insight += f" Under 75 pitches, back to 4+ by D+{recovery_days}."
-                elif post_arm_feel and post_arm_feel >= 4:
+                    insight += f" Under 75 pitches, back to 7+ by D+{recovery_days}."
+                elif post_arm_feel and post_arm_feel >= 7:
                     insight += " Post-arm feel was solid."
             else:
-                insight = f"Took {recovery_days} days to get back to 4."
+                insight = f"Took {recovery_days} days to get back to 7."
         elif recovery:
-            insight = f"Still recovering — haven't reached 4+ in the {len(recovery)} days tracked."
+            insight = f"Still recovering — haven't reached 7+ in the {len(recovery)} days tracked."
 
         outings.append({
             "date": e.get("date"),
@@ -817,11 +817,11 @@ def build_season_summary(pitcher_id: str) -> dict:
             rec = t.get("recovery_score")
             if rec is not None and rec < 67:
                 low_rec_total += 1
-                if t["arm_feel"] <= 3:
+                if t["arm_feel"] <= 6:
                     low_rec_low_arm += 1
         if low_rec_total >= 2:
             timeline_insight = (
-                f"Sub-67% recovery days produced arm feel 3 or below "
+                f"Sub-67% recovery days produced arm feel 6 or below "
                 f"in {low_rec_low_arm} of {low_rec_total} instances this season."
             )
         elif low_rec_total == 0 and len(timeline) >= 5:
@@ -860,7 +860,7 @@ def build_season_summary(pitcher_id: str) -> dict:
             points.append({"sleep": sleep_val, "arm_feel": next_af})
             if sleep_val < 7:
                 under_7_count += 1
-                if next_af < 4:
+                if next_af < 7:
                     under_7_low_feel_count += 1
 
     if len(points) >= 3:

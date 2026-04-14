@@ -39,9 +39,9 @@ async def llm_triage_refinement(
         pitcher_context += f"Injury note: {latest.get('area', '')} — {latest.get('ongoing_considerations', '')}\n"
 
     checkin_data = (
-        f"Arm feel: {arm_feel}/5\n"
+        f"Arm feel: {arm_feel}/10\n"
         f"Sleep: {sleep_hours}h\n"
-        f"Energy: {energy}/5\n"
+        f"Energy: {energy}/10\n"
     )
 
     recent_entries = get_recent_entries(pitcher_id, n=5)

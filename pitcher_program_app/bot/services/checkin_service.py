@@ -69,7 +69,7 @@ def _build_recent_history_context(pitcher_id, n=5):
         flag = (pt.get("flag_level") or "?").upper()
         soreness = pt.get("soreness_notes", "")
 
-        parts = [f"{date}: arm {arm}/5, {flag}"]
+        parts = [f"{date}: arm {arm}/10, {flag}"]
         if soreness:
             parts.append(f"notes: {soreness[:80]}")
         if e.get("skip_notes"):
@@ -129,7 +129,7 @@ async def process_checkin(
     )
 
     # Apply arm clarification to triage (Refinement 2)
-    if arm_clarification == "expected_soreness" and arm_feel is not None and arm_feel <= 2:
+    if arm_clarification == "expected_soreness" and arm_feel is not None and arm_feel <= 4:
         # Pitcher says it's expected — modify green, still protective but not shutdown
         if triage_result["flag_level"] == "red":
             triage_result["flag_level"] = "yellow"
@@ -333,9 +333,9 @@ async def process_checkin(
     mods = plan_result.get("modifications_applied", []) if plan_result else []
     mods_str = f" Mods: {', '.join(mods[:3])}" if mods else ""
 
-    session_note = f"Arm {arm_feel}/5, sleep {sleep_hours}h, {flag} flag. {lifting_summary}. {throwing_summary}.{mods_str}".strip()
+    session_note = f"Arm {arm_feel}/10, sleep {sleep_hours}h, {flag} flag. {lifting_summary}. {throwing_summary}.{mods_str}".strip()
     if arm_report:
-        session_note = f'Arm: "{arm_report}" ({arm_feel}/5). {session_note}'
+        session_note = f'Arm: "{arm_report}" ({arm_feel}/10). {session_note}'
     if lift_preference:
         session_note += f" Requested: {lift_preference}."
     append_context(pitcher_id, "session", session_note)

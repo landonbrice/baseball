@@ -61,9 +61,9 @@ function DayChip({ day, isSelected, onClick }) {
   const { day_label, day_number, is_today, is_past, flag_level, had_outing, is_upcoming_outing, arm_feel } = day;
 
   // Arm feel color for the status dot
-  const armFeelColor = arm_feel >= 4 ? 'var(--color-flag-green)'
-                     : arm_feel === 3 ? 'var(--color-flag-yellow)'
-                     : arm_feel >= 1 ? 'var(--color-flag-red)'
+  const armFeelColor = arm_feel >= 7 ? 'var(--color-flag-green)'
+                     : arm_feel >= 5 && arm_feel <= 6 ? 'var(--color-flag-yellow)'
+                     : arm_feel >= 1 && arm_feel <= 4 ? 'var(--color-flag-red)'
                      : null;
 
   // Use arm feel color if available, fall back to flag_level color

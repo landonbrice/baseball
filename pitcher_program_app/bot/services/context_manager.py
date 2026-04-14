@@ -152,7 +152,7 @@ def load_context(pitcher_id: str) -> str:
         f"- Active program modifications: {mods_str}",
         "",
         "## Current Status",
-        f"- Arm Feel: {flags.get('current_arm_feel', 'N/A')}/5",
+        f"- Arm Feel: {flags.get('current_arm_feel', 'N/A')}/10",
         f"- Flag Level: {(flags.get('current_flag_level') or 'unknown').upper()}",
         f"- Days Since Outing: {flags.get('days_since_outing', 'N/A')}",
     ]
@@ -232,7 +232,7 @@ def _summarize_entry(entry: dict) -> str:
     sleep = pt.get("sleep_hours", "?")
     flag = (pt.get("flag_level") or "?").upper()
 
-    parts = [f"{date}: Arm {arm}/5, sleep {sleep}h, {flag}"]
+    parts = [f"{date}: Arm {arm}/10, sleep {sleep}h, {flag}"]
 
     lifting = entry.get("lifting", {}) or {}
     if lifting and lifting.get("intent"):
@@ -250,7 +250,7 @@ def _summarize_entry(entry: dict) -> str:
 
     if entry.get("outing"):
         o = entry["outing"]
-        parts.append(f"OUTING: {o.get('pitch_count', '?')}pc, post-feel {o.get('post_arm_feel', '?')}/5")
+        parts.append(f"OUTING: {o.get('pitch_count', '?')}pc, post-feel {o.get('post_arm_feel', '?')}/10")
 
     return ". ".join(parts)
 

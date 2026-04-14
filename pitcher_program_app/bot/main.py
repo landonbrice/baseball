@@ -140,7 +140,7 @@ async def status(update: Update, context) -> None:
 
     msg = (
         f"Current status:\n"
-        f"  Arm feel: {flags.get('current_arm_feel', 'N/A')}/5\n"
+        f"  Arm feel: {flags.get('current_arm_feel', 'N/A')}/10\n"
         f"  Flag level: {flags.get('current_flag_level', 'unknown').upper()}\n"
         f"  Days since outing: {flags.get('days_since_outing', 'N/A')}\n"
         f"  Last outing: {flags.get('last_outing_pitches', 'N/A')} pitches "
@@ -480,10 +480,10 @@ async def _send_morning_checkin(context) -> None:
             lines.append(f"{first_name} — start day approaching. Keeping it light.")
         elif yesterday_entry and (yesterday_entry.get("pre_training") or {}).get("arm_feel"):
             yest_feel = yesterday_entry["pre_training"]["arm_feel"]
-            if yest_feel >= 4:
-                lines.append(f"{first_name} — arm felt good yesterday ({yest_feel}/5). Let's keep it rolling.")
-            elif yest_feel == 3:
-                lines.append(f"{first_name} — arm was a 3 yesterday. Let's see where you're at today.")
+            if yest_feel >= 7:
+                lines.append(f"{first_name} — arm felt good yesterday ({yest_feel}/10). Let's keep it rolling.")
+            elif yest_feel >= 5 and yest_feel <= 6:
+                lines.append(f"{first_name} — arm was a 5-6 yesterday. Let's see where you're at today.")
             else:
                 lines.append(f"{first_name} — arm was at {yest_feel} yesterday. Checking in on that.")
         else:
@@ -529,7 +529,7 @@ async def _send_morning_checkin(context) -> None:
             pass
 
         lines.append("")
-        lines.append("How's the arm? (1-5)")
+        lines.append("How's the arm? (1-10)")
         draft_msg = "\n".join(lines)
 
         # ── Research check: should we enrich with LLM? ──
@@ -559,7 +559,7 @@ async def _send_morning_checkin(context) -> None:
                 yesterday_ctx = ""
                 if yesterday_entry:
                     pre = yesterday_entry.get("pre_training") or {}
-                    yesterday_ctx = f"Arm feel: {pre.get('arm_feel', 'N/A')}/5, Flag: {pre.get('flag_level', 'green')}"
+                    yesterday_ctx = f"Arm feel: {pre.get('arm_feel', 'N/A')}/10, Flag: {pre.get('flag_level', 'green')}"
 
                 prompt = morning_prompt.replace("{first_name}", first_name)
                 prompt = prompt.replace("{role}", role)
@@ -577,8 +577,8 @@ async def _send_morning_checkin(context) -> None:
                 )
 
                 if llm_msg and len(llm_msg.strip()) > 10:
-                    if "1-5" not in llm_msg and "arm" not in llm_msg.lower():
-                        llm_msg += "\n\nHow's the arm? (1-5)"
+                    if "1-10" not in llm_msg and "arm" not in llm_msg.lower():
+                        llm_msg += "\n\nHow's the arm? (1-10)"
                     msg = llm_msg.strip()
                 else:
                     msg = draft_msg
@@ -589,7 +589,7 @@ async def _send_morning_checkin(context) -> None:
             msg = draft_msg
 
     except Exception:
-        msg = "Morning — how's the arm? (1-5)"
+        msg = "Morning — how's the arm? (1-10)"
 
     await context.bot.send_message(chat_id=chat_id, text=msg, reply_markup=reply_markup)
 

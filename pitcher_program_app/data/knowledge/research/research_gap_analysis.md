@@ -205,9 +205,9 @@ Combine with this for actionable protocols:
 **Sleep target:** 8-9 hours (this is the #1 recovery variable)
 
 **Day 1 morning check-in (what the bot should ask):**
-- Arm feel: 1-5 scale
+- Arm feel: 1-10 scale
 - Grip strength: subjective comparison to baseline
-- Sleep hours + quality (1-5)
+- Sleep hours + quality (1-10)
 - Any new pain locations?
 - WHOOP recovery % (if connected)
 

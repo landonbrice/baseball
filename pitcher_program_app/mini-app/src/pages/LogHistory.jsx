@@ -259,8 +259,8 @@ function RotationChart({ bars }) {
     const data = bars.map(b => b.avg_feel);
     const colors = bars.map(b => {
       if (b.avg_feel === null) return '#eee';
-      if (b.avg_feel <= 3.5) return YELLOW;
-      if (b.avg_feel <= 4) return 'rgba(92,16,32,0.5)';
+      if (b.avg_feel <= 5.5) return YELLOW;
+      if (b.avg_feel <= 7) return 'rgba(92,16,32,0.5)';
       return MAROON;
     });
 
@@ -275,12 +275,12 @@ function RotationChart({ bars }) {
         maintainAspectRatio: false,
         plugins: {
           legend: { display: false },
-          tooltip: { callbacks: { label: ctx => 'Avg arm: ' + (ctx.parsed.y?.toFixed(1) ?? '—') + '/5' } },
+          tooltip: { callbacks: { label: ctx => 'Avg arm: ' + (ctx.parsed.y?.toFixed(1) ?? '—') + '/10' } },
         },
         scales: {
           y: {
-            min: 1, max: 5,
-            ticks: { stepSize: 1, font: { size: 11 }, color: '#b0a89e', callback: v => v + '/5' },
+            min: 1, max: 10,
+            ticks: { stepSize: 2, font: { size: 11 }, color: '#b0a89e', callback: v => v + '/10' },
             grid: { color: 'rgba(0,0,0,0.04)' },
             border: { display: false },
           },

@@ -54,7 +54,7 @@ async def pitch_count_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     reply_markup = build_rating_keyboard("outing_feel")
     await update.message.reply_text(
-        f"Got it — {count} pitches. How's the arm feel right now? (1-5)",
+        f"Got it — {count} pitches. How's the arm feel right now? (1-10)",
         reply_markup=reply_markup,
     )
     return ARM_FEEL
@@ -78,7 +78,7 @@ async def arm_feel_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             InlineKeyboardButton("Significant", callback_data="tightness_significant"),
         ],
     ])
-    await query.edit_message_text(f"Arm feel: {arm_feel}/5.")
+    await query.edit_message_text(f"Arm feel: {arm_feel}/10.")
     await query.message.reply_text(
         "Any forearm tightness?",
         reply_markup=keyboard,
@@ -181,7 +181,7 @@ def get_outing_handler() -> ConversationHandler:
         entry_points=[CommandHandler("outing", start_outing)],
         states={
             PITCH_COUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, pitch_count_handler)],
-            ARM_FEEL: [CallbackQueryHandler(arm_feel_callback, pattern=r"^outing_feel_\d$")],
+            ARM_FEEL: [CallbackQueryHandler(arm_feel_callback, pattern=r"^outing_feel_\d+$")],
             TIGHTNESS: [CallbackQueryHandler(tightness_callback, pattern=r"^tightness_")],
             UCL_SENSATION: [CallbackQueryHandler(ucl_callback, pattern=r"^ucl_")],
             NOTES: [MessageHandler(filters.TEXT & ~filters.COMMAND, notes_handler)],
