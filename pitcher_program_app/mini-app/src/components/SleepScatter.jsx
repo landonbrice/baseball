@@ -35,6 +35,7 @@ export default function SleepScatter({ points = [] }) {
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        layout: { padding: { top: 8, bottom: 4 } },
         plugins: {
           legend: { display: false },
           tooltip: {
@@ -50,12 +51,9 @@ export default function SleepScatter({ points = [] }) {
             border: { display: false },
           },
           y: {
-            min: 0, max: 11,
+            min: 1, max: 10,
             title: { display: true, text: 'arm feel', font: { size: 11 }, color: '#b0a89e' },
-            ticks: {
-              stepSize: 2, font: { size: 11 }, color: '#b0a89e',
-              callback: v => (v === 0 || v > 10) ? '' : v,
-            },
+            ticks: { stepSize: 3, autoSkip: false, font: { size: 11 }, color: '#b0a89e' },
             grid: { color: 'rgba(0,0,0,0.04)' },
             border: { display: false },
           },
