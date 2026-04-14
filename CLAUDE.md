@@ -1,7 +1,7 @@
 # Pitcher Training Intelligence — Claude Init
 
 > Last updated: 2026-04-13
-> Sprint status: Phases 1-20 complete. Coach Dashboard v0 code-complete, blocked on CORS env var. Next: unblock coach dashboard deploy, The Ledger, weight logging UI, exercise progression curves.
+> Sprint status: Phases 1-20 + Sprint 0.5 complete (arm_feel/energy 1-5→1-10 migration). Coach Dashboard v0 code-complete, blocked on CORS env var. Next: Sprint 1a trend detection, The Ledger, weight logging UI.
 
 ## What This Is
 
@@ -34,6 +34,7 @@ A training intelligence system for the UChicago baseball pitching staff. Telegra
 | 18a | Swap Dual-Write Fix | 04-09 | `swap_exercise` + `apply_mutations` now search top-level `lifting.exercises` first, write both locations |
 | 19 | Research-Aware Coaching | 04-10 | Unified resolver, frontmatter-driven research docs, structured coach chat, morning enrichment, "why" sheet |
 | 20 | Coach Dashboard v0 | 04-12 | Full coach-facing app: 7 new DB tables, 30 API endpoints, JWT auth, 6 screens, 13 components. CORS blocker remains |
+| 0.5 | Scale Migration | 04-13 | arm_feel/energy rescaled 1-5→1-10 across bot, API, mini-app, coach-app, prompts, data templates. Supabase data migrated ×2. Chart axes reworked. |
 
 ### What's Next
 1. **Unblock coach dashboard** — Set `COACH_APP_URL` env var in Railway, redeploy. Only remaining blocker.
@@ -149,6 +150,8 @@ pitcher_program_app/
 11. Weekly state updated in `pitcher_training_model.current_week_state`
 12. Plan tagged with `source` (`python_fallback` | `llm_enriched`) + `source_reason` for observability
 
+**Arm feel scale (1-10, migrated from 1-5 on 2026-04-13):** Critical RED ≤2 (shutdown), RED ≤4, YELLOW trigger ≤6, Green ≥7. Energy low trigger ≤4. Avg trend thresholds: <5.0 low, ≥5.0 solid, ≥7.0 strong. Recovery "back to good" ≥7.
+
 ### Exercise Selection (`exercise_pool.py`)
 - Filters by: day focus, rotation_day_usage, contraindications, modification_flags
 - Prefers exercises NOT used in last 7 days
@@ -230,7 +233,11 @@ All dates use `CHICAGO_TZ` (from `bot/config.py`). Server: `datetime.now(CHICAGO
 - `_DAILY_ENTRY_COLUMNS` whitelist in `db.py` strips unknown fields before upsert
 - `pitchers` PK is `pitcher_id` (not `id`). FK references must use `REFERENCES pitchers(pitcher_id)`
 - `pitcher_training_model` consolidates old `active_flags` + exercise intelligence. `profile["active_flags"]` populated via compat layer in `_profile_from_row()`
+- `daily_entries.pre_training` JSONB uses key `overall_energy` (NOT `energy`) — matters for any SQL migration touching energy values
 - Exercise library has dual source: `exercise_library.json` (API endpoints) + Supabase `exercises` table (plan gen). **Both must be updated** when adding exercises.
+
+### Chart.js Axis Gotcha
+With explicit `min`/`max` + `stepSize`, Chart.js silently adds `max` as an extra tick when `max` isn't on the stepSize grid (produces spurious labels like "11/10"). For dot headroom at y=max, use chart-level `clip: false` + `layout.padding.top` — do NOT inflate `max` to create space. Example in `SeasonTimeline.jsx` and `SleepScatter.jsx`.
 
 ### Handler Registration
 `register_handlers(application)` in `bot/main.py` is the **single source of truth** for all bot handlers. Both `main.py` (local) and `run.py` (Railway) call it. **Add new commands here only.**
@@ -354,6 +361,7 @@ No Python virtualenv locally — project runs on Railway. Use Supabase MCP for S
 ## Known Issues & Tech Debt
 
 - **Coach dashboard CORS blocker** — `COACH_APP_URL` env var not yet set in Railway. Only deploy blocker.
+- **Repo bloat from untracked dev artifacts** — `graphify-out/`, `past_arm_programs/*.xlsx`, root-level `scripts/`, `ui-elevation-mockup.jsx` have leaked into commits. Need proper `.gitignore` + `git rm --cached` pass.
 - `morning_brief` string/dict coercion duplicated in 4 places — should normalize at checkin_service boundary
 - `context_manager.py:173` `msg.get("content","")[:200]` — no `str()` coercion, latent TypeError if content is dict
 - 10 exercises missing YouTube links (ex_121-123, ex_126-128, ex_156-159)
