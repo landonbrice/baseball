@@ -8,7 +8,7 @@ export default function TrendInsightChart({ weeks = [] }) {
   const plotH = svgH - pad.top - pad.bottom;
 
   const minY = 1;
-  const maxY = 5;
+  const maxY = 10;
   const rangeY = maxY - minY;
 
   const toX = (i) => pad.left + (i / (weeks.length - 1)) * plotW;
@@ -22,7 +22,7 @@ export default function TrendInsightChart({ weeks = [] }) {
   const bandBot = [...weeks].reverse().map((w, i) => `${toX(weeks.length - 1 - i)},${toY(w.low)}`).join(' ');
   const bandPath = `${bandTop} ${bandBot}`;
 
-  const gridLines = [1, 2, 3, 4, 5];
+  const gridLines = [2, 4, 6, 8, 10];
 
   return (
     <div style={{

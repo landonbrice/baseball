@@ -3,7 +3,7 @@ export default function Sparkline({ data = [], outingIndices = [], width = 80, h
 
   const pad = 3;
   const minVal = 1;
-  const maxVal = 5;
+  const maxVal = 10;
   const range = maxVal - minVal || 1;
 
   const points = data.map((v, i) => ({
