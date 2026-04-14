@@ -43,7 +43,7 @@ def get_team_roster_overview(team_id: str, today_str: str) -> list:
 
     # All pitchers on the team
     pitchers = (client.table("pitchers")
-                .select("pitcher_id, name, role, telegram_username, physical, pitching")
+                .select("pitcher_id, name, role, telegram_username")
                 .eq("team_id", team_id)
                 .execute()).data or []
 
