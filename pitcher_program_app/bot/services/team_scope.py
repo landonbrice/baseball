@@ -73,14 +73,14 @@ def get_team_roster_overview(team_id: str, today_str: str) -> list:
 
     # Training models for flag info
     models = (client.table("pitcher_training_model")
-              .select("pitcher_id, flag_level, active_modifications, days_since_outing")
+              .select("pitcher_id, current_flag_level, active_modifications, days_since_outing")
               .in_("pitcher_id", [p["pitcher_id"] for p in pitchers])
               .execute()).data or []
     model_map = {m["pitcher_id"]: m for m in models}
 
     # Injury flags
     injuries = (client.table("injury_history")
-                .select("pitcher_id, area, status, flag_level")
+                .select("pitcher_id, area, flag_level")
                 .in_("pitcher_id", [p["pitcher_id"] for p in pitchers])
                 .execute()).data or []
     injury_map = {}
@@ -136,7 +136,7 @@ def get_team_roster_overview(team_id: str, today_str: str) -> list:
         # Active injury flags
         active_flags = []
         for inj in injury_map.get(pid, []):
-            if inj.get("status") in ("active", "monitoring"):
+            if inj.get("flag_level") in ("yellow", "red"):
                 active_flags.append(f"{inj.get('area', 'unknown')} ({inj.get('flag_level', '')})")
 
         roster.append({
@@ -144,7 +144,7 @@ def get_team_roster_overview(team_id: str, today_str: str) -> list:
             "name": p.get("name", ""),
             "role": p.get("role", ""),
             "today_status": "checked_in" if has_checked_in else "not_yet",
-            "flag_level": model.get("flag_level", "green"),
+            "flag_level": model.get("current_flag_level", "green"),
             "last_7_days": last_7,
             "streak": streak,
             "active_injury_flags": active_flags,
