@@ -170,7 +170,7 @@ export default function SeasonTimeline({ timeline = [], hasWhoop = false }) {
         },
         scales: {
           yA: {
-            min: 1, max: 10, position: 'left',
+            min: 1, max: 11, position: 'left',
             ticks: {
               stepSize: 3, autoSkip: false, font: { size: 11 }, color: MAROON,
               callback: v => v + '/10',

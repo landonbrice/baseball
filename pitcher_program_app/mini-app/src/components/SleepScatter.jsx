@@ -51,7 +51,7 @@ export default function SleepScatter({ points = [] }) {
             border: { display: false },
           },
           y: {
-            min: 1, max: 10,
+            min: 1, max: 11,
             title: { display: true, text: 'arm feel', font: { size: 11 }, color: '#b0a89e' },
             ticks: { stepSize: 3, autoSkip: false, font: { size: 11 }, color: '#b0a89e' },
             grid: { color: 'rgba(0,0,0,0.04)' },
