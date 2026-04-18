@@ -2334,3 +2334,52 @@ async def delete_scheduled_throw(pitcher_id: str, throw_id: str, request: Reques
     if not removed:
         raise HTTPException(status_code=404, detail="Throw not found")
     return {"removed": True}
+
+
+async def _send_admin_dm(text: str) -> None:
+    """Fire an admin Telegram DM. Best-effort — never raises."""
+    try:
+        from telegram import Bot
+        from bot.config import ADMIN_TELEGRAM_CHAT_ID
+        token = os.getenv("TELEGRAM_BOT_TOKEN", "")
+        if not token:
+            return
+        bot = Bot(token=token)
+        await bot.send_message(chat_id=ADMIN_TELEGRAM_CHAT_ID, text=text)
+    except Exception as e:
+        logger.warning("admin DM failed: %s", e)
+
+
+@router.post("/telemetry/ui-fallback")
+async def ui_fallback_telemetry(request: Request):
+    """Record a UI exercise-name fallback event (D9, D13).
+
+    Always inserts a row for post-mortem analysis. Admin DM fires only if
+    this exercise_id has not been seen in the last 24h (rate limit per D13).
+    """
+    body = await request.json()
+    exercise_id = body.get("exercise_id")
+    surface = body.get("surface")
+    component = body.get("component")
+    pitcher_id = body.get("pitcher_id")
+
+    if not exercise_id or not surface:
+        raise HTTPException(status_code=400, detail="exercise_id and surface required")
+
+    recent = _db.has_recent_ui_fallback(exercise_id, hours=24)
+    _db.insert_ui_fallback_log(
+        exercise_id=exercise_id,
+        surface=surface,
+        component=component,
+        pitcher_id=pitcher_id,
+    )
+
+    if not recent:
+        msg = (
+            f"⚠️ UI fallback: '{exercise_id}' missing name on {surface}"
+            + (f" ({component})" if component else "")
+            + (f" pitcher={pitcher_id}" if pitcher_id else "")
+        )
+        await _send_admin_dm(msg)
+
+    return {"ok": True, "dmed": not recent}

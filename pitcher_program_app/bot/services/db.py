@@ -668,3 +668,43 @@ def get_coach_by_supabase_id(supabase_user_id: str) -> dict | None:
             .limit(1)
             .execute())
     return resp.data[0] if resp.data else None
+
+
+# --- ui_fallback_log (D9, D13, D14) ---
+
+def insert_ui_fallback_log(exercise_id: str, surface: str, component: str = None, pitcher_id: str = None) -> None:
+    """Record a UI fallback event (exercise name missing on render)."""
+    row = {"exercise_id": exercise_id, "surface": surface}
+    if component:
+        row["component"] = component
+    if pitcher_id:
+        row["pitcher_id"] = pitcher_id
+    get_client().table("ui_fallback_log").insert(row).execute()
+
+
+def has_recent_ui_fallback(exercise_id: str, hours: int = 24) -> bool:
+    """Return True if this exercise_id has been logged within the last N hours (D13)."""
+    from datetime import datetime, timedelta, timezone
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
+    resp = (
+        get_client().table("ui_fallback_log")
+        .select("id", count="exact")
+        .eq("exercise_id", exercise_id)
+        .gte("logged_at", cutoff)
+        .limit(1)
+        .execute()
+    )
+    return bool(resp.data)
+
+
+def prune_ui_fallback_log(older_than_days: int = 30) -> int:
+    """Delete rows older than N days (D14). Returns number deleted."""
+    from datetime import datetime, timedelta, timezone
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=older_than_days)).isoformat()
+    resp = (
+        get_client().table("ui_fallback_log")
+        .delete()
+        .lt("logged_at", cutoff)
+        .execute()
+    )
+    return len(resp.data or [])

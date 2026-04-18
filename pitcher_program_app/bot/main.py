@@ -738,6 +738,15 @@ async def _send_health_digest(context) -> None:
             text=message,
         )
         logger.info("Health digest sent to admin chat_id=%s", ADMIN_TELEGRAM_CHAT_ID)
+
+        # D14: prune ui_fallback_log older than 30 days
+        try:
+            from bot.services import db as _db
+            pruned = _db.prune_ui_fallback_log(older_than_days=30)
+            if pruned:
+                logger.info("Pruned %d old ui_fallback_log rows", pruned)
+        except Exception as e:
+            logger.warning("ui_fallback_log prune failed: %s", e)
     except Exception as e:
         logger.error("Failed to send health digest: %s", e, exc_info=True)
 

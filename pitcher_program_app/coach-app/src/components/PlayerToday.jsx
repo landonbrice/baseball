@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { parseBrief } from '@shared/parseBrief.js'
+import { useExerciseName } from '../hooks/useExerciseName'
 
 export default function PlayerToday({ data, onAdjust, onRestrict }) {
   if (!data) return null
@@ -132,6 +133,11 @@ function PlanSection({ title, data }) {
   )
 }
 
+function ExerciseNameSpan({ ex }) {
+  const name = useExerciseName({ item: ex, component: 'PlayerToday' })
+  return <span className="text-charcoal">{name}</span>
+}
+
 function LiftingSection({ data }) {
   if (!data) return null
   const exercises = data.exercises || data.exercise_blocks || []
@@ -151,7 +157,7 @@ function LiftingSection({ data }) {
             )}
             {(Array.isArray(blockExercises) ? blockExercises : []).map((ex, i) => (
               <div key={i} className="flex justify-between text-xs py-0.5">
-                <span className="text-charcoal">{ex.name || ex.exercise_id}</span>
+                <ExerciseNameSpan ex={ex} />
                 <span className="text-subtle">{ex.prescribed || ex.rx || ''}</span>
               </div>
             ))}

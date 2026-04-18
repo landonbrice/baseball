@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { logUiFallback } from '../api';
 
 /**
  * Renders a plan mutation preview card in the coach chat.
@@ -13,6 +14,18 @@ import { useState } from 'react';
  */
 export default function MutationPreview({ mutations, onApply, onKeep, applied }) {
   const [applying, setApplying] = useState(false);
+
+  useEffect(() => {
+    (mutations || []).forEach(m => {
+      if (m.action === 'swap' && !m.name && m.to_exercise_id) {
+        logUiFallback({
+          exerciseId: m.to_exercise_id,
+          surface: 'mini-app',
+          component: 'MutationPreview',
+        });
+      }
+    });
+  }, [mutations]);
 
   if (!mutations || mutations.length === 0) return null;
 
