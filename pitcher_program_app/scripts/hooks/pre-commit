@@ -1,0 +1,14 @@
+#!/bin/sh
+# Pre-commit hook: re-seed Supabase exercises when exercise_library.json is staged.
+# D11: always exits 0 — warns + proceeds, never blocks a commit.
+# Install with: ln -sf ../../pitcher_program_app/scripts/hooks/pre-commit .git/hooks/pre-commit
+
+STAGED=$(git diff --cached --name-only)
+if echo "$STAGED" | grep -q "pitcher_program_app/data/knowledge/exercise_library.json"; then
+  echo ">>> exercise_library.json changed — running seed script (upsert-only)"
+  if ! (cd "$(git rev-parse --show-toplevel)/pitcher_program_app" && python -m scripts.seed_exercises_from_json); then
+    echo "!!! WARNING: seed script exited non-zero. Commit proceeding; rerun manually when Supabase is reachable:"
+    echo "    cd pitcher_program_app && python -m scripts.seed_exercises_from_json"
+  fi
+fi
+exit 0

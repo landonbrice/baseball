@@ -1,7 +1,7 @@
 # Pitcher Training Intelligence — Claude Init
 
-> Last updated: 2026-04-14
-> Sprint status: Phases 1-20.1 + Sprint 0.5 complete. Coach Dashboard live end-to-end (CORS, ES256/JWKS auth, Shell children, team_scope schema realigned). Schema-drift sweep on `bot/services/` complete — `team_scope.py` was the only offender. Next: auth-exchange response enrichment, The Ledger, weight logging UI.
+> Last updated: 2026-04-18
+> Sprint status: Phases 1-20.1 + Sprint 0.5 + Tier 1 Hardening complete. Coach sidebar shows team name, exercise names hydrated at write, canonical morning_brief shape, snapshot cache for exercises. Next: continue Tier 2 or pivot to next sprint.
 
 ## What This Is
 
@@ -236,7 +236,13 @@ All dates use `CHICAGO_TZ` (from `bot/config.py`). Server: `datetime.now(CHICAGO
 - `pitchers` PK is `pitcher_id` (not `id`). FK references must use `REFERENCES pitchers(pitcher_id)`
 - `pitcher_training_model` consolidates old `active_flags` + exercise intelligence. `profile["active_flags"]` populated via compat layer in `_profile_from_row()`
 - `daily_entries.pre_training` JSONB uses key `overall_energy` (NOT `energy`) — matters for any SQL migration touching energy values
-- Exercise library has dual source: `exercise_library.json` (API endpoints) + Supabase `exercises` table (plan gen). **Both must be updated** when adding exercises.
+
+### Exercise library workflow (2026-04-18)
+- **Supabase `exercises` is canonical** at runtime. `/api/exercises`, plan gen, swap, and mutations all read live from Supabase via `exercise_pool` (15-min snapshot cache + lazy-miss).
+- **JSON is seed-only.** `data/knowledge/exercise_library.json` is the source of truth in git for review/history. A pre-commit hook (`scripts/hooks/pre-commit`) runs `scripts/seed_exercises_from_json.py` on every commit that touches the JSON. Upsert-only — never deletes.
+- **Hook install:** one-time `ln -sf ../../pitcher_program_app/scripts/hooks/pre-commit .git/hooks/pre-commit` from repo root.
+- **Hook failure:** warns + proceeds (D11). Manual re-run: `cd pitcher_program_app && python -m scripts.seed_exercises_from_json`.
+- **Removing an exercise:** delete from JSON for new plans, but historical `plan_generated` rows still reference it — orphans in Supabase are tolerated (D12).
 
 ### Chart.js Axis Gotcha
 With explicit `min`/`max` + `stepSize`, Chart.js silently adds `max` as an extra tick when `max` isn't on the stepSize grid (produces spurious labels like "11/10"). For dot headroom at y=max, use chart-level `clip: false` + `layout.padding.top` — do NOT inflate `max` to create space. Example in `SeasonTimeline.jsx` and `SleepScatter.jsx`.
