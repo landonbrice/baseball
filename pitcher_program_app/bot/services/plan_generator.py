@@ -8,6 +8,7 @@ from bot.services.llm import call_llm, call_llm_reasoning, load_prompt
 from bot.services.context_manager import load_profile, load_context, get_recent_entries, load_saved_plans
 from bot.services.research_resolver import resolve_research
 from bot.services.health_monitor import record_and_check_emergency
+from bot.services.exercise_pool import hydrate_exercises
 
 logger = logging.getLogger(__name__)
 
@@ -340,6 +341,10 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
         _alert = record_and_check_emergency(python_plan["source_reason"], pitcher_id)
         if _alert:
             python_plan["_emergency_alert"] = _alert
+        for blk in (python_plan.get("exercise_blocks") or []):
+            hydrate_exercises(blk.get("exercises") or [])
+        if python_plan.get("lifting"):
+            hydrate_exercises(python_plan["lifting"].get("exercises") or [])
         return python_plan
 
     # Parse structured JSON from LLM response
@@ -366,20 +371,23 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
             if arm_exercises and isinstance(arm_exercises, list):
                 exercise_blocks.append({
                     "block_name": f"Arm Care ({arm_care_data.get('timing', 'pre-lift')})",
-                    "exercises": [
+                    "exercises": hydrate_exercises([
                         {"exercise_id": ex.get("exercise_id", ""), "prescribed": ex.get("rx", "")}
                         for ex in arm_exercises if isinstance(ex, dict)
-                    ],
+                    ]),
                 })
             lift_exercises = lifting_data.get("exercises") if isinstance(lifting_data, dict) else None
             if lift_exercises and isinstance(lift_exercises, list):
                 exercise_blocks.append({
                     "block_name": f"Lifting — {lifting_data.get('intent', '')}",
-                    "exercises": [
+                    "exercises": hydrate_exercises([
                         {"exercise_id": ex.get("exercise_id", ""), "prescribed": ex.get("rx", "")}
                         for ex in lift_exercises if isinstance(ex, dict)
-                    ],
+                    ]),
                 })
+            # Also hydrate the top-level lifting.exercises list (D17)
+            if isinstance(lifting_data, dict):
+                hydrate_exercises(lifting_data.get("exercises") or [])
 
             # Use structured template for throwing (phased exercises) instead of LLM text.
             # Merge any useful LLM detail/reasoning into the structured plan.
@@ -415,6 +423,10 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
             _alert = record_and_check_emergency(python_plan["source_reason"], pitcher_id)
             if _alert:
                 python_plan["_emergency_alert"] = _alert
+            for blk in (python_plan.get("exercise_blocks") or []):
+                hydrate_exercises(blk.get("exercises") or [])
+            if python_plan.get("lifting"):
+                hydrate_exercises(python_plan["lifting"].get("exercises") or [])
             return python_plan
 
     # Fallback: LLM returned unparseable text — use Python-constructed plan
@@ -425,6 +437,10 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
         if _alert:
             python_plan["_emergency_alert"] = _alert
     python_plan["narrative"] = raw if raw else python_plan["narrative"]
+    for blk in (python_plan.get("exercise_blocks") or []):
+        hydrate_exercises(blk.get("exercises") or [])
+    if python_plan.get("lifting"):
+        hydrate_exercises(python_plan["lifting"].get("exercises") or [])
     return python_plan
 
 

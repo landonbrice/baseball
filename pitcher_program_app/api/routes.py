@@ -18,6 +18,7 @@ from bot.services.context_manager import (
     get_pitcher_dir, activate_plan, update_plan_data, update_throwing_feel,
 )
 from bot.services.db import get_daily_entries
+from bot.services import db as _db
 from bot.services.progression import analyze_progression
 from bot.services.plan_generator import get_upcoming_days
 from bot.services.checkin_service import process_checkin, normalize_brief
@@ -1211,8 +1212,26 @@ def _load_exercise_library() -> dict:
 
 @router.get("/exercises")
 async def get_exercises():
-    """Return full exercise library."""
-    return _load_exercise_library()
+    """Return full exercise library from Supabase (D2, D7).
+
+    Uncached — Supabase is canonical at runtime; JSON is seed-only.
+    Response shape preserves the `{ exercises: [...] }` contract expected
+    by mini-app/src/pages/PlanDetail.jsx:25 and ExerciseLibrary.jsx.
+    """
+    rows = _db.get_exercises()
+    # Normalize JSONB-as-string back to native (belt-and-suspenders for schema drift)
+    normalized = []
+    for row in rows:
+        for json_field in ("modification_flags", "rotation_day_usage",
+                           "contraindications", "muscles_primary", "prescription"):
+            v = row.get(json_field)
+            if isinstance(v, str):
+                try:
+                    row[json_field] = json.loads(v)
+                except (json.JSONDecodeError, ValueError):
+                    pass
+        normalized.append(row)
+    return {"exercises": normalized}
 
 
 def _extract_json_block(text: str, key: str):
@@ -1482,6 +1501,13 @@ async def swap_exercise(pitcher_id: str, request: Request):
             detail=f"Exercise {from_id} not found in today's plan",
         )
 
+    # Hydrate exercise names before write (D17)
+    from bot.services.exercise_pool import hydrate_exercises
+    hydrate_exercises(top_lifting.get("exercises") or [])
+    hydrate_exercises((plan.get("lifting") or {}).get("exercises") or [])
+    for blk in (plan.get("exercise_blocks") or []):
+        hydrate_exercises(blk.get("exercises") or [])
+
     # Save updated plan — write both the top-level lifting and the nested one
     entry["lifting"] = top_lifting
     entry["plan_generated"] = plan
@@ -1622,6 +1648,12 @@ def _apply_mutations_to_entry(entry: dict, mutations: list, source: str = "coach
                     break
 
         top_lifting["exercises"] = exercises
+
+    # Hydrate exercise names before write (D17)
+    from bot.services.exercise_pool import hydrate_exercises
+    hydrate_exercises(top_lifting.get("exercises") or [])
+    for blk in (plan.get("exercise_blocks") or []):
+        hydrate_exercises(blk.get("exercises") or [])
 
     # Save updated plan — top-level lifting is the canonical location.
     # Also sync to plan_generated.lifting for any legacy consumers.
