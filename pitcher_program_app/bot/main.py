@@ -899,7 +899,15 @@ def _schedule_jobs(application: Application) -> None:
     )
     logger.info("Scheduled daily health digest for 9:00 AM Chicago time")
 
-    # Exercise snapshot refresh — every 15 min (D6)
+    # Exercise snapshot — warm synchronously at startup so first check-in after deploy
+    # hits the cache, then refresh every 15 min via scheduler (D6).
+    try:
+        from bot.services.exercise_pool import _refresh_snapshot
+        _refresh_snapshot()
+        logger.info("Exercise snapshot warmed synchronously at startup")
+    except Exception as e:
+        logger.warning("Startup snapshot warm failed (scheduler will retry): %s", e)
+
     async def _refresh_exercise_snapshot(context) -> None:
         try:
             from bot.services.exercise_pool import _refresh_snapshot
@@ -910,7 +918,7 @@ def _schedule_jobs(application: Application) -> None:
     job_queue.run_repeating(
         _refresh_exercise_snapshot,
         interval=900,  # 15 min (D6)
-        first=10,  # 10s after startup to warm cache
+        first=900,  # already warmed synchronously above — first scheduled run at 15 min
         name="exercise_snapshot_refresh",
     )
     logger.info("Scheduled 15-min exercise snapshot refresh")

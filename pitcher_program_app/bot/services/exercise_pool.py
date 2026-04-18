@@ -19,7 +19,7 @@ _EXERCISE_SNAPSHOT: dict = {}
 _SNAPSHOT_ROWS: list = []
 
 
-def _refresh_snapshot(force: bool = False) -> None:
+def _refresh_snapshot() -> None:
     """Reload exercise snapshot from Supabase. Keep last-good on transient failure (D5)."""
     global _EXERCISE_SNAPSHOT, _SNAPSHOT_ROWS
     try:
@@ -55,7 +55,11 @@ def _get_from_snapshot(exercise_id: str) -> dict | None:
     if hit:
         return hit
     # Lazy miss — hit Supabase directly, then stash into snapshot so subsequent lookups are cached
-    fresh = get_exercise(exercise_id)
+    try:
+        fresh = get_exercise(exercise_id)
+    except Exception as e:
+        logger.warning("Lazy-miss fetch failed for %s, returning None: %s", exercise_id, e)
+        return None
     if fresh:
         _EXERCISE_SNAPSHOT[exercise_id] = fresh
         if fresh.get("slug"):
