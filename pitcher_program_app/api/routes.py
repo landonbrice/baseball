@@ -20,7 +20,7 @@ from bot.services.context_manager import (
 from bot.services.db import get_daily_entries
 from bot.services.progression import analyze_progression
 from bot.services.plan_generator import get_upcoming_days
-from bot.services.checkin_service import process_checkin
+from bot.services.checkin_service import process_checkin, normalize_brief
 from bot.services.outing_service import process_outing
 from bot.services.llm import call_llm, load_prompt
 from bot.services.knowledge_retrieval import retrieve_knowledge
@@ -624,7 +624,7 @@ async def post_chat(pitcher_id: str, request: Request):
                     "messages": [
                         {"type": "text", "content": "Something went wrong with your check-in. Please try again."},
                     ],
-                    "morning_brief": None,
+                    "morning_brief": normalize_brief(None),
                     "flag_level": "green",
                 }
 
@@ -641,7 +641,7 @@ async def post_chat(pitcher_id: str, request: Request):
                         "Plan generation had an issue. Tap \"Retry plan\" to try again."})
                     messages.append({"type": "status", "content": "plan_failed"})
                     _persist_chat(pitcher_id, f"Check-in: arm {arm_feel}/10 (plan gen failed)", messages)
-                    return {"messages": messages, "morning_brief": None, "flag_level": result.get("flag_level", "green")}
+                    return {"messages": messages, "morning_brief": normalize_brief(None), "flag_level": result.get("flag_level", "green")}
 
                 # Increment rotation day only on first successful check-in today (not re-check-in)
                 today_str = datetime.now(CHICAGO_TZ).strftime("%Y-%m-%d")
@@ -685,7 +685,7 @@ async def post_chat(pitcher_id: str, request: Request):
 
                 return {
                     "messages": messages,
-                    "morning_brief": brief or None,
+                    "morning_brief": normalize_brief(brief),
                     "flag_level": result.get("flag_level", "green"),
                 }
             except Exception as assembly_err:
@@ -696,7 +696,7 @@ async def post_chat(pitcher_id: str, request: Request):
                         {"type": "text", "content": f"Plan saved. Response assembly error: {assembly_err}"},
                         {"type": "status", "content": "plan_loaded"},
                     ],
-                    "morning_brief": None,
+                    "morning_brief": normalize_brief(None),
                     "flag_level": result.get("flag_level", "green"),
                 }
 
@@ -998,7 +998,7 @@ async def apply_plan_to_today(pitcher_id: str, plan_id: str, request: Request):
         today_entry["warmup"] = plan["warmup"]
     if plan.get("notes"):
         today_entry["notes"] = plan["notes"]
-    today_entry["morning_brief"] = f"Applied plan: {plan.get('title', 'Custom plan')}"
+    today_entry["morning_brief"] = normalize_brief(f"Applied plan: {plan.get('title', 'Custom plan')}")
     today_entry["plan_generated"] = {
         "template_day": f"plan_{plan_id}",
         "exercise_blocks": [],

@@ -350,14 +350,10 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
             plan = _validate_plan(plan, today_template, rotation_day)
 
             # Structured plan parsed successfully
+            from bot.services.checkin_service import normalize_brief
             raw_brief = plan.get("morning_brief", "")
-            # Serialize structured morning_brief dict to JSON string immediately
-            if isinstance(raw_brief, dict):
-                narrative = raw_brief.get("coaching_note", "")
-                morning_brief = json.dumps(raw_brief)
-            else:
-                narrative = raw_brief
-                morning_brief = raw_brief
+            narrative = raw_brief.get("coaching_note", "") if isinstance(raw_brief, dict) else str(raw_brief or "")
+            morning_brief = normalize_brief(raw_brief)
             arm_care_data = plan.get("arm_care") or {}
             lifting_data = plan.get("lifting") or {}
             throwing_data = plan.get("throwing") or {}
