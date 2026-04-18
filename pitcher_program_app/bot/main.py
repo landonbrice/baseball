@@ -899,6 +899,22 @@ def _schedule_jobs(application: Application) -> None:
     )
     logger.info("Scheduled daily health digest for 9:00 AM Chicago time")
 
+    # Exercise snapshot refresh — every 15 min (D6)
+    async def _refresh_exercise_snapshot(context) -> None:
+        try:
+            from bot.services.exercise_pool import _refresh_snapshot
+            _refresh_snapshot()
+        except Exception as e:
+            logger.error("Exercise snapshot refresh failed: %s", e)
+
+    job_queue.run_repeating(
+        _refresh_exercise_snapshot,
+        interval=900,  # 15 min (D6)
+        first=10,  # 10s after startup to warm cache
+        name="exercise_snapshot_refresh",
+    )
+    logger.info("Scheduled 15-min exercise snapshot refresh")
+
 
 async def post_init(application: Application) -> None:
     """Set bot commands and schedule jobs after startup."""
