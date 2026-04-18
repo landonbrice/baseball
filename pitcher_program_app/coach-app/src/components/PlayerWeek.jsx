@@ -1,3 +1,5 @@
+import { parseBrief } from '@shared/parseBrief.js'
+
 export default function PlayerWeek({ data }) {
   const week = data?.current_week || []
   const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' })
@@ -40,9 +42,7 @@ export default function PlayerWeek({ data }) {
             </div>
             {e.morning_brief && (
               <p className="text-[10px] text-subtle mt-1 truncate">
-                {typeof e.morning_brief === 'string'
-                  ? e.morning_brief
-                  : e.morning_brief?.coaching_note || ''}
+                {parseBrief(e.morning_brief).coaching_note || (typeof e.morning_brief === 'string' && !e.morning_brief.trim().startsWith('{') ? e.morning_brief : '')}
               </p>
             )}
             {e.active_team_block_id && (

@@ -7,6 +7,7 @@ import { usePitcher } from '../hooks/usePitcher';
 import { sendChat, sendChatWithPlan, setNextOuting, savePlan, fetchChatHistory, applyMutations } from '../api';
 import { useToast } from '../hooks/useToast';
 import MutationPreview from '../components/MutationPreview';
+import { parseBrief } from '@shared/parseBrief.js';
 
 export default function Coach() {
   const { pitcherId, initData } = useAuth();
@@ -37,7 +38,8 @@ export default function Coach() {
   // Degraded: plan exists but LLM review failed → let pitcher retry for coach brief
   const planDegraded = todayEntry?.plan_generated?.source === 'python_fallback';
   const rawBrief = todayEntry?.morning_brief || todayEntry?.plan_generated?.morning_brief;
-  const morningBrief = typeof rawBrief === 'string' ? rawBrief : null;
+  const parsedBrief = parseBrief(rawBrief);
+  const morningBrief = parsedBrief.coaching_note || (typeof rawBrief === 'string' && !rawBrief.trim().startsWith('{') ? rawBrief : null);
   const isNewPitcher = profile && !profile.active_flags?.last_outing_date && !todayEntry;
   const [welcomeSent, setWelcomeSent] = useState(false);
 
@@ -129,7 +131,7 @@ export default function Coach() {
           newMsgs.push({
             role: 'bot',
             type: 'plan_ready',
-            content: typeof res.morning_brief === 'string' ? res.morning_brief : 'Your plan is ready.',
+            content: parseBrief(res.morning_brief).coaching_note || 'Your plan is ready.',
             flagLevel: res.flag_level || 'green',
           });
         } else if (m.content === 'plan_failed') {
@@ -145,7 +147,7 @@ export default function Coach() {
           newMsgs.push({
             role: 'bot',
             type: 'plan_ready',
-            content: typeof res.morning_brief === 'string' ? res.morning_brief : 'Baseline plan ready.',
+            content: parseBrief(res.morning_brief).coaching_note || 'Baseline plan ready.',
             flagLevel: res.flag_level || 'green',
             degraded: true,
           });

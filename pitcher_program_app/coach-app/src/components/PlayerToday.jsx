@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { parseBrief } from '@shared/parseBrief.js'
 
 export default function PlayerToday({ data, onAdjust, onRestrict }) {
   if (!data) return null
@@ -28,9 +29,7 @@ export default function PlayerToday({ data, onAdjust, onRestrict }) {
         <div className="bg-cream rounded-lg p-3">
           <p className="text-xs text-subtle mb-1">Morning Brief</p>
           <p className="text-sm text-charcoal leading-relaxed">
-            {typeof todayEntry.morning_brief === 'string'
-              ? todayEntry.morning_brief
-              : todayEntry.morning_brief?.coaching_note || ''}
+            {parseBrief(todayEntry.morning_brief).coaching_note || (typeof todayEntry.morning_brief === 'string' && !todayEntry.morning_brief.trim().startsWith('{') ? todayEntry.morning_brief : '')}
           </p>
         </div>
       )}
