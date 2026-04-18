@@ -25,15 +25,17 @@ export default function PlayerToday({ data, onAdjust, onRestrict }) {
         <StatCard label="WHOOP" value={data.whoop_today ? `${data.whoop_today.recovery_score}%` : '-'} />
       </div>
 
-      {/* Morning brief */}
-      {todayEntry?.morning_brief && (
-        <div className="bg-cream rounded-lg p-3">
-          <p className="text-xs text-subtle mb-1">Morning Brief</p>
-          <p className="text-sm text-charcoal leading-relaxed">
-            {parseBrief(todayEntry.morning_brief).coaching_note || (typeof todayEntry.morning_brief === 'string' && !todayEntry.morning_brief.trim().startsWith('{') ? todayEntry.morning_brief : '')}
-          </p>
-        </div>
-      )}
+      {/* Morning brief — only render if coaching_note is present (hides empty '{}' briefs) */}
+      {(() => {
+        const coachingNote = parseBrief(todayEntry?.morning_brief).coaching_note;
+        if (!coachingNote) return null;
+        return (
+          <div className="bg-cream rounded-lg p-3">
+            <p className="text-xs text-subtle mb-1">Morning Brief</p>
+            <p className="text-sm text-charcoal leading-relaxed">{coachingNote}</p>
+          </div>
+        );
+      })()}
 
       {/* Active injuries */}
       {injuries.filter(i => i.status === 'active' || i.status === 'monitoring').length > 0 && (
