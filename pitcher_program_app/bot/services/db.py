@@ -644,6 +644,20 @@ def delete_phase_block(phase_block_id: str) -> None:
     get_client().table("training_phase_blocks").delete().eq("phase_block_id", phase_block_id).execute()
 
 
+# --- teams ---
+
+def get_team(team_id: str) -> dict | None:
+    """Look up a team row by its primary key."""
+    resp = (
+        get_client().table("teams")
+        .select("*")
+        .eq("team_id", team_id)
+        .limit(1)
+        .execute()
+    )
+    return resp.data[0] if resp.data else None
+
+
 # --- coaches ---
 
 def get_coach_by_supabase_id(supabase_user_id: str) -> dict | None:

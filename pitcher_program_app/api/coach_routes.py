@@ -37,6 +37,7 @@ async def auth_exchange(request: Request):
         "team_id": request.state.team_id,
         "coach_name": request.state.coach_name,
         "role": request.state.coach_role,
+        "team_name": request.state.team_name,
     }
 
 
