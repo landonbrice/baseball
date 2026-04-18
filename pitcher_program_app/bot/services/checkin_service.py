@@ -1,5 +1,6 @@
 """Shared check-in business logic, usable by both Telegram bot and API."""
 
+import json
 import logging
 from datetime import datetime
 
@@ -27,22 +28,20 @@ def normalize_brief(raw) -> str:
     - already-valid JSON string of an object → passed through
     - plain string or malformed JSON → wrapped as {coaching_note: <string>}
     """
-    import json as _json
-
     if raw is None or raw == "":
-        return _json.dumps({})
+        return json.dumps({})
     if isinstance(raw, dict):
-        return _json.dumps(raw)
+        return json.dumps(raw)
     if isinstance(raw, str):
         try:
-            parsed = _json.loads(raw)
+            parsed = json.loads(raw)
             if isinstance(parsed, dict):
-                return _json.dumps(parsed)
-        except (_json.JSONDecodeError, ValueError):
+                return json.dumps(parsed)
+        except (json.JSONDecodeError, ValueError):
             pass
-        return _json.dumps({"coaching_note": raw})
+        return json.dumps({"coaching_note": raw})
     # Unknown types — coerce via str()
-    return _json.dumps({"coaching_note": str(raw)})
+    return json.dumps({"coaching_note": str(raw)})
 
 
 async def _send_emergency_alert_if_present(plan_result: dict) -> None:

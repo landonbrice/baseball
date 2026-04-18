@@ -361,7 +361,7 @@ async def morning_status(pitcher_id: str, request: Request):
 
     return {
         "checked_in_today": checked_in,
-        "has_briefing": bool(today_entry and today_entry.get("morning_brief")),
+        "has_briefing": bool(today_entry and today_entry.get("morning_brief") and today_entry.get("morning_brief") != "{}"),
         "morning_brief": today_entry.get("morning_brief") if today_entry else None,
         "last_interaction": last_interaction,
         "arm_feel_trend": arm_feels,
