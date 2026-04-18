@@ -5,8 +5,6 @@ import logging
 import os
 import re
 from datetime import date, timedelta, datetime
-from functools import lru_cache
-
 from fastapi import APIRouter, HTTPException, Query, Request
 
 from bot.config import KNOWLEDGE_DIR, CONTEXT_WINDOW_CHARS, DISABLE_AUTH, CHICAGO_TZ
@@ -1203,13 +1201,6 @@ async def generate_custom_plan(pitcher_id: str, request: Request):
     return {"plan": saved}
 
 
-@lru_cache(maxsize=1)
-def _load_exercise_library() -> dict:
-    path = os.path.join(KNOWLEDGE_DIR, "exercise_library.json")
-    with open(path, "r") as f:
-        return json.load(f)
-
-
 @router.get("/exercises")
 async def get_exercises():
     """Return full exercise library from Supabase (D2, D7).
@@ -1329,16 +1320,30 @@ _SLUG_ORPHAN_MAP = {
 
 @router.get("/exercises/slugs")
 async def get_slug_map():
-    """Return slug→id mapping for template exercise resolution."""
-    library = _load_exercise_library()
+    """Return slug→id mapping for template exercise resolution.
+
+    Reads from Supabase (D2) — no JSON, no lru_cache.
+    Aliases and slugs are seeded from exercise_library.json via seed script.
+    """
+    rows = _db.get_exercises()
     slug_map = dict(_SLUG_ORPHAN_MAP)
-    for ex in library["exercises"]:
-        slug_map[ex["id"]] = ex["id"]
-        if "slug" in ex:
-            slug_map[ex["slug"]] = ex["id"]
-        for alias in ex.get("aliases", []):
+    for ex in rows:
+        ex_id = ex.get("id", "")
+        if not ex_id:
+            continue
+        slug_map[ex_id] = ex_id
+        slug = ex.get("slug")
+        if slug:
+            slug_map[slug] = ex_id
+        aliases = ex.get("aliases") or []
+        if isinstance(aliases, str):
+            try:
+                aliases = json.loads(aliases)
+            except (json.JSONDecodeError, ValueError):
+                aliases = []
+        for alias in aliases:
             normalized = alias.lower().replace(" ", "_").replace("-", "_")
-            slug_map[f"ex_{normalized}"] = ex["id"]
+            slug_map[f"ex_{normalized}"] = ex_id
     return slug_map
 
 

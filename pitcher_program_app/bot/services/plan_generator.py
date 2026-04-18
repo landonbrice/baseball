@@ -3,7 +3,7 @@
 import json
 import os
 import logging
-from bot.config import TEMPLATES_DIR, KNOWLEDGE_DIR, CONTEXT_WINDOW_CHARS
+from bot.config import TEMPLATES_DIR, CONTEXT_WINDOW_CHARS
 from bot.services.llm import call_llm, call_llm_reasoning, load_prompt
 from bot.services.context_manager import load_profile, load_context, get_recent_entries, load_saved_plans
 from bot.services.research_resolver import resolve_research
@@ -21,16 +21,22 @@ def load_template(filename: str) -> dict:
 
 
 def load_exercise_library() -> dict:
-    """Load the exercise library, indexed by both id and slug for dual lookup."""
-    path = os.path.join(KNOWLEDGE_DIR, "exercise_library.json")
-    with open(path, "r") as f:
-        data = json.load(f)
-    exercises = data.get("exercises", data) if isinstance(data, dict) else data
+    """Return exercise library indexed by id and slug, sourced from Supabase snapshot.
+
+    Uses exercise_pool._load_exercises() (Supabase-backed, lazy-cached) so new
+    exercises added via seed script are picked up on next snapshot refresh without
+    a redeploy.  The JSON file is no longer read at runtime.
+    """
+    from bot.services.exercise_pool import _load_exercises
+    exercises = _load_exercises()
     index = {}
     for ex in exercises:
-        index[ex["id"]] = ex
-        if "slug" in ex:
-            index[ex["slug"]] = ex
+        ex_id = ex.get("id")
+        if ex_id:
+            index[ex_id] = ex
+        slug = ex.get("slug")
+        if slug:
+            index[slug] = ex
     return index
 
 

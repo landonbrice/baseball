@@ -10,7 +10,6 @@ Manual invocation:
 
 import json
 import logging
-import os
 import sys
 from pathlib import Path
 
@@ -35,8 +34,6 @@ def main() -> int:
         return 0
 
     try:
-        # Ensure repo root is on sys.path so bot.services imports resolve
-        sys.path.insert(0, str(REPO_ROOT))
         from bot.services.db import get_client
     except Exception as e:
         logger.warning("Could not import db client (Supabase creds missing?): %s", e)

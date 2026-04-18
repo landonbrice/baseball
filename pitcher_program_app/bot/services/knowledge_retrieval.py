@@ -12,7 +12,6 @@ Two retrieval modes:
   injury areas + always loads triage and recovery (for plan generation)
 """
 
-import json
 import os
 import re
 import logging
@@ -132,18 +131,16 @@ def retrieve_research_for_plan(pitcher_profile: dict, max_chars: int = 12000) ->
 
 
 def _search_exercises(question: str, keywords: list[str]) -> list[dict]:
-    """Search exercise library by name, aliases, tags, and category."""
-    lib_path = os.path.join(KNOWLEDGE_DIR, "exercise_library.json")
-    if not os.path.exists(lib_path):
-        return []
+    """Search exercise library by name, aliases, tags, and category.
 
+    Reads from the Supabase-backed exercise_pool snapshot so Q&A always
+    sees the live library without requiring a redeploy.
+    """
+    from bot.services.exercise_pool import _load_exercises
     try:
-        with open(lib_path, "r") as f:
-            data = json.load(f)
-    except (json.JSONDecodeError, IOError):
+        exercises = _load_exercises()
+    except Exception:
         return []
-
-    exercises = data.get("exercises", [])
     scored = []
 
     for ex in exercises:
