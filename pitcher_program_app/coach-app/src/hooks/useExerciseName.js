@@ -12,8 +12,11 @@ export function useExerciseName({ item, component }) {
   const ex = item || {}
   const mapHit = exerciseMap[ex.exercise_id] || null
   const name = ex.name || (mapHit && mapHit.name) || null
+  // D22: only fire telemetry once the map has loaded — avoids false-positive flood on fresh login
+  const mapReady = Object.keys(exerciseMap).length > 0
 
   useEffect(() => {
+    if (!mapReady) return
     if (!name && ex.exercise_id) {
       try {
         fetch(`${API_BASE}/api/telemetry/ui-fallback`, {
@@ -27,7 +30,7 @@ export function useExerciseName({ item, component }) {
         }).catch(() => {})
       } catch (_e) {}
     }
-  }, [name, ex.exercise_id, component])
+  }, [mapReady, name, ex.exercise_id, component])
 
   return name || ex.exercise_id || 'Unknown exercise'
 }

@@ -682,8 +682,12 @@ def insert_ui_fallback_log(exercise_id: str, surface: str, component: str = None
     get_client().table("ui_fallback_log").insert(row).execute()
 
 
-def has_recent_ui_fallback(exercise_id: str, hours: int = 24) -> bool:
-    """Return True if this exercise_id has been logged within the last N hours (D13)."""
+def count_recent_ui_fallback(exercise_id: str, hours: int = 24) -> int:
+    """Return count of rows for this exercise_id within the last N hours (D13).
+
+    Used post-insert so the caller can gate admin DMs on count == 1
+    (first event in window) to close the pre-insert race (D22).
+    """
     from datetime import datetime, timedelta, timezone
     cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
     resp = (
@@ -691,10 +695,9 @@ def has_recent_ui_fallback(exercise_id: str, hours: int = 24) -> bool:
         .select("id", count="exact")
         .eq("exercise_id", exercise_id)
         .gte("logged_at", cutoff)
-        .limit(1)
         .execute()
     )
-    return bool(resp.data)
+    return resp.count or 0
 
 
 def prune_ui_fallback_log(older_than_days: int = 30) -> int:

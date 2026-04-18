@@ -2354,8 +2354,10 @@ async def _send_admin_dm(text: str) -> None:
 async def ui_fallback_telemetry(request: Request):
     """Record a UI exercise-name fallback event (D9, D13).
 
-    Always inserts a row for post-mortem analysis. Admin DM fires only if
-    this exercise_id has not been seen in the last 24h (rate limit per D13).
+    Always inserts a row for post-mortem analysis. Admin DM fires only when
+    count_recent_ui_fallback == 1 post-insert (first event in the 24h window)
+    to close the pre-insert DM race (D22). Unknown exercise_id is rejected
+    with 400 to block arbitrary IDs from triggering admin DMs (D22/I1).
     """
     body = await request.json()
     exercise_id = body.get("exercise_id")
@@ -2366,15 +2368,20 @@ async def ui_fallback_telemetry(request: Request):
     if not exercise_id or not surface:
         raise HTTPException(status_code=400, detail="exercise_id and surface required")
 
-    recent = _db.has_recent_ui_fallback(exercise_id, hours=24)
+    # I1 (Option C): validate exercise_id exists — blocks random IDs from flooding admin DMs
+    if not _db.get_exercise(exercise_id):
+        raise HTTPException(status_code=400, detail="unknown exercise_id")
+
+    # Insert first, THEN count — prevents race where two simultaneous misses both DM (D22)
     _db.insert_ui_fallback_log(
         exercise_id=exercise_id,
         surface=surface,
         component=component,
         pitcher_id=pitcher_id,
     )
+    count_24h = _db.count_recent_ui_fallback(exercise_id, hours=24)
 
-    if not recent:
+    if count_24h == 1:  # this insert was the first in the 24h window
         msg = (
             f"⚠️ UI fallback: '{exercise_id}' missing name on {surface}"
             + (f" ({component})" if component else "")
@@ -2382,4 +2389,4 @@ async def ui_fallback_telemetry(request: Request):
         )
         await _send_admin_dm(msg)
 
-    return {"ok": True, "dmed": not recent}
+    return {"ok": True, "dmed": count_24h == 1}
