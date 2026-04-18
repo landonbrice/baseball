@@ -170,7 +170,7 @@ def load_context(pitcher_id: str) -> str:
         for msg in messages:
             ts = msg.get("created_at", "")[:16].replace("T", " ")
             role = msg.get("role", "user")
-            content = msg.get("content", "")[:200]
+            content = str(msg.get("content", "") or "")[:200]
             lines.append(f"- [{ts}] ({role}) {content}")
 
     return "\n".join(lines)
