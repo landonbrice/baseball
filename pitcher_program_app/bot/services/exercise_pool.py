@@ -7,21 +7,85 @@ pre-selected exercises and personalizes prescriptions/narrative.
 
 import logging
 import random
-from bot.services.db import get_exercises
+from bot.services.db import get_exercises, get_exercise
 from bot.services.vocabulary import INJURY_AREAS
 
 logger = logging.getLogger(__name__)
 
-# Cached exercise library (loaded once per process)
-_EXERCISE_CACHE = None
+# Snapshot cache (D5): indexed by id AND slug for dual lookup (plan_generator.py:22 pattern).
+# Refreshed periodically (D6) by APScheduler job in bot/main.py.
+# Lazy-miss (D6): get_exercise() falls through to Supabase when exercise_id missing.
+_EXERCISE_SNAPSHOT: dict = {}
+_SNAPSHOT_ROWS: list = []
+
+
+def _refresh_snapshot() -> None:
+    """Reload exercise snapshot from Supabase. Keep last-good on transient failure (D5)."""
+    global _EXERCISE_SNAPSHOT, _SNAPSHOT_ROWS
+    try:
+        rows = get_exercises()
+    except Exception as e:
+        logger.warning("Snapshot refresh failed, keeping last-good: %s", e)
+        return
+    new_index = {}
+    for ex in rows:
+        ex_id = ex.get("id")
+        if ex_id:
+            new_index[ex_id] = ex
+        slug = ex.get("slug")
+        if slug:
+            new_index[slug] = ex
+    _EXERCISE_SNAPSHOT = new_index
+    _SNAPSHOT_ROWS = rows
+    logger.info("Exercise snapshot refreshed: %d exercises", len(rows))
 
 
 def _load_exercises() -> list:
-    global _EXERCISE_CACHE
-    if _EXERCISE_CACHE is None:
-        _EXERCISE_CACHE = get_exercises()
-        logger.info("Exercise library loaded: %d exercises", len(_EXERCISE_CACHE))
-    return _EXERCISE_CACHE
+    """Return the snapshot row list, refreshing lazily on first call."""
+    if not _SNAPSHOT_ROWS:
+        _refresh_snapshot()
+    return _SNAPSHOT_ROWS
+
+
+def _get_from_snapshot(exercise_id: str) -> dict | None:
+    """Look up by id or slug in the snapshot, with lazy-miss fallback to Supabase (D6)."""
+    if not exercise_id:
+        return None
+    hit = _EXERCISE_SNAPSHOT.get(exercise_id)
+    if hit:
+        return hit
+    # Lazy miss — hit Supabase directly, then stash into snapshot so subsequent lookups are cached
+    try:
+        fresh = get_exercise(exercise_id)
+    except Exception as e:
+        logger.warning("Lazy-miss fetch failed for %s, returning None: %s", exercise_id, e)
+        return None
+    if fresh:
+        _EXERCISE_SNAPSHOT[exercise_id] = fresh
+        if fresh.get("slug"):
+            _EXERCISE_SNAPSHOT[fresh["slug"]] = fresh
+    return fresh
+
+
+def hydrate_exercises(items: list) -> list:
+    """Stamp `name` onto each item by looking up its exercise_id in the snapshot (D17).
+
+    Leaves all other fields on each item untouched. Safe to call repeatedly.
+    If an exercise_id is not found, the item is returned unchanged so callers
+    can still emit their plan without crashing.
+    """
+    if not items:
+        return items
+    for item in items:
+        ex_id = item.get("exercise_id")
+        if not ex_id:
+            continue
+        if item.get("name"):
+            continue  # already hydrated
+        lib = _get_from_snapshot(ex_id)
+        if lib and lib.get("name"):
+            item["name"] = lib["name"]
+    return items
 
 
 # Build INJURY_TO_FLAG from vocabulary for exercise library compatibility

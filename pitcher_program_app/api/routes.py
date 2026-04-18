@@ -5,8 +5,6 @@ import logging
 import os
 import re
 from datetime import date, timedelta, datetime
-from functools import lru_cache
-
 from fastapi import APIRouter, HTTPException, Query, Request
 
 from bot.config import KNOWLEDGE_DIR, CONTEXT_WINDOW_CHARS, DISABLE_AUTH, CHICAGO_TZ
@@ -18,9 +16,10 @@ from bot.services.context_manager import (
     get_pitcher_dir, activate_plan, update_plan_data, update_throwing_feel,
 )
 from bot.services.db import get_daily_entries
+from bot.services import db as _db
 from bot.services.progression import analyze_progression
 from bot.services.plan_generator import get_upcoming_days
-from bot.services.checkin_service import process_checkin
+from bot.services.checkin_service import process_checkin, normalize_brief
 from bot.services.outing_service import process_outing
 from bot.services.llm import call_llm, load_prompt
 from bot.services.knowledge_retrieval import retrieve_knowledge
@@ -361,7 +360,7 @@ async def morning_status(pitcher_id: str, request: Request):
 
     return {
         "checked_in_today": checked_in,
-        "has_briefing": bool(today_entry and today_entry.get("morning_brief")),
+        "has_briefing": bool(today_entry and today_entry.get("morning_brief") and today_entry.get("morning_brief") != "{}"),
         "morning_brief": today_entry.get("morning_brief") if today_entry else None,
         "last_interaction": last_interaction,
         "arm_feel_trend": arm_feels,
@@ -624,7 +623,7 @@ async def post_chat(pitcher_id: str, request: Request):
                     "messages": [
                         {"type": "text", "content": "Something went wrong with your check-in. Please try again."},
                     ],
-                    "morning_brief": None,
+                    "morning_brief": normalize_brief(None),
                     "flag_level": "green",
                 }
 
@@ -641,7 +640,7 @@ async def post_chat(pitcher_id: str, request: Request):
                         "Plan generation had an issue. Tap \"Retry plan\" to try again."})
                     messages.append({"type": "status", "content": "plan_failed"})
                     _persist_chat(pitcher_id, f"Check-in: arm {arm_feel}/10 (plan gen failed)", messages)
-                    return {"messages": messages, "morning_brief": None, "flag_level": result.get("flag_level", "green")}
+                    return {"messages": messages, "morning_brief": normalize_brief(None), "flag_level": result.get("flag_level", "green")}
 
                 # Increment rotation day only on first successful check-in today (not re-check-in)
                 today_str = datetime.now(CHICAGO_TZ).strftime("%Y-%m-%d")
@@ -685,7 +684,7 @@ async def post_chat(pitcher_id: str, request: Request):
 
                 return {
                     "messages": messages,
-                    "morning_brief": brief or None,
+                    "morning_brief": normalize_brief(brief),
                     "flag_level": result.get("flag_level", "green"),
                 }
             except Exception as assembly_err:
@@ -696,7 +695,7 @@ async def post_chat(pitcher_id: str, request: Request):
                         {"type": "text", "content": f"Plan saved. Response assembly error: {assembly_err}"},
                         {"type": "status", "content": "plan_loaded"},
                     ],
-                    "morning_brief": None,
+                    "morning_brief": normalize_brief(None),
                     "flag_level": result.get("flag_level", "green"),
                 }
 
@@ -998,7 +997,7 @@ async def apply_plan_to_today(pitcher_id: str, plan_id: str, request: Request):
         today_entry["warmup"] = plan["warmup"]
     if plan.get("notes"):
         today_entry["notes"] = plan["notes"]
-    today_entry["morning_brief"] = f"Applied plan: {plan.get('title', 'Custom plan')}"
+    today_entry["morning_brief"] = normalize_brief(f"Applied plan: {plan.get('title', 'Custom plan')}")
     today_entry["plan_generated"] = {
         "template_day": f"plan_{plan_id}",
         "exercise_blocks": [],
@@ -1202,17 +1201,28 @@ async def generate_custom_plan(pitcher_id: str, request: Request):
     return {"plan": saved}
 
 
-@lru_cache(maxsize=1)
-def _load_exercise_library() -> dict:
-    path = os.path.join(KNOWLEDGE_DIR, "exercise_library.json")
-    with open(path, "r") as f:
-        return json.load(f)
-
-
 @router.get("/exercises")
 async def get_exercises():
-    """Return full exercise library."""
-    return _load_exercise_library()
+    """Return full exercise library from Supabase (D2, D7).
+
+    Uncached — Supabase is canonical at runtime; JSON is seed-only.
+    Response shape preserves the `{ exercises: [...] }` contract expected
+    by mini-app/src/pages/PlanDetail.jsx:25 and ExerciseLibrary.jsx.
+    """
+    rows = _db.get_exercises()
+    # Normalize JSONB-as-string back to native (belt-and-suspenders for schema drift)
+    normalized = []
+    for row in rows:
+        for json_field in ("modification_flags", "rotation_day_usage",
+                           "contraindications", "muscles_primary", "prescription"):
+            v = row.get(json_field)
+            if isinstance(v, str):
+                try:
+                    row[json_field] = json.loads(v)
+                except (json.JSONDecodeError, ValueError):
+                    pass
+        normalized.append(row)
+    return {"exercises": normalized}
 
 
 def _extract_json_block(text: str, key: str):
@@ -1310,16 +1320,30 @@ _SLUG_ORPHAN_MAP = {
 
 @router.get("/exercises/slugs")
 async def get_slug_map():
-    """Return slug→id mapping for template exercise resolution."""
-    library = _load_exercise_library()
+    """Return slug→id mapping for template exercise resolution.
+
+    Reads from Supabase (D2) — no JSON, no lru_cache.
+    Aliases and slugs are seeded from exercise_library.json via seed script.
+    """
+    rows = _db.get_exercises()
     slug_map = dict(_SLUG_ORPHAN_MAP)
-    for ex in library["exercises"]:
-        slug_map[ex["id"]] = ex["id"]
-        if "slug" in ex:
-            slug_map[ex["slug"]] = ex["id"]
-        for alias in ex.get("aliases", []):
+    for ex in rows:
+        ex_id = ex.get("id", "")
+        if not ex_id:
+            continue
+        slug_map[ex_id] = ex_id
+        slug = ex.get("slug")
+        if slug:
+            slug_map[slug] = ex_id
+        aliases = ex.get("aliases") or []
+        if isinstance(aliases, str):
+            try:
+                aliases = json.loads(aliases)
+            except (json.JSONDecodeError, ValueError):
+                aliases = []
+        for alias in aliases:
             normalized = alias.lower().replace(" ", "_").replace("-", "_")
-            slug_map[f"ex_{normalized}"] = ex["id"]
+            slug_map[f"ex_{normalized}"] = ex_id
     return slug_map
 
 
@@ -1482,6 +1506,13 @@ async def swap_exercise(pitcher_id: str, request: Request):
             detail=f"Exercise {from_id} not found in today's plan",
         )
 
+    # Hydrate exercise names before write (D17)
+    from bot.services.exercise_pool import hydrate_exercises
+    hydrate_exercises(top_lifting.get("exercises") or [])
+    hydrate_exercises((plan.get("lifting") or {}).get("exercises") or [])
+    for blk in (plan.get("exercise_blocks") or []):
+        hydrate_exercises(blk.get("exercises") or [])
+
     # Save updated plan — write both the top-level lifting and the nested one
     entry["lifting"] = top_lifting
     entry["plan_generated"] = plan
@@ -1622,6 +1653,12 @@ def _apply_mutations_to_entry(entry: dict, mutations: list, source: str = "coach
                     break
 
         top_lifting["exercises"] = exercises
+
+    # Hydrate exercise names before write (D17)
+    from bot.services.exercise_pool import hydrate_exercises
+    hydrate_exercises(top_lifting.get("exercises") or [])
+    for blk in (plan.get("exercise_blocks") or []):
+        hydrate_exercises(blk.get("exercises") or [])
 
     # Save updated plan — top-level lifting is the canonical location.
     # Also sync to plan_generated.lifting for any legacy consumers.
@@ -2297,3 +2334,59 @@ async def delete_scheduled_throw(pitcher_id: str, throw_id: str, request: Reques
     if not removed:
         raise HTTPException(status_code=404, detail="Throw not found")
     return {"removed": True}
+
+
+async def _send_admin_dm(text: str) -> None:
+    """Fire an admin Telegram DM. Best-effort — never raises."""
+    try:
+        from telegram import Bot
+        from bot.config import ADMIN_TELEGRAM_CHAT_ID
+        token = os.getenv("TELEGRAM_BOT_TOKEN", "")
+        if not token:
+            return
+        bot = Bot(token=token)
+        await bot.send_message(chat_id=ADMIN_TELEGRAM_CHAT_ID, text=text)
+    except Exception as e:
+        logger.warning("admin DM failed: %s", e)
+
+
+@router.post("/telemetry/ui-fallback")
+async def ui_fallback_telemetry(request: Request):
+    """Record a UI exercise-name fallback event (D9, D13).
+
+    Always inserts a row for post-mortem analysis. Admin DM fires only when
+    count_recent_ui_fallback == 1 post-insert (first event in the 24h window)
+    to close the pre-insert DM race (D22). Unknown exercise_id is rejected
+    with 400 to block arbitrary IDs from triggering admin DMs (D22/I1).
+    """
+    body = await request.json()
+    exercise_id = body.get("exercise_id")
+    surface = body.get("surface")
+    component = body.get("component")
+    pitcher_id = body.get("pitcher_id")
+
+    if not exercise_id or not surface:
+        raise HTTPException(status_code=400, detail="exercise_id and surface required")
+
+    # I1 (Option C): validate exercise_id exists — blocks random IDs from flooding admin DMs
+    if not _db.get_exercise(exercise_id):
+        raise HTTPException(status_code=400, detail="unknown exercise_id")
+
+    # Insert first, THEN count — prevents race where two simultaneous misses both DM (D22)
+    _db.insert_ui_fallback_log(
+        exercise_id=exercise_id,
+        surface=surface,
+        component=component,
+        pitcher_id=pitcher_id,
+    )
+    count_24h = _db.count_recent_ui_fallback(exercise_id, hours=24)
+
+    if count_24h == 1:  # this insert was the first in the 24h window
+        msg = (
+            f"⚠️ UI fallback: '{exercise_id}' missing name on {surface}"
+            + (f" ({component})" if component else "")
+            + (f" pitcher={pitcher_id}" if pitcher_id else "")
+        )
+        await _send_admin_dm(msg)
+
+    return {"ok": True, "dmed": count_24h == 1}

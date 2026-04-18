@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { parseBrief } from '@shared/parseBrief.js'
+import { useExerciseName } from '../hooks/useExerciseName'
 
 export default function PlayerToday({ data, onAdjust, onRestrict }) {
   if (!data) return null
@@ -23,17 +25,17 @@ export default function PlayerToday({ data, onAdjust, onRestrict }) {
         <StatCard label="WHOOP" value={data.whoop_today ? `${data.whoop_today.recovery_score}%` : '-'} />
       </div>
 
-      {/* Morning brief */}
-      {todayEntry?.morning_brief && (
-        <div className="bg-cream rounded-lg p-3">
-          <p className="text-xs text-subtle mb-1">Morning Brief</p>
-          <p className="text-sm text-charcoal leading-relaxed">
-            {typeof todayEntry.morning_brief === 'string'
-              ? todayEntry.morning_brief
-              : todayEntry.morning_brief?.coaching_note || ''}
-          </p>
-        </div>
-      )}
+      {/* Morning brief — only render if coaching_note is present (hides empty '{}' briefs) */}
+      {(() => {
+        const coachingNote = parseBrief(todayEntry?.morning_brief).coaching_note;
+        if (!coachingNote) return null;
+        return (
+          <div className="bg-cream rounded-lg p-3">
+            <p className="text-xs text-subtle mb-1">Morning Brief</p>
+            <p className="text-sm text-charcoal leading-relaxed">{coachingNote}</p>
+          </div>
+        );
+      })()}
 
       {/* Active injuries */}
       {injuries.filter(i => i.status === 'active' || i.status === 'monitoring').length > 0 && (
@@ -133,6 +135,11 @@ function PlanSection({ title, data }) {
   )
 }
 
+function ExerciseNameSpan({ ex }) {
+  const name = useExerciseName({ item: ex, component: 'PlayerToday' })
+  return <span className="text-charcoal">{name}</span>
+}
+
 function LiftingSection({ data }) {
   if (!data) return null
   const exercises = data.exercises || data.exercise_blocks || []
@@ -152,7 +159,7 @@ function LiftingSection({ data }) {
             )}
             {(Array.isArray(blockExercises) ? blockExercises : []).map((ex, i) => (
               <div key={i} className="flex justify-between text-xs py-0.5">
-                <span className="text-charcoal">{ex.name || ex.exercise_id}</span>
+                <ExerciseNameSpan ex={ex} />
                 <span className="text-subtle">{ex.prescribed || ex.rx || ''}</span>
               </div>
             ))}

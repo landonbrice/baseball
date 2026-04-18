@@ -644,6 +644,20 @@ def delete_phase_block(phase_block_id: str) -> None:
     get_client().table("training_phase_blocks").delete().eq("phase_block_id", phase_block_id).execute()
 
 
+# --- teams ---
+
+def get_team(team_id: str) -> dict | None:
+    """Look up a team row by its primary key."""
+    resp = (
+        get_client().table("teams")
+        .select("*")
+        .eq("team_id", team_id)
+        .limit(1)
+        .execute()
+    )
+    return resp.data[0] if resp.data else None
+
+
 # --- coaches ---
 
 def get_coach_by_supabase_id(supabase_user_id: str) -> dict | None:
@@ -654,3 +668,46 @@ def get_coach_by_supabase_id(supabase_user_id: str) -> dict | None:
             .limit(1)
             .execute())
     return resp.data[0] if resp.data else None
+
+
+# --- ui_fallback_log (D9, D13, D14) ---
+
+def insert_ui_fallback_log(exercise_id: str, surface: str, component: str = None, pitcher_id: str = None) -> None:
+    """Record a UI fallback event (exercise name missing on render)."""
+    row = {"exercise_id": exercise_id, "surface": surface}
+    if component:
+        row["component"] = component
+    if pitcher_id:
+        row["pitcher_id"] = pitcher_id
+    get_client().table("ui_fallback_log").insert(row).execute()
+
+
+def count_recent_ui_fallback(exercise_id: str, hours: int = 24) -> int:
+    """Return count of rows for this exercise_id within the last N hours (D13).
+
+    Used post-insert so the caller can gate admin DMs on count == 1
+    (first event in window) to close the pre-insert race (D22).
+    """
+    from datetime import datetime, timedelta, timezone
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
+    resp = (
+        get_client().table("ui_fallback_log")
+        .select("id", count="exact")
+        .eq("exercise_id", exercise_id)
+        .gte("logged_at", cutoff)
+        .execute()
+    )
+    return resp.count or 0
+
+
+def prune_ui_fallback_log(older_than_days: int = 30) -> int:
+    """Delete rows older than N days (D14). Returns number deleted."""
+    from datetime import datetime, timedelta, timezone
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=older_than_days)).isoformat()
+    resp = (
+        get_client().table("ui_fallback_log")
+        .delete()
+        .lt("logged_at", cutoff)
+        .execute()
+    )
+    return len(resp.data or [])

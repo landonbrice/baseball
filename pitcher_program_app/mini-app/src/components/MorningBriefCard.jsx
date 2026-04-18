@@ -3,6 +3,7 @@
  * Parses JSON morning_brief strings internally.
  * If the brief is plain text or unparseable, renders nothing (caller shows fallback).
  */
+import { parseBrief } from '@shared/parseBrief.js';
 
 const STATUS_COLORS = {
   green: '#1D9E75',
@@ -11,19 +12,12 @@ const STATUS_COLORS = {
 };
 
 /**
- * Attempt to parse a structured morning brief from a raw value.
- * Returns the parsed object if valid, or null.
+ * Attempt to parse a structured morning brief. Returns the parsed object
+ * if it looks like a structured brief (has arm_verdict), otherwise null.
  */
 export function parseStructuredBrief(raw) {
-  if (!raw || typeof raw !== 'string') return null;
-  try {
-    var obj = JSON.parse(raw);
-    if (obj && typeof obj === 'object' && typeof obj.arm_verdict === 'object') {
-      return obj;
-    }
-  } catch (_e) {
-    // Not JSON — plain text brief
-  }
+  const obj = parseBrief(raw);
+  if (obj && typeof obj.arm_verdict === 'object') return obj;
   return null;
 }
 

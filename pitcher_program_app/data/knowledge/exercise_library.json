@@ -1,6 +1,7 @@
 {
   "$schema": "exercise_library",
   "$description": "Complete exercise database for the pitcher training system. Each exercise tagged for contextual retrieval by the bot.",
+  "$seed_note": "SEED FILE. Supabase `exercises` is canonical at runtime. Edits here are picked up by the pre-commit hook running scripts/seed_exercises_from_json.py. See CLAUDE.md § Exercise library.",
   "exercises": [
     {
       "id": "ex_001",

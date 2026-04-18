@@ -30,13 +30,14 @@ coach_router = APIRouter(prefix="/api/coach")
 
 @coach_router.post("/auth/exchange")
 async def auth_exchange(request: Request):
-    """Validate Supabase JWT and return domain identity."""
+    """Validate Supabase JWT and return domain identity + team name (D1, D18)."""
     await require_coach_auth(request)
     return {
         "coach_id": request.state.coach_id,
         "team_id": request.state.team_id,
         "coach_name": request.state.coach_name,
         "role": request.state.coach_role,
+        "team_name": request.state.team_name,
     }
 
 

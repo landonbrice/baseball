@@ -17,6 +17,7 @@ import FlagBadge from '../components/FlagBadge';
 import WhoopCard from '../components/WhoopCard';
 import LockedState from '../components/LockedState';
 import MorningBriefCard, { parseStructuredBrief } from '../components/MorningBriefCard';
+import { parseBrief } from '@shared/parseBrief.js';
 
 function NewPitcherWelcome({ profile, navigate }) {
   const firstName = (profile?.name || '').split(' ')[0];
@@ -180,7 +181,8 @@ export default function Home() {
   const isViewingPast = selectedDate && selectedDate !== todayStr;
 
   const rawBrief = todayEntry?.morning_brief || (todayEntry?.plan_generated || {}).morning_brief;
-  const morningBrief = typeof rawBrief === 'string' ? rawBrief : null;
+  const parsedBrief = parseBrief(rawBrief);
+  const morningBrief = parsedBrief.coaching_note || (typeof rawBrief === 'string' && !rawBrief.trim().startsWith('{') ? rawBrief : null);
   const sleepHours = typeof (todayEntry?.pre_training || {}).sleep_hours === 'number' ? todayEntry.pre_training.sleep_hours : null;
   const rawDur = (todayEntry?.lifting || {}).estimated_duration_min || (todayEntry?.plan_generated || {}).estimated_duration_min;
   const estDuration = typeof rawDur === 'number' ? rawDur : null;
@@ -295,10 +297,10 @@ export default function Home() {
         </div>
       )}
 
-      {/* Morning brief — structured card if JSON, plain text fallback */}
-      {hasCheckedIn && morningBrief && parseStructuredBrief(morningBrief) ? (
+      {/* Morning brief — structured card if JSON with arm_verdict, plain text fallback */}
+      {hasCheckedIn && parseStructuredBrief(rawBrief) ? (
         <div style={{ padding: '8px 12px 0' }}>
-          <MorningBriefCard rawBrief={morningBrief} rotationDay={flags.days_since_outing} rotationLength={profile?.rotation_length} />
+          <MorningBriefCard rawBrief={rawBrief} rotationDay={flags.days_since_outing} rotationLength={profile?.rotation_length} />
         </div>
       ) : hasCheckedIn && morningBrief ? (
         <div style={{ padding: '4px 12px 0' }}>

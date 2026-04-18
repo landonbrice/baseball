@@ -741,6 +741,15 @@ async def _send_health_digest(context) -> None:
     except Exception as e:
         logger.error("Failed to send health digest: %s", e, exc_info=True)
 
+    # D14: prune ui_fallback_log independently of digest success (D22)
+    try:
+        from bot.services import db as _db
+        pruned = _db.prune_ui_fallback_log(older_than_days=30)
+        if pruned:
+            logger.info("Pruned %d old ui_fallback_log rows", pruned)
+    except Exception as e:
+        logger.warning("ui_fallback_log prune failed: %s", e)
+
 
 async def health_digest_command(update, context):
     """Admin-only: force-send the health digest right now. Dev/test use."""
@@ -898,6 +907,30 @@ def _schedule_jobs(application: Application) -> None:
         name="health_digest_daily",
     )
     logger.info("Scheduled daily health digest for 9:00 AM Chicago time")
+
+    # Exercise snapshot — warm synchronously at startup so first check-in after deploy
+    # hits the cache, then refresh every 15 min via scheduler (D6).
+    try:
+        from bot.services.exercise_pool import _refresh_snapshot
+        _refresh_snapshot()
+        logger.info("Exercise snapshot warmed synchronously at startup")
+    except Exception as e:
+        logger.warning("Startup snapshot warm failed (scheduler will retry): %s", e)
+
+    async def _refresh_exercise_snapshot(context) -> None:
+        try:
+            from bot.services.exercise_pool import _refresh_snapshot
+            _refresh_snapshot()
+        except Exception as e:
+            logger.error("Exercise snapshot refresh failed: %s", e)
+
+    job_queue.run_repeating(
+        _refresh_exercise_snapshot,
+        interval=900,  # 15 min (D6)
+        first=900,  # already warmed synchronously above — first scheduled run at 15 min
+        name="exercise_snapshot_refresh",
+    )
+    logger.info("Scheduled 15-min exercise snapshot refresh")
 
 
 async def post_init(application: Application) -> None:

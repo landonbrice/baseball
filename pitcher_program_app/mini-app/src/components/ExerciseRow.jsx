@@ -1,7 +1,20 @@
+import { useEffect } from 'react';
+import { logUiFallback } from '../api';
+
 /**
  * Single exercise row with interactive checkbox, prescription, and optional video link.
  */
 export default function ExerciseRow({ exercise, prescribed, completed, onToggle }) {
+  useEffect(() => {
+    if (!exercise?.name && exercise?.exercise_id) {
+      logUiFallback({
+        exerciseId: exercise.exercise_id,
+        surface: 'mini-app',
+        component: 'ExerciseRow',
+      });
+    }
+  }, [exercise?.name, exercise?.exercise_id]);
+
   if (!exercise) return null;
 
   return (

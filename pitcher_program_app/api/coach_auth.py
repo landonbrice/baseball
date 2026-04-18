@@ -12,7 +12,7 @@ import jwt
 from jwt import PyJWKClient
 from fastapi import Request, HTTPException
 
-from bot.services.db import get_coach_by_supabase_id
+from bot.services.db import get_coach_by_supabase_id, get_team
 
 logger = logging.getLogger(__name__)
 
@@ -95,6 +95,8 @@ async def require_coach_auth(request: Request) -> None:
         request.state.team_id = "uchicago_baseball"
         request.state.coach_name = "Dev Coach"
         request.state.coach_role = "head"
+        team = get_team(request.state.team_id) or {}
+        request.state.team_name = team.get("name", "")
         return
 
     coach = _validate_coach_jwt(request)
@@ -102,3 +104,5 @@ async def require_coach_auth(request: Request) -> None:
     request.state.team_id = coach["team_id"]
     request.state.coach_name = coach["name"]
     request.state.coach_role = coach.get("role", "")
+    team = get_team(coach["team_id"]) or {}
+    request.state.team_name = team.get("name", "")

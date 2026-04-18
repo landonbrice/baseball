@@ -1,5 +1,6 @@
 """Shared check-in business logic, usable by both Telegram bot and API."""
 
+import json
 import logging
 from datetime import datetime
 
@@ -17,6 +18,30 @@ from bot.services.context_manager import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def normalize_brief(raw) -> str:
+    """D3: Canonical morning_brief on write is always a JSON-string.
+
+    - None / empty → '{}'
+    - dict → json.dumps(dict)
+    - already-valid JSON string of an object → passed through
+    - plain string or malformed JSON → wrapped as {coaching_note: <string>}
+    """
+    if raw is None or raw == "":
+        return json.dumps({})
+    if isinstance(raw, dict):
+        return json.dumps(raw)
+    if isinstance(raw, str):
+        try:
+            parsed = json.loads(raw)
+            if isinstance(parsed, dict):
+                return json.dumps(parsed)
+        except (json.JSONDecodeError, ValueError):
+            pass
+        return json.dumps({"coaching_note": raw})
+    # Unknown types — coerce via str()
+    return json.dumps({"coaching_note": str(raw)})
 
 
 async def _send_emergency_alert_if_present(plan_result: dict) -> None:
@@ -186,7 +211,7 @@ async def process_checkin(
             "flag_level": triage_result["flag_level"],
         },
         "plan_narrative": None,
-        "morning_brief": None,
+        "morning_brief": normalize_brief(None),
         "arm_care": None,
         "lifting": None,
         "throwing": None,
@@ -246,7 +271,7 @@ async def process_checkin(
             "flag_level": triage_result["flag_level"],
         },
         "plan_narrative": plan_result["narrative"] if plan_result else None,
-        "morning_brief": plan_result.get("morning_brief") if plan_result else None,
+        "morning_brief": normalize_brief(plan_result.get("morning_brief")) if plan_result else normalize_brief(None),
         "arm_care": plan_result.get("arm_care") if plan_result else None,
         "lifting": plan_result.get("lifting") if plan_result else None,
         "throwing": plan_result.get("throwing") if plan_result else None,
