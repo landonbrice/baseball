@@ -1,7 +1,7 @@
 # Pitcher Training Intelligence — Claude Init
 
 > Last updated: 2026-04-19
-> Sprint status: Phases 1-20.1 + Sprint 0.5 + Tier 1 Hardening + Redesign Spec 1 complete. Tier 1 landed coach sidebar team-name enrichment, exercise-name hydration at write, canonical morning_brief shape, and snapshot cache for exercises. Spec 1 replaced the generic Tailwind shell with the editorial brand system (UChicago maroon + cream, Source Serif 4 + Inter, Sidebar/Masthead/Scoreboard/Lede/FlagPill/EditorialState/Toast, Vitest + RTL). Page bodies still legacy — Specs 2 and 3 swap them next. Next: Spec 2 page bodies (Team Overview first), Tier 2, The Ledger, weight logging UI.
+> Sprint status: Phases 1-20.1 + Sprint 0.5 + Tier 1 Hardening + Redesign Spec 1 + Redesign Spec 2 complete. Tier 1 landed coach sidebar team-name enrichment, exercise-name hydration at write, canonical morning_brief shape, and snapshot cache for exercises. Spec 1 replaced the generic Tailwind shell with the editorial brand system. Spec 2 replaced the Team Overview body with a triage feed — Scoreboard anchor + dynamic TeamLede + HeroCard (flagged) + CompactCard (on-track) + PendingStrip + 90s visibility-gated auto-refresh + editorial PlayerSlideOver redesign (Today/Week/History tabs all rebuilt). Next: Spec 3 (deferred slide-overs / nudge endpoint / polish), remaining pages (Schedule / Team Programs / Phases / Insights), Tier 2, The Ledger, weight logging UI.
 
 ## What This Is
 
@@ -37,15 +37,17 @@ A training intelligence system for the UChicago baseball pitching staff. Telegra
 | 0.5 | Scale Migration | 04-13 | arm_feel/energy rescaled 1-5→1-10 across bot, API, mini-app, coach-app, prompts, data templates. Supabase data migrated ×2. Chart axes reworked. |
 | 20.1 | Coach Dashboard Unblock | 04-14 | Coach app live end-to-end. CORS (`COACH_APP_URL=https://baseball-self.vercel.app`), ES256/JWKS JWT validator (`PyJWT[crypto]`), `Shell` children-render fix, `team_scope` schema realignment (`physical`→`physical_profile` dropped, `flag_level`→`current_flag_level`, `injury_history.status` removed). |
 | Spec 1 | Coach Dashboard Redesign — Brand System & Shell | 04-19 | Editorial brand shell replaces generic Tailwind shell. `src/styles/tokens.css` adds 28 locked tokens (UChicago maroon `#5c1020` + cream `#f7f1e3`, alert crimson/amber/forest, 10-step type scale). Self-hosted Source Serif 4 (400/600/700 + 400 italic) + Inter. 7 shared components in `src/components/shell/` — `Sidebar`, `TeamBrand`, `Masthead`, `Scoreboard`, `Lede`, `FlagPill`, `EditorialState`, `Toast`. Vitest + RTL added (49 tests, token contract locked). Dev-only `/__design` sandbox w/ axe smoke check (lazy-loaded). `Shell.jsx` and old `Toast.jsx` deleted. Page bodies preserved — Specs 2 and 3 replace them. |
+| Spec 2 | Coach Dashboard Redesign — Team Overview | 04-19 | Team Overview rebuilt as a triage feed. Backend: `team_scope.get_team_roster_overview` now returns `af_7d` (7-day arm-feel mean) and `today` object per roster row — `day_focus` derived from plan content (plan_generator never persists it) and modification list normalized from triage strings to `{tag, reason}` dicts at the boundary. Frontend: 2 pure formatter utils (`buildTodayObjective`, `buildTeamLede`) with 16 fixtures total, 5 new components in `components/team-overview/` (`LastSevenStrip`, `HeroCard`, `CompactCard`, `PendingStrip`, `TeamLede`), TeamOverview rewritten with 90s `visibilityState`-gated auto-refresh. `PlayerSlideOver` header redesigned with 3-stat mini scoreboard, ESC-to-close, 480px width; `PlayerToday` / `PlayerWeek` / `PlayerHistory` (inline-SVG sparklines) all rebuilt editorially. `RosterTable` + `ComplianceRing` deleted. Shared `formatToday.js` helper extracted. Tests: 81 frontend + 55 Python. |
 
 ### What's Next
-1. **Coach Dashboard Redesign Spec 2** — Replace page bodies with `Scoreboard`-anchored, numbers-first editorial layouts (Team Overview first, then Schedule / Team Programs / Phases / Insights). Auth-exchange `team_name` enrichment already shipped in Tier 1, so `<TeamBrand>` will pick up real team names once the shell is deployed.
-2. **Coach Dashboard Redesign Spec 3** — Deferred slide-overs, interaction polish, motion.
+1. **Coach Dashboard Redesign Spec 3** — Deferred slide-overs, interaction polish, motion. Also wires `POST /api/coach/pitcher/{id}/nudge` so `PendingStrip.nudgeEnabled` flips to true.
+2. **Schedule / Team Programs / Phases / Insights page rewrites** — Apply the same Scoreboard-anchored pattern from Spec 2 to the remaining 4 coach pages.
 3. **Tier 2 hardening** — Continuation of the Tier 1 sprint.
 4. **The Ledger** — Modification history timeline on Profile. Data exists in `plan_generated.modifications_applied` + `pitcher_training_model.recent_swap_history`.
 5. **Weight logging UI** — `working_weights` column exists, no UI. Unblocks exercise progression curves.
 6. **Exercise progression curves** — Volume/intensity trends for key lifts over time. Blocked on weight logging.
 7. **Inline coach panel** — Coach button on lifting block for in-context refinement without navigating to Coach tab.
+8. **Persist `day_focus` in `plan_generated`** — Today it's derived at read time in `team_scope.py`. Moving the write into `plan_generator.py` removes a derivation hop and makes the field authoritative.
 
 ## Stack
 
@@ -123,8 +125,10 @@ pitcher_program_app/
 │   │   ├── api.js                # fetchCoachApi, postCoachApi, patchCoachApi, deleteCoachApi
 │   │   ├── hooks/                # useCoachAuth (Supabase Auth + JWT exchange), useApi
 │   │   ├── styles/tokens.css     # Brand tokens — 28 locked (maroon/cream/type scale) + @font-face for Source Serif 4
-│   │   ├── components/           # RosterTable, PlayerSlideOver, ComplianceRing, BlockCard, etc. (~11 legacy)
+│   │   ├── components/           # PlayerSlideOver, PlayerToday/Week/History, BlockCard, GamePanel, etc. (legacy + redesigned)
 │   │   ├── components/shell/     # Brand shell — Sidebar, TeamBrand, Masthead, Scoreboard, Lede, FlagPill, EditorialState, Toast (+ __tests__)
+│   │   ├── components/team-overview/ # Spec 2 — HeroCard, CompactCard, PendingStrip, TeamLede, LastSevenStrip (+ __tests__)
+│   │   ├── utils/                # formatToday, todayObjective, teamLede (pure fns, + __tests__)
 │   │   ├── pages/                # Login, TeamOverview, Schedule, TeamPrograms, Phases, Insights, DesignSandbox (DEV-only)
 │   │   └── test/                 # Vitest bootstrap (sanity.test.js + setup.js)
 │   ├── public/fonts/             # Self-hosted Source Serif 4 woff2 (400/600/700/400-italic)
@@ -397,13 +401,18 @@ No Python virtualenv locally — project runs on Railway. Use Supabase MCP for S
 - Dev commands (`/testnotify`, `/whooptest`, `/healthdigest`, `/testemergency`) exist — remove before broader rollout
 - Reliever template uses text descriptions not exercise IDs — not validated
 - `data_sync.py` disabled but still exists — can delete
-- **Coach-app redesign carryovers (post-Spec 1):**
-  - `TODAY` constant duplicated verbatim in 5 pages — extract to `coach-app/src/utils/formatToday.js` in Spec 2
-  - `"Chicago · Pitching Staff"` kicker hardcoded in 6 sites — will feed from `coach.team_name` once auth-exchange enrichment merges
-  - `TeamPrograms` Masthead has no `actionSlot` because the plan's `__new__` sentinel didn't exist server-side; Spec 2 should wire a real "+ New Program" entry point through the assign modal
-  - `Schedule.jsx` still uses inline `"Loading schedule..."` string instead of `<EditorialState type="loading">` — cosmetic inconsistency, Spec 2 page swap will fix
+- **Coach-app redesign carryovers (post-Spec 1 + Spec 2):**
+  - `"Chicago · Pitching Staff"` kicker hardcoded in 6 sites — should feed from `coach.team_name` (auth-exchange enrichment is live via Tier 1; wiring in component props is a quick follow-up)
+  - `TeamPrograms` Masthead has no `actionSlot` — Spec 3 should wire a real "+ New Program" entry point through the assign modal
+  - `Schedule.jsx`, `TeamPrograms.jsx`, `Phases.jsx` still use inline "Loading..." strings instead of `<EditorialState type="loading">` — Spec 2 only rebuilt Team Overview; the other 4 pages wait for their own page-body spec
   - `alert()` / `confirm()` calls in `Phases` + `TeamPrograms` predate Spec 1; now that `useToast` exists they should migrate to `toast.error` / inline confirmation
   - `<Sidebar>` Sign out `<button>` missing `type="button"` (no form context, no functional bug)
+  - `useCoachAuth.getAccessToken` isn't `useCallback`-wrapped and the context value isn't `useMemo`-wrapped — causes `useCoachApi.refetch` reference to churn, which re-arms the 90s TeamOverview interval on every AuthProvider re-render. Harmless but inefficient; fix with a context-value memoization pass
+  - Spec 2 scoreboard cell 1 ("Check-ins") sub drops the spec's "avg {time}am" — we don't compute check-in timestamps on the overview payload. Logged for Spec 3 polish
+  - Spec 2 scoreboard cell 5 ("Next Start") sub shows pitcher name only, not "{name} · vs {opponent}". Requires a second join on `team_games`; defer to Spec 3
+  - Spec 2 pending strip `hours_since_last` is always `null` in the frontend partition — no backend field for "hours since last check-in" on not-yet-checked-in pitchers. Spec 3 adds the field
+  - Spec 2 PlayerHistory header says "Last 30 days" but `coach_routes.py::coach_pitcher_detail` returns `.limit(10)` — label should say "Last 10 check-ins" OR the query should expand to 30
+  - `plan_generator.py` never writes `day_focus` into `plan_generated`; Spec 2's `team_scope.py` derives it at read time. Moving the write upstream would remove the derivation hop
 
 ## Bot Scope Boundaries
 
