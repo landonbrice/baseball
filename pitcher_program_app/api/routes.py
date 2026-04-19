@@ -593,6 +593,12 @@ async def post_chat(pitcher_id: str, request: Request):
             lift_preference = data.get("lift_preference", "")
             throw_intent = data.get("throw_intent", "")
             next_pitch_days = data.get("next_pitch_days")
+            # D3: thread energy through; let process_checkin default-handle when absent
+            energy_raw = data.get("energy")
+            try:
+                energy = int(energy_raw) if energy_raw is not None else None
+            except (TypeError, ValueError):
+                energy = None
 
             # Classify arm report if no numeric arm_feel provided
             if arm_feel is None and arm_report:
@@ -616,6 +622,7 @@ async def post_chat(pitcher_id: str, request: Request):
                     pitcher_id, int(arm_feel), float(sleep_hours),
                     arm_report=arm_report, lift_preference=lift_preference,
                     throw_intent=throw_intent, next_pitch_days=next_pitch_days,
+                    **({"energy": energy} if energy is not None else {}),
                 )
             except Exception as checkin_err:
                 logger.error(f"Check-in processing error for {pitcher_id}: {checkin_err}", exc_info=True)
