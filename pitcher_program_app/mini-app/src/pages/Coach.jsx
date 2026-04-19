@@ -8,6 +8,20 @@ import { sendChat, sendChatWithPlan, setNextOuting, savePlan, fetchChatHistory, 
 import { useToast } from '../hooks/useToast';
 import MutationPreview from '../components/MutationPreview';
 import { parseBrief } from '@shared/parseBrief.js';
+import { quickClassify } from '../lib/quickClassify.js';
+
+// D2: defensive — if backend ever leaks a JSON-string envelope as content,
+// extract coaching_note before render. Belt-and-suspenders; no-op for plain text.
+function sanitizeChatContent(raw) {
+  if (typeof raw !== 'string' || !raw.trim().startsWith('{')) return raw;
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return parsed.coaching_note || '';
+    }
+  } catch (_) {}
+  return raw;
+}
 
 export default function Coach() {
   const { pitcherId, initData } = useAuth();
@@ -62,7 +76,7 @@ export default function Coach() {
           .map(m => ({
             role: m.role === 'user' ? 'user' : 'bot',
             type: 'text',
-            content: m.content,
+            content: m.role === 'assistant' ? sanitizeChatContent(m.content) : m.content,
           }));
         if (restored.length > 0) {
           setMessages(restored);
@@ -165,7 +179,11 @@ export default function Coach() {
           });
         }
       } else {
-        newMsgs.push({ role: 'bot', ...m });
+        newMsgs.push({
+          role: 'bot',
+          ...m,
+          content: m.content ? sanitizeChatContent(m.content) : m.content,
+        });
       }
     }
     return newMsgs;
@@ -214,22 +232,6 @@ export default function Coach() {
   const daysSince = flags.days_since_outing ?? 99;
   const isRecoveryDay = daysSince <= 1;
   const scheduleKnown = flags.next_outing_days != null && flags.next_outing_days > 0;
-
-  const quickClassify = (text) => {
-    const lower = text.toLowerCase();
-    if (['great', 'perfect', 'amazing', 'feels good', 'no issues'].some(w => lower.includes(w))) return { feel: 5, ack: "Good to hear." };
-    if (['sharp', 'shooting', 'numb', 'tingling'].some(w => lower.includes(w))) return { feel: 1, ack: "Noted \u2014 we'll keep things light and protective today." };
-    if (['terrible', 'really bad', 'awful'].some(w => lower.includes(w))) return { feel: 2, ack: "Noted \u2014 we'll keep things light today." };
-    if (['tight', 'sore', 'stiff', 'tender'].some(w => lower.includes(w))) return { feel: 3, ack: "Got it \u2014 I'll factor that into your plan." };
-    if (['good', 'fine', 'solid', 'normal', 'decent'].some(w => lower.includes(w))) return { feel: 4, ack: "Arm's feeling solid." };
-    const num = parseInt(text);
-    if (num >= 1 && num <= 5) {
-      if (num <= 2) return { feel: num, ack: "Noted \u2014 we'll keep things light today." };
-      if (num === 3) return { feel: 3, ack: "Got it \u2014 I'll factor that in." };
-      return { feel: num, ack: "Arm's feeling solid." };
-    }
-    return { feel: null, ack: "Got it." };
-  };
 
   // ── Finalize check-in — send to API ──
   const finalizeCheckin = async (flowData) => {
@@ -295,7 +297,7 @@ export default function Coach() {
     // Refinement 1: Recovery day — recommend + give choice
     if (isRecoveryDay) {
       const feelComment = feel != null
-        ? (feel >= 4 ? `arm's at a ${feel} \u2014 solid recovery` : feel === 3 ? `arm's at a ${feel} \u2014 pretty typical day-after` : `arm's at a ${feel} \u2014 let's be careful`)
+        ? (feel >= 8 ? `arm's at a ${feel} \u2014 solid recovery` : feel >= 5 ? `arm's at a ${feel} \u2014 pretty typical day-after` : `arm's at a ${feel} \u2014 let's be careful`)
         : 'day after';
       setCheckinFlow({ ...flowData, step: 'recovery_confirm' });
       setMessages(prev => [...prev, { role: 'bot', type: 'text',
@@ -463,13 +465,13 @@ export default function Coach() {
     addMessage({ role: 'user', type: 'text', content: 'Retry plan generation' });
     try {
       const res = await sendChat(pitcherId, {
-        arm_feel: todayEntry.pre_training.arm_feel,
-        sleep_hours: todayEntry.pre_training.sleep_hours,
-        energy: todayEntry.pre_training.overall_energy || 3,
+        arm_feel: todayEntry.pre_training?.arm_feel ?? null,
+        sleep_hours: todayEntry.pre_training?.sleep_hours ?? null,
+        energy: todayEntry.pre_training?.overall_energy ?? null,
       }, 'checkin', initData);
       processResponse(res);
       for (const m of res.messages || []) {
-        if (m.type === 'text') addMessage({ role: 'bot', type: 'text', content: m.content });
+        if (m.type === 'text') addMessage({ role: 'bot', type: 'text', content: sanitizeChatContent(m.content) });
       }
     } catch {
       addMessage({ role: 'bot', type: 'text', content: 'Plan retry failed. Try again or check in from Telegram.' });
