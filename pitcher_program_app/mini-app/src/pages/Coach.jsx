@@ -465,9 +465,9 @@ export default function Coach() {
     addMessage({ role: 'user', type: 'text', content: 'Retry plan generation' });
     try {
       const res = await sendChat(pitcherId, {
-        arm_feel: todayEntry.pre_training.arm_feel,
-        sleep_hours: todayEntry.pre_training.sleep_hours,
-        energy: todayEntry.pre_training.overall_energy || 3,
+        arm_feel: todayEntry.pre_training?.arm_feel ?? null,
+        sleep_hours: todayEntry.pre_training?.sleep_hours ?? null,
+        energy: todayEntry.pre_training?.overall_energy ?? null,
       }, 'checkin', initData);
       processResponse(res);
       for (const m of res.messages || []) {
