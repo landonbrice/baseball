@@ -985,20 +985,3 @@ def register_handlers(application) -> None:
         plan_completion_callback, pattern=r"^plan_(done|skipped|dashboard)$"
     ))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, _text_dispatcher))
-
-
-def main() -> None:
-    """Start the bot."""
-    if not TELEGRAM_BOT_TOKEN:
-        logger.error("TELEGRAM_BOT_TOKEN not set. Add it to .env")
-        sys.exit(1)
-
-    application = Application.builder().token(TELEGRAM_BOT_TOKEN).post_init(post_init).build()
-    register_handlers(application)
-
-    logger.info("Bot starting in long-polling mode...")
-    application.run_polling(allowed_updates=Update.ALL_TYPES)
-
-
-if __name__ == "__main__":
-    main()

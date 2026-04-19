@@ -376,8 +376,7 @@ GitHub (landonbrice/baseball)
 ```bash
 cd pitcher_program_app
 pip install -r requirements.txt
-python -m bot.main          # Bot
-python -m api.main          # API (separate terminal)
+python -m bot.run           # Bot + API in one process (same as Railway)
 cd mini-app && npm run dev  # Mini-app (separate terminal)
 cd coach-app && npm run dev # Coach app (separate terminal)
 ```
