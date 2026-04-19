@@ -242,6 +242,7 @@ export default function Coach() {
       const res = await sendChat(pitcherId, {
         arm_report: flowData.arm_report || '',
         arm_feel: flowData.arm_feel || null,
+        energy: flowData.energy ?? null,
         lift_preference: flowData.lift_preference || 'auto',
         throw_intent: flowData.throw_intent || 'none',
         next_pitch_days: flowData.next_pitch_days ?? (scheduleKnown ? flags.next_outing_days : null),
@@ -315,9 +316,17 @@ export default function Coach() {
       return;
     }
 
-    // Normal flow: ack + lift preference
-    setCheckinFlow({ ...flowData, step: 'lift_pref' });
-    setMessages(prev => [...prev, { role: 'bot', type: 'text', content: ack + ' What are you thinking for a lift?' }]);
+    // Normal flow: ack + energy capture (then → lift_pref via handleEnergy)
+    // Recovery/low-arm branches intentionally skip energy capture to keep those
+    // fast paths short; backend treats a missing `energy` as null and defaults.
+    setCheckinFlow({ ...flowData, step: 'energy' });
+    setMessages(prev => [...prev, { role: 'bot', type: 'text', content: ack + ' Energy today, 1-10?' }]);
+  };
+
+  const handleEnergy = (energy) => {
+    setMessages(prev => [...prev, { role: 'user', type: 'text', content: `${energy}` }]);
+    setCheckinFlow({ ...checkinFlow, step: 'lift_pref', energy });
+    setMessages(prev => [...prev, { role: 'bot', type: 'text', content: 'Got it. What are you thinking for a lift?' }]);
   };
 
   // Refinement 1: Recovery day choice handler
@@ -524,6 +533,18 @@ export default function Coach() {
         <div style={{ display: 'flex', gap: 6, padding: '0 12px 8px', flexWrap: 'wrap' }}>
           <button onClick={() => handleLowArmClarify('expected')} style={btnStyle}>Expected soreness</button>
           <button onClick={() => handleLowArmClarify('concerned')} style={btnStyle}>Something feels off</button>
+        </div>
+      );
+    }
+    if (checkinFlow?.step === 'energy') {
+      return (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, padding: '0 12px 8px', justifyContent: 'center' }}>
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => (
+            <button key={n} onClick={() => handleEnergy(n)}
+              style={{ width: 32, height: 36, fontSize: 13, fontWeight: 600, background: 'var(--color-cream-bg)', color: 'var(--color-ink-primary)', borderRadius: 8, border: '0.5px solid var(--color-cream-border)', cursor: 'pointer' }}>
+              {n}
+            </button>
+          ))}
         </div>
       );
     }
