@@ -1,7 +1,7 @@
 # Pitcher Training Intelligence — Claude Init
 
-> Last updated: 2026-04-14
-> Sprint status: Phases 1-20.1 + Sprint 0.5 complete. Coach Dashboard live end-to-end (CORS, ES256/JWKS auth, Shell children, team_scope schema realigned). Schema-drift sweep on `bot/services/` complete — `team_scope.py` was the only offender. Next: auth-exchange response enrichment, The Ledger, weight logging UI.
+> Last updated: 2026-04-19
+> Sprint status: Phases 1-20.1 + Sprint 0.5 + Redesign Spec 1 complete. Coach Dashboard now renders inside the editorial brand shell (UChicago maroon + cream, Source Serif 4 + Inter, Sidebar/Masthead/Scoreboard/Lede/FlagPill/EditorialState/Toast, Vitest + RTL). All page bodies preserved; Specs 2 and 3 will swap the bodies. Next: auth-exchange response enrichment (to populate `team_name` in sidebar), Spec 2 page bodies, The Ledger, weight logging UI.
 
 ## What This Is
 
@@ -36,13 +36,16 @@ A training intelligence system for the UChicago baseball pitching staff. Telegra
 | 20 | Coach Dashboard v0 | 04-12 | Full coach-facing app: 7 new DB tables, 30 API endpoints, JWT auth, 6 screens, 13 components. CORS blocker remains |
 | 0.5 | Scale Migration | 04-13 | arm_feel/energy rescaled 1-5→1-10 across bot, API, mini-app, coach-app, prompts, data templates. Supabase data migrated ×2. Chart axes reworked. |
 | 20.1 | Coach Dashboard Unblock | 04-14 | Coach app live end-to-end. CORS (`COACH_APP_URL=https://baseball-self.vercel.app`), ES256/JWKS JWT validator (`PyJWT[crypto]`), `Shell` children-render fix, `team_scope` schema realignment (`physical`→`physical_profile` dropped, `flag_level`→`current_flag_level`, `injury_history.status` removed). |
+| Spec 1 | Coach Dashboard Redesign — Brand System & Shell | 04-19 | Editorial brand shell replaces generic Tailwind shell. `src/styles/tokens.css` adds 28 locked tokens (UChicago maroon `#5c1020` + cream `#f7f1e3`, alert crimson/amber/forest, 10-step type scale). Self-hosted Source Serif 4 (400/600/700 + 400 italic) + Inter. 7 shared components in `src/components/shell/` — `Sidebar`, `TeamBrand`, `Masthead`, `Scoreboard`, `Lede`, `FlagPill`, `EditorialState`, `Toast`. Vitest + RTL added (49 tests, token contract locked). Dev-only `/__design` sandbox w/ axe smoke check (lazy-loaded). `Shell.jsx` and old `Toast.jsx` deleted. Page bodies preserved — Specs 2 and 3 replace them. |
 
 ### What's Next
-1. **Coach auth-exchange response enrichment** — `/api/coach/auth/exchange` + `/me` return only `coach_id/team_id/coach_name/role`. Shell sidebar falls back to "Dashboard" because `team_name` missing. Join `teams.name` into response.
-2. **The Ledger** — Modification history timeline on Profile. Data exists in `plan_generated.modifications_applied` + `pitcher_training_model.recent_swap_history`.
-3. **Weight logging UI** — `working_weights` column exists, no UI. Unblocks exercise progression curves.
-4. **Exercise progression curves** — Volume/intensity trends for key lifts over time. Blocked on weight logging.
-5. **Inline coach panel** — Coach button on lifting block for in-context refinement without navigating to Coach tab.
+1. **Coach auth-exchange response enrichment** — `/api/coach/auth/exchange` + `/me` return only `coach_id/team_id/coach_name/role`. Shell sidebar falls back to "Dashboard" because `team_name` missing. Join `teams.name` into response. Unblocks redesign AC6.
+2. **Coach Dashboard Redesign Spec 2** — Replace page bodies with `Scoreboard`-anchored, numbers-first editorial layouts (Team Overview first, then Schedule / Team Programs / Phases / Insights).
+3. **Coach Dashboard Redesign Spec 3** — Deferred slide-overs, interaction polish, motion.
+4. **The Ledger** — Modification history timeline on Profile. Data exists in `plan_generated.modifications_applied` + `pitcher_training_model.recent_swap_history`.
+5. **Weight logging UI** — `working_weights` column exists, no UI. Unblocks exercise progression curves.
+6. **Exercise progression curves** — Volume/intensity trends for key lifts over time. Blocked on weight logging.
+7. **Inline coach panel** — Coach button on lifting block for in-context refinement without navigating to Coach tab.
 
 ## Stack
 
@@ -116,11 +119,15 @@ pitcher_program_app/
 │
 ├── coach-app/                    # React Coach Dashboard (staff-facing)
 │   ├── src/
-│   │   ├── App.jsx               # Router, AuthProvider, ToastProvider
+│   │   ├── App.jsx               # Router, AuthProvider, ToastProvider, Sidebar shell + DEV /__design lazy route
 │   │   ├── api.js                # fetchCoachApi, postCoachApi, patchCoachApi, deleteCoachApi
 │   │   ├── hooks/                # useCoachAuth (Supabase Auth + JWT exchange), useApi
-│   │   ├── components/           # Shell, RosterTable, PlayerSlideOver, ComplianceRing, etc. (13)
-│   │   └── pages/                # Login, TeamOverview, Schedule, TeamPrograms, Phases, Insights
+│   │   ├── styles/tokens.css     # Brand tokens — 28 locked (maroon/cream/type scale) + @font-face for Source Serif 4
+│   │   ├── components/           # RosterTable, PlayerSlideOver, ComplianceRing, BlockCard, etc. (~11 legacy)
+│   │   ├── components/shell/     # Brand shell — Sidebar, TeamBrand, Masthead, Scoreboard, Lede, FlagPill, EditorialState, Toast (+ __tests__)
+│   │   ├── pages/                # Login, TeamOverview, Schedule, TeamPrograms, Phases, Insights, DesignSandbox (DEV-only)
+│   │   └── test/                 # Vitest bootstrap (sanity.test.js + setup.js)
+│   ├── public/fonts/             # Self-hosted Source Serif 4 woff2 (400/600/700/400-italic)
 │   └── .env.production
 │
 ├── data/
@@ -198,6 +205,16 @@ pitcher_program_app/
 - All `/api/coach/*` endpoints are team-scoped — a coach only sees their team's data
 - `COACH_APP_URL` must be in Railway CORS origins for auth exchange to work
 - **JWT signing**: Supabase issues `ES256` (asymmetric) JWTs on newer projects, `HS256` on legacy. `_decode_token()` inspects `alg` and routes to JWKS (`{SUPABASE_URL}/auth/v1/.well-known/jwks.json`, cached by `PyJWKClient`) or `SUPABASE_JWT_SECRET`. `PyJWT[crypto]` extra is required for ES256 verification.
+- **Local dev gotcha:** if coach-app login bounces back to `/login` without error, `VITE_API_URL` likely points at a local FastAPI that doesn't have `coach_routes` mounted. Either run `python -m api.main` from `pitcher_program_app/` (with `.env` populated including `SUPABASE_JWT_SECRET`), or point `VITE_API_URL` at Railway: `https://baseball-production-9d28.up.railway.app`. Supabase issues the JWT fine; the failure is the `/api/coach/auth/exchange` POST returning 404/405, which `useCoachAuth` catches and converts to `coach=null` → redirect to `/login`.
+
+### Coach Dashboard Brand Shell (Spec 1 — 2026-04-19)
+- **Tokens live in one place:** `coach-app/src/styles/tokens.css` declares all colors, type sizes, and font families inside a `@theme` block. Tailwind v4 auto-generates utilities (`bg-maroon`, `text-charcoal`, `text-display`, `font-serif`, etc.) from those keys — do NOT hardcode hex values in components.
+- **Brand vs alert separation is load-bearing:** `--color-maroon*` / `--color-rose` are brand chrome only; `--color-crimson` / `--color-amber` / `--color-forest` are flag/alert only. Crossing the two breaks the system — if you need a red that isn't a flag, push back.
+- **Shared components:** `components/shell/` holds `Sidebar`, `TeamBrand`, `Masthead`, `Scoreboard`, `Lede`, `FlagPill`, `EditorialState`, `Toast`. Every page sits inside `<main>` with a top `<Masthead kicker title date [week] [actionSlot] />`. Scoreboard requires EXACTLY 5 cells (throws otherwise).
+- **Contract test:** `components/shell/__tests__/tokens.test.jsx` asserts every brand token name still exists. Run `npm run test:run -- tokens` before touching `tokens.css`.
+- **Dev-only sandbox:** `/__design` renders every shell component + runs axe-core. Route is gated by `import.meta.env.DEV` AND `DesignSandbox` is `React.lazy()`-imported so production tree-shakes it. Visit locally in dev mode to smoke-test a11y after shell changes.
+- **Toast API:** `useToast()` returns `{ success, warn, error, info }`, each `(msg, ttl?)`. Tone-aware border + bone fill (`shell/Toast.jsx`).
+- **Deferred for Specs 2–3:** Page bodies still use legacy layouts (roster cards, grid tables). Spec 2 replaces Team Overview first, anchored by a real `<Scoreboard>`.
 
 ### Check-in Flow
 - Two paths: Telegram (`daily_checkin.py` → `process_checkin`) and mini-app (`/chat` → `process_checkin`). Mini-app fetch dies at ~60s.
@@ -374,6 +391,13 @@ No Python virtualenv locally — project runs on Railway. Use Supabase MCP for S
 - Dev commands (`/testnotify`, `/whooptest`, `/healthdigest`, `/testemergency`) exist — remove before broader rollout
 - Reliever template uses text descriptions not exercise IDs — not validated
 - `data_sync.py` disabled but still exists — can delete
+- **Coach-app redesign carryovers (post-Spec 1):**
+  - `TODAY` constant duplicated verbatim in 5 pages — extract to `coach-app/src/utils/formatToday.js` in Spec 2
+  - `"Chicago · Pitching Staff"` kicker hardcoded in 6 sites — will feed from `coach.team_name` once auth-exchange enrichment merges
+  - `TeamPrograms` Masthead has no `actionSlot` because the plan's `__new__` sentinel didn't exist server-side; Spec 2 should wire a real "+ New Program" entry point through the assign modal
+  - `Schedule.jsx` still uses inline `"Loading schedule..."` string instead of `<EditorialState type="loading">` — cosmetic inconsistency, Spec 2 page swap will fix
+  - `alert()` / `confirm()` calls in `Phases` + `TeamPrograms` predate Spec 1; now that `useToast` exists they should migrate to `toast.error` / inline confirmation
+  - `<Sidebar>` Sign out `<button>` missing `type="button"` (no form context, no functional bug)
 
 ## Bot Scope Boundaries
 
