@@ -8,6 +8,7 @@ import { sendChat, sendChatWithPlan, setNextOuting, savePlan, fetchChatHistory, 
 import { useToast } from '../hooks/useToast';
 import MutationPreview from '../components/MutationPreview';
 import { parseBrief } from '@shared/parseBrief.js';
+import { quickClassify } from '../lib/quickClassify.js';
 
 // D2: defensive — if backend ever leaks a JSON-string envelope as content,
 // extract coaching_note before render. Belt-and-suspenders; no-op for plain text.
@@ -231,22 +232,6 @@ export default function Coach() {
   const daysSince = flags.days_since_outing ?? 99;
   const isRecoveryDay = daysSince <= 1;
   const scheduleKnown = flags.next_outing_days != null && flags.next_outing_days > 0;
-
-  const quickClassify = (text) => {
-    const lower = text.toLowerCase();
-    if (['great', 'perfect', 'amazing', 'feels good', 'no issues'].some(w => lower.includes(w))) return { feel: 5, ack: "Good to hear." };
-    if (['sharp', 'shooting', 'numb', 'tingling'].some(w => lower.includes(w))) return { feel: 1, ack: "Noted \u2014 we'll keep things light and protective today." };
-    if (['terrible', 'really bad', 'awful'].some(w => lower.includes(w))) return { feel: 2, ack: "Noted \u2014 we'll keep things light today." };
-    if (['tight', 'sore', 'stiff', 'tender'].some(w => lower.includes(w))) return { feel: 3, ack: "Got it \u2014 I'll factor that into your plan." };
-    if (['good', 'fine', 'solid', 'normal', 'decent'].some(w => lower.includes(w))) return { feel: 4, ack: "Arm's feeling solid." };
-    const num = parseInt(text);
-    if (num >= 1 && num <= 5) {
-      if (num <= 2) return { feel: num, ack: "Noted \u2014 we'll keep things light today." };
-      if (num === 3) return { feel: 3, ack: "Got it \u2014 I'll factor that in." };
-      return { feel: num, ack: "Arm's feeling solid." };
-    }
-    return { feel: null, ack: "Got it." };
-  };
 
   // ── Finalize check-in — send to API ──
   const finalizeCheckin = async (flowData) => {
