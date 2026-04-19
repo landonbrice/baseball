@@ -159,12 +159,40 @@ def get_team_roster_overview(team_id: str, today_str: str) -> list:
             if isinstance(nested, dict):
                 lifting_summary = nested.get("block_name")
 
+        # Derive day_focus — plan_generator doesn't persist it, but we can infer from content.
+        throwing_val = today.get("throwing") if today else None
+        if throwing_val is None:
+            throwing_val = plan.get("throwing_plan")
+        bullpen_val = plan.get("bullpen")
+        if plan.get("day_focus"):
+            derived_day_focus = plan.get("day_focus")
+        elif bullpen_val:
+            derived_day_focus = "bullpen"
+        elif throwing_val:
+            derived_day_focus = "throw"
+        elif lifting_summary or isinstance(today.get("lifting") if today else None, dict):
+            derived_day_focus = "lift"
+        elif any(
+            (m if isinstance(m, str) else m.get("tag", "")) in ("rest_day", "no_throw")
+            for m in (plan.get("modifications_applied") or [])
+        ):
+            derived_day_focus = "recovery"
+        else:
+            derived_day_focus = None
+
+        # Normalize modifications — triage emits strings, some paths emit dicts. Normalize to {tag, reason}.
+        raw_mods = plan.get("modifications_applied") or []
+        modifications = [
+            m if isinstance(m, dict) else {"tag": m, "reason": None}
+            for m in raw_mods
+        ]
+
         today_obj = {
-            "day_focus": plan.get("day_focus"),
+            "day_focus": derived_day_focus,
             "lifting_summary": lifting_summary,
-            "bullpen": plan.get("bullpen"),
-            "throwing": today.get("throwing") if today else None,
-            "modifications": plan.get("modifications_applied") or [],
+            "bullpen": bullpen_val,
+            "throwing": throwing_val,
+            "modifications": modifications,
         }
 
         roster.append({

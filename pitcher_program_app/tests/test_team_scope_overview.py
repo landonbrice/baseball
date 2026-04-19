@@ -137,3 +137,49 @@ def test_today_carries_modifications(mock_client):
 
     roster = get_team_roster_overview("team_x", today)
     assert roster[0]["today"]["modifications"] == [{"tag": "light_lifting", "reason": "forearm tight"}]
+
+
+@patch("bot.services.team_scope.get_client")
+def test_today_derives_day_focus_and_normalizes_string_mods(mock_client):
+    """Production path: plan_generator doesn't write day_focus; triage emits string modifications."""
+    today = "2026-04-19"
+    client = MagicMock()
+    mock_client.return_value = client
+
+    table_calls = [
+        _mock_exec([{"pitcher_id": "p1", "name": "Delta", "role": "Starter (7-day)", "telegram_username": None}]),
+        _mock_exec([{
+            "pitcher_id": "p1",
+            "pre_training": {"arm_feel": 7},
+            # NOTE: plan_generated has NO day_focus key — matches production
+            "plan_generated": {
+                "lifting": {"block_name": "Upper push"},
+                "modifications_applied": ["rpe_cap_56", "no_high_intent_throw"],
+            },
+            "completed_exercises": {},
+            "warmup": {},
+            "lifting": {"exercises": [{"name": "Bench"}]},
+            "throwing": None,
+            "plan_narrative": None,
+        }]),
+        _mock_exec([]),
+        _mock_exec([{"pitcher_id": "p1", "current_flag_level": "yellow", "active_modifications": [], "days_since_outing": 2}]),
+        _mock_exec([]),
+        _mock_exec([]),
+    ]
+    exec_seq = iter(table_calls)
+    chain = MagicMock()
+    chain.execute.side_effect = lambda: next(exec_seq)
+    for m in ("table", "select", "eq", "gte", "lte", "in_", "order", "limit", "not_"):
+        getattr(chain, m).return_value = chain
+    chain.not_.is_.return_value = chain
+    client.table.return_value = chain
+
+    from bot.services.team_scope import get_team_roster_overview
+
+    roster = get_team_roster_overview("team_x", today)
+    assert roster[0]["today"]["day_focus"] == "lift"
+    assert roster[0]["today"]["modifications"] == [
+        {"tag": "rpe_cap_56", "reason": None},
+        {"tag": "no_high_intent_throw", "reason": None},
+    ]
