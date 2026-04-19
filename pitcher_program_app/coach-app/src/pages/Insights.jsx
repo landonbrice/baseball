@@ -2,10 +2,7 @@ import { useCoachApi } from '../hooks/useApi'
 import InsightCard from '../components/InsightCard'
 import Masthead from '../components/shell/Masthead'
 import EditorialState from '../components/shell/EditorialState'
-
-const TODAY = new Date().toLocaleDateString('en-US', {
-  weekday: 'short', month: 'short', day: 'numeric', timeZone: 'America/Chicago',
-}).replace(',', ' ·')
+import { TODAY } from '../utils/formatToday'
 
 export default function Insights() {
   const { data, loading, error, refetch } = useCoachApi('/api/coach/insights?status=pending')

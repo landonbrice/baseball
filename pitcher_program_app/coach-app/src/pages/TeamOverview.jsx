@@ -5,10 +5,7 @@ import RosterTable from '../components/RosterTable'
 import PlayerSlideOver from '../components/PlayerSlideOver'
 import Masthead from '../components/shell/Masthead'
 import EditorialState from '../components/shell/EditorialState'
-
-const TODAY = new Date().toLocaleDateString('en-US', {
-  weekday: 'short', month: 'short', day: 'numeric', timeZone: 'America/Chicago',
-}).replace(',', ' ·')
+import { TODAY } from '../utils/formatToday'
 
 export default function TeamOverview() {
   const { data, loading, error, refetch } = useCoachApi('/api/coach/team/overview')

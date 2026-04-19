@@ -4,10 +4,7 @@ import { useCoachAuth } from '../hooks/useCoachAuth'
 import { postCoachApi } from '../api'
 import BlockCard from '../components/BlockCard'
 import Masthead from '../components/shell/Masthead'
-
-const TODAY = new Date().toLocaleDateString('en-US', {
-  weekday: 'short', month: 'short', day: 'numeric', timeZone: 'America/Chicago',
-}).replace(',', ' ·')
+import { TODAY } from '../utils/formatToday'
 
 export default function TeamPrograms() {
   const { getAccessToken } = useCoachAuth()

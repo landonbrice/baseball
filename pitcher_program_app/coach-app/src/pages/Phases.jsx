@@ -4,12 +4,9 @@ import { useCoachAuth } from '../hooks/useCoachAuth'
 import { postCoachApi, patchCoachApi, deleteCoachApi } from '../api'
 import PhaseTimeline from '../components/PhaseTimeline'
 import Masthead from '../components/shell/Masthead'
+import { TODAY } from '../utils/formatToday'
 
 const EMPTY = { phase_name: '', start_date: '', end_date: '', emphasis: '', notes: '' }
-
-const TODAY = new Date().toLocaleDateString('en-US', {
-  weekday: 'short', month: 'short', day: 'numeric', timeZone: 'America/Chicago',
-}).replace(',', ' ·')
 
 export default function Phases() {
   const { getAccessToken } = useCoachAuth()

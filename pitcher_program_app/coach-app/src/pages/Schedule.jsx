@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import { useCoachApi } from '../hooks/useApi'
 import GamePanel from '../components/GamePanel'
 import Masthead from '../components/shell/Masthead'
+import { TODAY } from '../utils/formatToday'
 
 function getMonthDays(year, month) {
   const firstDay = new Date(year, month, 1).getDay()
@@ -17,10 +18,6 @@ function formatDate(year, month, day) {
 }
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
-
-const TODAY = new Date().toLocaleDateString('en-US', {
-  weekday: 'short', month: 'short', day: 'numeric', timeZone: 'America/Chicago',
-}).replace(',', ' ·')
 
 export default function Schedule() {
   const [year, setYear] = useState(2026)
