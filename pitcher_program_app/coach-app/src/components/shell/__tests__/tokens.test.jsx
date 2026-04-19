@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
+import { render, screen } from '@testing-library/react'
+import Lede from '../Lede'
 
 const TOKENS = path.resolve(__dirname, '../../../styles/tokens.css')
 
@@ -26,5 +28,21 @@ describe('tokens.css contract', () => {
   it('has all four @font-face declarations for Source Serif 4', () => {
     const matches = css.match(/@font-face/g) || []
     expect(matches.length).toBeGreaterThanOrEqual(4)
+  })
+})
+
+describe('<Lede>', () => {
+  it('renders children inside a serif italic block', () => {
+    render(<Lede>Wade is back to good after Tuesday's outing.</Lede>)
+    const node = screen.getByText(/wade is back to good/i).closest('div')
+    expect(node.className).toContain('font-serif')
+    expect(node.className).toContain('italic')
+    expect(node.className).toContain('border-maroon')
+  })
+
+  it('respects maxWidth prop', () => {
+    render(<Lede maxWidth="500px">x</Lede>)
+    const node = screen.getByText('x').closest('div')
+    expect(node.style.maxWidth).toBe('500px')
   })
 })
