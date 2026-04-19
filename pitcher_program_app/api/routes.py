@@ -657,12 +657,24 @@ async def post_chat(pitcher_id: str, request: Request):
                 for alert in result.get("alerts", []):
                     messages.append({"type": "text", "content": f"⚠️ {alert}"})
 
-                brief = result.get("morning_brief") or result.get("plan_narrative", "")
-                if isinstance(brief, dict):
-                    brief = brief.get("coaching_note", "") or str(brief)
-                brief = str(brief) if brief else ""
-                if brief:
-                    messages.append({"type": "text", "content": brief})
+                # D1: prefer plan_narrative (plain text) over morning_brief
+                # (now a JSON-string envelope post-Task-3b). Fall through to
+                # parseBrief-equivalent extraction if narrative is absent.
+                narrative = result.get("plan_narrative") or ""
+                if not narrative:
+                    raw_brief = result.get("morning_brief")
+                    if isinstance(raw_brief, dict):
+                        narrative = raw_brief.get("coaching_note", "") or ""
+                    elif isinstance(raw_brief, str) and raw_brief:
+                        try:
+                            parsed = json.loads(raw_brief)
+                            if isinstance(parsed, dict):
+                                narrative = parsed.get("coaching_note", "") or ""
+                        except (json.JSONDecodeError, ValueError):
+                            narrative = raw_brief  # legacy plain-string brief
+                narrative = str(narrative) if narrative else ""
+                if narrative:
+                    messages.append({"type": "text", "content": narrative})
 
                 if result.get("soreness_response"):
                     messages.append({"type": "text", "content": result["soreness_response"]})
@@ -684,7 +696,7 @@ async def post_chat(pitcher_id: str, request: Request):
 
                 return {
                     "messages": messages,
-                    "morning_brief": normalize_brief(brief),
+                    "morning_brief": normalize_brief(result.get("morning_brief")),
                     "flag_level": result.get("flag_level", "green"),
                 }
             except Exception as assembly_err:

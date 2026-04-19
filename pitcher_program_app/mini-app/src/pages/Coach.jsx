@@ -9,6 +9,19 @@ import { useToast } from '../hooks/useToast';
 import MutationPreview from '../components/MutationPreview';
 import { parseBrief } from '@shared/parseBrief.js';
 
+// D2: defensive — if backend ever leaks a JSON-string envelope as content,
+// extract coaching_note before render. Belt-and-suspenders; no-op for plain text.
+function sanitizeChatContent(raw) {
+  if (typeof raw !== 'string' || !raw.trim().startsWith('{')) return raw;
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return parsed.coaching_note || '';
+    }
+  } catch (_) {}
+  return raw;
+}
+
 export default function Coach() {
   const { pitcherId, initData } = useAuth();
   const navigate = useNavigate();
@@ -62,7 +75,7 @@ export default function Coach() {
           .map(m => ({
             role: m.role === 'user' ? 'user' : 'bot',
             type: 'text',
-            content: m.content,
+            content: m.role === 'assistant' ? sanitizeChatContent(m.content) : m.content,
           }));
         if (restored.length > 0) {
           setMessages(restored);
@@ -165,7 +178,11 @@ export default function Coach() {
           });
         }
       } else {
-        newMsgs.push({ role: 'bot', ...m });
+        newMsgs.push({
+          role: 'bot',
+          ...m,
+          content: m.content ? sanitizeChatContent(m.content) : m.content,
+        });
       }
     }
     return newMsgs;
@@ -469,7 +486,7 @@ export default function Coach() {
       }, 'checkin', initData);
       processResponse(res);
       for (const m of res.messages || []) {
-        if (m.type === 'text') addMessage({ role: 'bot', type: 'text', content: m.content });
+        if (m.type === 'text') addMessage({ role: 'bot', type: 'text', content: sanitizeChatContent(m.content) });
       }
     } catch {
       addMessage({ role: 'bot', type: 'text', content: 'Plan retry failed. Try again or check in from Telegram.' });
