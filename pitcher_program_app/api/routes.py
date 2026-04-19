@@ -2183,9 +2183,18 @@ def _build_today_detail(arc: dict, training_model: dict, pitcher_id: str = None)
                         pills.append({"emoji": "⚾", "label": throw_label, "type": "throw"})
 
                 # --- Subtitle: morning_brief if present, else template_day label
-                brief = plan.get("morning_brief") or ""
-                if isinstance(brief, dict):
-                    brief = brief.get("coaching_note", "") or brief.get("text", "") or ""
+                # D2: unwrap JSON-string envelopes from normalize_brief
+                raw_brief = plan.get("morning_brief") or ""
+                if isinstance(raw_brief, dict):
+                    brief = raw_brief.get("coaching_note", "") or ""
+                elif isinstance(raw_brief, str) and raw_brief.strip().startswith("{"):
+                    try:
+                        parsed = json.loads(raw_brief)
+                        brief = parsed.get("coaching_note", "") if isinstance(parsed, dict) else raw_brief
+                    except (json.JSONDecodeError, ValueError):
+                        brief = raw_brief
+                else:
+                    brief = raw_brief
                 if not brief:
                     # Derive a short description from template_day + source
                     template_day = plan.get("template_day", "")
