@@ -49,7 +49,7 @@ def get_team_roster_overview(team_id: str, today_str: str) -> list:
 
     # Today's entries for the team
     today_entries = (client.table("daily_entries")
-                    .select("pitcher_id, pre_training, plan_generated, completed_exercises, warmup")
+                    .select("pitcher_id, pre_training, plan_generated, completed_exercises, warmup, lifting, throwing, plan_narrative")
                     .eq("team_id", team_id)
                     .eq("date", today_str)
                     .execute()).data or []
@@ -59,7 +59,7 @@ def get_team_roster_overview(team_id: str, today_str: str) -> list:
     from datetime import date as _date, timedelta
     week_ago = (_date.fromisoformat(today_str) - timedelta(days=6)).isoformat()
     week_entries = (client.table("daily_entries")
-                    .select("pitcher_id, date, completed_exercises")
+                    .select("pitcher_id, date, completed_exercises, pre_training")
                     .eq("team_id", team_id)
                     .gte("date", week_ago)
                     .lte("date", today_str)
@@ -139,6 +139,34 @@ def get_team_roster_overview(team_id: str, today_str: str) -> list:
             if inj.get("flag_level") in ("yellow", "red"):
                 active_flags.append(f"{inj.get('area', 'unknown')} ({inj.get('flag_level', '')})")
 
+        # af_7d — 7-day arm-feel mean from week entries (None if no entries)
+        arm_feel_values = []
+        for e in week:
+            pt = e.get("pre_training") or {}
+            af = pt.get("arm_feel")
+            if isinstance(af, (int, float)) and af is not None:
+                arm_feel_values.append(float(af))
+        af_7d = round(sum(arm_feel_values) / len(arm_feel_values), 1) if arm_feel_values else None
+
+        # today — compact plan summary for the triage feed
+        plan = (today.get("plan_generated") if today else None) or {}
+        lifting_block = today.get("lifting") if today else None
+        lifting_summary = None
+        if isinstance(lifting_block, dict):
+            lifting_summary = lifting_block.get("block_name") or lifting_block.get("name")
+        if not lifting_summary:
+            nested = plan.get("lifting")
+            if isinstance(nested, dict):
+                lifting_summary = nested.get("block_name")
+
+        today_obj = {
+            "day_focus": plan.get("day_focus"),
+            "lifting_summary": lifting_summary,
+            "bullpen": plan.get("bullpen"),
+            "throwing": today.get("throwing") if today else None,
+            "modifications": plan.get("modifications_applied") or [],
+        }
+
         roster.append({
             "pitcher_id": pid,
             "name": p.get("name", ""),
@@ -149,6 +177,8 @@ def get_team_roster_overview(team_id: str, today_str: str) -> list:
             "streak": streak,
             "active_injury_flags": active_flags,
             "next_scheduled_start": next_start_map.get(pid),
+            "af_7d": af_7d,
+            "today": today_obj,
         })
 
     return roster
