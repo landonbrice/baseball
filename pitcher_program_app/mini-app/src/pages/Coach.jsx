@@ -297,7 +297,7 @@ export default function Coach() {
     // Refinement 1: Recovery day — recommend + give choice
     if (isRecoveryDay) {
       const feelComment = feel != null
-        ? (feel >= 4 ? `arm's at a ${feel} \u2014 solid recovery` : feel === 3 ? `arm's at a ${feel} \u2014 pretty typical day-after` : `arm's at a ${feel} \u2014 let's be careful`)
+        ? (feel >= 8 ? `arm's at a ${feel} \u2014 solid recovery` : feel >= 5 ? `arm's at a ${feel} \u2014 pretty typical day-after` : `arm's at a ${feel} \u2014 let's be careful`)
         : 'day after';
       setCheckinFlow({ ...flowData, step: 'recovery_confirm' });
       setMessages(prev => [...prev, { role: 'bot', type: 'text',
