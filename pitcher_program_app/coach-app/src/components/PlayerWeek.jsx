@@ -1,3 +1,5 @@
+import { parseBrief } from '@shared/parseBrief.js'
+
 export default function PlayerWeek({ data }) {
   const week = data?.current_week || []
   const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' })
@@ -38,13 +40,11 @@ export default function PlayerWeek({ data }) {
                 )}
               </div>
             </div>
-            {e.morning_brief && (
-              <p className="text-[10px] text-subtle mt-1 truncate">
-                {typeof e.morning_brief === 'string'
-                  ? e.morning_brief
-                  : e.morning_brief?.coaching_note || ''}
-              </p>
-            )}
+            {(() => {
+              const coachingNote = parseBrief(e.morning_brief).coaching_note;
+              if (!coachingNote) return null;
+              return <p className="text-[10px] text-subtle mt-1 truncate">{coachingNote}</p>;
+            })()}
             {e.active_team_block_id && (
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-maroon/10 text-maroon mt-1 inline-block">
                 Team Block

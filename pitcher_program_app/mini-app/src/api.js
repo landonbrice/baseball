@@ -282,3 +282,23 @@ export async function deleteScheduledThrow(pitcherId, throwId, initData = null) 
   if (!res.ok) throw new Error(`API ${res.status}: ${res.statusText}`);
   return res.json();
 }
+
+/**
+ * Fire-and-forget telemetry when an exercise name falls back to ID/Unknown (D9).
+ * Never throws; best-effort.
+ */
+export function logUiFallback({ exerciseId, surface, component, pitcherId }) {
+  if (!exerciseId) return;
+  try {
+    fetch(`${API_BASE}/api/telemetry/ui-fallback`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        exercise_id: exerciseId,
+        surface,
+        component,
+        pitcher_id: pitcherId,
+      }),
+    }).catch(() => {});
+  } catch (_e) {}
+}

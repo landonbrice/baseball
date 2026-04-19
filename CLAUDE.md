@@ -1,7 +1,7 @@
 # Pitcher Training Intelligence — Claude Init
 
 > Last updated: 2026-04-19
-> Sprint status: Phases 1-20.1 + Sprint 0.5 + Redesign Spec 1 complete. Coach Dashboard now renders inside the editorial brand shell (UChicago maroon + cream, Source Serif 4 + Inter, Sidebar/Masthead/Scoreboard/Lede/FlagPill/EditorialState/Toast, Vitest + RTL). All page bodies preserved; Specs 2 and 3 will swap the bodies. Next: auth-exchange response enrichment (to populate `team_name` in sidebar), Spec 2 page bodies, The Ledger, weight logging UI.
+> Sprint status: Phases 1-20.1 + Sprint 0.5 + Tier 1 Hardening + Redesign Spec 1 complete. Tier 1 landed coach sidebar team-name enrichment, exercise-name hydration at write, canonical morning_brief shape, and snapshot cache for exercises. Spec 1 replaced the generic Tailwind shell with the editorial brand system (UChicago maroon + cream, Source Serif 4 + Inter, Sidebar/Masthead/Scoreboard/Lede/FlagPill/EditorialState/Toast, Vitest + RTL). Page bodies still legacy — Specs 2 and 3 swap them next. Next: Spec 2 page bodies (Team Overview first), Tier 2, The Ledger, weight logging UI.
 
 ## What This Is
 
@@ -39,9 +39,9 @@ A training intelligence system for the UChicago baseball pitching staff. Telegra
 | Spec 1 | Coach Dashboard Redesign — Brand System & Shell | 04-19 | Editorial brand shell replaces generic Tailwind shell. `src/styles/tokens.css` adds 28 locked tokens (UChicago maroon `#5c1020` + cream `#f7f1e3`, alert crimson/amber/forest, 10-step type scale). Self-hosted Source Serif 4 (400/600/700 + 400 italic) + Inter. 7 shared components in `src/components/shell/` — `Sidebar`, `TeamBrand`, `Masthead`, `Scoreboard`, `Lede`, `FlagPill`, `EditorialState`, `Toast`. Vitest + RTL added (49 tests, token contract locked). Dev-only `/__design` sandbox w/ axe smoke check (lazy-loaded). `Shell.jsx` and old `Toast.jsx` deleted. Page bodies preserved — Specs 2 and 3 replace them. |
 
 ### What's Next
-1. **Coach auth-exchange response enrichment** — `/api/coach/auth/exchange` + `/me` return only `coach_id/team_id/coach_name/role`. Shell sidebar falls back to "Dashboard" because `team_name` missing. Join `teams.name` into response. Unblocks redesign AC6.
-2. **Coach Dashboard Redesign Spec 2** — Replace page bodies with `Scoreboard`-anchored, numbers-first editorial layouts (Team Overview first, then Schedule / Team Programs / Phases / Insights).
-3. **Coach Dashboard Redesign Spec 3** — Deferred slide-overs, interaction polish, motion.
+1. **Coach Dashboard Redesign Spec 2** — Replace page bodies with `Scoreboard`-anchored, numbers-first editorial layouts (Team Overview first, then Schedule / Team Programs / Phases / Insights). Auth-exchange `team_name` enrichment already shipped in Tier 1, so `<TeamBrand>` will pick up real team names once the shell is deployed.
+2. **Coach Dashboard Redesign Spec 3** — Deferred slide-overs, interaction polish, motion.
+3. **Tier 2 hardening** — Continuation of the Tier 1 sprint.
 4. **The Ledger** — Modification history timeline on Profile. Data exists in `plan_generated.modifications_applied` + `pitcher_training_model.recent_swap_history`.
 5. **Weight logging UI** — `working_weights` column exists, no UI. Unblocks exercise progression curves.
 6. **Exercise progression curves** — Volume/intensity trends for key lifts over time. Blocked on weight logging.
@@ -253,7 +253,13 @@ All dates use `CHICAGO_TZ` (from `bot/config.py`). Server: `datetime.now(CHICAGO
 - `pitchers` PK is `pitcher_id` (not `id`). FK references must use `REFERENCES pitchers(pitcher_id)`
 - `pitcher_training_model` consolidates old `active_flags` + exercise intelligence. `profile["active_flags"]` populated via compat layer in `_profile_from_row()`
 - `daily_entries.pre_training` JSONB uses key `overall_energy` (NOT `energy`) — matters for any SQL migration touching energy values
-- Exercise library has dual source: `exercise_library.json` (API endpoints) + Supabase `exercises` table (plan gen). **Both must be updated** when adding exercises.
+
+### Exercise library workflow (2026-04-18)
+- **Supabase `exercises` is canonical** at runtime. `/api/exercises`, plan gen, swap, and mutations all read live from Supabase via `exercise_pool` (15-min snapshot cache + lazy-miss).
+- **JSON is seed-only.** `data/knowledge/exercise_library.json` is the source of truth in git for review/history. A pre-commit hook (`scripts/hooks/pre-commit`) runs `scripts/seed_exercises_from_json.py` on every commit that touches the JSON. Upsert-only — never deletes.
+- **Hook install:** one-time `ln -sf ../../pitcher_program_app/scripts/hooks/pre-commit .git/hooks/pre-commit` from repo root.
+- **Hook failure:** warns + proceeds (D11). Manual re-run: `cd pitcher_program_app && python -m scripts.seed_exercises_from_json`.
+- **Removing an exercise:** delete from JSON for new plans, but historical `plan_generated` rows still reference it — orphans in Supabase are tolerated (D12).
 
 ### Chart.js Axis Gotcha
 With explicit `min`/`max` + `stepSize`, Chart.js silently adds `max` as an extra tick when `max` isn't on the stepSize grid (produces spurious labels like "11/10"). For dot headroom at y=max, use chart-level `clip: false` + `layout.padding.top` — do NOT inflate `max` to create space. Example in `SeasonTimeline.jsx` and `SleepScatter.jsx`.
