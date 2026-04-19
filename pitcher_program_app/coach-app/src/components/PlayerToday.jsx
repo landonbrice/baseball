@@ -1,6 +1,44 @@
-import { useState } from 'react'
 import { parseBrief } from '@shared/parseBrief.js'
 import { useExerciseName } from '../hooks/useExerciseName'
+
+function SectionHeader({ children }) {
+  return (
+    <h3 className="font-ui font-semibold uppercase text-[10px] tracking-[0.2em] text-maroon mb-1.5">
+      {children}
+    </h3>
+  )
+}
+
+function Section({ title, children }) {
+  return (
+    <section>
+      <SectionHeader>{title}</SectionHeader>
+      {children}
+    </section>
+  )
+}
+
+function Item({ name, prescription }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3 py-1 border-b border-cream-dark/60 last:border-b-0">
+      <span className="font-serif text-body text-charcoal">{name}</span>
+      <span className="font-ui text-meta text-muted tabular">{prescription || ''}</span>
+    </div>
+  )
+}
+
+function ExerciseItem({ ex }) {
+  const name = useExerciseName({ item: ex, component: 'PlayerToday' })
+  return <Item name={name} prescription={ex.prescribed || ex.rx || ''} />
+}
+
+function flattenLifting(lifting) {
+  if (!lifting) return []
+  const top = Array.isArray(lifting.exercises) ? lifting.exercises : []
+  if (top.length > 0) return top
+  const blocks = Array.isArray(lifting.exercise_blocks) ? lifting.exercise_blocks : []
+  return blocks.flatMap(b => (Array.isArray(b.exercises) ? b.exercises : []))
+}
 
 export default function PlayerToday({ data, onAdjust, onRestrict }) {
   if (!data) return null
@@ -8,164 +46,92 @@ export default function PlayerToday({ data, onAdjust, onRestrict }) {
   const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' })
   const week = data.current_week || []
   const todayEntry = week.find(e => e.date === today)
-  const model = data.training_model || {}
-  const injuries = data.injuries || []
+
+  const coachingNote = parseBrief(todayEntry?.morning_brief).coaching_note
+
+  const warmup = todayEntry?.warmup
+  const armCare = todayEntry?.arm_care
+  const lifting = todayEntry?.lifting || todayEntry?.plan_generated?.lifting
+  const throwing = todayEntry?.throwing || todayEntry?.plan_generated?.throwing_plan
+  const liftingItems = flattenLifting(lifting)
 
   return (
-    <div className="space-y-4">
-      {/* Stats row */}
-      <div className="grid grid-cols-4 gap-2">
-        <StatCard
-          label="Flag"
-          value={model.flag_level || 'green'}
-          color={model.flag_level === 'red' ? '#c0392b' : model.flag_level === 'yellow' ? '#d4a017' : '#2d5a3d'}
-        />
-        <StatCard label="Days Since Outing" value={model.days_since_outing ?? '-'} />
-        <StatCard label="Arm Feel" value={todayEntry?.pre_training?.arm_feel || '-'} />
-        <StatCard label="WHOOP" value={data.whoop_today ? `${data.whoop_today.recovery_score}%` : '-'} />
-      </div>
-
-      {/* Morning brief — only render if coaching_note is present (hides empty '{}' briefs) */}
-      {(() => {
-        const coachingNote = parseBrief(todayEntry?.morning_brief).coaching_note;
-        if (!coachingNote) return null;
-        return (
-          <div className="bg-cream rounded-lg p-3">
-            <p className="text-xs text-subtle mb-1">Morning Brief</p>
-            <p className="text-sm text-charcoal leading-relaxed">{coachingNote}</p>
-          </div>
-        );
-      })()}
-
-      {/* Active injuries */}
-      {injuries.filter(i => i.status === 'active' || i.status === 'monitoring').length > 0 && (
-        <div className="bg-crimson/5 border border-crimson/20 rounded-lg p-3">
-          <p className="text-xs font-medium text-crimson mb-1">Active Injury Flags</p>
-          {injuries
-            .filter(i => i.status === 'active' || i.status === 'monitoring')
-            .map((inj, i) => (
-              <p key={i} className="text-xs text-charcoal">
-                {inj.area} — {inj.flag_level} ({inj.status})
-              </p>
-            ))}
+    <div className="space-y-5">
+      {coachingNote && (
+        <div className="bg-parchment border-l-[3px] border-maroon py-2.5 pl-3.5 pr-3 rounded-r-[3px] font-serif italic text-body text-graphite">
+          {coachingNote}
         </div>
       )}
 
-      {/* Team block tag */}
-      {data.active_team_block && (
-        <div className="bg-maroon/5 border border-maroon/20 rounded-lg p-3">
-          <p className="text-xs text-maroon font-medium">
-            Team Block: Week {data.active_team_block.week}, Day {data.active_team_block.day}
-          </p>
-        </div>
+      {!todayEntry?.plan_generated && (
+        <p className="font-ui text-meta text-muted">No plan generated yet today.</p>
       )}
 
-      {/* Plan sections */}
-      {todayEntry?.plan_generated ? (
-        <div className="space-y-3">
-          <PlanSection title="Warmup" data={todayEntry.warmup} />
-          <PlanSection title="Arm Care" data={todayEntry.arm_care} />
-          <LiftingSection data={todayEntry.lifting || todayEntry.plan_generated} />
-          <PlanSection
-            title="Throwing"
-            data={todayEntry.throwing || todayEntry.plan_generated?.throwing_plan}
-          />
-        </div>
-      ) : (
-        <p className="text-subtle text-sm">No plan generated yet today.</p>
+      {Array.isArray(warmup) && warmup.length > 0 && (
+        <Section title="Warmup">
+          {warmup.map((w, i) => (
+            <Item
+              key={i}
+              name={typeof w === 'string' ? w : (w.name || '')}
+              prescription={typeof w === 'object' ? (w.prescribed || w.rx || '') : ''}
+            />
+          ))}
+        </Section>
       )}
 
-      {/* Override buttons */}
-      <div className="flex gap-2 pt-2 border-t border-cream-dark">
+      {armCare && (
+        <Section title="Arm Care">
+          {Array.isArray(armCare)
+            ? armCare.map((a, i) => (
+                <Item
+                  key={i}
+                  name={typeof a === 'string' ? a : (a.name || '')}
+                  prescription={typeof a === 'object' ? (a.prescribed || a.rx || '') : ''}
+                />
+              ))
+            : <p className="font-ui text-meta text-muted">{String(armCare)}</p>}
+        </Section>
+      )}
+
+      {liftingItems.length > 0 && (
+        <Section title="Lift">
+          {liftingItems.map((ex, i) => <ExerciseItem key={i} ex={ex} />)}
+        </Section>
+      )}
+
+      {throwing && (
+        <Section title="Throw">
+          {typeof throwing === 'string'
+            ? <p className="font-ui text-body text-graphite">{throwing}</p>
+            : <pre className="font-ui text-meta text-muted whitespace-pre-wrap">{JSON.stringify(throwing, null, 2).slice(0, 400)}</pre>}
+        </Section>
+      )}
+
+      <div className="flex gap-2 pt-3 border-t border-cream-dark">
         <button
+          type="button"
           onClick={onAdjust}
-          className="flex-1 py-2 bg-maroon text-white rounded text-xs font-medium hover:bg-maroon-light"
+          className="flex-1 py-2 font-ui text-body-sm font-semibold text-bone bg-maroon hover:bg-maroon-ink rounded-[3px]"
         >
           Adjust Today
         </button>
         <button
+          type="button"
           onClick={onRestrict}
-          className="flex-1 py-2 border border-maroon text-maroon rounded text-xs font-medium hover:bg-maroon/5"
+          className="flex-1 py-2 font-ui text-body-sm font-semibold border border-maroon text-maroon hover:bg-hover rounded-[3px]"
         >
           Add Restriction
         </button>
       </div>
 
-      {/* Pending suggestions */}
       {(data.pending_suggestions || []).length > 0 && (
-        <div className="bg-amber/10 border border-amber/30 rounded-lg p-3">
-          <p className="text-xs font-medium text-amber mb-1">Pending Suggestions</p>
+        <div className="bg-amber/10 border-l-[3px] border-amber rounded-r-[3px] p-3">
+          <p className="font-ui font-semibold uppercase text-[10px] tracking-[0.16em] text-amber mb-1">Pending Suggestions</p>
           {data.pending_suggestions.map(s => (
-            <p key={s.suggestion_id} className="text-sm text-charcoal mt-1">
-              {s.title}
-            </p>
+            <p key={s.suggestion_id} className="font-ui text-body-sm text-charcoal mt-0.5">{s.title}</p>
           ))}
         </div>
       )}
-    </div>
-  )
-}
-
-function StatCard({ label, value, color }) {
-  return (
-    <div className="bg-cream rounded-lg p-2 text-center">
-      <p className="text-[10px] text-subtle">{label}</p>
-      <p className="text-sm font-medium" style={{ color: color || '#2c2c2c' }}>
-        {value}
-      </p>
-    </div>
-  )
-}
-
-function PlanSection({ title, data }) {
-  if (!data) return null
-  const isObject = typeof data === 'object' && !Array.isArray(data)
-
-  return (
-    <div className="bg-cream/50 rounded-lg p-3">
-      <p className="text-xs font-medium text-charcoal mb-1">{title}</p>
-      {isObject ? (
-        <pre className="text-[10px] text-subtle overflow-x-auto whitespace-pre-wrap">
-          {JSON.stringify(data, null, 2).slice(0, 500)}
-        </pre>
-      ) : (
-        <p className="text-xs text-subtle">{String(data).slice(0, 200)}</p>
-      )}
-    </div>
-  )
-}
-
-function ExerciseNameSpan({ ex }) {
-  const name = useExerciseName({ item: ex, component: 'PlayerToday' })
-  return <span className="text-charcoal">{name}</span>
-}
-
-function LiftingSection({ data }) {
-  if (!data) return null
-  const exercises = data.exercises || data.exercise_blocks || []
-  if (!Array.isArray(exercises) || exercises.length === 0) {
-    return <PlanSection title="Lifting" data={data} />
-  }
-
-  return (
-    <div className="bg-cream/50 rounded-lg p-3">
-      <p className="text-xs font-medium text-charcoal mb-2">Lifting</p>
-      {exercises.map((block, bi) => {
-        const blockExercises = block.exercises || [block]
-        return (
-          <div key={bi} className="mb-2">
-            {block.block_name && (
-              <p className="text-[10px] text-subtle font-medium mb-1">{block.block_name}</p>
-            )}
-            {(Array.isArray(blockExercises) ? blockExercises : []).map((ex, i) => (
-              <div key={i} className="flex justify-between text-xs py-0.5">
-                <ExerciseNameSpan ex={ex} />
-                <span className="text-subtle">{ex.prescribed || ex.rx || ''}</span>
-              </div>
-            ))}
-          </div>
-        )
-      })}
     </div>
   )
 }
