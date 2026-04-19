@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useCoachAuth } from './hooks/useCoachAuth'
 import { ToastProvider } from './components/shell/Toast'
@@ -8,7 +9,10 @@ import Schedule from './pages/Schedule'
 import TeamPrograms from './pages/TeamPrograms'
 import Phases from './pages/Phases'
 import Insights from './pages/Insights'
-import DesignSandbox from './pages/DesignSandbox'
+
+const DesignSandbox = import.meta.env.DEV
+  ? lazy(() => import('./pages/DesignSandbox'))
+  : null
 
 function ProtectedRoutes() {
   const { coach, loading } = useCoachAuth()
@@ -33,8 +37,15 @@ function ProtectedRoutes() {
           <Route path="/programs" element={<TeamPrograms />} />
           <Route path="/phases" element={<Phases />} />
           <Route path="/insights" element={<Insights />} />
-          {import.meta.env.DEV && (
-            <Route path="/__design" element={<DesignSandbox />} />
+          {import.meta.env.DEV && DesignSandbox && (
+            <Route
+              path="/__design"
+              element={
+                <Suspense fallback={null}>
+                  <DesignSandbox />
+                </Suspense>
+              }
+            />
           )}
         </Routes>
       </main>
