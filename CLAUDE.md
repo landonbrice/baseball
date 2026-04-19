@@ -1,7 +1,7 @@
 # Pitcher Training Intelligence — Claude Init
 
-> Last updated: 2026-04-18
-> Sprint status: Phases 1-20.1 + Sprint 0.5 + Tier 1 Hardening complete. Coach sidebar shows team name, exercise names hydrated at write, canonical morning_brief shape, snapshot cache for exercises. Next: continue Tier 2 or pivot to next sprint.
+> Last updated: 2026-04-19
+> Sprint status: Phases 1-20.1 + Sprint 0.5 + Tier 1 Hardening + Check-in Hotfix complete. Next: address Regression #2 (Telegram ConversationHandler stall — blocked on Railway log capture / duplicate getUpdates consumer).
 
 ## What This Is
 
@@ -371,7 +371,8 @@ No Python virtualenv locally — project runs on Railway. Use Supabase MCP for S
 - **Schema drift in `team_scope.py`** — file was written against an older schema (used `physical`/`pitching`/`flag_level`/`injury_history.status`). Realigned 2026-04-14. Follow-up sweep across `bot/services/` + `api/` (2026-04-14) confirmed no other offenders: remaining `flag_level` references are all triage-result dict keys, `daily_entries.pre_training` JSONB keys, or legitimate `injury_history.flag_level` column reads. `physical_profile`/`pitching_profile` already consistent.
 - **FastAPI unhandled-exception responses skip CORS middleware** — a 500 from an uncaught exception surfaces as "Origin is not allowed by Access-Control-Allow-Origin" in Safari/Chrome, even though CORS is correctly configured. Always check Railway logs for the real traceback before chasing CORS.
 - **Repo bloat from untracked dev artifacts** — `graphify-out/`, `past_arm_programs/*.xlsx`, root-level `scripts/`, `ui-elevation-mockup.jsx` have leaked into commits. Need proper `.gitignore` + `git rm --cached` pass.
-- `morning_brief` string/dict coercion duplicated in 4 places — should normalize at checkin_service boundary
+- **Historical `overall_energy: 3` in `daily_entries`** (fixed 2026-04-19 for new rows): prior to the checkin-hotfix merge, the `/api/chat` checkin handler never threaded `energy` from the request body to `process_checkin`, so every mini-app check-in stored the parameter default `3`. Historical rows are not backfilled — triage tolerates missing/default values. New rows carry real energy values *only once the Coach.jsx check-in flow captures energy* (UI step spawned as follow-up task 2026-04-19; backend is ready). If doing retrospective analytics on energy, filter `created_at >= <hotfix-deploy-timestamp>` AND after the UI capture step lands.
+- `morning_brief` string/dict coercion duplicated in 4 places — should normalize at checkin_service boundary. 2026-04-19 check-in hotfix added a 5th copy (saved-plan subtitle at `api/routes.py:2185`); consolidation into a single `_unwrap_morning_brief(raw) -> str` helper is a clean follow-up.
 - `context_manager.py:173` `msg.get("content","")[:200]` — no `str()` coercion, latent TypeError if content is dict
 - 10 exercises missing YouTube links (ex_121-123, ex_126-128, ex_156-159)
 - `_load_exercise_library()` module-level cache — new exercises require Railway redeploy
