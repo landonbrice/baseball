@@ -159,3 +159,72 @@ def test_reliever_appearance_counts_as_rotation():
     result = compute_pitcher_baseline(entries, rotation_length=7)
     assert result["rotations_completed"] >= 3
     assert result["tier"] == 3
+
+
+# ---------------------------------------------------------------------------
+# Cache-aware refresh tests
+# ---------------------------------------------------------------------------
+
+from datetime import datetime, timedelta
+
+
+def test_get_or_refresh_returns_cached_when_fresh():
+    from bot.services.baselines import get_or_refresh_baseline
+    from bot.config import CHICAGO_TZ
+
+    now = datetime.now(CHICAGO_TZ)
+    cached = {
+        "tier": 2, "computed_at": now.isoformat(), "total_check_ins": 10,
+        "rotation_day_baselines": {}, "overall_mean": 7.0, "overall_sd": 1.0,
+        "rotations_completed": 1, "rolling_14d_mean": None, "prior_14d_mean": None,
+        "chronic_drift": 0.0, "drift_threshold": 1.0, "drift_flagged": False,
+    }
+    result = get_or_refresh_baseline(
+        pitcher_id="test_001", cached_snapshot=cached,
+        daily_entries=[], rotation_length=7, last_outing_date=None,
+    )
+    assert result["tier"] == 2
+    assert result["_recomputed"] is False
+
+
+def test_get_or_refresh_recomputes_when_stale():
+    from bot.services.baselines import get_or_refresh_baseline
+    from bot.config import CHICAGO_TZ
+
+    stale_time = (datetime.now(CHICAGO_TZ) - timedelta(hours=25)).isoformat()
+    cached = {"tier": 1, "computed_at": stale_time, "total_check_ins": 0}
+    entries = _make_entries_for_days("2026-04-01", [7, 8, 7, 8, 9, 8, 7, 8])
+    result = get_or_refresh_baseline(
+        pitcher_id="test_001", cached_snapshot=cached,
+        daily_entries=entries, rotation_length=7, last_outing_date=None,
+    )
+    assert result["_recomputed"] is True
+    assert result["total_check_ins"] == 8
+
+
+def test_get_or_refresh_recomputes_when_missing():
+    from bot.services.baselines import get_or_refresh_baseline
+    entries = _make_entries_for_days("2026-04-01", [7, 8])
+    result = get_or_refresh_baseline(
+        pitcher_id="test_001", cached_snapshot=None,
+        daily_entries=entries, rotation_length=7, last_outing_date=None,
+    )
+    assert result["_recomputed"] is True
+
+
+def test_get_or_refresh_recomputes_on_new_outing():
+    from bot.services.baselines import get_or_refresh_baseline
+    from bot.config import CHICAGO_TZ
+
+    now = datetime.now(CHICAGO_TZ)
+    cached = {
+        "tier": 2, "computed_at": now.isoformat(), "total_check_ins": 10,
+        "last_outing_date": "2026-04-10",
+    }
+    entries = _make_entries_for_days("2026-04-01", [7, 8, 7])
+    result = get_or_refresh_baseline(
+        pitcher_id="test_001", cached_snapshot=cached,
+        daily_entries=entries, rotation_length=7,
+        last_outing_date="2026-04-15",
+    )
+    assert result["_recomputed"] is True

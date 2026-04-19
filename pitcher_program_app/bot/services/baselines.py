@@ -216,3 +216,58 @@ def get_tolerance_band(tier: int) -> int:
     pop = _load_population_baselines()
     bands = pop.get("tolerance_bands", {})
     return bands.get(f"tier_{tier}", 0)
+
+
+# ---------------------------------------------------------------------------
+# Cache-aware baseline refresh
+# ---------------------------------------------------------------------------
+
+_CACHE_TTL_HOURS = 24
+
+
+def get_or_refresh_baseline(
+    pitcher_id: str,
+    cached_snapshot: dict | None,
+    daily_entries: list,
+    rotation_length: int = 7,
+    last_outing_date: str = None,
+) -> dict:
+    """Return cached baseline or recompute if stale/missing.
+
+    Recomputes when:
+    - cached_snapshot is None or empty
+    - computed_at is older than _CACHE_TTL_HOURS
+    - last_outing_date is newer than the snapshot's last_outing_date
+
+    Returns the baseline dict with an added "_recomputed" bool key.
+    """
+    if _should_recompute(cached_snapshot, last_outing_date):
+        baseline = compute_pitcher_baseline(daily_entries, rotation_length)
+        if last_outing_date:
+            baseline["last_outing_date"] = last_outing_date
+        baseline["_recomputed"] = True
+        logger.info(
+            "Recomputed baseline for %s: tier=%d, check-ins=%d",
+            pitcher_id, baseline["tier"], baseline["total_check_ins"],
+        )
+        return baseline
+
+    cached_snapshot["_recomputed"] = False
+    return cached_snapshot
+
+
+def _should_recompute(cached: dict | None, last_outing_date: str = None) -> bool:
+    if not cached or not cached.get("computed_at"):
+        return True
+    try:
+        computed_at = datetime.fromisoformat(cached["computed_at"])
+        now = datetime.now(CHICAGO_TZ)
+        age_hours = (now - computed_at).total_seconds() / 3600
+        if age_hours > _CACHE_TTL_HOURS:
+            return True
+    except (ValueError, TypeError):
+        return True
+    if last_outing_date and cached.get("last_outing_date"):
+        if last_outing_date > cached["last_outing_date"]:
+            return True
+    return False
