@@ -593,6 +593,12 @@ async def post_chat(pitcher_id: str, request: Request):
             lift_preference = data.get("lift_preference", "")
             throw_intent = data.get("throw_intent", "")
             next_pitch_days = data.get("next_pitch_days")
+            # D3: thread energy through; let process_checkin default-handle when absent
+            energy_raw = data.get("energy")
+            try:
+                energy = int(energy_raw) if energy_raw is not None else None
+            except (TypeError, ValueError):
+                energy = None
 
             # Classify arm report if no numeric arm_feel provided
             if arm_feel is None and arm_report:
@@ -616,6 +622,7 @@ async def post_chat(pitcher_id: str, request: Request):
                     pitcher_id, int(arm_feel), float(sleep_hours),
                     arm_report=arm_report, lift_preference=lift_preference,
                     throw_intent=throw_intent, next_pitch_days=next_pitch_days,
+                    **({"energy": energy} if energy is not None else {}),
                 )
             except Exception as checkin_err:
                 logger.error(f"Check-in processing error for {pitcher_id}: {checkin_err}", exc_info=True)
@@ -657,12 +664,24 @@ async def post_chat(pitcher_id: str, request: Request):
                 for alert in result.get("alerts", []):
                     messages.append({"type": "text", "content": f"⚠️ {alert}"})
 
-                brief = result.get("morning_brief") or result.get("plan_narrative", "")
-                if isinstance(brief, dict):
-                    brief = brief.get("coaching_note", "") or str(brief)
-                brief = str(brief) if brief else ""
-                if brief:
-                    messages.append({"type": "text", "content": brief})
+                # D1: prefer plan_narrative (plain text) over morning_brief
+                # (now a JSON-string envelope post-Task-3b). Fall through to
+                # parseBrief-equivalent extraction if narrative is absent.
+                narrative = result.get("plan_narrative") or ""
+                if not narrative:
+                    raw_brief = result.get("morning_brief")
+                    if isinstance(raw_brief, dict):
+                        narrative = raw_brief.get("coaching_note", "") or ""
+                    elif isinstance(raw_brief, str) and raw_brief:
+                        try:
+                            parsed = json.loads(raw_brief)
+                            if isinstance(parsed, dict):
+                                narrative = parsed.get("coaching_note", "") or ""
+                        except (json.JSONDecodeError, ValueError):
+                            narrative = raw_brief  # legacy plain-string brief
+                narrative = str(narrative) if narrative else ""
+                if narrative:
+                    messages.append({"type": "text", "content": narrative})
 
                 if result.get("soreness_response"):
                     messages.append({"type": "text", "content": result["soreness_response"]})
@@ -684,7 +703,7 @@ async def post_chat(pitcher_id: str, request: Request):
 
                 return {
                     "messages": messages,
-                    "morning_brief": normalize_brief(brief),
+                    "morning_brief": normalize_brief(result.get("morning_brief")),
                     "flag_level": result.get("flag_level", "green"),
                 }
             except Exception as assembly_err:
@@ -2171,9 +2190,18 @@ def _build_today_detail(arc: dict, training_model: dict, pitcher_id: str = None)
                         pills.append({"emoji": "⚾", "label": throw_label, "type": "throw"})
 
                 # --- Subtitle: morning_brief if present, else template_day label
-                brief = plan.get("morning_brief") or ""
-                if isinstance(brief, dict):
-                    brief = brief.get("coaching_note", "") or brief.get("text", "") or ""
+                # D2: unwrap JSON-string envelopes from normalize_brief
+                raw_brief = plan.get("morning_brief") or ""
+                if isinstance(raw_brief, dict):
+                    brief = raw_brief.get("coaching_note", "") or ""
+                elif isinstance(raw_brief, str) and raw_brief.strip().startswith("{"):
+                    try:
+                        parsed = json.loads(raw_brief)
+                        brief = parsed.get("coaching_note", "") if isinstance(parsed, dict) else raw_brief
+                    except (json.JSONDecodeError, ValueError):
+                        brief = raw_brief
+                else:
+                    brief = raw_brief
                 if not brief:
                     # Derive a short description from template_day + source
                     template_day = plan.get("template_day", "")
