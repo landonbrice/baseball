@@ -6,12 +6,16 @@
  * "no soreness" regression: positive phrases are checked FIRST so
  * "feels good" wins before the "sore" substring check can fire.
  *
- * Migrated from 1-5 to 1-10 on 2026-04-19 (D4). Mapping:
- *   old 5 (great/perfect) → new 10
- *   old 4 (good/fine)     → new 8
- *   old 3 (tight/sore)    → new 5
- *   old 2 (terrible)      → new 2
- *   old 1 (sharp/numb)    → new 1
+ * Scale values map to triage bands (see bot/services/triage.py):
+ *   <=2 critical shutdown, <=4 RED, <=6 YELLOW, >=7 GREEN.
+ *
+ * Mapping:
+ *   great/perfect/amazing → 9   (high green — leave 10 for superlatives)
+ *   good/fine/solid       → 7   (low green)
+ *   tight/sore/stiff      → 5   (yellow mid)
+ *   terrible/really bad   → 3   (red)
+ *   sharp/shooting/numb   → 1   (critical — neurological)
+ *   bare numeric 1-10     → clamp + sub-band ack (see below)
  */
 export function quickClassify(text) {
   const lower = (text || '').toLowerCase();
@@ -26,20 +30,28 @@ export function quickClassify(text) {
     'feels perfect', 'feeling perfect',
   ];
   if (POSITIVE.some(w => lower.includes(w))) {
-    return { feel: 10, ack: 'Good to hear.' };
+    return { feel: 9, ack: 'Good to hear.' };
   }
   if (['sharp', 'shooting', 'numb', 'tingling'].some(w => lower.includes(w))) {
-    return { feel: 1, ack: 'That sounds concerning — I\'ll factor that in.' };
+    return { feel: 1, ack: 'That sounds concerning \u2014 I\'ll factor that in.' };
   }
   if (['terrible', 'really bad', 'awful'].some(w => lower.includes(w))) {
-    return { feel: 2, ack: 'Got it.' };
+    return { feel: 3, ack: 'Noted \u2014 we\'ll keep things light today.' };
   }
   if (['tight', 'sore', 'stiff', 'tender'].some(w => lower.includes(w))) {
-    return { feel: 5, ack: 'Got it — I\'ll factor that into your plan.' };
+    return { feel: 5, ack: 'Got it \u2014 I\'ll factor that into your plan.' };
   }
   // Lukewarm bucket — "good" / "fine" without the explicit positive verb pairing.
   if (['good', 'fine', 'solid', 'normal', 'decent'].some(w => lower.includes(w))) {
-    return { feel: 8, ack: 'Arm\'s feeling solid.' };
+    return { feel: 7, ack: 'Arm\'s feeling solid.' };
+  }
+  // Bare numeric input (e.g. "8", "a 3") — clamp to 1-10 with sub-band ack.
+  // Sub-bands mirror triage.py thresholds so the ack agrees with the eventual flag.
+  const num = parseInt(text);
+  if (num >= 1 && num <= 10) {
+    if (num <= 4) return { feel: num, ack: 'Noted \u2014 we\'ll keep things light today.' };
+    if (num <= 6) return { feel: num, ack: 'Got it \u2014 I\'ll factor that in.' };
+    return { feel: num, ack: 'Arm\'s feeling solid.' };
   }
   return { feel: null, ack: 'Got it.' };
 }
