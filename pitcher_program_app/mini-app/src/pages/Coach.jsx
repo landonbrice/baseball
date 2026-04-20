@@ -217,15 +217,15 @@ export default function Coach() {
 
   const quickClassify = (text) => {
     const lower = text.toLowerCase();
-    if (['great', 'perfect', 'amazing', 'feels good', 'no issues'].some(w => lower.includes(w))) return { feel: 5, ack: "Good to hear." };
+    if (['great', 'perfect', 'amazing', 'feels good', 'no issues'].some(w => lower.includes(w))) return { feel: 9, ack: "Good to hear." };
     if (['sharp', 'shooting', 'numb', 'tingling'].some(w => lower.includes(w))) return { feel: 1, ack: "Noted \u2014 we'll keep things light and protective today." };
-    if (['terrible', 'really bad', 'awful'].some(w => lower.includes(w))) return { feel: 2, ack: "Noted \u2014 we'll keep things light today." };
-    if (['tight', 'sore', 'stiff', 'tender'].some(w => lower.includes(w))) return { feel: 3, ack: "Got it \u2014 I'll factor that into your plan." };
-    if (['good', 'fine', 'solid', 'normal', 'decent'].some(w => lower.includes(w))) return { feel: 4, ack: "Arm's feeling solid." };
+    if (['terrible', 'really bad', 'awful'].some(w => lower.includes(w))) return { feel: 3, ack: "Noted \u2014 we'll keep things light today." };
+    if (['tight', 'sore', 'stiff', 'tender'].some(w => lower.includes(w))) return { feel: 5, ack: "Got it \u2014 I'll factor that into your plan." };
+    if (['good', 'fine', 'solid', 'normal', 'decent'].some(w => lower.includes(w))) return { feel: 7, ack: "Arm's feeling solid." };
     const num = parseInt(text);
-    if (num >= 1 && num <= 5) {
-      if (num <= 2) return { feel: num, ack: "Noted \u2014 we'll keep things light today." };
-      if (num === 3) return { feel: 3, ack: "Got it \u2014 I'll factor that in." };
+    if (num >= 1 && num <= 10) {
+      if (num <= 4) return { feel: num, ack: "Noted \u2014 we'll keep things light today." };
+      if (num <= 6) return { feel: num, ack: "Got it \u2014 I'll factor that in." };
       return { feel: num, ack: "Arm's feeling solid." };
     }
     return { feel: null, ack: "Got it." };
@@ -295,7 +295,7 @@ export default function Coach() {
     // Refinement 1: Recovery day — recommend + give choice
     if (isRecoveryDay) {
       const feelComment = feel != null
-        ? (feel >= 4 ? `arm's at a ${feel} \u2014 solid recovery` : feel === 3 ? `arm's at a ${feel} \u2014 pretty typical day-after` : `arm's at a ${feel} \u2014 let's be careful`)
+        ? (feel >= 7 ? `arm's at a ${feel} \u2014 solid recovery` : feel >= 5 ? `arm's at a ${feel} \u2014 pretty typical day-after` : `arm's at a ${feel} \u2014 let's be careful`)
         : 'day after';
       setCheckinFlow({ ...flowData, step: 'recovery_confirm' });
       setMessages(prev => [...prev, { role: 'bot', type: 'text',
