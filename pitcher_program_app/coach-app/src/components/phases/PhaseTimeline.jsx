@@ -22,11 +22,12 @@ export default function PhaseTimeline({ phases, onSelect }) {
         const width = Math.max(100, days * 2)
 
         return (
-          <div
+          <button
             key={p.phase_block_id}
+            type="button"
             role="listitem"
             onClick={() => onSelect?.(p)}
-            className="group relative flex-shrink-0 bg-cream rounded-[3px] p-3 cursor-pointer hover:bg-cream-dark/50 transition-colors"
+            className="group relative flex-shrink-0 bg-cream rounded-[3px] p-3 cursor-pointer hover:bg-cream-dark/50 transition-colors text-left"
             style={{
               width: `${width}px`,
               borderLeft: `3px solid ${borderColor}`,
@@ -43,7 +44,7 @@ export default function PhaseTimeline({ phases, onSelect }) {
             <span className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity font-ui text-meta text-subtle">
               ✏
             </span>
-          </div>
+          </button>
         )
       })}
     </div>
