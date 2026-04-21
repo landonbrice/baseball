@@ -40,9 +40,10 @@ export default function CreateProgramSlideOver({ library = [], onClose }) {
         durationWeeks: form.durationWeeks ? parseInt(form.durationWeeks, 10) : null,
         notes: form.notes,
       })
-      console.log('CreateProgram:', form)
       toast.success('Program created (preview mode — backend pending)')
       onClose?.()
+    } catch (err) {
+      toast.error(err?.message || 'Failed to create program')
     } finally {
       setSubmitting(false)
     }
@@ -60,7 +61,7 @@ export default function CreateProgramSlideOver({ library = [], onClose }) {
         <div className="flex-1 overflow-y-auto p-6 space-y-4">
           <div>
             <label className="block font-ui text-body-sm text-subtle mb-1">Program name *</label>
-            <input type="text" required value={form.name}
+            <input type="text" required autoFocus value={form.name}
               onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
               className="w-full px-3 py-2 border border-cream-dark rounded-[3px] font-ui text-body-sm bg-bone text-charcoal"
               placeholder="e.g., Spring Velocity Block" />

@@ -53,13 +53,15 @@ export default function BlockCard({ block, isActive, onEnd, onAssign, onViewDeta
             Assign
           </button>
         )}
-        <button
-          type="button"
-          onClick={() => onViewDetails?.(block)}
-          className="font-ui text-meta text-maroon hover:underline"
-        >
-          View details
-        </button>
+        {onViewDetails && (
+          <button
+            type="button"
+            onClick={() => onViewDetails(block)}
+            className="font-ui text-meta text-maroon hover:underline"
+          >
+            View details
+          </button>
+        )}
       </div>
     </div>
   )
