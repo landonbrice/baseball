@@ -205,6 +205,20 @@ async def process_checkin(
         whoop_strain_yesterday=whoop_strain_yesterday,
     )
 
+    # Phase 1 observability: log category scores + trajectory context
+    logger.info(
+        "triage_phase1 pitcher=%s flag=%s tissue=%.1f load=%.1f recovery=%.1f "
+        "baseline_tier=%d chronic_drift=%s recovery_stall=%s",
+        pitcher_id,
+        triage_result.get("flag_level"),
+        (triage_result.get("category_scores") or {}).get("tissue", 0.0),
+        (triage_result.get("category_scores") or {}).get("load", 0.0),
+        (triage_result.get("category_scores") or {}).get("recovery", 0.0),
+        triage_result.get("baseline_tier", 1),
+        (triage_result.get("trajectory_context") or {}).get("chronic_drift", False),
+        (triage_result.get("trajectory_context") or {}).get("recovery_curve_status", {}).get("stall", False),
+    )
+
     # LLM-driven triage refinement for ambiguous cases
     if (triage_result.get("protocol_adjustments") or {}).get("needs_llm_triage"):
         try:
@@ -248,6 +262,8 @@ async def process_checkin(
             "overall_energy": energy,
             "sleep_hours": sleep_hours,
             "flag_level": triage_result["flag_level"],
+            "category_scores": triage_result.get("category_scores"),
+            "baseline_tier": triage_result.get("baseline_tier"),
         },
         "plan_narrative": None,
         "morning_brief": normalize_brief(None),
@@ -308,6 +324,8 @@ async def process_checkin(
             "overall_energy": energy,
             "sleep_hours": sleep_hours,
             "flag_level": triage_result["flag_level"],
+            "category_scores": triage_result.get("category_scores"),
+            "baseline_tier": triage_result.get("baseline_tier"),
         },
         "plan_narrative": plan_result["narrative"] if plan_result else None,
         "morning_brief": normalize_brief(plan_result.get("morning_brief")) if plan_result else normalize_brief(None),
