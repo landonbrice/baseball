@@ -11,11 +11,14 @@ from bot.services.plan_generator import generate_plan
 from bot.services.progression import analyze_progression
 from bot.services.context_manager import (
     load_profile,
+    load_training_model,
     append_context,
     append_log_entry,
     update_active_flags,
     get_recent_entries,
 )
+from bot.services.baselines import get_or_refresh_baseline
+from bot.services.db import get_daily_entries, update_training_model_partial
 
 logger = logging.getLogger(__name__)
 
@@ -142,6 +145,49 @@ async def process_checkin(
     except Exception as e:
         logger.warning("WHOOP pull skipped for %s: %s", pitcher_id, e)
 
+    # Phase 1: assemble recent history + baseline for trajectory-aware triage
+    recent_entries_full = []
+    recent_arm_feel = []
+    pitcher_baseline = None
+    try:
+        recent_entries_full = get_daily_entries(pitcher_id, limit=14)
+        recent_arm_feel = [
+            {
+                "date": e.get("date"),
+                "arm_feel": (e.get("pre_training") or {}).get("arm_feel"),
+                "rotation_day": e.get("rotation_day", 0),
+            }
+            for e in recent_entries_full[:7]
+            if (e.get("pre_training") or {}).get("arm_feel") is not None
+        ]
+
+        training_model = load_training_model(pitcher_id)
+        cached_snapshot = training_model.get("baseline_snapshot") or {}
+        last_outing_date = training_model.get("last_outing_date")
+        rotation_length = profile.get("rotation_length", 7)
+
+        pitcher_baseline = get_or_refresh_baseline(
+            pitcher_id=pitcher_id,
+            cached_snapshot=cached_snapshot,
+            daily_entries=recent_entries_full,
+            rotation_length=rotation_length,
+            last_outing_date=last_outing_date,
+        )
+
+        # Persist refreshed baseline (strip _recomputed marker before write)
+        if pitcher_baseline.get("_recomputed"):
+            snapshot_to_persist = {k: v for k, v in pitcher_baseline.items() if k != "_recomputed"}
+            try:
+                update_training_model_partial(
+                    pitcher_id, {"baseline_snapshot": snapshot_to_persist}
+                )
+            except Exception as e:
+                logger.warning("Failed to persist baseline snapshot for %s: %s", pitcher_id, e)
+    except Exception as e:
+        logger.warning("Phase 1 baseline/history assembly failed for %s: %s", pitcher_id, e)
+
+    whoop_strain_yesterday = whoop_data.get("yesterday_strain") if whoop_data else None
+
     triage_result = triage(
         arm_feel=arm_feel,
         sleep_hours=sleep_hours,
@@ -151,20 +197,13 @@ async def process_checkin(
         whoop_hrv=whoop_data.get("hrv_rmssd") if whoop_data else None,
         whoop_hrv_7day_avg=whoop_data.get("hrv_7day_avg") if whoop_data else None,
         whoop_sleep_perf=whoop_data.get("sleep_performance") if whoop_data else None,
+        # Phase 1: trajectory-aware args
+        recent_arm_feel=recent_arm_feel,
+        recent_history=recent_entries_full,
+        pitcher_baseline=pitcher_baseline,
+        arm_clarification=arm_clarification if arm_clarification else None,
+        whoop_strain_yesterday=whoop_strain_yesterday,
     )
-
-    # Apply arm clarification to triage (Refinement 2)
-    if arm_clarification == "expected_soreness" and arm_feel is not None and arm_feel <= 4:
-        # Pitcher says it's expected — modify green, still protective but not shutdown
-        if triage_result["flag_level"] == "red":
-            triage_result["flag_level"] = "yellow"
-            triage_result["reasoning"] += " Pitcher reports soreness is expected for rotation position — downgraded from red."
-        triage_result.setdefault("modifications", []).append("expected_soreness_override")
-    elif arm_clarification == "concerned":
-        # Pitcher says something feels off — ensure yellow/red
-        if triage_result["flag_level"] == "green":
-            triage_result["flag_level"] = "yellow"
-            triage_result["reasoning"] += " Pitcher flagged concern about arm feel — upgraded to yellow."
 
     # LLM-driven triage refinement for ambiguous cases
     if (triage_result.get("protocol_adjustments") or {}).get("needs_llm_triage"):
