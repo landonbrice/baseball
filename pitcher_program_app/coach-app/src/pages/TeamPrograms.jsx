@@ -14,8 +14,8 @@ import { TODAY } from '../utils/formatToday'
 export default function TeamPrograms() {
   const { getAccessToken } = useCoachAuth()
   const toast = useToast()
-  const { data: libData, loading: libLoading } = useCoachApi('/api/coach/team-programs/library')
-  const { data: activeData, loading: activeLoading, refetch } = useCoachApi('/api/coach/team-programs/active')
+  const { data: libData, loading: libLoading, error: libError } = useCoachApi('/api/coach/team-programs/library')
+  const { data: activeData, loading: activeLoading, error: activeError, refetch } = useCoachApi('/api/coach/team-programs/active')
   const [showCreate, setShowCreate] = useState(false)
   const [assigning, setAssigning] = useState(null)
   const [assignDate, setAssignDate] = useState(new Date().toLocaleDateString('en-CA'))
@@ -92,8 +92,11 @@ export default function TeamPrograms() {
 
       <div className="p-6 space-y-8">
         {(libLoading || activeLoading) && <EditorialState type="loading" copy="Loading programs…" />}
+        {(libError || activeError) && (
+          <EditorialState type="error" copy={activeError || libError} retry={refetch} />
+        )}
 
-        {!libLoading && !activeLoading && (
+        {!libLoading && !activeLoading && !libError && !activeError && (
           <>
             <section>
               <p className="font-ui text-eyebrow uppercase tracking-[0.2em] text-maroon mb-3">
