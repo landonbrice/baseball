@@ -545,28 +545,152 @@ async def delete_phase(phase_block_id: str, request: Request):
     return {"status": "ok"}
 
 
+# ---- Nudge ----
+
+@coach_router.post("/pitcher/{pitcher_id}/nudge")
+async def nudge_pitcher(pitcher_id: str, request: Request):
+    """Send a Telegram DM nudge to a pitcher on the coach's team.
+
+    Rate-limited to once per pitcher per 2 hours.
+    """
+    from datetime import timezone
+    from bot.services.coach_actions import send_nudge
+
+    await require_coach_auth(request)
+    team_id = request.state.team_id
+    coach_id = request.state.coach_id
+    coach_name = request.state.coach_name
+
+    # Verify pitcher belongs to this team
+    try:
+        pitcher = _db.get_pitcher(pitcher_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="pitcher_not_found")
+    if pitcher.get("team_id") != team_id:
+        raise HTTPException(status_code=403, detail="not_your_pitcher")
+
+    # Rate limit: max 1 nudge per 2h per pitcher
+    window_start = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat()
+    recent = (
+        _db.get_client().table("coach_actions")
+        .select("created_at")
+        .eq("pitcher_id", pitcher_id)
+        .eq("action_type", "nudge")
+        .gte("created_at", window_start)
+        .order("created_at", desc=True)
+        .limit(1)
+        .execute()
+    ).data
+    if recent:
+        last_dt = datetime.fromisoformat(recent[0]["created_at"].replace("Z", "+00:00"))
+        retry_after = int(7200 - (datetime.now(timezone.utc) - last_dt).total_seconds())
+        raise HTTPException(status_code=429, detail=f"rate_limited:{retry_after}")
+
+    # Send the DM
+    try:
+        telegram_message_id = await send_nudge(pitcher_id, coach_name)
+    except Exception as e:
+        logger.error("Nudge DM failed for %s: %s", pitcher_id, e)
+        raise HTTPException(status_code=502, detail=f"telegram_error:{e}")
+
+    # Audit log
+    sent_at = datetime.now(timezone.utc)
+    _db.get_client().table("coach_actions").insert({
+        "coach_id": coach_id,
+        "pitcher_id": pitcher_id,
+        "action_type": "nudge",
+        "telegram_message_id": telegram_message_id,
+        "metadata": {},
+    }).execute()
+
+    return {
+        "sent": True,
+        "sent_at": sent_at.isoformat(),
+        "telegram_message_id": telegram_message_id,
+    }
+
+
 # ---- Insights ----
 
 @coach_router.get("/insights")
-async def list_insights(request: Request, status: str = "pending"):
-    """Return coach suggestions."""
+async def list_insights(request: Request, status: str = None):
+    """Return coach suggestions.
+
+    Without ?status=X: returns pending + recent 7d + stats (used by Insights page).
+    With ?status=X: returns filtered list only (backward compat).
+    """
     await require_coach_auth(request)
     team_id = request.state.team_id
 
-    if status == "pending":
-        suggestions = _db.get_pending_suggestions(team_id)
-    else:
-        suggestions = (
-            _db.get_client().table("coach_suggestions")
-            .select("*")
-            .eq("team_id", team_id)
-            .eq("status", status)
-            .order("created_at", desc=True)
-            .limit(50)
-            .execute()
-        ).data or []
+    if status is not None:
+        if status == "pending":
+            suggestions = _db.get_pending_suggestions(team_id)
+        else:
+            suggestions = (
+                _db.get_client().table("coach_suggestions")
+                .select("*")
+                .eq("team_id", team_id)
+                .eq("status", status)
+                .order("created_at", desc=True)
+                .limit(50)
+                .execute()
+            ).data or []
+        return {"suggestions": suggestions}
 
-    return {"suggestions": suggestions}
+    # Full summary: pending + recent 7d + stats
+    pending = _db.get_pending_suggestions(team_id)
+
+    seven_days_ago = (datetime.now(CHICAGO_TZ) - timedelta(days=7)).isoformat()
+    recent_raw = (
+        _db.get_client().table("coach_suggestions")
+        .select("*")
+        .eq("team_id", team_id)
+        .in_("status", ["accepted", "dismissed"])
+        .gte("created_at", seven_days_ago)
+        .order("created_at", desc=True)
+        .limit(20)
+        .execute()
+    ).data or []
+
+    thirty_days_ago = (datetime.now(CHICAGO_TZ) - timedelta(days=30)).isoformat()
+    resolved_30d = (
+        _db.get_client().table("coach_suggestions")
+        .select("status")
+        .eq("team_id", team_id)
+        .in_("status", ["accepted", "dismissed"])
+        .gte("created_at", thirty_days_ago)
+        .execute()
+    ).data or []
+
+    accepted_7d = [s for s in recent_raw if s["status"] == "accepted"]
+    dismissed_7d = [s for s in recent_raw if s["status"] == "dismissed"]
+    total_7d = len(accepted_7d) + len(dismissed_7d)
+    accepted_30d = sum(1 for s in resolved_30d if s["status"] == "accepted")
+    total_30d = len(resolved_30d)
+
+    oldest = min(pending, key=lambda s: s.get("created_at", ""), default=None)
+    oldest_days = None
+    if oldest:
+        try:
+            dt = datetime.fromisoformat(oldest["created_at"].replace("Z", "+00:00"))
+            oldest_days = (datetime.now(CHICAGO_TZ) - dt.astimezone(CHICAGO_TZ)).days
+        except Exception:
+            pass
+
+    return {
+        "pending": pending,
+        "recent": recent_raw,
+        "stats": {
+            "pending_count": len(pending),
+            "accepted_7d": len(accepted_7d),
+            "dismissed_7d": len(dismissed_7d),
+            "total_7d": total_7d,
+            "acceptance_rate_7d": round(len(accepted_7d) / total_7d * 100) if total_7d else 0,
+            "acceptance_rate_30d": round(accepted_30d / total_30d * 100) if total_30d else 0,
+            "oldest_pending_days": oldest_days,
+            "oldest_pending_type": oldest.get("category") if oldest else None,
+        },
+    }
 
 
 @coach_router.post("/insights/{suggestion_id}/accept")
