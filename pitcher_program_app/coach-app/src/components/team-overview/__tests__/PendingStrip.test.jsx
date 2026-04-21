@@ -1,6 +1,22 @@
-import { describe, it, expect } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { describe, it, expect, vi } from 'vitest'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import PendingStrip from '../PendingStrip'
+
+vi.mock('../../../api', () => ({
+  nudgePitcher: vi.fn().mockResolvedValue({
+    sent: true,
+    sent_at: '2026-04-21T15:30:00Z',
+    telegram_message_id: 1,
+  }),
+}))
+
+vi.mock('../../shell/Toast', () => ({
+  useToast: () => ({ success: vi.fn(), error: vi.fn(), info: vi.fn(), warn: vi.fn() }),
+}))
+
+vi.mock('../../../hooks/useCoachAuth', () => ({
+  useCoachAuth: () => ({ getAccessToken: () => 'token123' }),
+}))
 
 const PENDING = [
   { pitcher_id: 'p1', name: 'Alpha', hours_since_last: 11 },
@@ -21,11 +37,24 @@ describe('<PendingStrip>', () => {
     expect(screen.getByText(/Awaiting check-in/i)).toBeInTheDocument()
   })
 
-  it('renders Nudge button per pitcher, disabled when nudgeEnabled=false', () => {
+  it('Nudge buttons are disabled when nudgeEnabled=false', () => {
     render(<PendingStrip pending={PENDING} nudgeEnabled={false} />)
     const buttons = screen.getAllByRole('button', { name: /nudge/i })
     expect(buttons).toHaveLength(2)
     buttons.forEach(b => expect(b).toBeDisabled())
+  })
+
+  it('Nudge buttons are enabled when nudgeEnabled=true', () => {
+    render(<PendingStrip pending={PENDING} nudgeEnabled />)
+    const buttons = screen.getAllByRole('button', { name: /nudge/i })
+    buttons.forEach(b => expect(b).not.toBeDisabled())
+  })
+
+  it('disables nudge button after successful send', async () => {
+    render(<PendingStrip pending={[PENDING[0]]} nudgeEnabled />)
+    const btn = screen.getByRole('button', { name: /nudge/i })
+    fireEvent.click(btn)
+    await waitFor(() => expect(btn).toBeDisabled())
   })
 
   it('renders nothing when pending is empty', () => {
