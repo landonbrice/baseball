@@ -591,17 +591,25 @@ async def nudge_pitcher(pitcher_id: str, request: Request):
         telegram_message_id = await send_nudge(pitcher_id, coach_name)
     except Exception as e:
         logger.error("Nudge DM failed for %s: %s", pitcher_id, e)
-        raise HTTPException(status_code=502, detail=f"telegram_error:{e}")
+        raise HTTPException(status_code=502, detail="telegram_error")
 
-    # Audit log
+    # Audit log — DM already sent, so audit failure must NOT fail the request.
+    # If the insert raises, the rate limiter will be wrong for up to 2h, but
+    # that's a softer failure than spamming the pitcher via a client retry.
     sent_at = datetime.now(timezone.utc)
-    _db.get_client().table("coach_actions").insert({
-        "coach_id": coach_id,
-        "pitcher_id": pitcher_id,
-        "action_type": "nudge",
-        "telegram_message_id": telegram_message_id,
-        "metadata": {},
-    }).execute()
+    try:
+        _db.get_client().table("coach_actions").insert({
+            "coach_id": coach_id,
+            "pitcher_id": pitcher_id,
+            "action_type": "nudge",
+            "telegram_message_id": telegram_message_id,
+            "metadata": {},
+        }).execute()
+    except Exception as audit_err:
+        logger.error(
+            "Nudge audit insert failed: coach=%s pitcher=%s tmid=%s err=%s",
+            coach_id, pitcher_id, telegram_message_id, audit_err,
+        )
 
     return {
         "sent": True,
