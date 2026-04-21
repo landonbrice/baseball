@@ -798,7 +798,18 @@ class TestInteractionRules:
 
 class TestRecoveryCurve:
     def test_stall_at_floor(self):
-        """Arm feel at floor and not improving -> stall."""
+        """Arm feel at floor and not improving -> stall (requires days_since_outing >= 3 per I2 fix)."""
+        from bot.services.triage import _evaluate_recovery_curve
+        ctx = _evaluate_recovery_curve(
+            arm_feel=5, days_since_outing=3, rotation_length=7,
+            recovery_curve_expected={"floor": 5, "expected": 7},
+            arm_feel_history=[5],
+            pitcher_baseline=_make_baseline(),
+        )
+        assert ctx["recovery_curve_status"] == "stall"
+
+    def test_stall_at_floor_day2_returns_on_track(self):
+        """I2 fix: stall detection requires N>=3. days_since_outing=2 -> on_track."""
         from bot.services.triage import _evaluate_recovery_curve
         ctx = _evaluate_recovery_curve(
             arm_feel=5, days_since_outing=2, rotation_length=7,
@@ -806,13 +817,13 @@ class TestRecoveryCurve:
             arm_feel_history=[5],
             pitcher_baseline=_make_baseline(),
         )
-        assert ctx["recovery_curve_status"] == "stall"
+        assert ctx["recovery_curve_status"] == "on_track"
 
     def test_reversal_below_floor(self):
-        """Arm feel below floor and declining -> reversal."""
+        """Arm feel below floor and declining -> reversal (requires days_since_outing >= 3 per I2 fix)."""
         from bot.services.triage import _evaluate_recovery_curve
         ctx = _evaluate_recovery_curve(
-            arm_feel=4, days_since_outing=2, rotation_length=7,
+            arm_feel=4, days_since_outing=3, rotation_length=7,
             recovery_curve_expected={"floor": 5, "expected": 7},
             arm_feel_history=[5],
             pitcher_baseline=_make_baseline(),

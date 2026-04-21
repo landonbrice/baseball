@@ -89,8 +89,17 @@ def triage(
             _empty_trajectory_context(), tier,
         )
 
-    # Universal: arm feel <= 4 (instant RED in both paths)
-    if arm_feel <= 4:
+    # C4 fix: arm_feel=4 + expected_soreness on day 0-2 post-outing bypasses
+    # the instant RED shortcut and falls through to full category scoring.
+    # arm_feel=3 is too severe for this exception — still shortcuts to RED.
+    soreness_exception = (
+        arm_clarification == "expected_soreness"
+        and arm_feel == 4  # arm_feel 3 still short-circuits RED
+        and 0 <= days_since_outing <= 2
+    )
+
+    # Universal: arm feel <= 4 (instant RED in both paths, unless soreness exception)
+    if arm_feel <= 4 and not soreness_exception:
         prev_feel = active_flags.get("current_arm_feel")
         if prev_feel is not None and prev_feel <= 4:
             alerts.append("URGENT: 2+ days with arm feel ≤ 4. Strongly recommend in-person trainer evaluation.")
@@ -129,7 +138,7 @@ def triage(
     tissue = min(tissue, 10.0)
     load = min(load, 10.0)
     recovery = min(recovery, 10.0)
-    scores = _scores(tissue, load, recovery)
+    # Note: scores is built after I1 trajectory contributions are applied below
 
     trajectory_ctx = _evaluate_recovery_curve(
         arm_feel=arm_feel, days_since_outing=days_since_outing,
@@ -138,6 +147,26 @@ def triage(
         arm_feel_history=arm_feel_history or [],
         pitcher_baseline=pitcher_baseline,
     )
+
+    # I1 fix: recovery curve contributions to tissue score
+    curve_status = trajectory_ctx.get("recovery_curve_status")
+    if curve_status == "stall":
+        tissue += 2
+    elif curve_status == "reversal":
+        tissue += 3
+
+    # Pace below floor: +1 per point below
+    if recovery_curve_expected and arm_feel < (recovery_curve_expected.get("floor") or 0):
+        floor_val = recovery_curve_expected.get("floor")
+        if floor_val is not None:
+            tissue += (floor_val - arm_feel)
+
+    # Late-rotation readiness: day 5-6 with arm_feel < 6
+    if rotation_length == 7 and days_since_outing in (5, 6) and arm_feel < 6:
+        tissue += 2
+
+    tissue = min(tissue, 10.0)
+    scores = _scores(tissue, load, recovery)
 
     # ── FLAG LEVEL DETERMINATION ──
 
@@ -522,21 +551,26 @@ def _evaluate_recovery_curve(
     floor = (recovery_curve_expected or {}).get("floor")
     expected = (recovery_curve_expected or {}).get("expected")
 
-    # Recovery curve stall: arm_feel at or below floor and not improving
+    # Recovery curve stall: arm_feel at or below floor and not improving.
+    # I2 fix: stall detection requires N>=3 post-outing days of data.
     if floor is not None and arm_feel <= floor:
-        if arm_feel_history and len(arm_feel_history) >= 1:
-            prev = arm_feel_history[0]
-            if isinstance(prev, (int, float)):
-                if arm_feel < prev:
-                    ctx["recovery_curve_status"] = "reversal"
-                elif arm_feel <= prev:
-                    ctx["recovery_curve_status"] = "stall"
+        if days_since_outing is not None and days_since_outing >= 3:
+            if arm_feel_history and len(arm_feel_history) >= 1:
+                prev = arm_feel_history[0]
+                if isinstance(prev, (int, float)):
+                    if arm_feel < prev:
+                        ctx["recovery_curve_status"] = "reversal"
+                    elif arm_feel <= prev:
+                        ctx["recovery_curve_status"] = "stall"
+                    else:
+                        ctx["recovery_curve_status"] = "on_track"
                 else:
-                    ctx["recovery_curve_status"] = "on_track"
+                    ctx["recovery_curve_status"] = "stall"
             else:
                 ctx["recovery_curve_status"] = "stall"
         else:
-            ctx["recovery_curve_status"] = "stall"
+            # Too early to call stall — not enough post-outing data
+            ctx["recovery_curve_status"] = "on_track"
     elif floor is not None and arm_feel > floor:
         ctx["recovery_curve_status"] = "on_track"
 

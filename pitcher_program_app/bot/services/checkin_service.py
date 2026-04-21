@@ -149,6 +149,7 @@ async def process_checkin(
     recent_entries_full = []
     recent_arm_feel = []
     pitcher_baseline = None
+    training_model = None
     try:
         recent_entries_full = get_daily_entries(pitcher_id, limit=14)
         recent_arm_feel = [
@@ -188,6 +189,20 @@ async def process_checkin(
 
     whoop_strain_yesterday = whoop_data.get("yesterday_strain") if whoop_data else None
 
+    # C3 fix: compute recovery curve expected values for trajectory evaluation
+    rotation_day = (profile.get("active_flags") or {}).get("days_since_outing", 0)
+    recovery_curve_expected = None
+    try:
+        from bot.services.baselines import get_recovery_curve_expected
+        last_outing_pitches = (training_model or {}).get("last_outing_pitches")
+        recovery_curve_expected = get_recovery_curve_expected(
+            role=profile.get("role", "starter"),
+            rotation_day=rotation_day,
+            pitch_count=last_outing_pitches,
+        )
+    except Exception as e:
+        logger.warning("Recovery curve lookup failed for %s: %s", pitcher_id, e)
+
     triage_result = triage(
         arm_feel=arm_feel,
         sleep_hours=sleep_hours,
@@ -197,9 +212,9 @@ async def process_checkin(
         whoop_hrv=whoop_data.get("hrv_rmssd") if whoop_data else None,
         whoop_hrv_7day_avg=whoop_data.get("hrv_7day_avg") if whoop_data else None,
         whoop_sleep_perf=whoop_data.get("sleep_performance") if whoop_data else None,
-        # Phase 1: trajectory-aware args
-        recent_arm_feel=recent_arm_feel,
-        recent_history=recent_entries_full,
+        # Phase 1: trajectory-aware args (C1 fix: use correct param names)
+        arm_feel_history=recent_arm_feel,
+        recovery_curve_expected=recovery_curve_expected,
         pitcher_baseline=pitcher_baseline,
         arm_clarification=arm_clarification if arm_clarification else None,
         whoop_strain_yesterday=whoop_strain_yesterday,
@@ -216,7 +231,7 @@ async def process_checkin(
         (triage_result.get("category_scores") or {}).get("recovery", 0.0),
         triage_result.get("baseline_tier", 1),
         (triage_result.get("trajectory_context") or {}).get("chronic_drift", False),
-        (triage_result.get("trajectory_context") or {}).get("recovery_curve_status", {}).get("stall", False),
+        (triage_result.get("trajectory_context") or {}).get("recovery_curve_status") == "stall",
     )
 
     # LLM-driven triage refinement for ambiguous cases
@@ -252,7 +267,6 @@ async def process_checkin(
 
     # Save partial entry BEFORE plan generation so check-in data persists
     # even if LLM/plan generation fails
-    rotation_day = (profile.get("active_flags") or {}).get("days_since_outing", 0)
     bot_observations = progression.get("observations") or None
     partial_entry = {
         "date": today_str,
