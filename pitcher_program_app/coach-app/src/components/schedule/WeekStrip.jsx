@@ -41,6 +41,7 @@ export default function WeekStrip({ roster = [], gameMap = {}, today }) {
             <p className={`font-ui text-body-sm font-semibold mt-0.5 ${isToday ? 'text-maroon' : 'text-charcoal'}`}>
               {d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/Chicago' })}
             </p>
+            {/* Cap at 12 dots — matches current active roster size. If staff grows beyond 12, add overflow +N badge. */}
             <div className="flex gap-0.5 mt-1.5 flex-wrap">
               {roster.slice(0, 12).map(p => (
                 <span
