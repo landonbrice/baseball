@@ -54,3 +54,35 @@ export async function deleteCoachApi(path, accessToken) {
   }
   return res.json()
 }
+
+// -- Nudge --
+
+export async function nudgePitcher(pitcherId, accessToken) {
+  const res = await fetch(`${API_BASE}/api/coach/pitcher/${pitcherId}/nudge`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${accessToken}` },
+  })
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    throw new Error(data?.detail || `API ${res.status}`)
+  }
+  return res.json()
+}
+
+// -- Stub functions (backend wiring in future sprint) --
+
+export async function createTeamProgram(payload) {
+  return Promise.resolve({ status: 'stub', payload })
+}
+
+export async function updatePhase(payload) {
+  return Promise.resolve({ status: 'stub', payload })
+}
+
+export async function createPhase(payload) {
+  return Promise.resolve({ status: 'stub', payload })
+}
+
+export async function advancePhase() {
+  return Promise.resolve({ status: 'stub' })
+}

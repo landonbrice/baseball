@@ -207,7 +207,7 @@ export default function TeamOverview() {
           </section>
         )}
 
-        <PendingStrip pending={sections.pending} nudgeEnabled={false} />
+        <PendingStrip pending={sections.pending} nudgeEnabled={true} />
       </div>
 
       <PlayerSlideOver pitcherId={selectedPlayer} onClose={() => setSelectedPlayer(null)} />
