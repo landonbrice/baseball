@@ -1,0 +1,43 @@
+# Population-level baseline values for trajectory-aware triage (Phase 1).
+# These are starting defaults for new pitchers. Individual baselines
+# override these after sufficient data (Tier 2+).
+#
+# Source of truth: DIRECTION_Phase1_Trajectory_Aware_Triage.md
+# Values will be refined through Phase 4 science sessions.
+
+# -- Starter Recovery Curve (7-day rotation) --
+# [floor, expected] per rotation day after a normal outing (70-90 pitches)
+starter_recovery_curve:
+  day_0: [null, null]   # game day - no arm feel expected
+  day_1: [4, 6]         # post-outing soreness normal
+  day_2: [5, 7]         # should be improving
+  day_3: [6, 8]         # should be "back to good"
+  day_4: [7, 8]         # should feel good
+  day_5: [6, 9]         # late-rotation readiness
+  day_6: [6, 9]         # late-rotation readiness
+
+# -- Reliever Recovery Curves --
+# Indexed by appearance intensity, not rotation day
+reliever_recovery_heavy:  # 25+ pitches
+  day_1: [4, 6]
+  day_2: [6, 8]
+  day_3_plus: [7, 9]
+
+reliever_recovery_light:  # <25 pitches
+  day_1: [6, 8]
+  day_2_plus: [7, 9]
+
+reliever_extended_rest:   # 5+ days since last appearance
+  any_day: [7, 9]
+
+# -- Population defaults for new pitchers --
+population_defaults:
+  arm_feel_mean: 7.5
+  arm_feel_sd: 1.2
+  chronic_drift_floor: 1.0  # min drift threshold on 1-10 scale
+
+# -- Tolerance bands by tier --
+tolerance_bands:
+  tier_1: 2   # +2 to all thresholds for population-only data
+  tier_2: 1   # +1 for low-confidence individual
+  tier_3: 0   # thresholds as specified

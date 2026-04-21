@@ -10,3 +10,4 @@ thefuzz>=0.22.0
 supabase>=2.0.0
 PyYAML>=6.0
 PyJWT[crypto]>=2.8.0
+pytest-asyncio>=0.23.0
