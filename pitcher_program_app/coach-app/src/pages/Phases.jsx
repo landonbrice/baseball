@@ -1,53 +1,80 @@
 import { useState } from 'react'
 import { useCoachApi } from '../hooks/useApi'
 import { useCoachAuth } from '../hooks/useCoachAuth'
-import { postCoachApi, patchCoachApi, deleteCoachApi } from '../api'
-import PhaseTimeline from '../components/PhaseTimeline'
+import { deleteCoachApi } from '../api'
+import { useToast } from '../components/shell/Toast'
 import Masthead from '../components/shell/Masthead'
+import Scoreboard from '../components/shell/Scoreboard'
+import EditorialState from '../components/shell/EditorialState'
+import PhaseTimeline from '../components/phases/PhaseTimeline'
+import PhaseEditorSlideOver from '../components/phases/PhaseEditorSlideOver'
+import PhaseDetailSection from '../components/phases/PhaseDetailSection'
 import { TODAY } from '../utils/formatToday'
-
-const EMPTY = { phase_name: '', start_date: '', end_date: '', emphasis: '', notes: '' }
 
 export default function Phases() {
   const { getAccessToken } = useCoachAuth()
-  const { data, loading, refetch } = useCoachApi('/api/coach/phases')
-  const [editing, setEditing] = useState(null)
-  const [form, setForm] = useState(EMPTY)
+  const toast = useToast()
+  const { data, loading, error, refetch } = useCoachApi('/api/coach/phases')
+  const [editing, setEditing] = useState(null) // null | 'new' | phase object
 
   const phases = data?.phases || []
+  // ISO date for comparisons (Chicago TZ). TODAY is the display string reserved for Masthead.
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' })
 
-  function openNew() {
-    setForm(EMPTY)
-    setEditing('new')
-  }
+  const currentPhase = phases.find(p => today >= p.start_date && today <= p.end_date) || null
+  const nextPhase = phases
+    .filter(p => p.start_date > today)
+    .sort((a, b) => a.start_date.localeCompare(b.start_date))[0] || null
 
-  function openEdit(p) {
-    setForm({ ...p })
-    setEditing(p.phase_block_id)
-  }
+  const daysToNext = nextPhase
+    ? Math.max(0, Math.round(
+        (new Date(nextPhase.start_date + 'T12:00:00') - new Date(today + 'T12:00:00')) / 86400000
+      ))
+    : null
 
-  async function handleSave() {
+  const currentTotalWeeks = currentPhase
+    ? Math.max(1, Math.round(
+        (new Date(currentPhase.end_date) - new Date(currentPhase.start_date)) / (7 * 86400000)
+      ))
+    : null
+  const currentElapsedWeeks = currentPhase
+    ? Math.max(0, Math.floor((Date.now() - new Date(currentPhase.start_date + 'T12:00:00')) / (7 * 86400000)))
+    : null
+
+  const scoreboard = !data ? null : [
+    {
+      label: 'Current Phase',
+      value: currentPhase?.phase_name || '—',
+      sub: currentPhase ? `started ${currentPhase.start_date}` : '—',
+    },
+    {
+      label: 'Week',
+      value: currentPhase
+        ? `${Math.min(currentTotalWeeks, currentElapsedWeeks + 1)} / ${currentTotalWeeks}`
+        : '—',
+      sub: 'of current phase',
+    },
+    {
+      label: 'Days to Next',
+      value: daysToNext != null ? `${daysToNext}d` : '—',
+      sub: nextPhase?.phase_name || '—',
+    },
+    {
+      label: 'Target Load',
+      value: currentPhase?.target_weekly_load ? String(currentPhase.target_weekly_load) : '—',
+      sub: 'throws/week',
+    },
+    { label: 'Deviation', value: '—', sub: 'vs target' },
+  ]
+
+  async function handleDelete(phaseBlockId) {
     try {
-      if (editing === 'new') {
-        await postCoachApi('/api/coach/phases', form, getAccessToken())
-      } else {
-        await patchCoachApi(`/api/coach/phases/${editing}`, form, getAccessToken())
-      }
+      await deleteCoachApi(`/api/coach/phases/${phaseBlockId}`, getAccessToken())
+      toast.warn('Phase deleted')
       setEditing(null)
       refetch()
     } catch (err) {
-      alert(err.message)
-    }
-  }
-
-  async function handleDelete() {
-    if (!confirm('Delete this phase?')) return
-    try {
-      await deleteCoachApi(`/api/coach/phases/${editing}`, getAccessToken())
-      setEditing(null)
-      refetch()
-    } catch (err) {
-      alert(err.message)
+      toast.error(err.message)
     }
   }
 
@@ -58,132 +85,48 @@ export default function Phases() {
         title="Phases"
         date={TODAY}
         actionSlot={
-          <button
-            onClick={openNew}
-            className="font-ui text-body-sm font-semibold text-bone bg-maroon hover:bg-maroon-ink px-3 py-1.5 rounded-[3px]"
-          >
+          <button type="button" onClick={() => setEditing('new')}
+            className="font-ui font-semibold text-body-sm text-bone bg-maroon hover:bg-maroon-ink px-3 py-1.5 rounded-[3px]">
             + Add Phase
           </button>
         }
       />
-      <div className="p-6">
-        <h2 className="text-lg font-bold text-charcoal mb-4">Training Phases</h2>
+      {scoreboard && <Scoreboard cells={scoreboard} />}
 
-        {loading ? (
-          <p className="text-subtle">Loading...</p>
-        ) : (
-          <PhaseTimeline phases={phases} onSelect={openEdit} />
-        )}
+      <div className="p-6 space-y-8">
+        {loading && <EditorialState type="loading" copy="Loading phases…" />}
+        {error && <EditorialState type="error" copy={error} retry={refetch} />}
 
-        {/* Phase list */}
-        <div className="mt-6 space-y-2">
-          {phases.map(p => (
-            <div
-              key={p.phase_block_id}
-              onClick={() => openEdit(p)}
-              className="bg-white rounded-lg border border-cream-dark p-3 cursor-pointer hover:bg-cream/50 flex justify-between items-center"
-            >
-              <div>
-                <p className="text-sm font-medium text-charcoal">{p.phase_name}</p>
-                <p className="text-xs text-subtle">
-                  {p.start_date} — {p.end_date} · {p.emphasis}
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Edit/Create modal */}
-        {editing && (
+        {!loading && !error && (
           <>
-            <div className="fixed inset-0 bg-black/30 z-40" onClick={() => setEditing(null)} />
-            <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-lg shadow-xl z-50 p-6 w-96 max-h-[90vh] overflow-y-auto">
-              <h3 className="text-sm font-bold text-charcoal mb-3">
-                {editing === 'new' ? 'New Phase' : 'Edit Phase'}
-              </h3>
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-xs text-subtle mb-1">Name</label>
-                  <input
-                    type="text"
-                    value={form.phase_name}
-                    onChange={e => setForm({ ...form, phase_name: e.target.value })}
-                    className="w-full px-3 py-2 border border-cream-dark rounded text-sm"
-                    placeholder="e.g., Hypertrophy Block"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-xs text-subtle mb-1">Start</label>
-                    <input
-                      type="date"
-                      value={form.start_date}
-                      onChange={e => setForm({ ...form, start_date: e.target.value })}
-                      className="w-full px-3 py-2 border border-cream-dark rounded text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-subtle mb-1">End</label>
-                    <input
-                      type="date"
-                      value={form.end_date}
-                      onChange={e => setForm({ ...form, end_date: e.target.value })}
-                      className="w-full px-3 py-2 border border-cream-dark rounded text-sm"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs text-subtle mb-1">Emphasis</label>
-                  <select
-                    value={form.emphasis}
-                    onChange={e => setForm({ ...form, emphasis: e.target.value })}
-                    className="w-full px-3 py-2 border border-cream-dark rounded text-sm"
-                  >
-                    <option value="">Select...</option>
-                    <option value="hypertrophy">Hypertrophy</option>
-                    <option value="strength">Strength</option>
-                    <option value="power">Power</option>
-                    <option value="maintenance">Maintenance</option>
-                    <option value="gpp">GPP</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs text-subtle mb-1">Notes</label>
-                  <textarea
-                    value={form.notes || ''}
-                    onChange={e => setForm({ ...form, notes: e.target.value })}
-                    className="w-full px-3 py-2 border border-cream-dark rounded text-sm"
-                    placeholder="Optional notes..."
-                    rows={2}
-                  />
-                </div>
-              </div>
-              <div className="flex gap-2 mt-4">
-                {editing !== 'new' && (
-                  <button
-                    onClick={handleDelete}
-                    className="text-xs text-crimson hover:underline mr-auto"
-                  >
-                    Delete
-                  </button>
-                )}
-                <button
-                  onClick={() => setEditing(null)}
-                  className="flex-1 py-2 border border-cream-dark rounded text-sm hover:bg-cream/50"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSave}
-                  className="flex-1 py-2 bg-maroon text-white rounded text-sm font-medium hover:bg-maroon-light"
-                >
-                  Save
-                </button>
-              </div>
-            </div>
+            <section>
+              <p className="font-ui text-eyebrow uppercase tracking-[0.2em] text-maroon mb-3">
+                Phase Timeline
+              </p>
+              <PhaseTimeline phases={phases} onSelect={p => setEditing(p)} />
+              {phases.length === 0 && (
+                <EditorialState type="empty" copy="No phases defined. Add one with + Add Phase." />
+              )}
+            </section>
+
+            {currentPhase && <PhaseDetailSection phase={currentPhase} title="Current Phase" />}
+            {nextPhase && <PhaseDetailSection phase={nextPhase} title="Next Up" />}
           </>
         )}
       </div>
+
+      {editing && (
+        <>
+          <div className="fixed inset-0 bg-black/20 z-40" onClick={() => setEditing(null)} />
+          <PhaseEditorSlideOver
+            phase={editing === 'new' ? null : editing}
+            isNew={editing === 'new'}
+            onClose={() => setEditing(null)}
+            onSaved={refetch}
+            onDelete={editing !== 'new' ? () => handleDelete(editing.phase_block_id) : undefined}
+          />
+        </>
+      )}
     </>
   )
 }
