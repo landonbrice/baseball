@@ -32,6 +32,52 @@ function ExerciseItem({ ex }) {
   return <Item name={name} prescription={ex.prescribed || ex.rx || ''} />
 }
 
+function ArmAssessmentBlock({ assessment }) {
+  if (!assessment) return null
+  const redFlags = assessment.red_flags || []
+  const areas = assessment.areas || []
+  const sensations = assessment.sensations || []
+  const contradictions = assessment.contradictions || []
+  return (
+    <div className="bg-parchment border border-cream-dark rounded-[3px] p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="font-ui font-semibold uppercase text-[10px] tracking-[0.16em] text-maroon mb-1">
+            Arm Assessment
+          </p>
+          <p className="font-serif text-body text-charcoal">
+            {assessment.summary || `Arm ${assessment.arm_feel || '—'}/10`}
+          </p>
+          {(areas.length > 0 || sensations.length > 0) && (
+            <p className="font-ui text-meta text-muted mt-1">
+              {[...areas, ...sensations.map(s => s.replace(/_/g, ' '))].join(' · ')}
+            </p>
+          )}
+        </div>
+        {assessment.needs_followup && (
+          <span className="font-ui text-[9px] font-bold uppercase tracking-[0.12em] text-amber bg-amber/10 px-2 py-1 rounded-[2px]">
+            Follow up
+          </span>
+        )}
+      </div>
+      {(redFlags.length > 0 || contradictions.length > 0) && (
+        <div className="flex flex-wrap gap-1 mt-2">
+          {redFlags.map(flag => (
+            <span key={flag} className="font-ui text-[9px] uppercase tracking-[0.1em] text-crimson border border-crimson/30 px-1.5 py-0.5 rounded-[2px]">
+              {flag.replace(/_/g, ' ')}
+            </span>
+          ))}
+          {contradictions.map(code => (
+            <span key={code} className="font-ui text-[9px] uppercase tracking-[0.1em] text-amber border border-amber/30 px-1.5 py-0.5 rounded-[2px]">
+              {code.replace(/_/g, ' ')}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function flattenLifting(lifting) {
   if (!lifting) return []
   const top = Array.isArray(lifting.exercises) ? lifting.exercises : []
@@ -54,6 +100,7 @@ export default function PlayerToday({ data, onAdjust, onRestrict }) {
   const lifting = todayEntry?.lifting || todayEntry?.plan_generated?.lifting
   const throwing = todayEntry?.throwing || todayEntry?.plan_generated?.throwing_plan
   const liftingItems = flattenLifting(lifting)
+  const armAssessment = todayEntry?.pre_training?.arm_assessment
 
   return (
     <div className="space-y-5">
@@ -62,6 +109,8 @@ export default function PlayerToday({ data, onAdjust, onRestrict }) {
           {coachingNote}
         </div>
       )}
+
+      <ArmAssessmentBlock assessment={armAssessment} />
 
       {!todayEntry?.plan_generated && (
         <p className="font-ui text-meta text-muted">No plan generated yet today.</p>

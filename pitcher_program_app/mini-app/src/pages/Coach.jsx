@@ -8,7 +8,6 @@ import { sendChat, sendChatWithPlan, setNextOuting, savePlan, fetchChatHistory, 
 import { useToast } from '../hooks/useToast';
 import MutationPreview from '../components/MutationPreview';
 import { parseBrief } from '@shared/parseBrief.js';
-import { quickClassify } from '../lib/quickClassify.js';
 
 // D2: defensive — if backend ever leaks a JSON-string envelope as content,
 // extract coaching_note before render. Belt-and-suspenders; no-op for plain text.
@@ -21,6 +20,43 @@ function sanitizeChatContent(raw) {
     }
   } catch (_) {}
   return raw;
+}
+
+const ARM_DETAIL_OPTIONS = [
+  { label: 'No issues', value: 'no_issues' },
+  { label: 'Expected soreness', value: 'expected_soreness' },
+  { label: 'Tight/sore', value: 'tight_sore' },
+  { label: 'Heavy/dead', value: 'heavy_dead' },
+  { label: 'Sharp pain', value: 'sharp_pain' },
+  { label: 'Numb/tingling', value: 'numb_tingling' },
+  { label: 'Forearm', value: 'forearm' },
+  { label: 'Elbow', value: 'elbow' },
+  { label: 'Shoulder', value: 'shoulder' },
+  { label: 'Different than normal', value: 'different_than_normal' },
+  { label: 'Other', value: 'other' },
+];
+
+const ARM_AREA_TAGS = new Set(['forearm', 'elbow', 'shoulder']);
+const ARM_SENSATION_TAGS = new Set(['tight_sore', 'heavy_dead', 'sharp_pain', 'numb_tingling', 'different_than_normal']);
+const ARM_CONCERN_TAGS = new Set(['expected_soreness', 'tight_sore', 'heavy_dead', 'sharp_pain', 'numb_tingling', 'different_than_normal', 'other']);
+
+function armAck(feel) {
+  if (feel <= 4) return 'Noted — we’ll keep this conservative.';
+  if (feel <= 6) return 'Got it — I’ll factor that in.';
+  return 'Arm’s feeling solid.';
+}
+
+function validateArmDetails(tags, note) {
+  if (!tags.length) return 'Pick at least one detail. “No issues” is fine.';
+  const hasArea = tags.some(t => ARM_AREA_TAGS.has(t));
+  const hasSensation = tags.some(t => ARM_SENSATION_TAGS.has(t));
+  const hasConcern = tags.some(t => ARM_CONCERN_TAGS.has(t));
+  if (tags.includes('no_issues') && hasConcern) return 'Choose either no issues or the concern details, not both.';
+  if (tags.includes('expected_soreness') && !hasArea) return 'Select where the expected soreness is.';
+  if (hasSensation && !hasArea) return 'Select where you’re feeling that.';
+  if (hasArea && !hasSensation && !tags.includes('no_issues') && !tags.includes('expected_soreness')) return 'Select what you’re feeling in that area.';
+  if (tags.includes('other') && !note.trim()) return 'Add a quick note for Other.';
+  return '';
 }
 
 export default function Coach() {
@@ -242,10 +278,12 @@ export default function Coach() {
       const res = await sendChat(pitcherId, {
         arm_report: flowData.arm_report || '',
         arm_feel: flowData.arm_feel || null,
+        arm_detail_tags: flowData.arm_detail_tags || [],
         energy: flowData.energy ?? null,
         lift_preference: flowData.lift_preference || 'auto',
         throw_intent: flowData.throw_intent || 'none',
         next_pitch_days: flowData.next_pitch_days ?? (scheduleKnown ? flags.next_outing_days : null),
+        arm_clarification: flowData.arm_clarification || '',
       }, 'checkin', initData);
       setMessages(prev => {
         const without = prev.slice(0, -1);
@@ -263,7 +301,7 @@ export default function Coach() {
   // ── Check-in flow ──
   const startCheckin = () => {
     setCheckinInProgress(true);
-    setCheckinFlow({ step: 'arm_report' });
+    setCheckinFlow({ step: 'arm_feel', arm_detail_tags: [], arm_report: '' });
     const firstName = profile?.name?.split(' ')[0] || 'there';
     const flags = profile?.active_flags || {};
     const daysSince = flags.days_since_outing ?? 0;
@@ -284,16 +322,42 @@ export default function Coach() {
     }
 
     const greeting = isRecoveryDay
-      ? `Morning ${firstName}. Day after \u2014 how's the arm recovering?`
-      : `Morning ${firstName}. How's the arm feeling?`;
+      ? `Morning ${firstName}. Day after \u2014 pick your arm feel today, 1-10.`
+      : `Morning ${firstName}. Pick your arm feel today, 1-10.`;
     newMsgs.push({ role: 'bot', type: 'text', content: greeting });
     setMessages(prev => [...prev, ...newMsgs]);
   };
 
-  const handleArmReport = (text) => {
-    setMessages(prev => [...prev, { role: 'user', type: 'text', content: text }]);
-    const { feel, ack } = quickClassify(text);
-    const flowData = { arm_report: text, arm_feel: feel };
+  const handleArmFeel = (feel) => {
+    setMessages(prev => [...prev, { role: 'user', type: 'text', content: `${feel}` }]);
+    setCheckinFlow({ ...checkinFlow, step: 'arm_detail', arm_feel: feel, arm_detail_tags: [] });
+    setMessages(prev => [...prev, { role: 'bot', type: 'text', content: `${armAck(feel)} Anything specific I should factor in?` }]);
+  };
+
+  const toggleArmDetail = (tag) => {
+    const current = checkinFlow?.arm_detail_tags || [];
+    const next = current.includes(tag)
+      ? current.filter(t => t !== tag)
+      : [...current, tag];
+    setCheckinFlow({ ...checkinFlow, arm_detail_tags: next });
+  };
+
+  const handleArmDetailContinue = () => {
+    const tags = checkinFlow?.arm_detail_tags || [];
+    const note = input.trim();
+    const error = validateArmDetails(tags, note);
+    if (error) {
+      showToast(error, 'warning');
+      return;
+    }
+
+    const labelMap = Object.fromEntries(ARM_DETAIL_OPTIONS.map(o => [o.value, o.label]));
+    const label = tags.map(t => labelMap[t] || t).join(', ');
+    setMessages(prev => [...prev, { role: 'user', type: 'text', content: note ? `${label}: ${note}` : label }]);
+    setInput('');
+
+    const feel = checkinFlow.arm_feel;
+    const flowData = { ...checkinFlow, arm_report: note, arm_detail_tags: tags };
 
     // Refinement 1: Recovery day — recommend + give choice
     if (isRecoveryDay) {
@@ -307,11 +371,11 @@ export default function Coach() {
       return;
     }
 
-    // Refinement 2: Arm feel 1-2 — probe before assuming protective
-    if (feel != null && feel <= 2) {
+    // Refinement 2: Arm feel 1-4 — probe before assuming protective
+    if (feel != null && feel <= 4) {
       setCheckinFlow({ ...flowData, step: 'low_arm_clarify' });
       setMessages(prev => [...prev, { role: 'bot', type: 'text',
-        content: `${ack} That's on the lower end \u2014 is this soreness you'd expect given where you are in rotation, or does something feel different?`
+        content: `${armAck(feel)} That's on the lower end \u2014 is this soreness you'd expect given where you are in rotation, or does something feel different?`
       }]);
       return;
     }
@@ -320,7 +384,7 @@ export default function Coach() {
     // Recovery/low-arm branches intentionally skip energy capture to keep those
     // fast paths short; backend treats a missing `energy` as null and defaults.
     setCheckinFlow({ ...flowData, step: 'energy' });
-    setMessages(prev => [...prev, { role: 'bot', type: 'text', content: ack + ' Energy today, 1-10?' }]);
+    setMessages(prev => [...prev, { role: 'bot', type: 'text', content: armAck(feel) + ' Energy today, 1-10?' }]);
   };
 
   const handleEnergy = (energy) => {
@@ -475,6 +539,8 @@ export default function Coach() {
     try {
       const res = await sendChat(pitcherId, {
         arm_feel: todayEntry.pre_training?.arm_feel ?? null,
+        arm_detail_tags: todayEntry.pre_training?.arm_detail_tags ?? [],
+        arm_report: todayEntry.pre_training?.arm_report ?? '',
         sleep_hours: todayEntry.pre_training?.sleep_hours ?? null,
         energy: todayEntry.pre_training?.overall_energy ?? null,
       }, 'checkin', initData);
@@ -520,6 +586,59 @@ export default function Coach() {
   const renderButtons = () => {
     const btnStyle = { padding: '6px 12px', fontSize: 11, fontWeight: 500, background: 'var(--color-cream-bg)', color: 'var(--color-ink-primary)', borderRadius: 8, border: '0.5px solid var(--color-cream-border)', cursor: 'pointer' };
 
+    if (checkinFlow?.step === 'arm_feel') {
+      return (
+        <div style={{ padding: '0 12px 8px' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, justifyContent: 'center' }}>
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => (
+              <button key={n} onClick={() => handleArmFeel(n)}
+                style={{ width: 32, height: 36, fontSize: 13, fontWeight: 700, background: 'var(--color-cream-bg)', color: 'var(--color-ink-primary)', borderRadius: 8, border: '0.5px solid var(--color-cream-border)', cursor: 'pointer' }}>
+                {n}
+              </button>
+            ))}
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 4px 0', fontSize: 8, color: '#9f9188' }}>
+            <span>rough</span><span>normal</span><span>great</span>
+          </div>
+        </div>
+      );
+    }
+    if (checkinFlow?.step === 'arm_detail') {
+      const selected = checkinFlow.arm_detail_tags || [];
+      const note = input.trim();
+      const error = validateArmDetails(selected, note);
+      return (
+        <div style={{ padding: '0 12px 8px' }}>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {ARM_DETAIL_OPTIONS.map(o => {
+              const active = selected.includes(o.value);
+              return (
+                <button key={o.value} onClick={() => toggleArmDetail(o.value)}
+                  style={{
+                    padding: '6px 10px', fontSize: 10, fontWeight: 600,
+                    background: active ? 'var(--color-maroon)' : 'var(--color-cream-bg)',
+                    color: active ? '#fff' : 'var(--color-ink-primary)',
+                    borderRadius: 999, border: '0.5px solid var(--color-cream-border)', cursor: 'pointer',
+                  }}>
+                  {o.label}
+                </button>
+              );
+            })}
+          </div>
+          {error && selected.length > 0 && (
+            <div style={{ marginTop: 6, fontSize: 9, color: 'var(--color-maroon)' }}>{error}</div>
+          )}
+          <button onClick={handleArmDetailContinue}
+            style={{
+              marginTop: 8, width: '100%', padding: '8px 12px', fontSize: 11, fontWeight: 700,
+              background: error ? '#d9d0c4' : 'var(--color-maroon)', color: '#fff',
+              border: 'none', borderRadius: 8, cursor: error ? 'not-allowed' : 'pointer',
+            }}>
+            Continue
+          </button>
+        </div>
+      );
+    }
     if (checkinFlow?.step === 'recovery_confirm') {
       return (
         <div style={{ display: 'flex', gap: 6, padding: '0 12px 8px', flexWrap: 'wrap' }}>
@@ -626,15 +745,15 @@ export default function Coach() {
   };
 
   // Route text input to the right handler
-  const inputSubmit = checkinFlow?.step === 'arm_report'
-    ? () => { if (input.trim()) { handleArmReport(input.trim()); setInput(''); } }
+  const inputSubmit = checkinFlow?.step === 'arm_detail'
+    ? handleArmDetailContinue
     : outingFlow?.step === 'pitch_count' ? handlePitchCount : handleSend;
-  const inputPlaceholder = checkinFlow?.step === 'arm_report'
-    ? "e.g. forearm's a little tight..."
+  const inputPlaceholder = checkinFlow?.step === 'arm_detail'
+    ? 'Optional note, required for Other...'
     : outingFlow?.step === 'pitch_count'
     ? 'Pitch count...'
     : hasCheckedIn ? "Ask about today's plan..." : 'Ask your coach...';
-  const inputDisabled = (!!checkinFlow && checkinFlow.step !== 'arm_report') || nextOutingFlow;
+  const inputDisabled = (!!checkinFlow && checkinFlow.step !== 'arm_detail') || nextOutingFlow;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100dvh - 80px)', background: 'var(--color-cream-bg)' }}>

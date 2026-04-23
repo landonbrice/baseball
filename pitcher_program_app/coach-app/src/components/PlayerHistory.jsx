@@ -108,16 +108,28 @@ export default function PlayerHistory({ data }) {
             <p className="font-ui text-meta text-muted py-2">No entries match this filter.</p>
           )}
           {filtered.map(e => (
-            <div key={e.date} className="flex items-center gap-3 py-2">
-              <span className="font-ui text-meta text-graphite w-20 tabular">{e.date}</span>
-              <FlagPill level={e.pre_training?.flag_level || 'green'} />
-              <span className="font-serif text-body text-charcoal tabular">
-                AF {e.pre_training?.arm_feel ?? '—'}
-              </span>
-              {(e.pre_training?.note || '').trim() && (
-                <span className="font-ui text-meta text-muted italic truncate">
-                  &ldquo;{e.pre_training.note}&rdquo;
+            <div key={e.date} className="py-2">
+              <div className="flex items-center gap-3">
+                <span className="font-ui text-meta text-graphite w-20 tabular">{e.date}</span>
+                <FlagPill level={e.pre_training?.flag_level || 'green'} />
+                <span className="font-serif text-body text-charcoal tabular">
+                  AF {e.pre_training?.arm_feel ?? '—'}
                 </span>
+                {e.pre_training?.arm_assessment?.needs_followup && (
+                  <span className="font-ui text-[9px] font-bold uppercase tracking-[0.12em] text-amber bg-amber/10 px-1.5 py-0.5 rounded-[2px]">
+                    Follow up
+                  </span>
+                )}
+                {(e.pre_training?.note || '').trim() && (
+                  <span className="font-ui text-meta text-muted italic truncate">
+                    &ldquo;{e.pre_training.note}&rdquo;
+                  </span>
+                )}
+              </div>
+              {e.pre_training?.arm_assessment?.summary && (
+                <p className="font-ui text-meta text-muted mt-1 ml-[5.75rem]">
+                  {e.pre_training.arm_assessment.summary}
+                </p>
               )}
             </div>
           ))}

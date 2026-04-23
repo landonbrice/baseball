@@ -5,6 +5,7 @@ import logging
 from datetime import datetime
 
 from bot.config import CHICAGO_TZ
+from bot.services.arm_assessment import classify_arm_assessment
 from bot.services.triage import triage
 from bot.services.triage_llm import llm_triage_refinement
 from bot.services.plan_generator import generate_plan
@@ -117,6 +118,7 @@ async def process_checkin(
     pitcher_id: str, arm_feel: int, sleep_hours: float, energy: int = 3,
     arm_report: str = "", lift_preference: str = "",
     throw_intent: str = "", next_pitch_days=None,
+    arm_detail_tags: list[str] | None = None,
     arm_clarification: str = "",
 ) -> dict:
     """Run triage, generate plan, log entry, and return structured results.
@@ -183,10 +185,31 @@ async def process_checkin(
     except Exception as e:
         logger.warning("Phase 1 baseline/history assembly failed for %s: %s", pitcher_id, e)
 
+    rotation_day = (profile.get("active_flags") or {}).get("days_since_outing", 0)
+
+    # Canonical arm assessment. The athlete-provided number stays authoritative;
+    # details modify interpretation but never replace the numeric rating.
+    if isinstance(arm_detail_tags, str):
+        assessment_tags = [arm_detail_tags]
+    else:
+        assessment_tags = list(arm_detail_tags or [])
+    if arm_clarification == "expected_soreness" and "expected_soreness" not in assessment_tags:
+        assessment_tags.append("expected_soreness")
+    elif arm_clarification == "concerned" and "different_than_normal" not in assessment_tags:
+        assessment_tags.append("different_than_normal")
+
+    arm_assessment = await classify_arm_assessment(
+        numeric_arm_feel=arm_feel,
+        detail_tags=assessment_tags,
+        arm_report=arm_report,
+        pitcher_profile=profile,
+        recent_entries=recent_entries_full,
+        days_since_outing=rotation_day,
+    )
+
     whoop_strain_yesterday = whoop_data.get("yesterday_strain") if whoop_data else None
 
     # C3 fix: compute recovery curve expected values for trajectory evaluation
-    rotation_day = (profile.get("active_flags") or {}).get("days_since_outing", 0)
     recovery_curve_expected = None
     try:
         from bot.services.baselines import get_recovery_curve_expected
@@ -213,6 +236,7 @@ async def process_checkin(
         recovery_curve_expected=recovery_curve_expected,
         pitcher_baseline=pitcher_baseline,
         arm_clarification=arm_clarification if arm_clarification else None,
+        arm_assessment=arm_assessment,
         whoop_strain_yesterday=whoop_strain_yesterday,
     )
 
@@ -274,6 +298,9 @@ async def process_checkin(
             "flag_level": triage_result["flag_level"],
             "category_scores": triage_result.get("category_scores"),
             "baseline_tier": triage_result.get("baseline_tier"),
+            "arm_report": arm_report,
+            "arm_detail_tags": arm_assessment.get("detail_tags", []),
+            "arm_assessment": arm_assessment,
         },
         "plan_narrative": None,
         "morning_brief": normalize_brief(None),
@@ -293,6 +320,8 @@ async def process_checkin(
     checkin_inputs = {}
     if arm_report:
         checkin_inputs["arm_report"] = arm_report
+    checkin_inputs["arm_detail_tags"] = arm_assessment.get("detail_tags", [])
+    checkin_inputs["arm_assessment"] = arm_assessment
     if lift_preference:
         checkin_inputs["lift_preference"] = lift_preference
     if throw_intent:
@@ -336,6 +365,9 @@ async def process_checkin(
             "flag_level": triage_result["flag_level"],
             "category_scores": triage_result.get("category_scores"),
             "baseline_tier": triage_result.get("baseline_tier"),
+            "arm_report": arm_report,
+            "arm_detail_tags": arm_assessment.get("detail_tags", []),
+            "arm_assessment": arm_assessment,
         },
         "plan_narrative": plan_result["narrative"] if plan_result else None,
         "morning_brief": normalize_brief(plan_result.get("morning_brief")) if plan_result else normalize_brief(None),
@@ -428,6 +460,8 @@ async def process_checkin(
     session_note = f"Arm {arm_feel}/10, sleep {sleep_hours}h, {flag} flag. {lifting_summary}. {throwing_summary}.{mods_str}".strip()
     if arm_report:
         session_note = f'Arm: "{arm_report}" ({arm_feel}/10). {session_note}'
+    elif arm_assessment.get("summary"):
+        session_note = f'{arm_assessment["summary"]} {session_note}'
     if lift_preference:
         session_note += f" Requested: {lift_preference}."
     append_context(pitcher_id, "session", session_note)
@@ -456,4 +490,5 @@ async def process_checkin(
         "rotation_day": rotation_day,
         "source": plan_result.get("source") if plan_result else None,
         "source_reason": plan_result.get("source_reason") if plan_result else None,
+        "arm_assessment": arm_assessment,
     }

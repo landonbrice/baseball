@@ -87,6 +87,8 @@ async def test_phase1_args_passed_to_triage():
     assert "recent_history" not in call_kwargs
     assert "arm_clarification" in call_kwargs
     assert call_kwargs["arm_clarification"] is None
+    assert "arm_assessment" in call_kwargs
+    assert call_kwargs["arm_assessment"]["arm_feel"] == 7
     assert len(call_kwargs["arm_feel_history"]) == 3
 
 
