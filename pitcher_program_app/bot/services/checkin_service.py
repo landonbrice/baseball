@@ -153,11 +153,7 @@ async def process_checkin(
     try:
         recent_entries_full = get_daily_entries(pitcher_id, limit=14)
         recent_arm_feel = [
-            {
-                "date": e.get("date"),
-                "arm_feel": (e.get("pre_training") or {}).get("arm_feel"),
-                "rotation_day": e.get("rotation_day", 0),
-            }
+            (e.get("pre_training") or {}).get("arm_feel")
             for e in recent_entries_full[:7]
             if (e.get("pre_training") or {}).get("arm_feel") is not None
         ]
