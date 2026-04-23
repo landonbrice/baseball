@@ -10,7 +10,6 @@ Flow (schedule known): arm report → acknowledgment + lift pref → throw inten
 """
 
 import logging
-import json
 from datetime import datetime, timedelta
 from bot.config import CHICAGO_TZ
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -38,7 +37,7 @@ from bot.utils import build_rating_keyboard, build_completion_keyboard
 logger = logging.getLogger(__name__)
 
 # Conversation states
-ARM_REPORT, LIFT_PREF, THROW_INTENT, SCHEDULE, RELIEVER_THREW, RECOVERY_CONFIRM, LOW_ARM_CLARIFY = range(7)
+ARM_REPORT, ARM_DETAIL, ARM_DETAIL_TEXT, LIFT_PREF, THROW_INTENT, SCHEDULE, RELIEVER_THREW, RECOVERY_CONFIRM, LOW_ARM_CLARIFY = range(9)
 
 
 # ---------------------------------------------------------------------------
@@ -126,6 +125,127 @@ def _build_arm_acknowledgment(arm_feel, arm_report, days_since, concern_areas=No
         return "Arm's feeling solid."
 
     return "Got it."
+
+
+def _build_arm_detail_keyboard(mode="initial"):
+    """Build Telegram's pragmatic single-select detail keyboard."""
+    if mode == "area":
+        return InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton("Forearm", callback_data="arm_detail_forearm"),
+                InlineKeyboardButton("Elbow", callback_data="arm_detail_elbow"),
+                InlineKeyboardButton("Shoulder", callback_data="arm_detail_shoulder"),
+            ],
+            [InlineKeyboardButton("Other / type it", callback_data="arm_detail_other")],
+        ])
+    if mode == "sensation":
+        return InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton("Expected soreness", callback_data="arm_detail_expected_soreness"),
+                InlineKeyboardButton("Tight/sore", callback_data="arm_detail_tight_sore"),
+            ],
+            [
+                InlineKeyboardButton("Heavy/dead", callback_data="arm_detail_heavy_dead"),
+                InlineKeyboardButton("Sharp pain", callback_data="arm_detail_sharp_pain"),
+            ],
+            [
+                InlineKeyboardButton("Numb/tingling", callback_data="arm_detail_numb_tingling"),
+                InlineKeyboardButton("Different", callback_data="arm_detail_different_than_normal"),
+            ],
+            [InlineKeyboardButton("Other / type it", callback_data="arm_detail_other")],
+        ])
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("No issues", callback_data="arm_detail_no_issues")],
+        [
+            InlineKeyboardButton("Expected soreness", callback_data="arm_detail_expected_soreness"),
+            InlineKeyboardButton("Tight/sore", callback_data="arm_detail_tight_sore"),
+        ],
+        [
+            InlineKeyboardButton("Heavy/dead", callback_data="arm_detail_heavy_dead"),
+            InlineKeyboardButton("Sharp pain", callback_data="arm_detail_sharp_pain"),
+        ],
+        [
+            InlineKeyboardButton("Numb/tingling", callback_data="arm_detail_numb_tingling"),
+            InlineKeyboardButton("Different", callback_data="arm_detail_different_than_normal"),
+        ],
+        [
+            InlineKeyboardButton("Forearm", callback_data="arm_detail_forearm"),
+            InlineKeyboardButton("Elbow", callback_data="arm_detail_elbow"),
+            InlineKeyboardButton("Shoulder", callback_data="arm_detail_shoulder"),
+        ],
+        [InlineKeyboardButton("Other / type it", callback_data="arm_detail_other")],
+    ])
+
+
+async def _ask_arm_detail(message, context) -> int:
+    """Require one structured detail answer after numeric arm feel."""
+    context.user_data["arm_detail_tags"] = []
+    context.user_data.pop("pending_arm_area", None)
+    context.user_data.pop("pending_arm_sensation", None)
+    await message.reply_text(
+        "Anything specific I should factor in?",
+        reply_markup=_build_arm_detail_keyboard("initial"),
+    )
+    return ARM_DETAIL
+
+
+async def _route_after_arm_detail(message, context) -> int:
+    """Continue existing check-in branches after required arm detail."""
+    arm_feel = context.user_data.get("arm_feel")
+    arm_report = context.user_data.get("arm_report", "")
+    concern_areas = context.user_data.get("concern_areas", [])
+    days_since = context.user_data.get("days_since", 99)
+    flags = context.user_data.get("flags", {})
+
+    if _is_recovery_day(days_since, context.user_data.get("role", "starter")):
+        feel_comment = f"arm's at a {arm_feel} — solid recovery" if arm_feel >= 7 else \
+                       f"arm's at a {arm_feel} — pretty typical day-after" if arm_feel >= 5 and arm_feel <= 6 else \
+                       f"arm's at a {arm_feel} — let's be careful"
+        keyboard = InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton("Recovery day", callback_data="recovery_yes"),
+                InlineKeyboardButton("Something different", callback_data="recovery_no"),
+            ]
+        ])
+        await message.reply_text(
+            f"Day after, {feel_comment}. I'd keep it to recovery flush and blood flow. "
+            "Want me to build that, or are you thinking something different?",
+            reply_markup=keyboard,
+        )
+        return RECOVERY_CONFIRM
+
+    if arm_feel is not None and arm_feel <= 4:
+        keyboard = InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton("Expected soreness", callback_data="lowarm_expected"),
+                InlineKeyboardButton("Something feels off", callback_data="lowarm_concerned"),
+            ]
+        ])
+        ack = _build_arm_acknowledgment(arm_feel, arm_report, days_since, concern_areas)
+        await message.reply_text(
+            f"{ack} That's on the lower end — is this soreness you'd expect given where you are "
+            "in rotation, or does something feel different?",
+            reply_markup=keyboard,
+        )
+        return LOW_ARM_CLARIFY
+
+    ack = _build_arm_acknowledgment(arm_feel, arm_report, days_since, concern_areas)
+    keyboard = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("Upper", callback_data="lift_upper"),
+            InlineKeyboardButton("Lower", callback_data="lift_lower"),
+            InlineKeyboardButton("Full body", callback_data="lift_full"),
+        ],
+        [
+            InlineKeyboardButton("Rest day", callback_data="lift_rest"),
+            InlineKeyboardButton("Your call", callback_data="lift_auto"),
+        ],
+    ])
+    await message.reply_text(
+        ack + " What are you thinking for a lift?",
+        reply_markup=keyboard,
+    )
+    return LIFT_PREF
 
 
 def _build_adaptive_greeting(first_name, pitcher_id, flags, days_since, role):
@@ -239,7 +359,10 @@ async def start_checkin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 
     # Context-aware opening
     greeting = _build_adaptive_greeting(first_name, pitcher_id, flags, days_since, role)
-    await update.message.reply_text(greeting)
+    await update.message.reply_text(
+        f"{greeting}\n\nPick a number from 1-10.",
+        reply_markup=build_rating_keyboard("arm_feel"),
+    )
     return ARM_REPORT
 
 
@@ -280,57 +403,7 @@ async def morning_arm_feel_entry(update: Update, context: ContextTypes.DEFAULT_T
     append_context(pitcher_id, "checkin_start", f"Check-in via morning notification (arm feel {arm_feel})")
 
     await query.edit_message_text(f"Arm feel: {arm_feel}/10 — got it.")
-
-    # Route based on situation (same logic as arm_report_handler)
-    if _is_recovery_day(days_since, role):
-        feel_comment = f"arm's at a {arm_feel} — solid recovery" if arm_feel >= 7 else \
-                       f"arm's at a {arm_feel} — pretty typical day-after" if arm_feel >= 5 and arm_feel <= 6 else \
-                       f"arm's at a {arm_feel} — let's be careful"
-        keyboard = InlineKeyboardMarkup([
-            [
-                InlineKeyboardButton("Recovery day", callback_data="recovery_yes"),
-                InlineKeyboardButton("Something different", callback_data="recovery_no"),
-            ]
-        ])
-        await query.message.reply_text(
-            f"Day after, {feel_comment}. I'd keep it to recovery flush and blood flow. "
-            "Want me to build that, or are you thinking something different?",
-            reply_markup=keyboard,
-        )
-        return RECOVERY_CONFIRM
-
-    if arm_feel <= 4:
-        keyboard = InlineKeyboardMarkup([
-            [
-                InlineKeyboardButton("Expected soreness", callback_data="lowarm_expected"),
-                InlineKeyboardButton("Something feels off", callback_data="lowarm_concerned"),
-            ]
-        ])
-        await query.message.reply_text(
-            f"That's on the lower end — is this soreness you'd expect given where you are "
-            "in rotation, or does something feel different?",
-            reply_markup=keyboard,
-        )
-        return LOW_ARM_CLARIFY
-
-    # Normal flow — ask about soreness, then lift pref
-    ack = _build_arm_acknowledgment(arm_feel, "", days_since, [])
-    keyboard = InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton("Upper", callback_data="lift_upper"),
-            InlineKeyboardButton("Lower", callback_data="lift_lower"),
-        ],
-        [
-            InlineKeyboardButton("Full body", callback_data="lift_full"),
-            InlineKeyboardButton("Your call", callback_data="lift_your_call"),
-        ],
-        [InlineKeyboardButton("Rest / arm care only", callback_data="lift_rest")],
-    ])
-    await query.message.reply_text(
-        f"{ack} What are you thinking for a lift?",
-        reply_markup=keyboard,
-    )
-    return LIFT_PREF
+    return await _ask_arm_detail(query.message, context)
 
 
 async def reliever_threw_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -348,135 +421,115 @@ async def reliever_threw_callback(update: Update, context: ContextTypes.DEFAULT_
         return ConversationHandler.END
 
     await query.edit_message_text("No game appearance yesterday. Let's do your check-in.")
-    await query.message.reply_text("How's the arm feeling?")
+    await query.message.reply_text(
+        "How's the arm feeling? Pick a number from 1-10.",
+        reply_markup=build_rating_keyboard("arm_feel"),
+    )
     return ARM_REPORT
 
 
 async def arm_report_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Handle arm feel report. Acknowledges before asking the next question.
-
-    Smart defaults:
-    - Day 0-1 post-outing: auto-set recovery, skip to schedule/plan
-    - Arm feel 1-2: auto-set rest day, skip throw intent
-    """
+    """Handle typed arm feel number, then require structured detail."""
     text = update.message.text.strip()
-    days_since = context.user_data.get("days_since", 99)
-    flags = context.user_data.get("flags", {})
 
     # Parse arm feel
     arm_feel = None
-    arm_report = ""
-    concern_areas = []
     try:
         num = int(text)
         if 1 <= num <= 10:
             arm_feel = num
-        else:
-            arm_report = text
     except ValueError:
-        arm_report = text
+        pass
 
-    # Quick-classify free text for acknowledgment (full LLM classification happens at plan gen)
-    if arm_feel is None and arm_report:
-        arm_feel, concern_areas = _quick_classify(arm_report)
+    if arm_feel is None:
+        await update.message.reply_text(
+            "Start with a number from 1-10 so I don't guess from wording.",
+            reply_markup=build_rating_keyboard("arm_feel"),
+        )
+        return ARM_REPORT
 
     context.user_data["arm_feel"] = arm_feel
-    context.user_data["arm_report"] = arm_report
-    context.user_data["concern_areas"] = concern_areas
-
-    # Build coaching acknowledgment
-    ack = _build_arm_acknowledgment(arm_feel, arm_report, days_since, concern_areas)
-
-    # --- REFINEMENT 1: Recovery day — recommend + give choice ---
-    if _is_recovery_day(days_since, context.user_data.get("role", "starter")):
-        feel_comment = ""
-        if arm_feel is not None:
-            if arm_feel >= 7:
-                feel_comment = f"arm's at a {arm_feel} — solid recovery"
-            elif arm_feel >= 5 and arm_feel <= 6:
-                feel_comment = f"arm's at a {arm_feel} — pretty typical day-after"
-            else:
-                feel_comment = f"arm's at a {arm_feel} — let's be careful"
-        else:
-            feel_comment = "day after"
-
-        keyboard = InlineKeyboardMarkup([
-            [
-                InlineKeyboardButton("Recovery day", callback_data="recovery_yes"),
-                InlineKeyboardButton("Something different", callback_data="recovery_no"),
-            ]
-        ])
-        await update.message.reply_text(
-            f"Day after, {feel_comment}. I'd keep it to recovery flush and blood flow. "
-            "Want me to build that, or are you thinking something different?",
-            reply_markup=keyboard,
-        )
-        return RECOVERY_CONFIRM
-
-    # --- REFINEMENT 2: Arm feel 1-4 — probe before assuming protective ---
-    if arm_feel is not None and arm_feel <= 4:
-        keyboard = InlineKeyboardMarkup([
-            [
-                InlineKeyboardButton("Expected soreness", callback_data="lowarm_expected"),
-                InlineKeyboardButton("Something feels off", callback_data="lowarm_concerned"),
-            ]
-        ])
-        concern_note = ""
-        if concern_areas:
-            concern_note = f" ({', '.join(concern_areas[:2])})"
-        await update.message.reply_text(
-            f"{ack}{concern_note} That's on the lower end — is this soreness you'd "
-            "expect given where you are in rotation, or does something feel different?",
-            reply_markup=keyboard,
-        )
-        return LOW_ARM_CLARIFY
-
-    # --- NORMAL FLOW: Acknowledge + ask lift preference ---
-    keyboard = InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton("Upper", callback_data="lift_upper"),
-            InlineKeyboardButton("Lower", callback_data="lift_lower"),
-            InlineKeyboardButton("Full body", callback_data="lift_full"),
-        ],
-        [
-            InlineKeyboardButton("Rest day", callback_data="lift_rest"),
-            InlineKeyboardButton("Your call", callback_data="lift_auto"),
-        ],
-    ])
-    await update.message.reply_text(
-        ack + " What are you thinking for a lift?",
-        reply_markup=keyboard,
-    )
-    return LIFT_PREF
+    context.user_data["arm_report"] = ""
+    context.user_data["concern_areas"] = []
+    return await _ask_arm_detail(update.message, context)
 
 
-def _quick_classify(arm_report):
-    """Fast rule-based classification for acknowledgment. Full LLM runs later."""
-    report_lower = arm_report.lower()
-    areas = []
+async def arm_detail_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle required structured arm detail selection."""
+    query = update.callback_query
+    await query.answer()
 
-    # Extract concern areas
-    area_keywords = {
-        "forearm": "forearm", "elbow": "elbow", "medial": "medial elbow",
-        "shoulder": "shoulder", "bicep": "bicep", "ucl": "UCL area",
-        "lat": "lat", "scap": "scapula",
+    tag = query.data.replace("arm_detail_", "")
+    if tag == "other":
+        await query.edit_message_text("Type the detail I should factor in.")
+        return ARM_DETAIL_TEXT
+
+    if tag == "no_issues":
+        context.user_data["arm_detail_tags"] = ["no_issues"]
+        context.user_data["arm_report"] = ""
+        await query.edit_message_text("Arm detail: no issues.")
+        return await _route_after_arm_detail(query.message, context)
+
+    area_tags = {"forearm", "elbow", "shoulder"}
+    sensation_tags = {
+        "expected_soreness", "tight_sore", "heavy_dead", "sharp_pain",
+        "numb_tingling", "different_than_normal",
     }
-    for keyword, label in area_keywords.items():
-        if keyword in report_lower:
-            areas.append(label)
 
-    if any(w in report_lower for w in ["great", "perfect", "amazing", "100", "feel good", "feels good", "no issues"]):
-        return 10, []
-    if any(w in report_lower for w in ["sharp", "shooting", "numb", "tingling", "swelling", "can't"]):
-        return 1, areas or ["immediate_concern"]
-    if any(w in report_lower for w in ["terrible", "really bad", "awful"]):
-        return 3, areas or ["significant_concern"]
-    if any(w in report_lower for w in ["tight", "sore", "stiff", "tender"]):
-        return 5, areas or ["mild_concern"]
-    if any(w in report_lower for w in ["good", "fine", "solid", "normal", "decent", "ok", "okay", "alright"]):
-        return 8, []
+    if tag in area_tags:
+        pending_sensation = context.user_data.pop("pending_arm_sensation", None)
+        if pending_sensation:
+            context.user_data["arm_detail_tags"] = [pending_sensation, tag]
+            await query.edit_message_text(f"Arm detail: {pending_sensation.replace('_', ' ')} in {tag}.")
+            return await _route_after_arm_detail(query.message, context)
+        context.user_data["pending_arm_area"] = tag
+        await query.edit_message_text(f"Area: {tag}. What about the {tag}?")
+        await query.message.reply_text(
+            "Pick the detail.",
+            reply_markup=_build_arm_detail_keyboard("sensation"),
+        )
+        return ARM_DETAIL
 
-    return None, areas  # Unknown — will be LLM-classified later
+    if tag in sensation_tags:
+        pending_area = context.user_data.pop("pending_arm_area", None)
+        if pending_area:
+            context.user_data["arm_detail_tags"] = [pending_area, tag]
+            await query.edit_message_text(f"Arm detail: {tag.replace('_', ' ')} in {pending_area}.")
+            return await _route_after_arm_detail(query.message, context)
+        context.user_data["pending_arm_sensation"] = tag
+        if tag == "expected_soreness":
+            prompt = "Where is the expected soreness?"
+        else:
+            prompt = "Where are you feeling that?"
+        await query.edit_message_text(prompt)
+        await query.message.reply_text(
+            "Pick the area.",
+            reply_markup=_build_arm_detail_keyboard("area"),
+        )
+        return ARM_DETAIL
+
+    await query.edit_message_text("I didn't catch that detail. Pick one option.")
+    await query.message.reply_text(
+        "Anything specific I should factor in?",
+        reply_markup=_build_arm_detail_keyboard("initial"),
+    )
+    return ARM_DETAIL
+
+
+async def arm_detail_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Capture typed detail for Other."""
+    detail = update.message.text.strip()
+    tags = ["other"]
+    pending_area = context.user_data.pop("pending_arm_area", None)
+    pending_sensation = context.user_data.pop("pending_arm_sensation", None)
+    if pending_area:
+        tags.append(pending_area)
+    if pending_sensation:
+        tags.append(pending_sensation)
+    context.user_data["arm_detail_tags"] = tags
+    context.user_data["arm_report"] = detail
+    await update.message.reply_text("Got it — I'll factor that in.")
+    return await _route_after_arm_detail(update.message, context)
 
 
 async def recovery_confirm_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -690,13 +743,14 @@ async def _generate_plan_and_respond(message, context) -> int:
     throw_intent = context.user_data.get("throw_intent", "none")
     next_pitch_days = context.user_data.get("next_pitch_days")
     arm_clarification = context.user_data.get("arm_clarification", "")
+    arm_detail_tags = context.user_data.get("arm_detail_tags", [])
 
-    # Full LLM classification if quick-classify didn't resolve
-    if arm_feel is None and arm_report:
-        arm_feel, concern_areas = await _classify_arm_report(arm_report)
-        context.user_data["arm_feel"] = arm_feel
-    elif arm_feel is None:
-        arm_feel = 7
+    if arm_feel is None:
+        await message.reply_text(
+            "I need a 1-10 arm feel number before generating a plan.",
+            reply_markup=build_rating_keyboard("arm_feel"),
+        )
+        return ARM_REPORT
 
     # Update schedule/rotation if specified
     if next_pitch_days and next_pitch_days > 0:
@@ -719,6 +773,7 @@ async def _generate_plan_and_respond(message, context) -> int:
         result = await process_checkin(
             pitcher_id, arm_feel, sleep_hours,
             arm_report=arm_report,
+            arm_detail_tags=arm_detail_tags,
             lift_preference=lift_preference,
             throw_intent=throw_intent,
             next_pitch_days=next_pitch_days,
@@ -785,30 +840,6 @@ async def _generate_plan_and_respond(message, context) -> int:
         )
 
     return ConversationHandler.END
-
-
-async def _classify_arm_report(arm_report):
-    """Classify free-text arm report into arm_feel (1-10) and concern areas via LLM."""
-    # Try quick classification first
-    arm_feel, areas = _quick_classify(arm_report)
-    if arm_feel is not None:
-        return arm_feel, areas
-
-    # LLM classification for nuanced reports
-    try:
-        from bot.services.llm import call_llm
-        response = await call_llm(
-            "You classify pitcher arm reports. Return ONLY valid JSON, no other text.",
-            f'Classify this arm report on a 1-10 scale (1=severe pain, 10=feels great). '
-            f'Return: {{"arm_feel": <1-10>, "areas": ["area1"], "trend": "better|same|worse|unknown"}}\n\n'
-            f'Report: "{arm_report}"',
-            max_tokens=80,
-        )
-        data = json.loads(response.strip())
-        return int(data.get("arm_feel", 7)), data.get("areas", [])
-    except Exception as e:
-        logger.warning(f"Arm report classification failed, defaulting to 7: {e}")
-        return 7, areas
 
 
 async def plan_completion_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -897,7 +928,14 @@ def get_checkin_handler() -> ConversationHandler:
             RELIEVER_THREW: [CallbackQueryHandler(
                 reliever_threw_callback, pattern=r"^reliever_threw_(yes|no)$"
             )],
-            ARM_REPORT: [MessageHandler(filters.TEXT & ~filters.COMMAND, arm_report_handler)],
+            ARM_REPORT: [
+                CallbackQueryHandler(morning_arm_feel_entry, pattern=r"^arm_feel_([1-9]|10)$"),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, arm_report_handler),
+            ],
+            ARM_DETAIL: [CallbackQueryHandler(
+                arm_detail_callback, pattern=r"^arm_detail_"
+            )],
+            ARM_DETAIL_TEXT: [MessageHandler(filters.TEXT & ~filters.COMMAND, arm_detail_text_handler)],
             RECOVERY_CONFIRM: [CallbackQueryHandler(
                 recovery_confirm_callback, pattern=r"^recovery_(yes|no)$"
             )],

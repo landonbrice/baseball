@@ -590,9 +590,13 @@ async def post_chat(pitcher_id: str, request: Request):
             data = msg if isinstance(msg, dict) else {}
             arm_feel = data.get("arm_feel")
             arm_report = data.get("arm_report", "")
+            arm_detail_tags = data.get("arm_detail_tags") or []
+            if isinstance(arm_detail_tags, str):
+                arm_detail_tags = [arm_detail_tags]
             lift_preference = data.get("lift_preference", "")
             throw_intent = data.get("throw_intent", "")
             next_pitch_days = data.get("next_pitch_days")
+            arm_clarification = data.get("arm_clarification", "")
             # D3: thread energy through; let process_checkin default-handle when absent
             energy_raw = data.get("energy")
             try:
@@ -600,12 +604,34 @@ async def post_chat(pitcher_id: str, request: Request):
             except (TypeError, ValueError):
                 energy = None
 
-            # Classify arm report if no numeric arm_feel provided
-            if arm_feel is None and arm_report:
-                from bot.handlers.daily_checkin import _classify_arm_report
-                arm_feel, _ = await _classify_arm_report(arm_report)
-            elif arm_feel is None:
-                arm_feel = 4  # default
+            # Numeric arm feel is required. Free text no longer becomes the
+            # source of truth for readiness in the standard check-in path.
+            if arm_feel is None:
+                return {
+                    "messages": [
+                        {"type": "text", "content": "Please choose an arm feel number from 1-10 before I build your plan."},
+                    ],
+                    "morning_brief": normalize_brief(None),
+                    "flag_level": "green",
+                }
+            try:
+                arm_feel = int(arm_feel)
+            except (TypeError, ValueError):
+                return {
+                    "messages": [
+                        {"type": "text", "content": "Arm feel needs to be a number from 1-10."},
+                    ],
+                    "morning_brief": normalize_brief(None),
+                    "flag_level": "green",
+                }
+            if arm_feel < 1 or arm_feel > 10:
+                return {
+                    "messages": [
+                        {"type": "text", "content": "Arm feel needs to be between 1 and 10."},
+                    ],
+                    "morning_brief": normalize_brief(None),
+                    "flag_level": "green",
+                }
 
             # Default sleep from profile baseline
             profile_chk = load_profile(pitcher_id)
@@ -619,9 +645,11 @@ async def post_chat(pitcher_id: str, request: Request):
 
             try:
                 result = await process_checkin(
-                    pitcher_id, int(arm_feel), float(sleep_hours),
+                    pitcher_id, arm_feel, float(sleep_hours),
                     arm_report=arm_report, lift_preference=lift_preference,
                     throw_intent=throw_intent, next_pitch_days=next_pitch_days,
+                    arm_detail_tags=arm_detail_tags,
+                    arm_clarification=arm_clarification,
                     **({"energy": energy} if energy is not None else {}),
                 )
             except Exception as checkin_err:

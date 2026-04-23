@@ -30,6 +30,7 @@ def triage(
     arm_feel_history: list = None,
     recovery_curve_expected: dict = None,
     arm_clarification: str = None,
+    arm_assessment: dict = None,
     reliever_appearances_7d: int = None,
     whoop_strain_yesterday: float = None,
 ) -> dict:
@@ -54,6 +55,19 @@ def triage(
     protocol_adjustments = _default_protocol_adjustments()
 
     tightness = (forearm_tightness or "").lower()
+    assessment = arm_assessment or {}
+    assessment_red_flags = set(assessment.get("red_flags") or [])
+    assessment_contradictions = set(assessment.get("contradictions") or [])
+    assessment_sensations = set(assessment.get("sensations") or [])
+    high_priority_assessment = assessment_red_flags.intersection({
+        "sharp_pain", "numb_tingling", "swelling", "felt_a_pop", "grip_weakness",
+    })
+    if not arm_clarification and assessment.get("expected_soreness"):
+        arm_clarification = "expected_soreness"
+    elif not arm_clarification and (
+        assessment.get("needs_followup") or "different_than_normal" in assessment_sensations
+    ):
+        arm_clarification = "concerned"
 
     has_trajectory_data = pitcher_baseline is not None
     tier = _get_tier(pitcher_baseline)
@@ -66,7 +80,20 @@ def triage(
             "Arm feel critically low (1-2/10). No training. Trainer evaluation required.",
             active_flags, modifications, alerts, protocol_adjustments,
             _scores(tissue=8, load=0, recovery=0),
-            _empty_trajectory_context(), tier,
+            _empty_trajectory_context(), tier, arm_assessment=assessment,
+        )
+
+    # Structured assessment red flags override a high numeric rating.
+    if high_priority_assessment:
+        red_flag_text = ", ".join(sorted(high_priority_assessment))
+        alerts.append(f"Arm assessment red flag reported: {red_flag_text}.")
+        if assessment.get("followup_prompt"):
+            alerts.append(assessment["followup_prompt"])
+        return _red_result(
+            "Structured arm assessment red flag. Protective protocol until clarified.",
+            active_flags, modifications, alerts, protocol_adjustments,
+            _scores(tissue=8, load=0, recovery=0),
+            _empty_trajectory_context(), tier, arm_assessment=assessment,
         )
 
     # Profile-driven: UCL sensation for medial elbow/forearm history
@@ -76,7 +103,7 @@ def triage(
             "UCL sensation present with medial elbow history. Shutdown — trainer eval.",
             active_flags, modifications, alerts, protocol_adjustments,
             _scores(tissue=8, load=0, recovery=0),
-            _empty_trajectory_context(), tier,
+            _empty_trajectory_context(), tier, arm_assessment=assessment,
         )
 
     # Profile-driven: significant tightness for forearm/elbow history
@@ -86,7 +113,7 @@ def triage(
             "Significant forearm tightness + medial elbow history. Conservative protocol.",
             active_flags, modifications, alerts, protocol_adjustments,
             _scores(tissue=6, load=0, recovery=0),
-            _empty_trajectory_context(), tier,
+            _empty_trajectory_context(), tier, arm_assessment=assessment,
         )
 
     # C4 fix: arm_feel=4 + expected_soreness on day 0-2 post-outing bypasses
@@ -108,7 +135,7 @@ def triage(
             f"Arm feel {arm_feel}/10 triggers RED protocol. No training stress until cleared.",
             active_flags, modifications, alerts, protocol_adjustments,
             _scores(tissue=tissue_score, load=0, recovery=0),
-            _empty_trajectory_context(), tier,
+            _empty_trajectory_context(), tier, arm_assessment=assessment,
         )
 
     # ── Past instant REDs, arm_feel >= 5 ──
@@ -155,6 +182,8 @@ def triage(
     elif curve_status == "reversal":
         tissue += 3
 
+    tissue += _assessment_tissue_adjustment(assessment, days_since_outing, injury_areas)
+
     # Pace below floor: +1 per point below
     if recovery_curve_expected and arm_feel < (recovery_curve_expected.get("floor") or 0):
         floor_val = recovery_curve_expected.get("floor")
@@ -165,7 +194,7 @@ def triage(
     if rotation_length == 7 and days_since_outing in (5, 6) and arm_feel < 6:
         tissue += 2
 
-    tissue = min(tissue, 10.0)
+    tissue = max(0.0, min(tissue, 10.0))
     scores = _scores(tissue, load, recovery)
 
     # ── FLAG LEVEL DETERMINATION ──
@@ -192,6 +221,8 @@ def triage(
             active_flags=active_flags, injury_areas=injury_areas,
         )
 
+    flag_level = _apply_assessment_flag_floor(flag_level, assessment)
+
     # ── BUILD OUTPUTS ──
 
     modifications = _build_modifications(
@@ -203,6 +234,7 @@ def triage(
     alerts = _build_alerts(
         flag_level=flag_level, trajectory_ctx=trajectory_ctx,
         arm_feel=arm_feel, active_flags=active_flags,
+        arm_assessment=assessment,
     )
     protocol_adjustments = _build_protocol_adjustments(
         flag_level=flag_level, arm_feel=arm_feel,
@@ -210,7 +242,7 @@ def triage(
     )
     reasoning = _build_reasoning(
         flag_level, tissue, load, recovery, arm_feel, sleep_hours,
-        trajectory_ctx,
+        trajectory_ctx, assessment,
     )
 
     return {
@@ -222,6 +254,7 @@ def triage(
         "category_scores": scores,
         "trajectory_context": trajectory_ctx,
         "baseline_tier": tier,
+        "arm_assessment": assessment,
     }
 
 
@@ -723,9 +756,10 @@ def _build_modifications(
     return mods
 
 
-def _build_alerts(flag_level, trajectory_ctx, arm_feel, active_flags):
+def _build_alerts(flag_level, trajectory_ctx, arm_feel, active_flags, arm_assessment=None):
     """Build alert strings."""
     alerts = []
+    assessment = arm_assessment or {}
 
     if flag_level == "red":
         # Multiple risk factors alert
@@ -747,6 +781,19 @@ def _build_alerts(flag_level, trajectory_ctx, arm_feel, active_flags):
 
     if trajectory_ctx.get("trend_flags", {}).get("rapid_drop"):
         alerts.append("Rapid drop detected — 3+ point decline in arm feel from previous day.")
+
+    if assessment.get("needs_followup"):
+        prompt = assessment.get("followup_prompt")
+        if prompt:
+            alerts.append(f"Arm follow-up needed: {prompt}")
+        else:
+            alerts.append("Arm follow-up needed based on assessment details.")
+
+    for flag in assessment.get("red_flags") or []:
+        if flag == "injury_history_area":
+            alerts.append("Reported area overlaps injury history — staying conservative.")
+            continue
+        alerts.append(f"Arm assessment red flag: {flag.replace('_', ' ')}.")
 
     return alerts
 
@@ -816,9 +863,10 @@ def _build_protocol_adjustments(flag_level, arm_feel, days_since_outing, rotatio
     return pa
 
 
-def _build_reasoning(flag_level, tissue, load, recovery, arm_feel, sleep_hours, trajectory_ctx):
+def _build_reasoning(flag_level, tissue, load, recovery, arm_feel, sleep_hours, trajectory_ctx, arm_assessment=None):
     """Build human-readable reasoning string."""
     parts = []
+    assessment = arm_assessment or {}
 
     if flag_level == "red":
         if tissue >= 7:
@@ -851,6 +899,9 @@ def _build_reasoning(flag_level, tissue, load, recovery, arm_feel, sleep_hours, 
     else:
         parts.append(f"All systems green. Arm feel {arm_feel}/10, sleep {sleep_hours}h. Full protocol.")
 
+    if assessment.get("summary"):
+        parts.append(f"Assessment: {assessment['summary']}")
+
     return " ".join(parts)
 
 
@@ -879,6 +930,74 @@ def _scores(tissue, load, recovery):
     return {"tissue": tissue, "load": load, "recovery": recovery}
 
 
+def _assessment_tissue_adjustment(arm_assessment, days_since_outing, injury_areas):
+    """Translate structured assessment signals into tissue-score pressure."""
+    if not arm_assessment:
+        return 0.0
+
+    score = 0.0
+    sensations = set(arm_assessment.get("sensations") or [])
+    red_flags = set(arm_assessment.get("red_flags") or [])
+    contradictions = set(arm_assessment.get("contradictions") or [])
+    areas = set(arm_assessment.get("areas") or [])
+
+    if "sharp_pain" in red_flags or "numb_tingling" in red_flags:
+        score += 6
+    if red_flags.intersection({"swelling", "felt_a_pop", "grip_weakness"}):
+        score += 7
+    if "different_than_normal" in red_flags or "different_than_normal" in sensations:
+        score += 3
+    if "heavy_dead" in sensations:
+        score += 3
+    if "tight_sore" in sensations:
+        score += 1
+
+    if "high_arm_feel_with_red_flag" in contradictions:
+        score += 3
+    if "low_arm_feel_with_no_issues" in contradictions:
+        score += 2
+    if "no_issues_with_concern_tags" in contradictions:
+        score += 2
+    if "expected_soreness_with_red_flag" in contradictions:
+        score += 3
+
+    injury_text = " ".join(injury_areas or [])
+    if areas.intersection({"forearm", "elbow"}) and ("forearm" in injury_text or "medial_elbow" in injury_text):
+        score += 1
+
+    if arm_assessment.get("expected_soreness") and not red_flags:
+        if days_since_outing is not None and 0 <= days_since_outing <= 2:
+            score -= 1.5
+        else:
+            score += 1
+
+    return score
+
+
+def _apply_assessment_flag_floor(flag_level, arm_assessment):
+    """Keep structured assessment concerns conservative on legacy triage path."""
+    if not arm_assessment:
+        return flag_level
+    order = {"green": 0, "modified_green": 1, "yellow": 2, "red": 3}
+    red_flags = set(arm_assessment.get("red_flags") or [])
+    contradictions = set(arm_assessment.get("contradictions") or [])
+    sensations = set(arm_assessment.get("sensations") or [])
+
+    floor = "green"
+    if red_flags.intersection({"sharp_pain", "numb_tingling", "swelling", "felt_a_pop", "grip_weakness"}):
+        floor = "red"
+    elif contradictions.intersection({
+        "high_arm_feel_with_red_flag",
+        "expected_soreness_with_red_flag",
+        "no_issues_with_concern_tags",
+    }) or "different_than_normal" in sensations:
+        floor = "yellow"
+    elif sensations.intersection({"tight_sore", "heavy_dead"}):
+        floor = "modified_green"
+
+    return floor if order[floor] > order.get(flag_level, 0) else flag_level
+
+
 def _get_tier(pitcher_baseline):
     if pitcher_baseline is None:
         return 1
@@ -886,7 +1005,8 @@ def _get_tier(pitcher_baseline):
 
 
 def _red_result(reasoning, active_flags, modifications, alerts, protocol_adjustments,
-                category_scores=None, trajectory_context=None, baseline_tier=1):
+                category_scores=None, trajectory_context=None, baseline_tier=1,
+                arm_assessment=None):
     """Build a RED flag result with shutdown protocol."""
     modifications.extend(["no_lifting", "no_throwing"])
     alerts.append("Recommend trainer evaluation.")
@@ -910,5 +1030,6 @@ def _red_result(reasoning, active_flags, modifications, alerts, protocol_adjustm
         "category_scores": category_scores or _scores(0, 0, 0),
         "trajectory_context": trajectory_context or _empty_trajectory_context(),
         "baseline_tier": baseline_tier,
+        "arm_assessment": arm_assessment or {},
     }
     return result

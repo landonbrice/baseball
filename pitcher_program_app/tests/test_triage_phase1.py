@@ -945,3 +945,78 @@ class TestArmClarification:
             pitcher_baseline=_make_baseline(tier=3),
         )
         assert with_expected["category_scores"]["tissue"] == base["category_scores"]["tissue"]
+
+
+class TestArmAssessmentTriage:
+    def test_red_flag_assessment_forces_protective_result(self):
+        from bot.services.triage import triage
+
+        result = triage(
+            arm_feel=8,
+            sleep_hours=8.0,
+            pitcher_profile=_make_profile(),
+            pitcher_baseline=_make_baseline(tier=3),
+            arm_assessment={
+                "arm_feel": 8,
+                "areas": ["elbow"],
+                "sensations": ["sharp_pain"],
+                "red_flags": ["sharp_pain"],
+                "contradictions": ["high_arm_feel_with_red_flag"],
+                "needs_followup": True,
+                "followup_prompt": "Did that show up while throwing?",
+                "summary": "High overall arm rating but sharp elbow pain reported.",
+            },
+        )
+
+        assert result["flag_level"] == "red"
+        assert "no_throwing" in result["modifications"]
+        assert any("sharp pain" in a or "sharp_pain" in a for a in result["alerts"])
+
+    def test_expected_soreness_assessment_softens_only_with_area_no_red_flags(self):
+        from bot.services.triage import triage
+
+        profile = _make_profile(days_since_outing=1)
+        base = triage(
+            arm_feel=5,
+            sleep_hours=8.0,
+            pitcher_profile=profile,
+            pitcher_baseline=_make_baseline(tier=3),
+        )
+        expected = triage(
+            arm_feel=5,
+            sleep_hours=8.0,
+            pitcher_profile=profile,
+            pitcher_baseline=_make_baseline(tier=3),
+            arm_assessment={
+                "arm_feel": 5,
+                "areas": ["forearm"],
+                "sensations": [],
+                "expected_soreness": True,
+                "red_flags": [],
+                "contradictions": [],
+                "needs_followup": False,
+                "summary": "Expected forearm soreness.",
+            },
+        )
+
+        assert expected["category_scores"]["tissue"] < base["category_scores"]["tissue"]
+
+    def test_low_score_no_issues_stays_conservative(self):
+        from bot.services.triage import triage
+
+        result = triage(
+            arm_feel=4,
+            sleep_hours=8.0,
+            pitcher_profile=_make_profile(),
+            arm_assessment={
+                "arm_feel": 4,
+                "detail_tags": ["no_issues"],
+                "red_flags": [],
+                "contradictions": ["low_arm_feel_with_no_issues"],
+                "needs_followup": True,
+                "summary": "Arm 4/10 with no issues reported.",
+            },
+        )
+
+        assert result["flag_level"] == "red"
+        assert result["arm_assessment"]["needs_followup"] is True

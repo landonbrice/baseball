@@ -80,6 +80,22 @@ def _build_python_notes(triage_result, flag_level, checkin_inputs):
     arm_report = (checkin_inputs or {}).get("arm_report", "")
     if arm_report:
         notes.append(f'Arm report noted: "{arm_report}"')
+    arm_assessment = (checkin_inputs or {}).get("arm_assessment") or {}
+    if arm_assessment:
+        summary = arm_assessment.get("summary")
+        areas = ", ".join(arm_assessment.get("areas") or [])
+        red_flags = ", ".join(arm_assessment.get("red_flags") or [])
+        needs_followup = arm_assessment.get("needs_followup")
+        parts = [f"Arm assessment: {arm_assessment.get('arm_feel', '—')}/10"]
+        if summary:
+            parts.append(summary)
+        if areas:
+            parts.append(f"Areas: {areas}")
+        if red_flags:
+            parts.append(f"Red flags: {red_flags}")
+        if needs_followup:
+            parts.append("Needs follow-up")
+        notes.append(". ".join(parts))
     if not notes:
         notes.append("Full protocol today. Focus on form and intent.")
     return notes
