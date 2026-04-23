@@ -19,6 +19,18 @@ logger = logging.getLogger(__name__)
 
 _POPULATION_BASELINES = None
 
+_PROVISIONAL_THRESHOLD = 5   # check-ins
+_FULL_THRESHOLD = 14         # check-ins
+_POP_PRIOR_WEIGHT = 0.70     # A31
+
+
+def _baseline_state(total_check_ins: int) -> str:
+    if total_check_ins < _PROVISIONAL_THRESHOLD:
+        return "no_baseline"
+    if total_check_ins < _FULL_THRESHOLD:
+        return "provisional"
+    return "full"
+
 
 def _load_population_baselines() -> dict:
     global _POPULATION_BASELINES
@@ -127,10 +139,23 @@ def compute_pitcher_baseline(daily_entries: list, rotation_length: int = 7) -> d
         _compute_chronic_drift(sorted_entries, overall_mean, overall_sd)
     )
 
+    state = _baseline_state(total_check_ins)
+    observed_mean = round(overall_mean, 1)
+
+    if state == "provisional":
+        pop = _load_population_baselines()
+        pop_mean = pop.get("population_defaults", {}).get("arm_feel_mean", 7.5)
+        blended = _POP_PRIOR_WEIGHT * pop_mean + (1 - _POP_PRIOR_WEIGHT) * overall_mean
+        effective_overall_mean = round(blended, 2)
+    else:
+        effective_overall_mean = observed_mean
+
     return {
         "tier": tier,
+        "baseline_state": state,
         "rotation_day_baselines": rotation_day_baselines,
-        "overall_mean": round(overall_mean, 1),
+        "overall_mean": effective_overall_mean,
+        "observed_mean": observed_mean,
         "overall_sd": round(overall_sd, 1),
         "rotations_completed": rotations_completed,
         "total_check_ins": total_check_ins,
@@ -148,8 +173,10 @@ def _empty_baseline() -> dict:
     defaults = pop.get("population_defaults", {})
     return {
         "tier": 1,
+        "baseline_state": "no_baseline",
         "rotation_day_baselines": {},
         "overall_mean": defaults.get("arm_feel_mean", 7.5),
+        "observed_mean": None,
         "overall_sd": defaults.get("arm_feel_sd", 1.2),
         "rotations_completed": 0,
         "total_check_ins": 0,
