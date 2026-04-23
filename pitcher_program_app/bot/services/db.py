@@ -178,6 +178,7 @@ _DAILY_ENTRY_COLUMNS = {
     "plan_narrative", "morning_brief", "plan_generated", "actual_logged",
     "bot_observations", "arm_care", "lifting", "throwing", "warmup", "mobility", "notes",
     "completed_exercises", "soreness_response", "research_sources", "team_id", "active_team_block_id",
+    "rationale",  # F4 — {rationale_short, rationale_detail}
 }
 
 
