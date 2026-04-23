@@ -1,0 +1,61 @@
+# pitcher_program_app/data/knowledge/modification_phrases.yaml
+# Tag → natural-language phrase. `short` feeds rationale_short (≤120 chars total);
+# `detail` feeds rationale_detail.response_line. `{pct}` is templated from
+# protocol_adjustments.lifting_intensity_cap when present.
+# Mirrors bot/services/vocabulary.MODIFICATION_TAGS — CI fails if out of sync.
+
+fpm_volume:
+  short: "trimmed FPM volume"
+  detail: "FPM volume trimmed (tightness + elbow history)"
+
+reduce_pressing:
+  short: "pulled pressing work"
+  detail: "Pressing movements removed from today's lift"
+
+rpe_cap_56:
+  short: "capped at RPE 5-6"
+  detail: "Lifting intensity capped at RPE 5-6"
+
+rpe_cap_67:
+  short: "capped at RPE 6-7"
+  detail: "Lifting intensity capped at RPE 6-7"
+
+maintain_compounds_reduced:
+  short: "holding compounds, reduced intensity"
+  detail: "Holding your compounds at reduced intensity"
+
+no_high_intent_throw:
+  short: "no high-intent throwing"
+  detail: "No high-intent throwing today"
+
+cap_hybrid_b:
+  short: "capped at Hybrid B"
+  detail: "Throwing capped at Hybrid B intent"
+
+no_lifting:
+  short: "no lift"
+  detail: "No lifting today"
+
+no_throwing:
+  short: "no throwing"
+  detail: "No throwing today"
+
+primer_session:
+  short: "primer session"
+  detail: "Primer session — 48hr ramp"
+
+low_volume_activation:
+  short: "activation only"
+  detail: "Low-volume activation focus"
+
+modified_green:
+  short: "modified day"
+  detail: "Proceeding with awareness"
+
+elevated_fpm_history:
+  short: "trimmed FPM (history)"
+  detail: "FPM volume trimmed — history-driven precaution"
+
+expected_soreness_override:
+  short: "normal soreness, full program"
+  detail: "Confirmed normal soreness — full program"
