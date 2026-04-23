@@ -9,6 +9,7 @@ from bot.services.context_manager import load_profile, load_context, get_recent_
 from bot.services.research_resolver import resolve_research
 from bot.services.health_monitor import record_and_check_emergency
 from bot.services.exercise_pool import hydrate_exercises
+from bot.services.day_focus import derive_day_focus
 
 logger = logging.getLogger(__name__)
 
@@ -351,6 +352,7 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
             hydrate_exercises(blk.get("exercises") or [])
         if python_plan.get("lifting"):
             hydrate_exercises(python_plan["lifting"].get("exercises") or [])
+        python_plan["day_focus"] = derive_day_focus(python_plan, python_plan.get("modifications_applied") or [])
         return python_plan
 
     # Parse structured JSON from LLM response
@@ -404,7 +406,7 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
                     existing_reasoning = structured_throwing.get("reasoning", "")
                     structured_throwing["reasoning"] = f"{existing_reasoning} {llm_detail}".strip() if existing_reasoning else llm_detail
 
-            return {
+            final_plan = {
                 "narrative": narrative,
                 "morning_brief": morning_brief,
                 "arm_care": arm_care_data,
@@ -423,6 +425,8 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
                 "source_reason": None,
                 "research_sources": [doc.id for doc in research_payload.loaded_docs],
             }
+            final_plan["day_focus"] = derive_day_focus(final_plan, final_plan.get("modifications_applied") or [])
+            return final_plan
         except Exception as e:
             logger.warning(f"Error assembling LLM plan ({type(e).__name__}: {e}), using Python-constructed plan")
             python_plan["source_reason"] = f"llm_assembly_error:{type(e).__name__}: {e}"
@@ -433,6 +437,7 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
                 hydrate_exercises(blk.get("exercises") or [])
             if python_plan.get("lifting"):
                 hydrate_exercises(python_plan["lifting"].get("exercises") or [])
+            python_plan["day_focus"] = derive_day_focus(python_plan, python_plan.get("modifications_applied") or [])
             return python_plan
 
     # Fallback: LLM returned unparseable text — use Python-constructed plan
@@ -447,6 +452,7 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
         hydrate_exercises(blk.get("exercises") or [])
     if python_plan.get("lifting"):
         hydrate_exercises(python_plan["lifting"].get("exercises") or [])
+    python_plan["day_focus"] = derive_day_focus(python_plan, python_plan.get("modifications_applied") or [])
     return python_plan
 
 
