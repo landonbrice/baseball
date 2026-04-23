@@ -226,3 +226,68 @@ def test_category_red_uses_category_framing_not_instant():
     out = generate_triage_rationale(tri, ctx)
     assert not out["short"].startswith("Acute concern")
     assert out["detail"]["status_line"] != "Red — acute concern"
+
+
+# ---------- reliever branch + WHOOP absent + cold-start (Task 9) ----------
+
+def test_reliever_modified_green_uses_appearance_language():
+    tri = _triage("modified_green", tissue=7.5, mods=["maintain_compounds_reduced"])
+    ctx = _ctx(role="reliever", arm_feel=7)
+    ctx["days_since_appearance"] = 3
+    out = generate_triage_rationale(tri, ctx)
+    text = out["short"].lower() + " " + out["detail"]["signal_line"].lower()
+    assert "appearance" in text or "reset" in text
+
+
+def test_starter_uses_rotation_language():
+    tri = _triage("modified_green", tissue=7.5, mods=["maintain_compounds_reduced"])
+    ctx = _ctx(role="starter", arm_feel=7, dso=1)
+    out = generate_triage_rationale(tri, ctx)
+    text = out["short"].lower()
+    assert "post-outing" in text or "recovery" in text
+
+
+def test_whoop_absent_silently_omits_hrv_signals():
+    tri = _triage("yellow", tissue=5.2, mods=[])
+    ctx = _ctx(arm_feel=5, sleep=5.5, whoop=None)
+    out = generate_triage_rationale(tri, ctx)
+    signal = out["detail"]["signal_line"].lower()
+    assert "hrv" not in signal
+    assert "recovery score" not in signal
+
+
+def test_whoop_present_includes_hrv_when_below_baseline():
+    tri = _triage("yellow", tissue=5.2, mods=[])
+    ctx = _ctx(arm_feel=5, whoop={"hrv": 40, "hrv_7day_avg": 50})  # 20% below
+    out = generate_triage_rationale(tri, ctx)
+    assert "HRV" in out["detail"]["signal_line"] or "20%" in out["detail"]["signal_line"]
+
+
+def test_cold_start_no_baseline_appends_establishing_subscript():
+    tri = _triage("green", tissue=7.0)
+    ctx = _ctx(state="no_baseline", check_ins=3)
+    out = generate_triage_rationale(tri, ctx)
+    # Green keeps static short; detail gets subscript
+    assert "3/14" in out["detail"]["signal_line"] or "establishing" in out["detail"]["signal_line"].lower()
+
+
+def test_cold_start_provisional_yellow_includes_provisional_suffix():
+    tri = _triage("yellow", tissue=5.0, tier=1)
+    ctx = _ctx(state="provisional", check_ins=7, arm_feel=5)
+    out = generate_triage_rationale(tri, ctx)
+    assert "(provisional)" in out["detail"]["status_line"].lower() or "provisional" in out["detail"]["status_line"].lower()
+    assert "7/14" in out["detail"]["signal_line"]
+
+
+def test_fallback_plan_appends_response_suffix():
+    tri = _triage("yellow", tissue=5.2, mods=["maintain_compounds_reduced"])
+    ctx = _ctx(arm_feel=5, plan_source="python_fallback")
+    out = generate_triage_rationale(tri, ctx)
+    assert "fallback plan" in out["detail"]["response_line"].lower()
+
+
+def test_llm_enriched_no_fallback_suffix():
+    tri = _triage("yellow", tissue=5.2, mods=["maintain_compounds_reduced"])
+    ctx = _ctx(arm_feel=5, plan_source="llm_enriched")
+    out = generate_triage_rationale(tri, ctx)
+    assert "fallback plan" not in out["detail"]["response_line"].lower()

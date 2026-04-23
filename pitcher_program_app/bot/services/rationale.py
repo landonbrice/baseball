@@ -149,15 +149,17 @@ def _green_rationale(ctx: dict) -> dict:
 
 
 def _category_status_line(flag: str, dominant: str, tier: int, baseline_state: str,
-                          post_outing: bool = False) -> str:
+                          post_outing: bool = False, reliever_reset: bool = False) -> str:
     core = {
         "modified_green": "Modified green",
         "yellow": "Yellow",
         "red": "Red",
     }.get(flag, flag.title())
 
-    # Post-outing bypasses category framing per spec voice rules
-    if post_outing and flag == "modified_green":
+    # Reliever reset + post-outing bypass category framing per spec voice rules
+    if reliever_reset and flag == "modified_green":
+        descriptor = "reliever reset"
+    elif post_outing and flag == "modified_green":
         descriptor = "post-outing protocol"
     else:
         label_map = {"tissue": "tissue concern", "load": "load concern", "recovery": "recovery concern"}
@@ -226,10 +228,30 @@ def _post_outing_short(ctx: dict, triage: dict) -> str:
     return base
 
 
+def _reset_short_reliever(ctx: dict) -> str:
+    """Appearance-framed short line for reliever modified-green."""
+    dsa = ctx.get("days_since_appearance", ctx.get("days_since_outing"))
+    af = ctx.get("arm_feel")
+    if dsa is not None:
+        pieces = [f"Reset day — {dsa} day{'s' if dsa != 1 else ''} since last appearance"]
+    else:
+        pieces = ["Reset day"]
+    if af is not None:
+        pieces.append(f"arm feel {af}")
+    s = ", ".join(pieces) + "."
+    if len(s) > 120:
+        s = s[:117] + "..."
+    return s
+
+
 def _compose_short(flag: str, ctx: dict, triage: dict, dominant: str) -> str:
     """Compose ≤ 120 char short line."""
-    if flag == "modified_green" and ctx.get("days_since_outing") in (0, 1):
-        return _post_outing_short(ctx, triage)
+    role = ctx.get("role", "starter")
+    if flag == "modified_green":
+        if role == "reliever":
+            return _reset_short_reliever(ctx)
+        if ctx.get("days_since_outing") in (0, 1):
+            return _post_outing_short(ctx, triage)
     af = ctx.get("arm_feel")
     mods = [m if isinstance(m, str) else m.get("tag", "") for m in (triage.get("modifications") or [])]
     pa = triage.get("protocol_adjustments") or {}
@@ -331,6 +353,18 @@ def generate_triage_rationale(triage_result: dict, pitcher_context: dict) -> dic
     # Green → static phrase (A14)
     if flag == "green":
         out = _green_rationale(ctx)
+        # Cold-start appendage (A3) — also applies to green detail
+        total = baseline.get("total_check_ins", 0)
+        if baseline_state == "no_baseline":
+            out["detail"]["signal_line"] = (
+                out["detail"]["signal_line"].rstrip() +
+                f" Baseline establishing — {total}/14 check-ins."
+            ).strip()
+        elif baseline_state == "provisional":
+            out["detail"]["signal_line"] = (
+                out["detail"]["signal_line"].rstrip() +
+                f" Tier classified from {total}/14 check-ins — may shift as more data arrives."
+            ).strip()
         logger.info(
             "rationale | pitcher=%s | type=triage | path=green | tier=%s | state=%s | short_len=%d",
             ctx.get("pitcher_id"), tier, baseline_state, len(out["short"]),
@@ -351,8 +385,14 @@ def generate_triage_rationale(triage_result: dict, pitcher_context: dict) -> dic
     scores = triage_result.get("category_scores") or {}
     baseline_mean = baseline.get("overall_mean", 8.0)
     dominant = _dominant_category(scores, baseline_mean)
-    post_outing = ctx.get("days_since_outing") in (0, 1)
-    status = _category_status_line(flag, dominant, tier, baseline_state, post_outing=post_outing)
+    role = ctx.get("role", "starter")
+    is_starter_post_outing = role == "starter" and ctx.get("days_since_outing") in (0, 1)
+    is_reliever_reset = role == "reliever" and flag == "modified_green"
+    status = _category_status_line(
+        flag, dominant, tier, baseline_state,
+        post_outing=is_starter_post_outing,
+        reliever_reset=is_reliever_reset,
+    )
     signal = _signal_line(ctx, triage_result, dominant)
     response = _response_line(triage_result)
 
