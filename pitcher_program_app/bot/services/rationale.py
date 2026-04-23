@@ -255,6 +255,67 @@ def _compose_short(flag: str, ctx: dict, triage: dict, dominant: str) -> str:
     return short
 
 
+_UCL_KEYWORDS = re.compile(r"\b(ucl|ulnar\s+collateral)\b", re.IGNORECASE)
+
+
+def _is_instant_red(triage_result: dict, pitcher_context: dict) -> tuple[bool, str | None]:
+    """Return (is_instant, trigger_name). Keep in sync with triage.py instant-red logic.
+
+    Current triage.py instant-red triggers (verified 2026-04-22):
+      - arm_feel <= 2
+      - ucl_sensation (keyword in arm_clarification)
+    Do NOT add branches for triggers not yet in triage.
+    """
+    if triage_result.get("flag_level") != "red":
+        return False, None
+    af = pitcher_context.get("arm_feel")
+    if af is not None and af <= 2:
+        return True, "arm_feel"
+    clar = pitcher_context.get("arm_clarification") or ""
+    if _UCL_KEYWORDS.search(clar):
+        return True, "ucl"
+    return False, None
+
+
+def _instant_red_rationale(trigger: str, ctx: dict, triage: dict) -> dict:
+    af = ctx.get("arm_feel")
+    sleep = ctx.get("sleep_hours")
+    if trigger == "ucl":
+        short = "Acute concern — UCL sensation reported on check-in."
+        signal = "UCL sensation reported on this morning's check-in. Shutdown protocol."
+        response = "No throwing. No lifting. Trainer consult required before next session."
+    else:  # arm_feel
+        bits = [f"arm feel dropped to {af}"]
+        if sleep is not None and sleep < 6:
+            bits.append(f"sleep {sleep} hrs")
+        short = "Acute concern — " + ", ".join(bits) + "."
+        signal_bits = [f"Arm feel {af} reported this morning"]
+        if sleep is not None:
+            signal_bits.append(f"sleep {sleep} hrs")
+        whoop = ctx.get("whoop_data") or {}
+        if whoop.get("hrv") and whoop.get("hrv_7day_avg"):
+            delta = round((1 - whoop["hrv"] / whoop["hrv_7day_avg"]) * 100)
+            if delta >= 10:
+                signal_bits.append(f"HRV {delta}% below baseline")
+        signal = ". ".join(signal_bits) + "."
+        response = "Recovery-only day. Trainer consult recommended before next throwing session."
+
+    # Fallback-plan suffix
+    if ctx.get("plan_source") == "python_fallback":
+        response = f"{response} (running on fallback plan — LLM review unavailable)"
+
+    if len(short) > 120:
+        short = short[:117] + "..."
+    return {
+        "short": short,
+        "detail": {
+            "status_line": "Red — acute concern",
+            "signal_line": signal,
+            "response_line": response,
+        },
+    }
+
+
 # ---------------------------------------------------------------------------
 # Public API — filled in by Tasks 7-10
 # ---------------------------------------------------------------------------
@@ -273,6 +334,16 @@ def generate_triage_rationale(triage_result: dict, pitcher_context: dict) -> dic
         logger.info(
             "rationale | pitcher=%s | type=triage | path=green | tier=%s | state=%s | short_len=%d",
             ctx.get("pitcher_id"), tier, baseline_state, len(out["short"]),
+        )
+        return out
+
+    # Instant-red branch (A4) — bypasses category framing
+    is_instant, trigger = _is_instant_red(triage_result, ctx)
+    if is_instant:
+        out = _instant_red_rationale(trigger, ctx, triage_result)
+        logger.info(
+            "rationale | pitcher=%s | type=triage | path=instant_red_%s | short_len=%d",
+            ctx.get("pitcher_id"), trigger, len(out["short"]),
         )
         return out
 

@@ -193,3 +193,36 @@ def test_tiebreak_within_0_3_fixed_priority_tissue_over_recovery():
     # Dominant should be tissue
     assert "tissue" in out["detail"]["status_line"].lower() or \
            "arm" in out["detail"]["status_line"].lower()
+
+
+def test_instant_red_arm_feel_2():
+    tri = _triage("red", tissue=1.0, load=4.0, recovery=4.0,
+                  mods=["no_lifting", "no_throwing"], tier=2)
+    ctx = _ctx(arm_feel=2, sleep=6.0)
+    out = generate_triage_rationale(tri, ctx)
+    assert out["short"].startswith("Acute concern — ")
+    assert "2" in out["short"]
+    assert out["detail"]["status_line"] == "Red — acute concern"
+    assert "no throwing" in out["detail"]["response_line"].lower() or \
+           "trainer" in out["detail"]["response_line"].lower()
+
+
+def test_instant_red_ucl_sensation():
+    tri = _triage("red", tissue=2.0, load=4.0, recovery=4.0,
+                  mods=["no_lifting", "no_throwing"], tier=2)
+    ctx = _ctx(arm_feel=5)
+    ctx["arm_clarification"] = "UCL sensation on inside of elbow this morning"
+    out = generate_triage_rationale(tri, ctx)
+    assert out["short"].startswith("Acute concern — ")
+    assert "UCL" in out["short"]
+    assert out["detail"]["status_line"] == "Red — acute concern"
+
+
+def test_category_red_uses_category_framing_not_instant():
+    # Red flag from category compound stress, NOT instant trigger
+    tri = _triage("red", tissue=3.5, load=3.5, recovery=3.5,
+                  mods=["no_high_intent_throw"], tier=2)
+    ctx = _ctx(arm_feel=4)  # >2, no UCL clarification
+    out = generate_triage_rationale(tri, ctx)
+    assert not out["short"].startswith("Acute concern")
+    assert out["detail"]["status_line"] != "Red — acute concern"
