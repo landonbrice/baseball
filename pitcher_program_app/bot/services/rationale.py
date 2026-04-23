@@ -30,10 +30,19 @@ _TIER_LABELS = {1: "Sensitive", 2: "Standard", 3: "Resilient"}
 
 
 def _tier_label(tier: int, baseline_state: str) -> str:
+    """Return bare tier name. Provisional suffix handled by callers that wrap in parens."""
+    return _TIER_LABELS.get(tier, "Standard")
+
+
+def _tier_parenthetical(tier: int, baseline_state: str) -> str | None:
+    """Return the parenthetical addition to a status line, or None when default (Standard + full)."""
     label = _TIER_LABELS.get(tier, "Standard")
+    is_default = tier == 2 and baseline_state != "provisional"
+    if is_default:
+        return None
     if baseline_state == "provisional":
-        return f"{label} (provisional)"
-    return label
+        return f"({label}, provisional)"
+    return f"({label})"
 
 
 # ---------------------------------------------------------------------------
@@ -125,7 +134,7 @@ def _green_rationale(ctx: dict) -> dict:
     if af is not None:
         signal_bits.append(f"arm feel holding at {af}")
     if sleep is not None:
-        signal_bits.append(f"sleep {sleep}")
+        signal_bits.append(f"sleep {sleep} hrs")
     if ctx.get("whoop_data"):
         signal_bits.append("recovery green")
     signal = ", ".join(signal_bits).capitalize() + "." if signal_bits else "All green signals."
@@ -139,18 +148,25 @@ def _green_rationale(ctx: dict) -> dict:
     }
 
 
-def _category_status_line(flag: str, dominant: str, tier: int, baseline_state: str) -> str:
-    label_map = {"tissue": "tissue concern", "load": "load concern", "recovery": "recovery concern"}
+def _category_status_line(flag: str, dominant: str, tier: int, baseline_state: str,
+                          post_outing: bool = False) -> str:
     core = {
         "modified_green": "Modified green",
         "yellow": "Yellow",
         "red": "Red",
     }.get(flag, flag.title())
-    status = f"{core} — {label_map.get(dominant, dominant)}"
-    # Include tier label only when non-default OR provisional (A30 + spec Tier Display)
-    tier_label = _tier_label(tier, baseline_state)
-    if tier_label != "Standard":
-        status = f"{status} ({tier_label})"
+
+    # Post-outing bypasses category framing per spec voice rules
+    if post_outing and flag == "modified_green":
+        descriptor = "post-outing protocol"
+    else:
+        label_map = {"tissue": "tissue concern", "load": "load concern", "recovery": "recovery concern"}
+        descriptor = label_map.get(dominant, dominant)
+
+    status = f"{core} — {descriptor}"
+    paren = _tier_parenthetical(tier, baseline_state)
+    if paren:
+        status = f"{status} {paren}"
     return status
 
 
@@ -190,10 +206,12 @@ def _response_line(triage: dict) -> str:
     pa = triage.get("protocol_adjustments") or {}
     if not mods:
         return "Full program today."
-    phrase = _join_phrases(mods, pa, "detail")
-    if phrase and not phrase.endswith("."):
-        phrase += "."
-    return phrase or "Full program today."
+    # Detail phrases are complete sentences — period-joined (spec A32 voice)
+    parts = [_phrase_detail(t, pa) for t in mods if t]
+    parts = [p.rstrip(".").strip() for p in parts if p]
+    if not parts:
+        return "Full program today."
+    return ". ".join(parts) + "."
 
 
 def _post_outing_short(ctx: dict, triage: dict) -> str:
@@ -231,7 +249,7 @@ def _compose_short(flag: str, ctx: dict, triage: dict, dominant: str) -> str:
         bits = [f"{prefix}"]
     if mod_phrase:
         bits.append(mod_phrase)
-    short = ". ".join(bits) + "."
+    short = ", ".join(bits) + "."
     if len(short) > 120:
         short = short[:117] + "..."
     return short
@@ -262,7 +280,8 @@ def generate_triage_rationale(triage_result: dict, pitcher_context: dict) -> dic
     scores = triage_result.get("category_scores") or {}
     baseline_mean = baseline.get("overall_mean", 8.0)
     dominant = _dominant_category(scores, baseline_mean)
-    status = _category_status_line(flag, dominant, tier, baseline_state)
+    post_outing = ctx.get("days_since_outing") in (0, 1)
+    status = _category_status_line(flag, dominant, tier, baseline_state, post_outing=post_outing)
     signal = _signal_line(ctx, triage_result, dominant)
     response = _response_line(triage_result)
 
