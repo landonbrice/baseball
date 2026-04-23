@@ -68,21 +68,228 @@ def sanitize_for_llm(rationale_detail: dict | None) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Composition helpers (Task 7)
+# ---------------------------------------------------------------------------
+
+_TISSUE_TIEBREAK_ORDER = ["tissue", "recovery", "load"]  # A12
+
+
+def _dominant_category(category_scores: dict, baseline_mean: float = 8.0) -> str:
+    """Return category with widest NEGATIVE gap from baseline. Tiebreak ±0.3 → tissue > recovery > load."""
+    gaps = {c: baseline_mean - (category_scores.get(c, baseline_mean) or baseline_mean)
+            for c in _TISSUE_TIEBREAK_ORDER}
+    max_gap = max(gaps.values())
+    within_band = [c for c in _TISSUE_TIEBREAK_ORDER if max_gap - gaps[c] <= 0.3]
+    # within_band is already in priority order
+    return within_band[0]
+
+
+def _phrase_short(tag: str, pa: dict) -> str:
+    phrases = _load_phrases()
+    entry = phrases.get(tag, {})
+    template = entry.get("short", tag)
+    return _fill_pct(template, pa)
+
+
+def _phrase_detail(tag: str, pa: dict) -> str:
+    phrases = _load_phrases()
+    entry = phrases.get(tag, {})
+    template = entry.get("detail", tag)
+    return _fill_pct(template, pa)
+
+
+def _fill_pct(template: str, pa: dict) -> str:
+    if "{pct}" not in template:
+        return template
+    cap = (pa or {}).get("lifting_intensity_cap")
+    if cap is None:
+        return template.replace("{pct}", "")
+    # cap is a decimal like 0.8 → show the DROP (20%)
+    pct = round((1 - cap) * 100)
+    return template.replace("{pct}", str(pct))
+
+
+def _join_phrases(tags: list, pa: dict, kind: str) -> str:
+    if not tags:
+        return ""
+    getter = _phrase_short if kind == "short" else _phrase_detail
+    parts = [getter(t, pa) for t in tags if t]
+    parts = [p for p in parts if p]
+    return ", ".join(parts)
+
+
+def _green_rationale(ctx: dict) -> dict:
+    af = ctx.get("arm_feel")
+    sleep = ctx.get("sleep_hours")
+    signal_bits = []
+    if af is not None:
+        signal_bits.append(f"arm feel holding at {af}")
+    if sleep is not None:
+        signal_bits.append(f"sleep {sleep}")
+    if ctx.get("whoop_data"):
+        signal_bits.append("recovery green")
+    signal = ", ".join(signal_bits).capitalize() + "." if signal_bits else "All green signals."
+    return {
+        "short": "All systems good.",
+        "detail": {
+            "status_line": "Green",
+            "signal_line": signal,
+            "response_line": "Full program today.",
+        },
+    }
+
+
+def _category_status_line(flag: str, dominant: str, tier: int, baseline_state: str) -> str:
+    label_map = {"tissue": "tissue concern", "load": "load concern", "recovery": "recovery concern"}
+    core = {
+        "modified_green": "Modified green",
+        "yellow": "Yellow",
+        "red": "Red",
+    }.get(flag, flag.title())
+    status = f"{core} — {label_map.get(dominant, dominant)}"
+    # Include tier label only when non-default OR provisional (A30 + spec Tier Display)
+    tier_label = _tier_label(tier, baseline_state)
+    if tier_label != "Standard":
+        status = f"{status} ({tier_label})"
+    return status
+
+
+def _signal_line(ctx: dict, triage: dict, dominant: str) -> str:
+    """Name specific values + windows. Non-WHOOP: silent on HRV/recovery."""
+    parts = []
+    af = ctx.get("arm_feel")
+    sleep = ctx.get("sleep_hours")
+    trajectory = triage.get("trajectory_context") or {}
+    history = trajectory.get("arm_feel_recent") or []
+
+    # Trend if present
+    if history and af is not None and len(history) >= 2:
+        arrow = " → ".join(str(h) for h in (list(history) + [af])[-3:])
+        parts.append(f"Arm feel {arrow}")
+    elif af is not None:
+        parts.append(f"Arm feel {af}")
+
+    if sleep is not None and sleep < 7.0:
+        parts.append(f"sleep {sleep} hrs")
+
+    whoop = ctx.get("whoop_data") or {}
+    if whoop:
+        hrv = whoop.get("hrv")
+        hrv_avg = whoop.get("hrv_7day_avg")
+        if hrv and hrv_avg:
+            delta_pct = round((1 - hrv / hrv_avg) * 100)
+            if delta_pct >= 10:
+                parts.append(f"HRV {delta_pct}% below baseline")
+
+    return ", ".join(parts) + "." if parts else ""
+
+
+def _response_line(triage: dict) -> str:
+    mods = [m if isinstance(m, str) else m.get("tag", "") for m in (triage.get("modifications") or [])]
+    mods = [m for m in mods if m]
+    pa = triage.get("protocol_adjustments") or {}
+    if not mods:
+        return "Full program today."
+    phrase = _join_phrases(mods, pa, "detail")
+    if phrase and not phrase.endswith("."):
+        phrase += "."
+    return phrase or "Full program today."
+
+
+def _post_outing_short(ctx: dict, triage: dict) -> str:
+    dso = ctx.get("days_since_outing")
+    af = ctx.get("arm_feel")
+    pieces = [f"Recovery day — {dso} day{'s' if dso != 1 else ''} post-outing"]
+    if af is not None:
+        pieces.append(f"arm feel {af}")
+    base = ", ".join(pieces) + "."
+    if len(base) > 120:
+        base = base[:117] + "..."
+    return base
+
+
+def _compose_short(flag: str, ctx: dict, triage: dict, dominant: str) -> str:
+    """Compose ≤ 120 char short line."""
+    if flag == "modified_green" and ctx.get("days_since_outing") in (0, 1):
+        return _post_outing_short(ctx, triage)
+    af = ctx.get("arm_feel")
+    mods = [m if isinstance(m, str) else m.get("tag", "") for m in (triage.get("modifications") or [])]
+    pa = triage.get("protocol_adjustments") or {}
+    mod_phrase = _join_phrases(mods, pa, "short")
+
+    prefix = {
+        "modified_green": "Modified day",
+        "yellow": "Yellow",
+        "red": "Red",
+    }.get(flag, flag.title())
+
+    if dominant == "tissue" and af is not None:
+        bits = [f"{prefix} — arm feel {af}"]
+    elif dominant == "recovery":
+        bits = [f"{prefix} — recovery drifting"]
+    else:
+        bits = [f"{prefix}"]
+    if mod_phrase:
+        bits.append(mod_phrase)
+    short = ". ".join(bits) + "."
+    if len(short) > 120:
+        short = short[:117] + "..."
+    return short
+
+
+# ---------------------------------------------------------------------------
 # Public API — filled in by Tasks 7-10
 # ---------------------------------------------------------------------------
 
 def generate_triage_rationale(triage_result: dict, pitcher_context: dict) -> dict:
-    """Compose {short, detail{status, signal, response}} from triage output."""
-    # Stubbed — composition branches land in Tasks 7-10. Skeleton returns
-    # a safe default so structural tests pass.
+    """Compose {short, detail} from a Phase 1 triage result + pitcher context."""
     flag = triage_result.get("flag_level", "green")
-    short = "All systems good." if flag == "green" else f"{flag.replace('_', ' ').title()} — see detail."
-    detail = {
-        "status_line": flag.replace("_", " ").title(),
-        "signal_line": "",
-        "response_line": "",
+    ctx = pitcher_context or {}
+    baseline = ctx.get("baseline") or {}
+    baseline_state = baseline.get("baseline_state", "full")
+    tier = triage_result.get("baseline_tier") or baseline.get("tier", 2)
+
+    # Green → static phrase (A14)
+    if flag == "green":
+        out = _green_rationale(ctx)
+        logger.info(
+            "rationale | pitcher=%s | type=triage | path=green | tier=%s | state=%s | short_len=%d",
+            ctx.get("pitcher_id"), tier, baseline_state, len(out["short"]),
+        )
+        return out
+
+    # Non-green: category-driven
+    scores = triage_result.get("category_scores") or {}
+    baseline_mean = baseline.get("overall_mean", 8.0)
+    dominant = _dominant_category(scores, baseline_mean)
+    status = _category_status_line(flag, dominant, tier, baseline_state)
+    signal = _signal_line(ctx, triage_result, dominant)
+    response = _response_line(triage_result)
+
+    # Fallback-plan suffix (A20)
+    if ctx.get("plan_source") == "python_fallback":
+        response = f"{response} (running on fallback plan — LLM review unavailable)"
+
+    # Cold-start appendage (A3)
+    if baseline_state == "no_baseline":
+        signal += f" Baseline establishing — {baseline.get('total_check_ins', 0)}/14 check-ins."
+    elif baseline_state == "provisional":
+        signal += f" Tier classified from {baseline.get('total_check_ins', 0)}/14 check-ins — may shift as more data arrives."
+
+    short = _compose_short(flag, ctx, triage_result, dominant)
+
+    logger.info(
+        "rationale | pitcher=%s | type=triage | path=%s | tier=%s | state=%s | short_len=%d",
+        ctx.get("pitcher_id"), flag, tier, baseline_state, len(short),
+    )
+    return {
+        "short": short,
+        "detail": {
+            "status_line": status,
+            "signal_line": signal.strip(),
+            "response_line": response,
+        },
     }
-    return {"short": short, "detail": detail}
 
 
 def generate_exercise_rationale(exercise: dict, constraints_applied: list, plan_context: dict) -> str | None:
