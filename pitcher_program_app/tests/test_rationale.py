@@ -291,3 +291,53 @@ def test_llm_enriched_no_fallback_suffix():
     ctx = _ctx(arm_feel=5, plan_source="llm_enriched")
     out = generate_triage_rationale(tri, ctx)
     assert "fallback plan" not in out["detail"]["response_line"].lower()
+
+
+# ---------- Task 10: exercise + day rationale ----------
+
+def test_exercise_rationale_constraint_driven():
+    ex = {"name": "Seated row", "sets": 3, "reps": 8}
+    constraints = [{"tag": "maintain_compounds_reduced", "pct": 0.8}]
+    out = generate_exercise_rationale(ex, constraints, plan_context={})
+    assert out is not None
+    assert len(out) <= 60
+    assert "compound" in out.lower() or "reduced" in out.lower() or "20%" in out
+
+
+def test_exercise_rationale_progression():
+    ex = {"name": "Trap-bar deadlift", "sets": 3, "reps": 5, "load": 185,
+          "progression_note": "weight up from last week"}
+    out = generate_exercise_rationale(ex, constraints_applied=[], plan_context={})
+    assert out is not None
+    assert "progression" in out.lower() or "up" in out.lower()
+
+
+def test_exercise_rationale_template_default_is_none():
+    ex = {"name": "Banded pull-apart", "sets": 2, "reps": 15}
+    out = generate_exercise_rationale(ex, constraints_applied=[], plan_context={})
+    assert out is None  # nothing to say
+
+
+def test_day_rationale_lift_day():
+    plan = {"lifting": {"block_name": "Lower pull"}, "day_focus": "lift"}
+    tri = _triage("green")
+    ctx = _ctx()
+    out = generate_day_rationale(plan, tri, ctx)
+    assert "lift" in out.lower() or "lower" in out.lower()
+
+
+def test_day_rationale_recovery_day():
+    plan = {"day_focus": "recovery", "lifting": None, "throwing_plan": None}
+    tri = _triage("modified_green", mods=["no_throwing"])
+    ctx = _ctx(dso=1)
+    out = generate_day_rationale(plan, tri, ctx)
+    assert "recovery" in out.lower() or "no throw" in out.lower()
+
+
+def test_day_rationale_is_always_one_sentence():
+    plan = {"lifting": {"block_name": "Upper push"}, "day_focus": "lift"}
+    tri = _triage("yellow", tissue=5.2, mods=["maintain_compounds_reduced"])
+    ctx = _ctx()
+    out = generate_day_rationale(plan, tri, ctx)
+    assert out.rstrip()[-1] in ".!?"
+    assert sum(1 for c in out.rstrip()[:-1] if c in ".!?") == 0

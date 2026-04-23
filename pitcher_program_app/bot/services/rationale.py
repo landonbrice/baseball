@@ -424,9 +424,59 @@ def generate_triage_rationale(triage_result: dict, pitcher_context: dict) -> dic
 
 def generate_exercise_rationale(exercise: dict, constraints_applied: list, plan_context: dict) -> str | None:
     """Per-exercise clause ≤ 60 chars. None if nothing meaningful to say."""
-    return None  # stubbed
+    if not isinstance(exercise, dict):
+        return None
+
+    # 1. Constraint-driven — pick the primary constraint tag on this exercise
+    if constraints_applied:
+        first = constraints_applied[0]
+        tag = first.get("tag") if isinstance(first, dict) else first
+        cap = first.get("pct") if isinstance(first, dict) else None
+        pa = {"lifting_intensity_cap": cap} if cap is not None else {}
+        phrase = _phrase_short(tag, pa) if tag else ""
+        if phrase:
+            out = phrase.strip().rstrip(".")
+            return out[:60]
+
+    # 2. Progression note inline on the exercise
+    note = exercise.get("progression_note")
+    if note:
+        out = f"progression — {note}"
+        return out[:60]
+
+    # 3. Template default → nothing to say
+    return None
+
+
+_DAY_PHRASES = {
+    "lift": "Lift-focused day",
+    "throw": "Throwing day",
+    "bullpen": "Bullpen day",
+    "recovery": "Recovery day",
+}
 
 
 def generate_day_rationale(plan: dict, triage_result: dict, pitcher_context: dict) -> str | None:
     """One sentence summarizing the day's shape."""
-    return "Full program today."  # stubbed default
+    flag = (triage_result or {}).get("flag_level", "green")
+    day_focus = (plan or {}).get("day_focus") or "lift"
+    phrase = _DAY_PHRASES.get(day_focus, "Training day")
+
+    # Post-outing starter or reset reliever
+    role = (pitcher_context or {}).get("role", "starter")
+    dso = (pitcher_context or {}).get("days_since_outing")
+
+    if day_focus == "recovery" and role == "starter" and dso in (0, 1):
+        return f"Recovery day — {dso} day{'s' if dso != 1 else ''} post-outing, flush work only."
+
+    if flag == "green":
+        return f"{phrase} — full program."
+
+    mods = triage_result.get("modifications") or []
+    mod_tags = [m if isinstance(m, str) else m.get("tag", "") for m in mods if m]
+    if mod_tags:
+        pa = triage_result.get("protocol_adjustments") or {}
+        mod_phrase = _join_phrases(mod_tags[:2], pa, "short")
+        if mod_phrase:
+            return f"{phrase} — {mod_phrase}."
+    return f"{phrase} — adjusted based on today's signals."
