@@ -1,7 +1,7 @@
 # Pitcher Training Intelligence — Claude Init
 
-> Last updated: 2026-04-21
-> Sprint status: Phases 1-20.1 + Sprint 0.5 + Tier 1 Hardening + Redesign Specs 1/2/3 + Check-in Hotfix + Hotfix #2 + **Phase 1 Trajectory-Aware Triage (absorbs Sprint 1a)** + Energy Capture UI complete. Spec 3 rebuilt the remaining four coach pages (Insights / Schedule / Team Programs / Phases) on the Spec 2 Scoreboard-anchored editorial pattern and wired `POST /api/coach/pitcher/{id}/nudge` end-to-end (coach_actions migration, `send_nudge` service, PendingStrip flipped to live). Phase 1 rewrote the intelligence engine: `triage.py` 300→~1,000 lines with dual-path architecture (legacy flat-trigger path preserved for pitchers without a baseline via golden-snapshot tests; new three-category path — tissue/load/recovery scores 0-10 with interaction rules + tolerance bands per baseline tier), new `baselines.py` (273 lines, cache-aware refresh with TTL + outing invalidation), `population_baselines.yaml` seed, `007_baseline_snapshot.sql` migration, ~1,500 lines of new tests (`test_triage_phase1` / `test_baselines` / `test_checkin_service_phase1`), observability logging with persisted category scores, and a `phase1-runbook.md`. Sprint 1a trend signals (rate-of-change, persistence, slope) were absorbed directly into the new triage scoring rather than built as a standalone `detect_trends()` layer. **Note (2026-04-21 reconciliation):** origin/main was accidentally force-push-rolled-back off the pre-Spec-3 tip `d590958` when Phase 1 landed from a second device; `e5f1a67` merges Spec 3 + Phase 1 + energy UI back onto a single main (zero file overlap between the two sides). Next: coach-app Phase 1 surfacing (category scores on PlayerSlideOver + flagged-feed copy), Tier 2 hardening, The Ledger, weight logging UI, Regression #2 (Telegram getUpdates conflict — infra).
+> Last updated: 2026-04-30
+> Sprint status: Phases 1-20.1 + Sprint 0.5 + Tier 1 Hardening + Redesign Specs 1/2/3 + Check-in Hotfix + Hotfix #2 + **Phase 1 Trajectory-Aware Triage (absorbs Sprint 1a)** + Energy Capture UI + Team Daily Status Sync complete. Spec 3 rebuilt the remaining four coach pages (Insights / Schedule / Team Programs / Phases) on the Spec 2 Scoreboard-anchored editorial pattern and wired `POST /api/coach/pitcher/{id}/nudge` end-to-end (coach_actions migration, `send_nudge` service, PendingStrip flipped to live). Team Daily Status Sync centralized check-in/plan/work/team/date semantics in `bot/services/team_daily_status.py`, made `/api/staff/pulse?team_id=...` team-aware, refactored coach overview and staff pulse onto the shared service, cleaned frontend naming around `checkin_status`, and hardened Supabase selects against optional-column drift. Next: coach-app Phase 1 surfacing (category scores on PlayerSlideOver + flagged-feed copy), Tier 2 hardening, The Ledger, weight logging UI, Regression #2 (Telegram getUpdates conflict — infra).
 
 ## What This Is
 
@@ -40,6 +40,7 @@ A training intelligence system for the UChicago baseball pitching staff. Telegra
 | Spec 2 | Coach Dashboard Redesign — Team Overview | 04-19 | Team Overview rebuilt as a triage feed. Backend: `team_scope.get_team_roster_overview` now returns `af_7d` (7-day arm-feel mean) and `today` object per roster row — `day_focus` derived from plan content (plan_generator never persists it) and modification list normalized from triage strings to `{tag, reason}` dicts at the boundary. Frontend: 2 pure formatter utils (`buildTodayObjective`, `buildTeamLede`) with 16 fixtures total, 5 new components in `components/team-overview/` (`LastSevenStrip`, `HeroCard`, `CompactCard`, `PendingStrip`, `TeamLede`), TeamOverview rewritten with 90s `visibilityState`-gated auto-refresh. `PlayerSlideOver` header redesigned with 3-stat mini scoreboard, ESC-to-close, 480px width; `PlayerToday` / `PlayerWeek` / `PlayerHistory` (inline-SVG sparklines) all rebuilt editorially. `RosterTable` + `ComplianceRing` deleted. Shared `formatToday.js` helper extracted. Tests: 81 frontend + 55 Python. |
 | Spec 3 | Coach Dashboard Redesign — Secondary Pages + Nudge | 04-21 | Remaining four coach pages rebuilt on the Spec 2 Scoreboard-anchored editorial pattern. Insights: editorial `InsightCard` + scoreboard-anchored Insights page. Schedule: `WeekStrip` + `GameCard` + `GamePanel` restyle with roster dot cap documented. Team Programs: `BlockCard` + `LibraryCard` + `CreateProgramSlideOver` + TeamPrograms rebuild with error state + catch-branch safety + autoFocus on name. Phases: `PhaseTimeline` + `PhaseEditorSlideOver` + `PhaseDetailSection` + Phases rebuild (orphaned flat components deleted, new cards keyboard-accessible). Nudge backend: `007_coach_actions.sql` migration, `send_nudge` service with audit insert, `POST /api/coach/pitcher/{id}/nudge` endpoint, `nudgePitcher` api.js stub, `PendingStrip.nudgeEnabled = true`. Energy capture UI (D3 UI follow-up) also landed — mini-app Coach.jsx check-in conversation now captures energy before sending to backend. |
 | Phase 1 | Trajectory-Aware Triage + Baselines (Sprint 1a absorbed) | 04-21 | Intelligence engine rewrite. `triage.py` 300→~1,000 lines with dual-path architecture: legacy flat-trigger path preserved for pitchers without a baseline (43 golden snapshots), new three-category path for pitchers with a baseline — `_compute_tissue_score`/`_compute_load_score`/`_compute_recovery_score` (0-10 each) then `_apply_interaction_rules` with per-tier tolerance bands. `_evaluate_recovery_curve` handles stall/reversal/on-track, late-rotation readiness, chronic drift, and trend flags. New `baselines.py` (273 lines): per-pitcher recovery curves + tier classification + chronic drift detection + cache-aware refresh with TTL and outing-event invalidation. `population_baselines.yaml` seeds defaults; `007_baseline_snapshot.sql` persists per-pitcher snapshots. `checkin_service.py` wired to pull baseline and persist category scores. Observability: structured logging on every triage call + persisted category scores in `daily_entries`. `phase1-runbook.md` documents operation. Tests: ~1,500 lines across `test_triage_phase1.py` (947 lines), `test_baselines.py` (230 lines), `test_checkin_service_phase1.py` (307 lines). **Sprint 1a trend signals (rate-of-change, persistence, slope) absorbed directly into the new triage scoring** rather than built as standalone `detect_trends()` metadata layer. `bb2da39` fixed 6 bugs (C1-C4, I1-I2) found in code review. |
+| Team Daily Status Sync | Shared check-in contract | 04-30 | `bot/services/team_daily_status.py` is now the canonical owner for team daily check-in, plan, work, Chicago-date, and team_id-scoped roster status. Check-in means `daily_entries.pre_training.arm_feel is not null` (legacy in-memory fallback: top-level `arm_feel` if present); plan status is separate (`generated` / `pending` / `not_applicable`); work status is separate (`not_started` / `in_progress` / `completed` / `unknown`). `/api/coach/team/overview` and `/api/staff/pulse` both adapt this service while preserving legacy response shapes. Staff pulse is team-aware via `GET /api/staff/pulse?team_id=uchicago_baseball` with a safe default. Mini-app profile now exposes `team_id` and Home passes it to staff pulse. Frontend helpers prefer canonical `checkin_status` with legacy `today_status` / `checked_in` fallback. Production hardening: team status Supabase selects intentionally avoid optional/non-guaranteed `daily_entries` columns (`arm_feel`, `rationale`, `arm_care`, `mobility`) to tolerate migration drift. Tests: `test_team_daily_status_contract.py`, `test_profile_team_scope.py`, `coach-app/src/utils/__tests__/teamDailyStatus.test.js`. |
 
 ### What's Next
 1. **Coach-app Phase 1 surfacing** — Category scores (tissue/load/recovery) are computed and persisted but not yet displayed. PlayerSlideOver Today tab needs a 3-stat row; flagged-feed copy should cite the driving category. No engine change; purely frontend read-through.
@@ -49,7 +50,7 @@ A training intelligence system for the UChicago baseball pitching staff. Telegra
 5. **Weight logging UI** — `working_weights` column exists, no UI. Unblocks exercise progression curves.
 6. **Exercise progression curves** — Volume/intensity trends for key lifts over time. Blocked on weight logging.
 7. **Inline coach panel** — Coach button on lifting block for in-context refinement without navigating to Coach tab.
-8. **Persist `day_focus` in `plan_generated`** — Today it's derived at read time in `team_scope.py`. Moving the write into `plan_generator.py` removes a derivation hop and makes the field authoritative.
+8. **Persist `day_focus` in `plan_generated`** — Today it's derived at read time in `team_daily_status.py`. Moving the write into `plan_generator.py` removes a derivation hop and makes the field authoritative.
 9. **Regression #2** — Telegram `getUpdates` conflict (infra).
 
 ## Stack
@@ -99,7 +100,8 @@ pitcher_program_app/
 │   │   ├── vocabulary.py         # Canonical injury areas + modification tags
 │   │   ├── knowledge_retrieval.py # Thin wrappers around resolver
 │   │   ├── health_monitor.py     # Daily digest, emergency alerts, Q&A tracking
-│   │   ├── team_scope.py         # Team-scoped queries for coach dashboard
+│   │   ├── team_daily_status.py  # Canonical team daily check-in/plan/work status service
+│   │   ├── team_scope.py         # Compatibility wrappers + remaining team-scoped coach helpers
 │   │   ├── team_programs.py      # Active team blocks for plan gen, days_until_next_start
 │   │   ├── coach_insights.py     # Pre-start nudge generation
 │   │   ├── progression.py        # Trends, weekly summaries, season summary
@@ -214,6 +216,17 @@ pitcher_program_app/
 - **JWT signing**: Supabase issues `ES256` (asymmetric) JWTs on newer projects, `HS256` on legacy. `_decode_token()` inspects `alg` and routes to JWKS (`{SUPABASE_URL}/auth/v1/.well-known/jwks.json`, cached by `PyJWKClient`) or `SUPABASE_JWT_SECRET`. `PyJWT[crypto]` extra is required for ES256 verification.
 - **Local dev gotcha:** if coach-app login bounces back to `/login` without error, `VITE_API_URL` likely points at a local FastAPI that doesn't have `coach_routes` mounted. Either run `python -m api.main` from `pitcher_program_app/` (with `.env` populated including `SUPABASE_JWT_SECRET`), or point `VITE_API_URL` at Railway: `https://baseball-production-9d28.up.railway.app`. Supabase issues the JWT fine; the failure is the `/api/coach/auth/exchange` POST returning 404/405, which `useCoachAuth` catches and converts to `coach=null` → redirect to `/login`.
 
+### Team Daily Status Contract
+- **Canonical service:** `bot/services/team_daily_status.py`. Do not re-derive team check-in semantics in routes or React.
+- **Check-in status:** `checked_in` means `daily_entries.pre_training.arm_feel is not null`. Do **not** use `plan_generated`, `completed_exercises`, or workout completion as check-in signals.
+- **Plan status:** `generated` when `plan_generated` exists, `pending` when check-in exists but plan is missing, `not_applicable` when no check-in exists.
+- **Work status:** separate from check-in; first-pass statuses are `not_started`, `in_progress`, `completed`, `unknown`.
+- **Date convention:** team daily status defaults to `datetime.now(CHICAGO_TZ).strftime("%Y-%m-%d")`.
+- **Team scoping:** team reads must filter `daily_entries` by `team_id`; check-in writes inherit `team_id` in `db.upsert_daily_entry()` and DB trigger `daily_entries_set_team_id` should remain applied.
+- **Frontend naming:** coach-app helper `src/utils/teamDailyStatus.js` prefers `checkin_status`, with legacy `today_status` / `checked_in` fallback. Mini-app `StaffPulse` does the same.
+- **Staff pulse:** use `GET https://baseball-production-9d28.up.railway.app/api/staff/pulse?team_id=uchicago_baseball`; old unscoped calls still default to UChicago.
+- **Supabase schema drift guard:** explicit status-service selects should stay on stable `daily_entries` columns only. Do not add optional/newer columns such as top-level `arm_feel`, `rationale`, `arm_care`, or `mobility` unless the migration is guaranteed in production and tests cover the select list.
+
 ### Coach Dashboard Brand Shell (Spec 1 — 2026-04-19)
 - **Tokens live in one place:** `coach-app/src/styles/tokens.css` declares all colors, type sizes, and font families inside a `@theme` block. Tailwind v4 auto-generates utilities (`bg-maroon`, `text-charcoal`, `text-display`, `font-serif`, etc.) from those keys — do NOT hardcode hex values in components.
 - **Brand vs alert separation is load-bearing:** `--color-maroon*` / `--color-rose` are brand chrome only; `--color-crimson` / `--color-amber` / `--color-forest` are flag/alert only. Crossing the two breaks the system — if you need a red that isn't a flag, push back.
@@ -226,7 +239,7 @@ pitcher_program_app/
 ### Check-in Flow
 - Two paths: Telegram (`daily_checkin.py` → `process_checkin`) and mini-app (`/chat` → `process_checkin`). Mini-app fetch dies at ~60s.
 - Morning notification arm feel buttons (1-5) are ConversationHandler entry points → full check-in flow
-- `hasCheckedIn` requires actual plan data, not just `pre_training.arm_feel`
+- `hasCheckedIn` means submitted check-in input exists (`pre_training.arm_feel`), even if plan generation is still pending
 - Response assembly in `/chat` path is independently try/except-wrapped
 
 ### Template Selection (Lift Preference)
@@ -260,6 +273,7 @@ All dates use `CHICAGO_TZ` (from `bot/config.py`). Server: `datetime.now(CHICAGO
 - `pitchers` PK is `pitcher_id` (not `id`). FK references must use `REFERENCES pitchers(pitcher_id)`
 - `pitcher_training_model` consolidates old `active_flags` + exercise intelligence. `profile["active_flags"]` populated via compat layer in `_profile_from_row()`
 - `daily_entries.pre_training` JSONB uses key `overall_energy` (NOT `energy`) — matters for any SQL migration touching energy values
+- `daily_entries.pre_training` is JSONB, not separate visible columns in Supabase table view. Verify arm feel with `pre_training->>'arm_feel'`.
 
 ### Exercise library workflow (2026-04-18)
 - **Supabase `exercises` is canonical** at runtime. `/api/exercises`, plan gen, swap, and mutations all read live from Supabase via `exercise_pool` (15-min snapshot cache + lazy-miss).
@@ -391,7 +405,7 @@ No Python virtualenv locally — project runs on Railway. Use Supabase MCP for S
 
 ## Known Issues & Tech Debt
 
-- **Schema drift in `team_scope.py`** — file was written against an older schema (used `physical`/`pitching`/`flag_level`/`injury_history.status`). Realigned 2026-04-14. Follow-up sweep across `bot/services/` + `api/` (2026-04-14) confirmed no other offenders: remaining `flag_level` references are all triage-result dict keys, `daily_entries.pre_training` JSONB keys, or legitimate `injury_history.flag_level` column reads. `physical_profile`/`pitching_profile` already consistent.
+- **Schema drift in `team_scope.py` / team daily status selects** — `team_scope.py` was realigned 2026-04-14, and 2026-04-30 moved daily status ownership to `team_daily_status.py`. Keep team status selects conservative: selecting missing PostgREST columns causes production 500s. Known production-safe daily status fields: `pitcher_id`, `date`, `team_id`, `pre_training`, `plan_generated`, `completed_exercises`, `warmup`, `lifting`, `throwing`, `plan_narrative`.
 - **FastAPI unhandled-exception responses skip CORS middleware** — a 500 from an uncaught exception surfaces as "Origin is not allowed by Access-Control-Allow-Origin" in Safari/Chrome, even though CORS is correctly configured. Always check Railway logs for the real traceback before chasing CORS.
 - **Repo bloat from untracked dev artifacts** — `graphify-out/`, `past_arm_programs/*.xlsx`, root-level `scripts/`, `ui-elevation-mockup.jsx` have leaked into commits. Need proper `.gitignore` + `git rm --cached` pass.
 - **Historical `overall_energy: 3` in `daily_entries`** (fixed 2026-04-19 for new rows): prior to the checkin-hotfix merge, the `/api/chat` checkin handler never threaded `energy` from the request body to `process_checkin`, so every mini-app check-in stored the parameter default `3`. Historical rows are not backfilled — triage tolerates missing/default values. New rows carry real energy values *only once the Coach.jsx check-in flow captures energy* (UI step spawned as follow-up task 2026-04-19; backend is ready). If doing retrospective analytics on energy, filter `created_at >= <hotfix-deploy-timestamp>` AND after the UI capture step lands.
@@ -399,7 +413,6 @@ No Python virtualenv locally — project runs on Railway. Use Supabase MCP for S
 - `context_manager.py:173` `msg.get("content","")[:200]` — no `str()` coercion, latent TypeError if content is dict
 - 10 exercises missing YouTube links (ex_121-123, ex_126-128, ex_156-159)
 - `_load_exercise_library()` module-level cache — new exercises require Railway redeploy
-- `/api/staff/pulse` returns 500 intermittently — undiagnosed crash in pitcher loop
 - Guided flow `manuallyDonePhases` is ephemeral (resets on reload) — v2 deferral
 - Dev commands (`/testnotify`, `/whooptest`, `/healthdigest`, `/testemergency`) exist — remove before broader rollout
 - Reliever template uses text descriptions not exercise IDs — not validated
