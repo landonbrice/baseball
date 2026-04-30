@@ -1,5 +1,6 @@
 """API routes — read + action endpoints for the pitcher dashboard."""
 
+import copy
 import json
 import logging
 import os
@@ -1593,10 +1594,13 @@ async def swap_exercise(pitcher_id: str, request: Request):
     }
 
 
-def _apply_mutations_to_entry(entry: dict, mutations: list, source: str = "coach") -> dict:
+def _apply_mutations_to_entry(
+    entry: dict, mutations: list, source: str = "coach", persist_model: bool = True
+) -> dict:
     """Apply mutations to a daily entry's plan. Returns the modified entry.
 
-    Also updates pitcher training model (swap history, preferences).
+    Also updates pitcher training model (swap history, preferences) unless
+    persist_model=False, in which case all bookkeeping writes are skipped (dry-run).
     """
     from bot.services.db import get_training_model, upsert_training_model, get_exercise, get_pitcher
 
@@ -1742,8 +1746,9 @@ def _apply_mutations_to_entry(entry: dict, mutations: list, source: str = "coach
         except Exception:
             logger.exception("day_rationale_regen_failed | pitcher=%s", pitcher_id)
 
-    # Update swap history and preferences in model
-    if pitcher_id:
+    # Update swap history and preferences in model.
+    # Skipped when persist_model=False (dry-run / preview path).
+    if pitcher_id and persist_model:
         if len(swap_history) > 30:
             swap_history = swap_history[-30:]
         model["recent_swap_history"] = swap_history
@@ -1777,6 +1782,60 @@ async def apply_mutations(pitcher_id: str, request: Request):
     updated = _apply_mutations_to_entry(entry, mutations, source)
     upsert_daily_entry(pitcher_id, updated)
     return {"status": "ok", "mutations_applied": len(mutations)}
+
+
+@router.post("/pitcher/{pitcher_id}/preview-mutations")
+async def preview_mutations(pitcher_id: str, request: Request):
+    """Dry-run mutations: returns rationale diff without writing."""
+    _require_pitcher_auth(request, pitcher_id)
+    body = await request.json()
+    date = body.get("date")
+    mutations = body.get("mutations") or []
+    if not date or not mutations:
+        raise HTTPException(status_code=400, detail="date and mutations required")
+    from bot.services.db import get_daily_entry
+    entry = get_daily_entry(pitcher_id, date)
+    if not entry:
+        raise HTTPException(status_code=404, detail="No entry for this date")
+
+    # Snapshot rationale before applying mutations
+    lifting_before = (entry.get("lifting") or {}).get("exercises") or []
+    rationale_before = {
+        (ex.get("exercise_id") or ex.get("id")): ex.get("rationale")
+        for ex in lifting_before
+    }
+    day_before = (entry.get("plan_generated") or {}).get("day_summary_rationale")
+
+    # Apply mutations on a deep copy; persist_model=False skips all bookkeeping writes
+    entry_copy = copy.deepcopy(entry)
+    _apply_mutations_to_entry(entry_copy, mutations, source="preview", persist_model=False)
+
+    lifting_after = (entry_copy.get("lifting") or {}).get("exercises") or []
+    day_after = (entry_copy.get("plan_generated") or {}).get("day_summary_rationale")
+
+    # Build diff: emit any exercise whose rationale changed or is new/removed
+    diff = []
+    for ex_after in lifting_after:
+        ex_id = ex_after.get("exercise_id") or ex_after.get("id")
+        before = rationale_before.get(ex_id)
+        after = ex_after.get("rationale")
+        if before != after:
+            diff.append({"exercise_id": ex_id, "before": before, "after": after})
+
+    # Also surface exercises that were dropped (removed action)
+    after_ids = {ex.get("exercise_id") or ex.get("id") for ex in lifting_after}
+    for ex_id, before_rationale in rationale_before.items():
+        if ex_id not in after_ids:
+            diff.append({"exercise_id": ex_id, "before": before_rationale, "after": None})
+
+    return {
+        "mutations": mutations,
+        "proposed_rationale": {
+            "exercise_rationale_diff": diff,
+            "day_summary_before": day_before,
+            "day_summary_after": day_after,
+        },
+    }
 
 
 # ---------------------------------------------------------------------------
