@@ -173,7 +173,9 @@ def test_team_daily_status_does_not_select_legacy_arm_feel_column():
     class StrictQuery(_Query):
         def select(self, columns, *args, **kwargs):
             if self.table_name == "daily_entries":
-                assert "arm_feel" not in {c.strip() for c in columns.split(",")}
+                selected = {c.strip() for c in columns.split(",")}
+                assert "arm_feel" not in selected
+                assert "rationale" not in selected
             return self
 
     class StrictClient(_Client):
