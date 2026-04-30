@@ -74,7 +74,7 @@ def get_team_roster_overview(team_id: str, today_str: str) -> list:
 
     # Training models for flag info
     models = (client.table("pitcher_training_model")
-              .select("pitcher_id, current_flag_level, active_modifications, days_since_outing")
+              .select("pitcher_id, current_flag_level, active_modifications, days_since_outing, baseline_snapshot")
               .in_("pitcher_id", [p["pitcher_id"] for p in pitchers])
               .execute()).data or []
     model_map = {m["pitcher_id"]: m for m in models}
@@ -179,13 +179,23 @@ def get_team_roster_overview(team_id: str, today_str: str) -> list:
             for m in raw_mods
         ]
 
+        # F4: rationale_short — primary subtitle source for HeroCard / TodayObjective.
+        rationale = today.get("rationale") if today else None
+        rationale_short = rationale.get("rationale_short") if isinstance(rationale, dict) else None
+
         today_obj = {
             "day_focus": derived_day_focus,
             "lifting_summary": lifting_summary,
             "bullpen": bullpen_val,
             "throwing": throwing_val,
-            "modifications": modifications,
+            "modifications": modifications,  # keep for legacy clients / slide-over
+            "rationale_short": rationale_short,
         }
+
+        # F4: surface baseline state for HeroCard cold-start subscript.
+        snapshot = model.get("baseline_snapshot") or {}
+        baseline_state = snapshot.get("baseline_state") if isinstance(snapshot, dict) else None
+        total_check_ins = snapshot.get("total_check_ins") if isinstance(snapshot, dict) else None
 
         roster.append({
             "pitcher_id": pid,
@@ -199,6 +209,8 @@ def get_team_roster_overview(team_id: str, today_str: str) -> list:
             "next_scheduled_start": next_start_map.get(pid),
             "af_7d": af_7d,
             "today": today_obj,
+            "baseline_state": baseline_state,
+            "total_check_ins": total_check_ins,
         })
 
     return roster
