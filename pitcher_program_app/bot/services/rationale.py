@@ -76,6 +76,34 @@ def sanitize_for_llm(rationale_detail: dict | None) -> dict:
     return out
 
 
+def build_qa_rationale_context(pitcher_id: str) -> str:
+    """Return a CONTEXT block string for QA prompts, or empty string if no rationale today.
+
+    Reads today's daily entry for the pitcher, extracts the persisted rationale_detail,
+    sanitizes coach vocabulary, and formats it as a CONTEXT block the LLM can use to
+    ground its answer without quoting verbatim.
+    """
+    try:
+        from bot.services.db import get_daily_entry
+        from datetime import datetime
+        from bot.config import CHICAGO_TZ
+        today = datetime.now(CHICAGO_TZ).strftime("%Y-%m-%d")
+        entry = get_daily_entry(pitcher_id, today) or {}
+        detail = (entry.get("rationale") or {}).get("rationale_detail")
+        if not detail:
+            return ""
+        sanitized = sanitize_for_llm(detail)
+        return (
+            "\n\nCONTEXT (today's program rationale — ground your answer in it, do not quote literally):\n"
+            f"- Status: {sanitized.get('status_line', '')}\n"
+            f"- Signal: {sanitized.get('signal_line', '')}\n"
+            f"- Response: {sanitized.get('response_line', '')}\n"
+        )
+    except Exception:
+        logger.exception("build_qa_rationale_context_failed | pitcher=%s", pitcher_id)
+        return ""
+
+
 # ---------------------------------------------------------------------------
 # Composition helpers (Task 7)
 # ---------------------------------------------------------------------------

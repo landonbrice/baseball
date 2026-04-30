@@ -522,6 +522,10 @@ async def post_ask(pitcher_id: str, request: Request):
         if history_text:
             user_prompt += f"\n\nConversation so far:{history_text}\n\nLatest question: {question}"
 
+        # F4: inject today's sanitized rationale context to ground the answer
+        from bot.services.rationale import build_qa_rationale_context
+        user_prompt = build_qa_rationale_context(pitcher_id) + user_prompt
+
         answer = await call_llm(system_prompt, user_prompt)
         append_context(pitcher_id, "interaction", f"Q: {question[:80]} | A: {answer[:200]}")
         return {"answer": answer}
@@ -864,6 +868,10 @@ async def post_chat(pitcher_id: str, request: Request):
                 user_prompt = qa_prompt.replace("{pitcher_context}", pitcher_context)
                 user_prompt = user_prompt.replace("{question}", question)
                 user_prompt = user_prompt.replace("{knowledge_context}", knowledge)
+
+                # F4: inject today's sanitized rationale context to ground the answer
+                from bot.services.rationale import build_qa_rationale_context
+                user_prompt = build_qa_rationale_context(pitcher_id) + user_prompt
 
                 from bot.services.llm import call_llm_reasoning
                 from bot.handlers.qa import _REASONING_KEYWORDS as _RK2

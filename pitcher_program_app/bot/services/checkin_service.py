@@ -368,7 +368,11 @@ async def process_checkin(
         }
 
     try:
-        plan_result = await generate_plan(pitcher_id, triage_result, checkin_inputs=checkin_inputs)
+        plan_result = await generate_plan(
+            pitcher_id, triage_result,
+            checkin_inputs=checkin_inputs,
+            triage_rationale_detail=(triage_rationale or {}).get("detail"),
+        )
     except Exception as e:
         logger.error(f"Plan generation failed for {pitcher_id}: {e}", exc_info=True)
         plan_result = None

@@ -341,3 +341,29 @@ def test_day_rationale_is_always_one_sentence():
     out = generate_day_rationale(plan, tri, ctx)
     assert out.rstrip()[-1] in ".!?"
     assert sum(1 for c in out.rstrip()[:-1] if c in ".!?") == 0
+
+
+# ---------- build_qa_rationale_context ----------
+
+def test_build_qa_rationale_context_returns_empty_when_no_entry(monkeypatch):
+    """Helper returns empty string when no daily entry exists."""
+    import bot.services.rationale as rat
+    import bot.services.db as db_mod
+    monkeypatch.setattr(db_mod, "get_daily_entry", lambda pid, d: None)
+    assert rat.build_qa_rationale_context("test_pitcher") == ""
+
+
+def test_build_qa_rationale_context_renders_with_entry(monkeypatch):
+    """Helper renders CONTEXT block from persisted rationale_detail."""
+    import bot.services.rationale as rat
+    import bot.services.db as db_mod
+    fake_entry = {"rationale": {"rationale_detail": {
+        "status_line": "Green — full go",
+        "signal_line": "All systems normal.",
+        "response_line": "Proceed as planned.",
+    }}}
+    monkeypatch.setattr(db_mod, "get_daily_entry", lambda pid, d: fake_entry)
+    out = rat.build_qa_rationale_context("test_pitcher")
+    assert "CONTEXT" in out
+    assert "Green" in out
+    assert "All systems" in out

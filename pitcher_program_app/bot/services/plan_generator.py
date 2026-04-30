@@ -86,7 +86,7 @@ def _build_python_notes(triage_result, flag_level, checkin_inputs):
     return notes
 
 
-async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: dict = None) -> dict:
+async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: dict = None, *, triage_rationale_detail: dict | None = None) -> dict:
     """Generate today's training protocol for a pitcher.
 
     Two-pass architecture:
@@ -294,6 +294,21 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
         user_prompt = user_prompt.replace("{checkin_inputs}", inputs_text)
     else:
         user_prompt = user_prompt.replace("{checkin_inputs}", "No check-in inputs provided.")
+
+    # F4: inject sanitized rationale context into LLM prompt when available
+    if triage_rationale_detail:
+        try:
+            from bot.services.rationale import sanitize_for_llm
+            sanitized = sanitize_for_llm(triage_rationale_detail)
+            rationale_block = (
+                "\n\nCONTEXT (rationale the system produced — do not quote literally, inform your tone):\n"
+                f"- Status: {sanitized.get('status_line', '')}\n"
+                f"- Signal: {sanitized.get('signal_line', '')}\n"
+                f"- Response: {sanitized.get('response_line', '')}\n"
+            )
+            user_prompt = user_prompt + rationale_block
+        except Exception:
+            logger.exception("rationale_inject_morning_brief_failed | pitcher=%s", pitcher_id)
 
     # ── Pass 1: Python-constructed plan (instant, always succeeds) ──
     python_plan = {
