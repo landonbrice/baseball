@@ -5,6 +5,12 @@ Verifies:
 - Any mutation regenerates day_summary_rationale.
 - Triage rationale (entry["rationale"]) is pinned (unchanged) after mutation.
 """
+# Note on patch targets:
+# `_apply_mutations_to_entry` uses in-function imports for db helpers
+# (`from bot.services.db import ...`), so we patch the source module path
+# (`bot.services.db.get_exercise`, etc.) rather than `api.routes.<name>`.
+# If those imports ever move to module-level in api/routes.py, these patch
+# targets will need to change to `api.routes.<name>`.
 import copy
 import pytest
 from unittest.mock import patch
@@ -81,6 +87,10 @@ _PATCH_HYDRATE = patch(
     "bot.services.exercise_pool.hydrate_exercises",
     return_value=None,
 )
+_PATCH_GET_PITCHER = patch(
+    "bot.services.db.get_pitcher",
+    lambda pid: {"role": "starter", "active_flags": {"days_since_outing": 3}},
+)
 
 
 # ---------------------------------------------------------------------------
@@ -93,7 +103,7 @@ def test_swap_regenerates_touched_exercise_only():
         {"action": "swap", "from_exercise_id": "ex_1", "to_exercise_id": "ex_99", "rx": "3x8"}
     ]
 
-    with _PATCH_GET_EXERCISE, _PATCH_GET_TRAINING_MODEL, _PATCH_UPSERT_TRAINING_MODEL, _PATCH_HYDRATE:
+    with _PATCH_GET_EXERCISE, _PATCH_GET_TRAINING_MODEL, _PATCH_UPSERT_TRAINING_MODEL, _PATCH_HYDRATE, _PATCH_GET_PITCHER:
         result = _apply_mutations_to_entry(entry, mutations, source="test")
 
     exercises = result["lifting"]["exercises"]
@@ -132,7 +142,7 @@ def test_mutation_regenerates_day_summary():
         {"action": "swap", "from_exercise_id": "ex_1", "to_exercise_id": "ex_99", "rx": "3x8"}
     ]
 
-    with _PATCH_GET_EXERCISE, _PATCH_GET_TRAINING_MODEL, _PATCH_UPSERT_TRAINING_MODEL, _PATCH_HYDRATE:
+    with _PATCH_GET_EXERCISE, _PATCH_GET_TRAINING_MODEL, _PATCH_UPSERT_TRAINING_MODEL, _PATCH_HYDRATE, _PATCH_GET_PITCHER:
         result = _apply_mutations_to_entry(entry, mutations, source="test")
 
     plan = result.get("plan_generated") or {}
@@ -155,7 +165,7 @@ def test_mutation_pins_triage_rationale():
         {"action": "swap", "from_exercise_id": "ex_1", "to_exercise_id": "ex_99", "rx": "3x8"}
     ]
 
-    with _PATCH_GET_EXERCISE, _PATCH_GET_TRAINING_MODEL, _PATCH_UPSERT_TRAINING_MODEL, _PATCH_HYDRATE:
+    with _PATCH_GET_EXERCISE, _PATCH_GET_TRAINING_MODEL, _PATCH_UPSERT_TRAINING_MODEL, _PATCH_HYDRATE, _PATCH_GET_PITCHER:
         result = _apply_mutations_to_entry(entry, mutations, source="test")
 
     # entry["rationale"] must be unchanged

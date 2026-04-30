@@ -1598,7 +1598,7 @@ def _apply_mutations_to_entry(entry: dict, mutations: list, source: str = "coach
 
     Also updates pitcher training model (swap history, preferences).
     """
-    from bot.services.db import get_training_model, upsert_training_model, get_exercise
+    from bot.services.db import get_training_model, upsert_training_model, get_exercise, get_pitcher
 
     pitcher_id = entry.get("pitcher_id")
     date = entry.get("date")
@@ -1704,12 +1704,25 @@ def _apply_mutations_to_entry(entry: dict, mutations: list, source: str = "coach
     # and the day_summary_rationale. Triage rationale (entry["rationale"]) is
     # intentionally left untouched — the flag didn't change, only the response did.
     if day_dirty:
-        mods_applied = (entry.get("plan_generated") or {}).get("modifications_applied") or []
+        mods_applied = plan.get("modifications_applied") or []
         triage_like = {
             "flag_level": (entry.get("pre_training") or {}).get("flag_level", "green"),
             "category_scores": (entry.get("pre_training") or {}).get("category_scores", {}),
             "modifications": mods_applied,
             "protocol_adjustments": {},
+        }
+
+        # Build pitcher context from real profile (Issue A: don't hardcode role).
+        profile = {}
+        if pitcher_id:
+            try:
+                profile = get_pitcher(pitcher_id) or {}
+            except Exception:
+                logger.exception("rationale_profile_lookup_failed | pitcher=%s", pitcher_id)
+                profile = {}
+        pitcher_ctx = {
+            "role": (profile.get("role") or "starter").lower(),
+            "days_since_outing": (profile.get("active_flags") or {}).get("days_since_outing"),
         }
 
         if touched_ids:
@@ -1723,9 +1736,9 @@ def _apply_mutations_to_entry(entry: dict, mutations: list, source: str = "coach
                         ex["rationale"] = None
 
         try:
-            plan["day_summary_rationale"] = generate_day_rationale(
-                plan, triage_like, pitcher_context={"role": "starter"}
-            )
+            new_day_rationale = generate_day_rationale(plan, triage_like, pitcher_context=pitcher_ctx)
+            if new_day_rationale is not None:
+                plan["day_summary_rationale"] = new_day_rationale
         except Exception:
             logger.exception("day_rationale_regen_failed | pitcher=%s", pitcher_id)
 
