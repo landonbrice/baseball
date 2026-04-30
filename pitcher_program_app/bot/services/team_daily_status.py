@@ -189,7 +189,7 @@ def get_team_daily_status(team_id: str, today_str: str | None = None, *, client=
                 .execute()).data or []
 
     today_entries = (client.table("daily_entries")
-                    .select("pitcher_id, date, team_id, pre_training, arm_feel, plan_generated, completed_exercises, warmup, lifting, throwing, arm_care, mobility, plan_narrative, rationale")
+                    .select("pitcher_id, date, team_id, pre_training, plan_generated, completed_exercises, warmup, lifting, throwing, arm_care, mobility, plan_narrative, rationale")
                     .eq("team_id", team_id)
                     .eq("date", today_str)
                     .execute()).data or []
@@ -197,7 +197,7 @@ def get_team_daily_status(team_id: str, today_str: str | None = None, *, client=
 
     week_ago = (_date.fromisoformat(today_str) - timedelta(days=6)).isoformat()
     week_entries = (client.table("daily_entries")
-                    .select("pitcher_id, date, team_id, completed_exercises, pre_training, arm_feel")
+                    .select("pitcher_id, date, team_id, completed_exercises, pre_training")
                     .eq("team_id", team_id)
                     .gte("date", week_ago)
                     .lte("date", today_str)

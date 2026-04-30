@@ -167,6 +167,24 @@ def test_team_daily_status_scopes_daily_entries_by_team_id():
     assert all(("eq", "team_id", "team_a") in filters for filters in daily_entry_queries)
 
 
+def test_team_daily_status_does_not_select_legacy_arm_feel_column():
+    from bot.services.team_daily_status import get_team_daily_status
+
+    class StrictQuery(_Query):
+        def select(self, columns, *args, **kwargs):
+            if self.table_name == "daily_entries":
+                assert "arm_feel" not in {c.strip() for c in columns.split(",")}
+            return self
+
+    class StrictClient(_Client):
+        def table(self, table_name):
+            return StrictQuery(self, table_name)
+
+    status = get_team_daily_status("team_a", "2026-04-30", client=StrictClient(_rows()))
+
+    assert status["summary"]["checked_in"] == 1
+
+
 @pytest.mark.asyncio
 async def test_staff_pulse_and_coach_overview_routes_use_same_daily_status_shape():
     from api.coach_routes import team_overview
