@@ -21,6 +21,7 @@ from bot.services import db as _db
 from bot.services.progression import analyze_progression
 from bot.services.plan_generator import get_upcoming_days
 from bot.services.checkin_service import process_checkin, normalize_brief
+from bot.services.team_daily_status import get_team_daily_status, to_staff_pulse
 from bot.services.outing_service import process_outing
 from bot.services.llm import call_llm, load_prompt
 from bot.services.knowledge_retrieval import retrieve_knowledge
@@ -1893,80 +1894,12 @@ async def preview_mutations(pitcher_id: str, request: Request):
 # ---------------------------------------------------------------------------
 
 @router.get("/staff/pulse")
-async def staff_pulse():
+async def staff_pulse(team_id: str = "uchicago_baseball"):
     """Team check-in status — public staff view (no auth required).
 
     Returns which pitchers have checked in today, their rotation info, and role.
     """
-    from datetime import date as _date
-
-    from bot.services import db as _db
-
-    today_str = _date.today().isoformat()
-
-    all_pitchers = _db.list_pitchers()
-
-    # Exclude test accounts
-    pitchers = [p for p in all_pitchers if p.get("pitcher_id") != "test_pitcher_001"]
-
-    pitcher_results = []
-    checked_in_count = 0
-
-    for p in pitchers:
-        pid = p.get("pitcher_id", "")
-        full_name = p.get("name") or pid
-        first_name = full_name.split()[0] if full_name else pid
-
-        # Determine role
-        role_raw = (p.get("role") or "").lower()
-        if role_raw in ("reliever", "rp", "closer", "cl"):
-            role = "RP"
-        else:
-            role = "SP"
-
-        # Get active flags for rotation info
-        flags = _db.get_active_flags(pid)
-        days_since = flags.get("days_since_outing")
-
-        if role == "SP":
-            if days_since is not None:
-                rotation_info = "Day %d" % int(days_since)
-            else:
-                rotation_info = "Day 0"
-        else:
-            # Relievers: Day 0 or 1 means "Day after", otherwise "Available"
-            if days_since is not None and int(days_since) <= 1:
-                rotation_info = "Day after"
-            else:
-                rotation_info = "Available"
-
-        # Check if pitcher has a daily entry for today
-        today_entry = _db.get_daily_entries(pid, limit=1)
-        checked_in = False
-        if today_entry and today_entry[0].get("date") == today_str:
-            entry = today_entry[0]
-            # Consider checked-in if the entry has pre_training arm_feel
-            pre = entry.get("pre_training")
-            if isinstance(pre, dict) and pre.get("arm_feel") is not None:
-                checked_in = True
-            elif entry.get("arm_feel") is not None:
-                checked_in = True
-
-        if checked_in:
-            checked_in_count += 1
-
-        pitcher_results.append({
-            "first_name": first_name,
-            "checked_in": checked_in,
-            "rotation_info": rotation_info,
-            "role": role,
-        })
-
-    return {
-        "checked_in_count": checked_in_count,
-        "total_pitchers": len(pitchers),
-        "pitchers": pitcher_results,
-    }
+    return to_staff_pulse(get_team_daily_status(team_id))
 
 
 @router.get("/pitcher/{pitcher_id}/weekly-narrative")

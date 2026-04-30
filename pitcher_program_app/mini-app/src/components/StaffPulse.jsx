@@ -46,7 +46,7 @@ export default function StaffPulse({ data }) {
       {expanded && pitchers.length > 0 && (
         <div style={{ padding: '0 14px 10px' }}>
           {pitchers.map((p, i) => {
-            const checkedIn = !!p.checked_in;
+            const checkedIn = p.checkin_status === 'checked_in' || !!p.checked_in;
             return (
               <div
                 key={p.id || i}
