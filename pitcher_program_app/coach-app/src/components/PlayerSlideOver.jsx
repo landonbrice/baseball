@@ -6,6 +6,7 @@ import PlayerHistory from './PlayerHistory'
 import AdjustTodayModal from './AdjustTodayModal'
 import AddRestrictionModal from './AddRestrictionModal'
 import FlagPill from './shell/FlagPill'
+import TierLabel from './TierLabel'
 
 const TABS = [
   { key: 'today', label: 'Today' },
@@ -88,6 +89,11 @@ export default function PlayerSlideOver({ pitcherId, onClose }) {
               </p>
             </div>
             <div className="flex items-start gap-2">
+              <TierLabel
+                tier={model.baseline_snapshot?.tier}
+                baselineState={model.baseline_snapshot?.baseline_state}
+                className="self-center"
+              />
               <FlagPill level={model.current_flag_level || 'green'} />
               <button
                 type="button"
