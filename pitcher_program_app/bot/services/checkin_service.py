@@ -377,6 +377,12 @@ async def process_checkin(
     # the entry-build block below so the _emergency_alert key is stripped
     # from plan_result (via .pop) before any persistence path sees it.
     if plan_result:
+        # F4: enrich emergency alert with rationale_detail + pitcher identity
+        _alert = (plan_result or {}).get("_emergency_alert")
+        if _alert and triage_rationale:
+            _alert["rationale_detail"] = triage_rationale.get("detail")
+            _alert["pitcher_name"] = profile.get("name")
+            _alert["flag_level"] = triage_result.get("flag_level")
         await _send_emergency_alert_if_present(plan_result)
 
     # F4: exercise + day rationale (single synchronous pass, non-fatal).
