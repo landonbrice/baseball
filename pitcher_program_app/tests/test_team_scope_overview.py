@@ -183,3 +183,94 @@ def test_today_derives_day_focus_and_normalizes_string_mods(mock_client):
         {"tag": "rpe_cap_56", "reason": None},
         {"tag": "no_high_intent_throw", "reason": None},
     ]
+
+
+@patch("bot.services.team_scope.get_client")
+def test_today_includes_rationale_short_from_entry(mock_client):
+    """F4: today.rationale_short pulled from daily_entries.rationale.rationale_short."""
+    today = "2026-04-22"
+    client = MagicMock()
+    mock_client.return_value = client
+
+    table_calls = [
+        _mock_exec([{"pitcher_id": "p1", "name": "Echo", "role": "Starter (7-day)", "telegram_username": None}]),
+        _mock_exec([{
+            "pitcher_id": "p1",
+            "pre_training": {"arm_feel": 5},
+            "plan_generated": {
+                "day_focus": "lift",
+                "lifting": {"block_name": "Upper push"},
+                "modifications_applied": ["light_lifting"],
+            },
+            "completed_exercises": {},
+            "warmup": {},
+            "lifting": {"exercises": []},
+            "throwing": None,
+            "plan_narrative": None,
+            "rationale": {
+                "rationale_short": "Yellow — arm feel 5.",
+                "rationale_detail": {"summary": "..."},
+            },
+        }]),
+        _mock_exec([]),
+        _mock_exec([{"pitcher_id": "p1", "current_flag_level": "yellow", "active_modifications": ["light_lifting"], "days_since_outing": 2}]),
+        _mock_exec([]),
+        _mock_exec([]),
+    ]
+    exec_seq = iter(table_calls)
+    chain = MagicMock()
+    chain.execute.side_effect = lambda: next(exec_seq)
+    for m in ("table", "select", "eq", "gte", "lte", "in_", "order", "limit", "not_"):
+        getattr(chain, m).return_value = chain
+    chain.not_.is_.return_value = chain
+    client.table.return_value = chain
+
+    from bot.services.team_scope import get_team_roster_overview
+
+    roster = get_team_roster_overview("team_x", today)
+    assert roster[0]["today"]["rationale_short"] == "Yellow — arm feel 5."
+    # modifications stays in payload for slide-over / legacy fallback
+    assert roster[0]["today"]["modifications"] == [{"tag": "light_lifting", "reason": None}]
+
+
+@patch("bot.services.team_scope.get_client")
+def test_today_rationale_short_none_for_legacy_rows(mock_client):
+    """F4: legacy rows without rationale field → rationale_short is None."""
+    today = "2026-04-22"
+    client = MagicMock()
+    mock_client.return_value = client
+
+    table_calls = [
+        _mock_exec([{"pitcher_id": "p1", "name": "Foxtrot", "role": "Starter (7-day)", "telegram_username": None}]),
+        _mock_exec([{
+            "pitcher_id": "p1",
+            "pre_training": {"arm_feel": 8},
+            "plan_generated": {
+                "day_focus": "lift",
+                "lifting": {"block_name": "Upper push"},
+                "modifications_applied": [],
+            },
+            "completed_exercises": {},
+            "warmup": {},
+            "lifting": {"exercises": []},
+            "throwing": None,
+            "plan_narrative": None,
+            # no `rationale` key
+        }]),
+        _mock_exec([]),
+        _mock_exec([{"pitcher_id": "p1", "current_flag_level": "green", "active_modifications": [], "days_since_outing": 3}]),
+        _mock_exec([]),
+        _mock_exec([]),
+    ]
+    exec_seq = iter(table_calls)
+    chain = MagicMock()
+    chain.execute.side_effect = lambda: next(exec_seq)
+    for m in ("table", "select", "eq", "gte", "lte", "in_", "order", "limit", "not_"):
+        getattr(chain, m).return_value = chain
+    chain.not_.is_.return_value = chain
+    client.table.return_value = chain
+
+    from bot.services.team_scope import get_team_roster_overview
+
+    roster = get_team_roster_overview("team_x", today)
+    assert roster[0]["today"]["rationale_short"] is None

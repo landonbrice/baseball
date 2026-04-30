@@ -179,12 +179,17 @@ def get_team_roster_overview(team_id: str, today_str: str) -> list:
             for m in raw_mods
         ]
 
+        # F4: rationale_short — primary subtitle source for HeroCard / TodayObjective.
+        rationale = today.get("rationale") if today else None
+        rationale_short = rationale.get("rationale_short") if isinstance(rationale, dict) else None
+
         today_obj = {
             "day_focus": derived_day_focus,
             "lifting_summary": lifting_summary,
             "bullpen": bullpen_val,
             "throwing": throwing_val,
-            "modifications": modifications,
+            "modifications": modifications,  # keep for legacy clients / slide-over
+            "rationale_short": rationale_short,
         }
 
         roster.append({
