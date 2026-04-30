@@ -83,6 +83,63 @@ def compute_plan_health(date: str = None) -> dict:
     }
 
 
+def compute_plan_health_rolling(days: int = 7) -> dict:
+    """Rolling-window enrichment rate, complement to the per-day compute_plan_health.
+
+    Per-day rate is too sparse (1-3 check-ins/day) to detect a slow regression.
+    This pulls the trailing N days, returns enriched / (enriched + python_fallback),
+    and is the threshold the digest alerts off of.
+
+    Returns:
+        {
+            "window_days": 7,
+            "total_plans": 18,
+            "llm_enriched": 4,
+            "python_fallback": 14,
+            "enrichment_rate": 0.22,
+            "top_source_reasons": [("llm_timeout:...", 13), ...],
+        }
+    """
+    today = datetime.now(CHICAGO_TZ).date()
+    start = (today - timedelta(days=days - 1)).isoformat()
+
+    try:
+        entries = _db.get_client().table("daily_entries").select(
+            "plan_generated"
+        ).gte("date", start).execute().data or []
+    except Exception as e:
+        logger.error(f"health_monitor: rolling query failed (start={start}): {e}")
+        return {"window_days": days, "total_plans": 0, "llm_enriched": 0,
+                "python_fallback": 0, "enrichment_rate": 0.0,
+                "top_source_reasons": [], "query_error": str(e)}
+
+    enriched = 0
+    fallback = 0
+    reason_counts: dict[str, int] = {}
+    for entry in entries:
+        plan = entry.get("plan_generated") or {}
+        src = plan.get("source")
+        if src == "llm_enriched":
+            enriched += 1
+        elif src == "python_fallback":
+            fallback += 1
+            reason = plan.get("source_reason") or "unknown"
+            reason_counts[reason] = reason_counts.get(reason, 0) + 1
+
+    total = enriched + fallback
+    rate = (enriched / total) if total > 0 else 0.0
+    top_reasons = sorted(reason_counts.items(), key=lambda x: -x[1])[:3]
+
+    return {
+        "window_days": days,
+        "total_plans": total,
+        "llm_enriched": enriched,
+        "python_fallback": fallback,
+        "enrichment_rate": rate,
+        "top_source_reasons": top_reasons,
+    }
+
+
 def compute_whoop_health(date: str = None) -> dict:
     """Check which linked pitchers have a whoop_daily row for today.
 
@@ -173,6 +230,7 @@ def compute_daily_digest(date: str = None) -> dict:
     """Compose the full daily health snapshot."""
     return {
         "plan_health": compute_plan_health(date),
+        "plan_health_rolling": compute_plan_health_rolling(days=7),
         "whoop_health": compute_whoop_health(date),
         "weekly_narrative": compute_weekly_narrative_health(),
         "qa_health": compute_qa_health(),
@@ -215,6 +273,22 @@ def format_digest_message(digest: dict) -> str:
             ids = ", ".join(plan["degraded_pitchers"][:5])
             suffix = f" (+{len(plan['degraded_pitchers'])-5} more)" if len(plan["degraded_pitchers"]) > 5 else ""
             lines.append(f"     Affected: {ids}{suffix}")
+
+    # 7-day rolling enrichment rate (smoother signal than the per-day count
+    # when only 1-3 check-ins land per day). Threshold at 60% — below that
+    # the LLM enrichment path is broken in a way that won't self-correct.
+    rolling = digest.get("plan_health_rolling") or {}
+    if rolling.get("query_error"):
+        lines.append(f"⚠️ Plan rolling query failed: {rolling['query_error'][:100]}")
+    elif rolling.get("total_plans", 0) > 0:
+        roll_rate = rolling["enrichment_rate"]
+        roll_icon = "✅" if roll_rate >= 0.6 else ("🟡" if roll_rate >= 0.4 else "🔴")
+        lines.append(
+            f"{roll_icon} 7d enrichment: {rolling['llm_enriched']}/{rolling['total_plans']} "
+            f"({roll_rate*100:.0f}%)"
+        )
+        for reason, count in rolling.get("top_source_reasons", []):
+            lines.append(f"     • {count}× {reason}")
 
     # WHOOP section
     linked = whoop.get("linked_count", 0)

@@ -254,8 +254,13 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
     templates_context = _format_templates(today_template, arm_care, plyocare) + lifting_context
     pitcher_context = _build_pitcher_context(profile, context)
 
-    # Load research relevant to this pitcher's injury profile
-    research_payload = resolve_research(profile, "plan_gen", triage_result)
+    # Load research relevant to this pitcher's injury profile.
+    # Cap injection at ~4kB (down from the 12kB default) — production telemetry
+    # showed every call pinning at the ceiling and shipping 3 full docs, which
+    # was the dominant cause of LLM_REVIEW_TIMEOUT firing. The resolver's budget
+    # logic preserves critical-priority docs first, so this trims standard docs
+    # without losing safety-critical context (e.g. UCL post-op).
+    research_payload = resolve_research(profile, "plan_gen", triage_result, max_chars=4000)
     relevant_research = research_payload.combined_text
 
     # Load structured prompt and call LLM
@@ -361,9 +366,11 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
         python_plan["morning_brief"] += f" Today's plan is informed by the {top_doc.title}."
 
     # ── Pass 2: LLM review (enriches the plan if it responds in time) ──
-    # Short timeout: Python plan is already complete — LLM just adds polish.
-    # If it doesn't respond in 20s, ship the Python plan rather than blocking.
-    LLM_REVIEW_TIMEOUT = 20
+    # Python plan is already complete — LLM just adds polish.
+    # 45s window: the chat model's median latency with our prompt sits north of 20s,
+    # so a 20s cap was producing ~80% silent fallbacks (see source_reason logs Apr-09–30).
+    # 45s catches the long tail without exceeding the mini-app's ~60s fetch ceiling.
+    LLM_REVIEW_TIMEOUT = 45
     use_reasoning = phase == "return_to_throwing" or flag_level == "red"
     truncated = False
     try:
