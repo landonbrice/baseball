@@ -274,3 +274,69 @@ def test_today_rationale_short_none_for_legacy_rows(mock_client):
 
     roster = get_team_roster_overview("team_x", today)
     assert roster[0]["today"]["rationale_short"] is None
+
+
+@patch("bot.services.team_scope.get_client")
+def test_baseline_state_threaded_from_training_model(mock_client):
+    """F4: baseline_state + total_check_ins surface from pitcher_training_model.baseline_snapshot."""
+    today = "2026-04-22"
+    client = MagicMock()
+    mock_client.return_value = client
+
+    table_calls = [
+        _mock_exec([{"pitcher_id": "p1", "name": "Golf", "role": "Starter (7-day)", "telegram_username": None}]),
+        _mock_exec([]),
+        _mock_exec([]),
+        _mock_exec([{
+            "pitcher_id": "p1",
+            "current_flag_level": "yellow",
+            "active_modifications": [],
+            "days_since_outing": 1,
+            "baseline_snapshot": {"baseline_state": "no_baseline", "total_check_ins": 3},
+        }]),
+        _mock_exec([]),
+        _mock_exec([]),
+    ]
+    exec_seq = iter(table_calls)
+    chain = MagicMock()
+    chain.execute.side_effect = lambda: next(exec_seq)
+    for m in ("table", "select", "eq", "gte", "lte", "in_", "order", "limit", "not_"):
+        getattr(chain, m).return_value = chain
+    chain.not_.is_.return_value = chain
+    client.table.return_value = chain
+
+    from bot.services.team_scope import get_team_roster_overview
+
+    roster = get_team_roster_overview("team_x", today)
+    assert roster[0]["baseline_state"] == "no_baseline"
+    assert roster[0]["total_check_ins"] == 3
+
+
+@patch("bot.services.team_scope.get_client")
+def test_baseline_state_none_when_snapshot_missing(mock_client):
+    """F4: legacy training_model rows without baseline_snapshot → None values."""
+    today = "2026-04-22"
+    client = MagicMock()
+    mock_client.return_value = client
+
+    table_calls = [
+        _mock_exec([{"pitcher_id": "p1", "name": "Hotel", "role": "Reliever (short)", "telegram_username": None}]),
+        _mock_exec([]),
+        _mock_exec([]),
+        _mock_exec([{"pitcher_id": "p1", "current_flag_level": "green", "active_modifications": [], "days_since_outing": 0}]),
+        _mock_exec([]),
+        _mock_exec([]),
+    ]
+    exec_seq = iter(table_calls)
+    chain = MagicMock()
+    chain.execute.side_effect = lambda: next(exec_seq)
+    for m in ("table", "select", "eq", "gte", "lte", "in_", "order", "limit", "not_"):
+        getattr(chain, m).return_value = chain
+    chain.not_.is_.return_value = chain
+    client.table.return_value = chain
+
+    from bot.services.team_scope import get_team_roster_overview
+
+    roster = get_team_roster_overview("team_x", today)
+    assert roster[0]["baseline_state"] is None
+    assert roster[0]["total_check_ins"] is None
