@@ -24,6 +24,7 @@ from bot.services.outing_service import process_outing
 from bot.services.llm import call_llm, load_prompt
 from bot.services.knowledge_retrieval import retrieve_knowledge
 from api.auth import validate_init_data, resolve_pitcher
+from bot.services.rationale import generate_exercise_rationale, generate_day_rationale
 
 logger = logging.getLogger(__name__)
 
@@ -1614,6 +1615,9 @@ def _apply_mutations_to_entry(entry: dict, mutations: list, source: str = "coach
     if "exercises" not in top_lifting or not isinstance(top_lifting.get("exercises"), list):
         top_lifting["exercises"] = []
 
+    touched_ids: set = set()
+    day_dirty: bool = False
+
     for m in mutations:
         action = m.get("action")
         exercises = top_lifting["exercises"]
@@ -1632,6 +1636,9 @@ def _apply_mutations_to_entry(entry: dict, mutations: list, source: str = "coach
                         ex["rx"] = m["rx"]
                     ex["swapped_from"] = from_id
                     break
+            if to_id:
+                touched_ids.add(to_id)
+            day_dirty = True
             swap_history.append({"date": date, "from_id": from_id, "to_id": to_id, "reason": "coach", "source": source})
 
         elif action == "add":
@@ -1655,10 +1662,14 @@ def _apply_mutations_to_entry(entry: dict, mutations: list, source: str = "coach
                         break
             if not inserted:
                 exercises.append(new_entry)
+            if ex_id:
+                touched_ids.add(ex_id)
+            day_dirty = True
 
         elif action == "remove":
             ex_id = m.get("exercise_id")
             exercises[:] = [ex for ex in exercises if ex.get("exercise_id") != ex_id]
+            day_dirty = True
 
         elif action == "modify":
             ex_id = m.get("exercise_id")
@@ -1670,6 +1681,9 @@ def _apply_mutations_to_entry(entry: dict, mutations: list, source: str = "coach
                     if m.get("note"):
                         ex["note"] = m["note"]
                     break
+            if ex_id:
+                touched_ids.add(ex_id)
+            day_dirty = True
 
         top_lifting["exercises"] = exercises
 
@@ -1684,6 +1698,36 @@ def _apply_mutations_to_entry(entry: dict, mutations: list, source: str = "coach
     entry["lifting"] = top_lifting
     plan["lifting"] = top_lifting
     entry["plan_generated"] = plan
+
+    # Rationale regeneration (Task 12 / A16 + A29):
+    # After mutations, regenerate per-exercise rationale for touched exercises
+    # and the day_summary_rationale. Triage rationale (entry["rationale"]) is
+    # intentionally left untouched — the flag didn't change, only the response did.
+    if day_dirty:
+        mods_applied = (entry.get("plan_generated") or {}).get("modifications_applied") or []
+        triage_like = {
+            "flag_level": (entry.get("pre_training") or {}).get("flag_level", "green"),
+            "category_scores": (entry.get("pre_training") or {}).get("category_scores", {}),
+            "modifications": mods_applied,
+            "protocol_adjustments": {},
+        }
+
+        if touched_ids:
+            for ex in (top_lifting.get("exercises") or []):
+                ex_id = ex.get("exercise_id") or ex.get("id")
+                if ex_id in touched_ids:
+                    try:
+                        ex["rationale"] = generate_exercise_rationale(ex, mods_applied, plan_context=entry)
+                    except Exception:
+                        logger.exception("rationale_regen_failed | ex=%s", ex_id)
+                        ex["rationale"] = None
+
+        try:
+            plan["day_summary_rationale"] = generate_day_rationale(
+                plan, triage_like, pitcher_context={"role": "starter"}
+            )
+        except Exception:
+            logger.exception("day_rationale_regen_failed | pitcher=%s", pitcher_id)
 
     # Update swap history and preferences in model
     if pitcher_id:
