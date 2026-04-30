@@ -1607,8 +1607,12 @@ def _apply_mutations_to_entry(
     pitcher_id = entry.get("pitcher_id")
     date = entry.get("date")
     plan = entry.get("plan_generated") or {}
-    model = get_training_model(pitcher_id) if pitcher_id else {}
-    swap_history = list(model.get("recent_swap_history") or [])
+    if persist_model and pitcher_id:
+        model = get_training_model(pitcher_id)
+        swap_history = list(model.get("recent_swap_history") or [])
+    else:
+        model = {}
+        swap_history = []
 
     # Mutations operate on the top-level entry.lifting.exercises (where
     # checkin_service writes). The nested plan_generated.lifting is legacy
@@ -1643,7 +1647,8 @@ def _apply_mutations_to_entry(
             if to_id:
                 touched_ids.add(to_id)
             day_dirty = True
-            swap_history.append({"date": date, "from_id": from_id, "to_id": to_id, "reason": "coach", "source": source})
+            if persist_model:
+                swap_history.append({"date": date, "from_id": from_id, "to_id": to_id, "reason": "coach", "source": source})
 
         elif action == "add":
             ex_id = m.get("exercise_id")
@@ -1813,20 +1818,29 @@ async def preview_mutations(pitcher_id: str, request: Request):
     lifting_after = (entry_copy.get("lifting") or {}).get("exercises") or []
     day_after = (entry_copy.get("plan_generated") or {}).get("day_summary_rationale")
 
-    # Build diff: emit any exercise whose rationale changed or is new/removed
+    # Build diff: emit any exercise whose rationale changed or is new/removed.
+    # For swaps, _apply_mutations_to_entry stamps swapped_from on the exercise so
+    # we can look up the original rationale by the pre-swap id rather than the new id.
     diff = []
+    seen_before_keys: set = set()
     for ex_after in lifting_after:
         ex_id = ex_after.get("exercise_id") or ex_after.get("id")
-        before = rationale_before.get(ex_id)
+        swapped_from = ex_after.get("swapped_from")
+        before_key = swapped_from if swapped_from else ex_id
+        seen_before_keys.add(before_key)
+        before = rationale_before.get(before_key)
         after = ex_after.get("rationale")
-        if before != after:
-            diff.append({"exercise_id": ex_id, "before": before, "after": after})
+        is_new = before_key not in rationale_before and not swapped_from
+        if before != after or is_new:
+            entry_dict: dict = {"exercise_id": ex_id, "before": before, "after": after}
+            if swapped_from:
+                entry_dict["swapped_from"] = swapped_from
+            diff.append(entry_dict)
 
-    # Also surface exercises that were dropped (removed action)
-    after_ids = {ex.get("exercise_id") or ex.get("id") for ex in lifting_after}
-    for ex_id, before_rationale in rationale_before.items():
-        if ex_id not in after_ids:
-            diff.append({"exercise_id": ex_id, "before": before_rationale, "after": None})
+    # Removed exercises: present in before, not seen via after
+    for before_id, before_rationale in rationale_before.items():
+        if before_id not in seen_before_keys:
+            diff.append({"exercise_id": before_id, "before": before_rationale, "after": None})
 
     return {
         "mutations": mutations,

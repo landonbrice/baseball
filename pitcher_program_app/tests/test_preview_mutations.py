@@ -215,3 +215,113 @@ def test_preview_400_on_missing_fields():
         assert exc_info3.value.status_code == 400
     finally:
         routes_module.DISABLE_AUTH = original_disable_auth
+
+
+# ---------------------------------------------------------------------------
+# Test 4: diff entry for an "add" mutation has before: None
+# ---------------------------------------------------------------------------
+
+def test_preview_diff_for_add():
+    """An add mutation should produce a diff entry with before=None for the new exercise."""
+    entry = _make_entry()
+    mutations = [{"action": "add", "exercise_id": "ex_50"}]
+    req = _make_request({"date": "2026-04-30", "mutations": mutations})
+
+    original_disable_auth = routes_module.DISABLE_AUTH
+    routes_module.DISABLE_AUTH = True
+
+    try:
+        with (
+            patch("bot.services.db.get_daily_entry", return_value=entry),
+            patch(
+                "bot.services.db.get_exercise",
+                side_effect=lambda eid: {"id": eid, "exercise_id": eid, "name": f"Exercise {eid}"},
+            ),
+            _PATCH_GET_TRAINING_MODEL,
+            _PATCH_UPSERT_TRAINING_MODEL,
+            _PATCH_HYDRATE,
+            _PATCH_GET_PITCHER,
+        ):
+            result = asyncio.run(preview_mutations("test_pitcher_001", req))
+    finally:
+        routes_module.DISABLE_AUTH = original_disable_auth
+
+    diff = result["proposed_rationale"]["exercise_rationale_diff"]
+    add_entries = [d for d in diff if d["exercise_id"] == "ex_50"]
+    assert len(add_entries) == 1, "Expected exactly one diff entry for the added exercise"
+    assert add_entries[0]["before"] is None, "Added exercise should have before=None"
+
+
+# ---------------------------------------------------------------------------
+# Test 5: diff entry for a "remove" mutation has after: None
+# ---------------------------------------------------------------------------
+
+def test_preview_diff_for_remove():
+    """A remove mutation should produce a diff entry with the original rationale and after=None."""
+    entry = _make_entry()
+    mutations = [{"action": "remove", "exercise_id": "ex_1"}]
+    req = _make_request({"date": "2026-04-30", "mutations": mutations})
+
+    original_disable_auth = routes_module.DISABLE_AUTH
+    routes_module.DISABLE_AUTH = True
+
+    try:
+        with (
+            patch("bot.services.db.get_daily_entry", return_value=entry),
+            _PATCH_GET_EXERCISE,
+            _PATCH_GET_TRAINING_MODEL,
+            _PATCH_UPSERT_TRAINING_MODEL,
+            _PATCH_HYDRATE,
+            _PATCH_GET_PITCHER,
+        ):
+            result = asyncio.run(preview_mutations("test_pitcher_001", req))
+    finally:
+        routes_module.DISABLE_AUTH = original_disable_auth
+
+    diff = result["proposed_rationale"]["exercise_rationale_diff"]
+    remove_entries = [d for d in diff if d["exercise_id"] == "ex_1"]
+    assert len(remove_entries) == 1, "Expected exactly one diff entry for the removed exercise"
+    assert remove_entries[0]["before"] == "original_rationale_ex1", "Removed exercise should carry original rationale"
+    assert remove_entries[0]["after"] is None, "Removed exercise should have after=None"
+
+
+# ---------------------------------------------------------------------------
+# Test 6: diff entry for a "swap" mutation threads swapped_from and correct before
+# ---------------------------------------------------------------------------
+
+def test_preview_diff_for_swap_threads_swapped_from():
+    """Swap diff entry must carry swapped_from=ex_1 and before=original rationale of ex_1 (not None)."""
+    entry = _make_entry()
+    mutations = [
+        {"action": "swap", "from_exercise_id": "ex_1", "to_exercise_id": "ex_99", "rx": "3x8"}
+    ]
+    req = _make_request({"date": "2026-04-30", "mutations": mutations})
+
+    original_disable_auth = routes_module.DISABLE_AUTH
+    routes_module.DISABLE_AUTH = True
+
+    try:
+        with (
+            patch("bot.services.db.get_daily_entry", return_value=entry),
+            patch(
+                "bot.services.db.get_exercise",
+                side_effect=lambda eid: {"id": eid, "exercise_id": eid, "name": f"Exercise {eid}"},
+            ),
+            _PATCH_GET_TRAINING_MODEL,
+            _PATCH_UPSERT_TRAINING_MODEL,
+            _PATCH_HYDRATE,
+            _PATCH_GET_PITCHER,
+        ):
+            result = asyncio.run(preview_mutations("test_pitcher_001", req))
+    finally:
+        routes_module.DISABLE_AUTH = original_disable_auth
+
+    diff = result["proposed_rationale"]["exercise_rationale_diff"]
+    # The swapped-in exercise (ex_99) should appear in the diff
+    swap_entries = [d for d in diff if d["exercise_id"] == "ex_99"]
+    assert len(swap_entries) == 1, "Expected a diff entry for the swapped-in exercise (ex_99)"
+    swap_entry = swap_entries[0]
+    assert swap_entry.get("swapped_from") == "ex_1", "swapped_from must reference the original exercise id"
+    assert swap_entry["before"] == "original_rationale_ex1", (
+        "before must be the rationale of ex_1 (the exercise that was swapped out), not None"
+    )
