@@ -14,11 +14,14 @@ from api.coach_auth import require_coach_auth
 from bot.config import CHICAGO_TZ
 from bot.services import db as _db
 from bot.services.team_scope import (
-    get_team_roster_overview,
-    get_team_compliance,
     get_team_games,
     get_pitcher_next_start,
     list_team_pitchers,
+)
+from bot.services.team_daily_status import (
+    get_team_daily_status,
+    to_coach_compliance,
+    to_coach_roster,
 )
 
 logger = logging.getLogger(__name__)
@@ -62,8 +65,9 @@ async def team_overview(request: Request):
     team_id = request.state.team_id
     today_str = datetime.now(CHICAGO_TZ).strftime("%Y-%m-%d")
 
-    roster = get_team_roster_overview(team_id, today_str)
-    compliance = get_team_compliance(team_id, today_str, roster)
+    daily_status = get_team_daily_status(team_id, today_str)
+    roster = to_coach_roster(daily_status)
+    compliance = to_coach_compliance(daily_status)
 
     # Today's schedule
     today_games = get_team_games(team_id, start_date=today_str, end_date=today_str)
