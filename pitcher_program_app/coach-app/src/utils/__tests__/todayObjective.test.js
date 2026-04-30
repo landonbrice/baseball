@@ -86,3 +86,66 @@ describe('buildTodayObjective', () => {
       .toEqual({ mark: 'Recovery', text: 'Mobility + post-throw recovery' })
   })
 })
+
+describe('buildTodayObjective F4 behavior', () => {
+  it('prefers rationale_short when present', () => {
+    expect(
+      buildTodayObjective({
+        rationale_short: 'Yellow — arm feel 5.',
+        modifications: [{ tag: 'old_tag', reason: 'should not show' }],
+        day_focus: 'lift',
+      })
+    ).toEqual({ mark: 'Lift', text: 'Yellow — arm feel 5.' })
+  })
+
+  it('rationale_short pairs mark with day_focus', () => {
+    expect(
+      buildTodayObjective({
+        rationale_short: 'Bullpen — keep tempo light.',
+        modifications: [],
+        day_focus: 'bullpen',
+      })
+    ).toEqual({ mark: 'Bullpen', text: 'Bullpen — keep tempo light.' })
+  })
+
+  it('rationale_short with unknown day_focus falls back to "Today" mark', () => {
+    expect(
+      buildTodayObjective({
+        rationale_short: 'Off-day check; mobility only.',
+        modifications: [],
+        day_focus: null,
+      })
+    ).toEqual({ mark: 'Today', text: 'Off-day check; mobility only.' })
+  })
+
+  it('falls back to legacy modifications when rationale_short null', () => {
+    const out = buildTodayObjective({
+      rationale_short: null,
+      modifications: [
+        { tag: 'maintain_compounds_reduced', reason: 'tissue' },
+        { tag: 'no_high_intent_throw', reason: null },
+      ],
+      day_focus: 'lift',
+    })
+    expect(out.text).toMatch(/maintain_compounds_reduced/i)
+  })
+
+  it('falls back to day_focus when rationale_short null and no modifications', () => {
+    expect(
+      buildTodayObjective({
+        rationale_short: null,
+        modifications: [],
+        day_focus: 'lift',
+        lifting_summary: 'Upper push',
+      })
+    ).toEqual({ mark: 'Lift', text: 'Upper push' })
+  })
+
+  it('Rest fallback when everything is empty', () => {
+    expect(
+      buildTodayObjective({ rationale_short: null, modifications: [], day_focus: null })
+    ).toEqual(REST_FIXTURE)
+  })
+})
+
+const REST_FIXTURE = { mark: 'Rest', text: 'Off day — light mobility optional' }
