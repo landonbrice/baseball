@@ -189,7 +189,7 @@ def get_team_daily_status(team_id: str, today_str: str | None = None, *, client=
                 .execute()).data or []
 
     today_entries = (client.table("daily_entries")
-                    .select("pitcher_id, date, team_id, pre_training, plan_generated, completed_exercises, warmup, lifting, throwing, arm_care, mobility, plan_narrative, rationale")
+                    .select("pitcher_id, date, team_id, pre_training, plan_generated, completed_exercises, warmup, lifting, throwing, arm_care, mobility, plan_narrative")
                     .eq("team_id", team_id)
                     .eq("date", today_str)
                     .execute()).data or []
