@@ -247,6 +247,31 @@ async def coach_pitcher_day(pitcher_id: str, day_date: str, request: Request):
 
 # ---- Overrides ----
 
+@coach_router.post("/pitcher/{pitcher_id}/preview-mutations")
+async def coach_preview_mutations(pitcher_id: str, request: Request):
+    """Dry-run one-time mutations to a pitcher plan without persisting."""
+    await require_coach_auth(request)
+    team_id = request.state.team_id
+    coach_id = request.state.coach_id
+
+    pitcher = _db.get_pitcher(pitcher_id)
+    if not pitcher or pitcher.get("team_id") != team_id:
+        raise HTTPException(status_code=403, detail="Pitcher not on your team")
+
+    body = await request.json()
+    target_date = body.get("date")
+    mutations = body.get("mutations") or []
+    if not target_date or not mutations:
+        raise HTTPException(status_code=400, detail="date and mutations required")
+
+    entry = _db.get_daily_entry(pitcher_id, target_date)
+    if not entry:
+        raise HTTPException(status_code=404, detail="No entry for this date")
+
+    from api.routes import _preview_mutations_for_entry
+    return _preview_mutations_for_entry(entry, mutations, source=f"coach_preview:{coach_id}")
+
+
 @coach_router.post("/pitcher/{pitcher_id}/adjust-today")
 async def adjust_today(pitcher_id: str, request: Request):
     """Apply one-time mutations to today's plan (verb 1)."""

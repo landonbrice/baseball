@@ -58,7 +58,7 @@ export async function deleteCoachApi(path, accessToken) {
 // -- F4: rationale preview --
 
 export async function previewMutations(pitcherId, body, accessToken) {
-  return postCoachApi(`/api/pitcher/${pitcherId}/preview-mutations`, body, accessToken)
+  return postCoachApi(`/api/coach/pitcher/${pitcherId}/preview-mutations`, body, accessToken)
 }
 
 // -- Nudge --

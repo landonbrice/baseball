@@ -12,11 +12,13 @@ Note on patch targets:
 (`bot.services.db.get_exercise`, etc.) rather than `api.routes.<name>`.
 """
 import asyncio
+from types import SimpleNamespace
 from unittest.mock import patch, MagicMock, AsyncMock, call
 
 import pytest
 
 import api.routes as routes_module
+from api.coach_routes import coach_preview_mutations
 from api.routes import preview_mutations
 
 
@@ -325,3 +327,45 @@ def test_preview_diff_for_swap_threads_swapped_from():
     assert swap_entry["before"] == "original_rationale_ex1", (
         "before must be the rationale of ex_1 (the exercise that was swapped out), not None"
     )
+
+
+def test_coach_preview_uses_coach_route_and_does_not_persist():
+    """Coach preview must team-scope the pitcher and avoid all persistence writes."""
+    entry = _make_entry()
+    mutations = [
+        {"action": "swap", "from_exercise_id": "ex_1", "to_exercise_id": "ex_99", "rx": "3x8"}
+    ]
+    req = SimpleNamespace(
+        json=AsyncMock(return_value={"date": "2026-04-30", "mutations": mutations}),
+        state=SimpleNamespace(team_id="team_1", coach_id="coach_1"),
+    )
+
+    async def _auth(request):
+        return None
+
+    with (
+        patch("api.coach_routes.require_coach_auth", side_effect=_auth) as mock_auth,
+        patch(
+            "bot.services.db.get_pitcher",
+            lambda pid: {
+                "pitcher_id": "test_pitcher_001",
+                "team_id": "team_1",
+                "role": "starter",
+                "active_flags": {"days_since_outing": 3},
+            },
+        ),
+        patch("api.coach_routes._db.get_daily_entry", return_value=entry),
+        patch("api.coach_routes._db.upsert_daily_entry") as mock_coach_upsert_entry,
+        patch("bot.services.db.upsert_daily_entry") as mock_db_upsert_entry,
+        patch("bot.services.db.upsert_training_model") as mock_upsert_model,
+        _PATCH_GET_EXERCISE,
+        _PATCH_GET_TRAINING_MODEL,
+        _PATCH_HYDRATE,
+    ):
+        result = asyncio.run(coach_preview_mutations("test_pitcher_001", req))
+
+    mock_auth.assert_called_once()
+    mock_coach_upsert_entry.assert_not_called()
+    mock_db_upsert_entry.assert_not_called()
+    mock_upsert_model.assert_not_called()
+    assert result["proposed_rationale"]["exercise_rationale_diff"]

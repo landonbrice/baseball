@@ -1651,36 +1651,117 @@ def _apply_mutations_to_entry(
         model = {}
         swap_history = []
 
-    # Mutations operate on the top-level entry.lifting.exercises (where
-    # checkin_service writes). The nested plan_generated.lifting is legacy
-    # and can drift; we prefer top-level as the source of truth.
-    top_lifting = entry.get("lifting") or {}
-    if not isinstance(top_lifting, dict):
-        top_lifting = {}
-    if "exercises" not in top_lifting or not isinstance(top_lifting.get("exercises"), list):
-        top_lifting["exercises"] = []
+    top_lifting = entry.get("lifting") if isinstance(entry.get("lifting"), dict) else {}
+    nested_lifting = plan.get("lifting") if isinstance(plan.get("lifting"), dict) else {}
+    top_exercises = top_lifting.get("exercises") if isinstance(top_lifting.get("exercises"), list) else []
+    nested_exercises = nested_lifting.get("exercises") if isinstance(nested_lifting.get("exercises"), list) else []
+
+    def _is_arm_care_block(block: dict) -> bool:
+        label = str(block.get("block_name") or block.get("name") or block.get("type") or "").lower()
+        return "arm" in label and "care" in label
+
+    exercise_blocks = [
+        block for block in (plan.get("exercise_blocks") or [])
+        if isinstance(block, dict) and not _is_arm_care_block(block)
+    ]
+    block_exercises = [
+        ex
+        for block in exercise_blocks
+        for ex in (block.get("exercises") or [])
+        if isinstance(ex, dict)
+    ]
+
+    if top_exercises:
+        exercises = top_exercises
+    elif nested_exercises:
+        exercises = nested_exercises
+    else:
+        exercises = list(block_exercises)
+
+    def _exercise_id(ex: dict) -> str | None:
+        return ex.get("exercise_id") or ex.get("id")
+
+    def _find(exercise_list: list, exercise_id: str | None) -> dict | None:
+        if not exercise_id:
+            return None
+        return next((ex for ex in exercise_list if _exercise_id(ex) == exercise_id), None)
+
+    def _apply_fields(ex: dict, mutation: dict, replacement: dict | None = None) -> None:
+        to_id = mutation.get("to_exercise_id")
+        if to_id:
+            ex["exercise_id"] = to_id
+            ex["id"] = to_id
+            ex["name"] = replacement.get("name", to_id) if replacement else to_id
+        if mutation.get("rx"):
+            ex["prescribed"] = mutation["rx"]
+            ex["rx"] = mutation["rx"]
+        if mutation.get("note"):
+            ex["note"] = mutation["note"]
+
+    def _apply_matching_in_blocks(target_id: str | None, apply_fn) -> bool:
+        matched = False
+        if not target_id:
+            return matched
+        for block in exercise_blocks:
+            for ex in (block.get("exercises") or []):
+                if isinstance(ex, dict) and _exercise_id(ex) == target_id:
+                    apply_fn(ex)
+                    matched = True
+        return matched
+
+    def _remove_matching_in_blocks(target_id: str | None) -> bool:
+        matched = False
+        if not target_id:
+            return matched
+        for block in exercise_blocks:
+            block_list = block.get("exercises")
+            if not isinstance(block_list, list):
+                continue
+            before = len(block_list)
+            block_list[:] = [
+                ex for ex in block_list
+                if not (isinstance(ex, dict) and _exercise_id(ex) == target_id)
+            ]
+            matched = matched or len(block_list) != before
+        return matched
+
+    def _insert_in_blocks(new_entry: dict, after_id: str | None) -> bool:
+        if after_id:
+            for block in exercise_blocks:
+                block_list = block.get("exercises")
+                if not isinstance(block_list, list):
+                    continue
+                for idx, ex in enumerate(block_list):
+                    if isinstance(ex, dict) and _exercise_id(ex) == after_id:
+                        block_list.insert(idx + 1, copy.deepcopy(new_entry))
+                        return True
+            return False
+        if exercise_blocks:
+            block_list = exercise_blocks[0].setdefault("exercises", [])
+            if isinstance(block_list, list):
+                block_list.append(copy.deepcopy(new_entry))
+                return True
+        return False
 
     touched_ids: set = set()
     day_dirty: bool = False
 
     for m in mutations:
         action = m.get("action")
-        exercises = top_lifting["exercises"]
 
         if action == "swap":
             from_id = m.get("from_exercise_id")
             to_id = m.get("to_exercise_id")
             replacement = get_exercise(to_id) if to_id else None
-            for ex in exercises:
-                if ex.get("exercise_id") == from_id:
-                    if replacement:
-                        ex["exercise_id"] = to_id
-                        ex["name"] = replacement.get("name", to_id)
-                    if m.get("rx"):
-                        ex["prescribed"] = m["rx"]
-                        ex["rx"] = m["rx"]
-                    ex["swapped_from"] = from_id
-                    break
+            target = _find(exercises, from_id)
+            if not target:
+                raise HTTPException(status_code=404, detail=f"Exercise {from_id} not found in plan")
+            _apply_fields(target, m, replacement)
+            target["swapped_from"] = from_id
+            _apply_matching_in_blocks(
+                from_id,
+                lambda ex: (_apply_fields(ex, m, replacement), ex.__setitem__("swapped_from", from_id)),
+            )
             if to_id:
                 touched_ids.add(to_id)
             day_dirty = True
@@ -1702,47 +1783,49 @@ def _apply_mutations_to_entry(
             inserted = False
             if after_id:
                 for i, ex in enumerate(exercises):
-                    if ex.get("exercise_id") == after_id:
+                    if _exercise_id(ex) == after_id:
                         exercises.insert(i + 1, new_entry)
                         inserted = True
                         break
+                if not inserted:
+                    raise HTTPException(status_code=404, detail=f"Exercise {after_id} not found in plan")
             if not inserted:
                 exercises.append(new_entry)
+            _insert_in_blocks(new_entry, after_id)
             if ex_id:
                 touched_ids.add(ex_id)
             day_dirty = True
 
         elif action == "remove":
             ex_id = m.get("exercise_id")
-            exercises[:] = [ex for ex in exercises if ex.get("exercise_id") != ex_id]
+            if not _find(exercises, ex_id):
+                raise HTTPException(status_code=404, detail=f"Exercise {ex_id} not found in plan")
+            exercises[:] = [ex for ex in exercises if _exercise_id(ex) != ex_id]
+            _remove_matching_in_blocks(ex_id)
             day_dirty = True
 
         elif action == "modify":
             ex_id = m.get("exercise_id")
-            for ex in exercises:
-                if ex.get("exercise_id") == ex_id:
-                    if m.get("rx"):
-                        ex["prescribed"] = m["rx"]
-                        ex["rx"] = m["rx"]
-                    if m.get("note"):
-                        ex["note"] = m["note"]
-                    break
+            target = _find(exercises, ex_id)
+            if not target:
+                raise HTTPException(status_code=404, detail=f"Exercise {ex_id} not found in plan")
+            _apply_fields(target, m)
+            _apply_matching_in_blocks(ex_id, lambda ex: _apply_fields(ex, m))
             if ex_id:
                 touched_ids.add(ex_id)
             day_dirty = True
 
-        top_lifting["exercises"] = exercises
-
     # Hydrate exercise names before write (D17)
     from bot.services.exercise_pool import hydrate_exercises
+    top_lifting["exercises"] = exercises
+    nested_lifting["exercises"] = copy.deepcopy(exercises)
     hydrate_exercises(top_lifting.get("exercises") or [])
+    hydrate_exercises(nested_lifting.get("exercises") or [])
     for blk in (plan.get("exercise_blocks") or []):
         hydrate_exercises(blk.get("exercises") or [])
 
-    # Save updated plan — top-level lifting is the canonical location.
-    # Also sync to plan_generated.lifting for any legacy consumers.
     entry["lifting"] = top_lifting
-    plan["lifting"] = top_lifting
+    plan["lifting"] = nested_lifting
     entry["plan_generated"] = plan
 
     # Rationale regeneration (Task 12 / A16 + A29):
@@ -1807,6 +1890,61 @@ def _apply_mutations_to_entry(
     return entry
 
 
+def _preview_mutations_for_entry(entry: dict, mutations: list, source: str = "preview") -> dict:
+    """Dry-run mutations against an entry and return rationale deltas."""
+    lifting_before = (entry.get("lifting") or {}).get("exercises") or []
+    if not lifting_before:
+        lifting_before = ((entry.get("plan_generated") or {}).get("lifting") or {}).get("exercises") or []
+    if not lifting_before:
+        lifting_before = [
+            ex
+            for block in ((entry.get("plan_generated") or {}).get("exercise_blocks") or [])
+            if not ("arm" in str(block.get("block_name") or "").lower() and "care" in str(block.get("block_name") or "").lower())
+            for ex in (block.get("exercises") or [])
+        ]
+    rationale_before = {
+        (ex.get("exercise_id") or ex.get("id")): ex.get("rationale")
+        for ex in lifting_before
+        if isinstance(ex, dict)
+    }
+    day_before = (entry.get("plan_generated") or {}).get("day_summary_rationale")
+
+    entry_copy = copy.deepcopy(entry)
+    _apply_mutations_to_entry(entry_copy, mutations, source=source, persist_model=False)
+
+    lifting_after = (entry_copy.get("lifting") or {}).get("exercises") or []
+    day_after = (entry_copy.get("plan_generated") or {}).get("day_summary_rationale")
+
+    diff = []
+    seen_before_keys: set = set()
+    for ex_after in lifting_after:
+        ex_id = ex_after.get("exercise_id") or ex_after.get("id")
+        swapped_from = ex_after.get("swapped_from")
+        before_key = swapped_from if swapped_from else ex_id
+        seen_before_keys.add(before_key)
+        before = rationale_before.get(before_key)
+        after = ex_after.get("rationale")
+        is_new = before_key not in rationale_before and not swapped_from
+        if before != after or is_new:
+            entry_dict: dict = {"exercise_id": ex_id, "before": before, "after": after}
+            if swapped_from:
+                entry_dict["swapped_from"] = swapped_from
+            diff.append(entry_dict)
+
+    for before_id, before_rationale in rationale_before.items():
+        if before_id not in seen_before_keys:
+            diff.append({"exercise_id": before_id, "before": before_rationale, "after": None})
+
+    return {
+        "mutations": mutations,
+        "proposed_rationale": {
+            "exercise_rationale_diff": diff,
+            "day_summary_before": day_before,
+            "day_summary_after": day_after,
+        },
+    }
+
+
 @router.post("/pitcher/{pitcher_id}/apply-mutations")
 async def apply_mutations(pitcher_id: str, request: Request):
     """Apply coach-suggested mutations to today's plan."""
@@ -1840,53 +1978,7 @@ async def preview_mutations(pitcher_id: str, request: Request):
     if not entry:
         raise HTTPException(status_code=404, detail="No entry for this date")
 
-    # Snapshot rationale before applying mutations
-    lifting_before = (entry.get("lifting") or {}).get("exercises") or []
-    rationale_before = {
-        (ex.get("exercise_id") or ex.get("id")): ex.get("rationale")
-        for ex in lifting_before
-    }
-    day_before = (entry.get("plan_generated") or {}).get("day_summary_rationale")
-
-    # Apply mutations on a deep copy; persist_model=False skips all bookkeeping writes
-    entry_copy = copy.deepcopy(entry)
-    _apply_mutations_to_entry(entry_copy, mutations, source="preview", persist_model=False)
-
-    lifting_after = (entry_copy.get("lifting") or {}).get("exercises") or []
-    day_after = (entry_copy.get("plan_generated") or {}).get("day_summary_rationale")
-
-    # Build diff: emit any exercise whose rationale changed or is new/removed.
-    # For swaps, _apply_mutations_to_entry stamps swapped_from on the exercise so
-    # we can look up the original rationale by the pre-swap id rather than the new id.
-    diff = []
-    seen_before_keys: set = set()
-    for ex_after in lifting_after:
-        ex_id = ex_after.get("exercise_id") or ex_after.get("id")
-        swapped_from = ex_after.get("swapped_from")
-        before_key = swapped_from if swapped_from else ex_id
-        seen_before_keys.add(before_key)
-        before = rationale_before.get(before_key)
-        after = ex_after.get("rationale")
-        is_new = before_key not in rationale_before and not swapped_from
-        if before != after or is_new:
-            entry_dict: dict = {"exercise_id": ex_id, "before": before, "after": after}
-            if swapped_from:
-                entry_dict["swapped_from"] = swapped_from
-            diff.append(entry_dict)
-
-    # Removed exercises: present in before, not seen via after
-    for before_id, before_rationale in rationale_before.items():
-        if before_id not in seen_before_keys:
-            diff.append({"exercise_id": before_id, "before": before_rationale, "after": None})
-
-    return {
-        "mutations": mutations,
-        "proposed_rationale": {
-            "exercise_rationale_diff": diff,
-            "day_summary_before": day_before,
-            "day_summary_after": day_after,
-        },
-    }
+    return _preview_mutations_for_entry(entry, mutations, source="preview")
 
 
 # ---------------------------------------------------------------------------

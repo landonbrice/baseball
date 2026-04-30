@@ -173,3 +173,92 @@ def test_mutation_pins_triage_rationale():
         f"Triage rationale was mutated. Expected: {original_rationale!r}, "
         f"got: {result.get('rationale')!r}"
     )
+
+
+def test_nested_lifting_source_syncs_top_level_and_blocks():
+    entry = _make_entry(
+        lifting=None,
+        plan_generated={
+            "day_focus": "lift",
+            "modifications_applied": [],
+            "day_summary_rationale": "original_day_summary",
+            "lifting": {
+                "exercises": [
+                    {
+                        "exercise_id": "ex_1",
+                        "name": "Squat",
+                        "prescribed": "3x5",
+                        "rx": "3x5",
+                        "rationale": "original_rationale_ex1",
+                    }
+                ]
+            },
+            "exercise_blocks": [
+                {
+                    "block_name": "Strength",
+                    "exercises": [
+                        {"exercise_id": "ex_1", "name": "Squat", "prescribed": "3x5", "rx": "3x5"}
+                    ],
+                }
+            ],
+        },
+    )
+    mutations = [{"action": "swap", "from_exercise_id": "ex_1", "to_exercise_id": "ex_99", "rx": "3x8"}]
+
+    with _PATCH_GET_EXERCISE, _PATCH_GET_TRAINING_MODEL, _PATCH_UPSERT_TRAINING_MODEL, _PATCH_HYDRATE, _PATCH_GET_PITCHER:
+        result = _apply_mutations_to_entry(entry, mutations, source="test")
+
+    assert result["lifting"]["exercises"][0]["exercise_id"] == "ex_99"
+    assert result["plan_generated"]["lifting"]["exercises"][0]["exercise_id"] == "ex_99"
+    block = result["plan_generated"]["exercise_blocks"][0]
+    assert block["block_name"] == "Strength"
+    assert block["exercises"][0]["exercise_id"] == "ex_99"
+    assert block["exercises"][0]["rx"] == "3x8"
+
+
+def test_exercise_blocks_only_source_preserves_block_labels():
+    entry = _make_entry(
+        lifting=None,
+        plan_generated={
+            "day_focus": "lift",
+            "modifications_applied": [],
+            "day_summary_rationale": "original_day_summary",
+            "exercise_blocks": [
+                {
+                    "block_name": "Power",
+                    "exercises": [
+                        {"exercise_id": "ex_1", "name": "Jump", "prescribed": "3x3", "rx": "3x3"}
+                    ],
+                },
+                {
+                    "block_name": "Arm Care",
+                    "exercises": [
+                        {"exercise_id": "ex_arm", "name": "Band ER", "prescribed": "2x12", "rx": "2x12"}
+                    ],
+                },
+            ],
+        },
+    )
+    mutations = [{"action": "modify", "exercise_id": "ex_1", "rx": "4x4", "note": "Keep it crisp"}]
+
+    with _PATCH_GET_EXERCISE, _PATCH_GET_TRAINING_MODEL, _PATCH_UPSERT_TRAINING_MODEL, _PATCH_HYDRATE, _PATCH_GET_PITCHER:
+        result = _apply_mutations_to_entry(entry, mutations, source="test")
+
+    blocks = result["plan_generated"]["exercise_blocks"]
+    assert [block["block_name"] for block in blocks] == ["Power", "Arm Care"]
+    assert result["lifting"]["exercises"][0]["rx"] == "4x4"
+    assert result["plan_generated"]["lifting"]["exercises"][0]["rx"] == "4x4"
+    assert blocks[0]["exercises"][0]["rx"] == "4x4"
+    assert blocks[1]["exercises"][0]["rx"] == "2x12"
+
+
+def test_missing_swap_target_fails_loudly():
+    entry = _make_entry()
+    mutations = [{"action": "swap", "from_exercise_id": "ex_missing", "to_exercise_id": "ex_99"}]
+
+    with _PATCH_GET_EXERCISE, _PATCH_GET_TRAINING_MODEL, _PATCH_UPSERT_TRAINING_MODEL, _PATCH_HYDRATE, _PATCH_GET_PITCHER:
+        with pytest.raises(Exception) as exc_info:
+            _apply_mutations_to_entry(entry, mutations, source="test")
+
+    assert getattr(exc_info.value, "status_code", None) == 404
+    assert "ex_missing" in str(exc_info.value.detail)

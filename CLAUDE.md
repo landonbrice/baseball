@@ -188,7 +188,10 @@ pitcher_program_app/
 
 ### Swap / Mutation Dual-Write (Critical Gotcha)
 - `daily_entries` has **two places** lifting lives: top-level `lifting` column (written by `checkin_service`) AND nested `plan_generated.lifting` (written by `apply_mutations`)
-- `swap_exercise` and `apply_mutations` search top-level `entry.lifting.exercises` FIRST, fall back to nested legacy locations, write back BOTH
+- `swap_exercise` and `apply_mutations` search top-level `entry.lifting.exercises` FIRST, then `plan_generated.lifting.exercises`, then non-arm-care `plan_generated.exercise_blocks[*].exercises`
+- `apply_mutations` writes the final lifting list back to BOTH `entry.lifting` and `plan_generated.lifting`, and updates matching `plan_generated.exercise_blocks` exercises in place so block labels/structure are preserved
+- `swap` / `modify` / `remove` missing targets fail loudly with 404; mutation preview uses the same helper on a deep copy and must not call `upsert_daily_entry` or `upsert_training_model`
+- Coach mutation preview lives at `POST /api/coach/pitcher/{pitcher_id}/preview-mutations`, uses `require_coach_auth`, verifies `pitcher.team_id`, and shares the pitcher preview dry-run logic
 - Frontend reads: `lifting: entry.lifting || plan_generated?.lifting` — top-level first
 
 ### Two-Pass Plan Generation
