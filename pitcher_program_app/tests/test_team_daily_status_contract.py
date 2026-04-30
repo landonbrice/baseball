@@ -176,6 +176,8 @@ def test_team_daily_status_does_not_select_legacy_arm_feel_column():
                 selected = {c.strip() for c in columns.split(",")}
                 assert "arm_feel" not in selected
                 assert "rationale" not in selected
+                assert "arm_care" not in selected
+                assert "mobility" not in selected
             return self
 
     class StrictClient(_Client):
