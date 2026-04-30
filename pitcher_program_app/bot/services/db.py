@@ -186,6 +186,11 @@ def upsert_daily_entry(pitcher_id: str, entry: dict) -> None:
     """Insert or update a daily entry (upsert on pitcher_id + date)."""
     row = {k: v for k, v in entry.items() if k in _DAILY_ENTRY_COLUMNS}
     row["pitcher_id"] = pitcher_id
+    if not row.get("team_id"):
+        pitcher = get_pitcher(pitcher_id)
+        team_id = pitcher.get("team_id")
+        if team_id:
+            row["team_id"] = team_id
     get_client().table("daily_entries").upsert(row, on_conflict="pitcher_id,date").execute()
 
 

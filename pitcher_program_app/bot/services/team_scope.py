@@ -23,6 +23,16 @@ def _require_team_id(team_id: str) -> str:
     return team_id
 
 
+def _has_checkin(entry: dict | None) -> bool:
+    """A submitted arm-feel check-in is the cross-app attendance signal."""
+    if not entry:
+        return False
+    pre = entry.get("pre_training")
+    if isinstance(pre, dict) and pre.get("arm_feel") is not None:
+        return True
+    return entry.get("arm_feel") is not None
+
+
 def list_team_pitchers(team_id: str) -> list:
     """Return all pitchers for a team."""
     team_id = _require_team_id(team_id)
@@ -112,14 +122,14 @@ def get_team_roster_overview(team_id: str, today_str: str) -> list:
         model = model_map.get(pid, {})
         week = week_map.get(pid, [])
 
-        has_checked_in = bool(today and today.get("plan_generated"))
+        has_checked_in = _has_checkin(today)
 
         # Build 7-day strip
         last_7 = []
         for i in range(6, -1, -1):
             d = (_date.fromisoformat(today_str) - timedelta(days=i)).isoformat()
             day_entry = next((e for e in week if e["date"] == d), None)
-            if day_entry and day_entry.get("completed_exercises"):
+            if _has_checkin(day_entry):
                 last_7.append({"date": d, "status": "checked_in"})
             elif day_entry:
                 last_7.append({"date": d, "status": "partial"})
