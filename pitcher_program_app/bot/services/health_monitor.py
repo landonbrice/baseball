@@ -429,6 +429,20 @@ def record_and_check_emergency(source_reason: str, pitcher_id: str = None) -> di
 
 def format_emergency_alert(alert: dict) -> str:
     """Format an emergency alert dict as a Telegram message."""
+    # F4: per-pitcher red-flag alert with rationale_detail
+    detail = alert.get("rationale_detail")
+    if detail:
+        name = alert.get("pitcher_name", "Unknown")
+        lines = [
+            f"🚨 RED FLAG — {name}",
+            "",
+            f"Status: {detail.get('status_line', '')}",
+            f"Signal: {detail.get('signal_line', '')}",
+            f"Response: {detail.get('response_line', '')}",
+        ]
+        return "\n".join(lines)
+
+    # Legacy system-health alert format (unchanged)
     lines = [
         "🚨 Pitcher Bot Emergency",
         "",

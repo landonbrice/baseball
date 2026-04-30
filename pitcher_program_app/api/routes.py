@@ -1,5 +1,6 @@
 """API routes — read + action endpoints for the pitcher dashboard."""
 
+import copy
 import json
 import logging
 import os
@@ -24,6 +25,7 @@ from bot.services.outing_service import process_outing
 from bot.services.llm import call_llm, load_prompt
 from bot.services.knowledge_retrieval import retrieve_knowledge
 from api.auth import validate_init_data, resolve_pitcher
+from bot.services.rationale import generate_exercise_rationale, generate_day_rationale
 
 logger = logging.getLogger(__name__)
 
@@ -520,6 +522,10 @@ async def post_ask(pitcher_id: str, request: Request):
         if history_text:
             user_prompt += f"\n\nConversation so far:{history_text}\n\nLatest question: {question}"
 
+        # F4: inject today's sanitized rationale context to ground the answer
+        from bot.services.rationale import build_qa_rationale_context
+        user_prompt = build_qa_rationale_context(pitcher_id) + user_prompt
+
         answer = await call_llm(system_prompt, user_prompt)
         append_context(pitcher_id, "interaction", f"Q: {question[:80]} | A: {answer[:200]}")
         return {"answer": answer}
@@ -890,6 +896,10 @@ async def post_chat(pitcher_id: str, request: Request):
                 user_prompt = qa_prompt.replace("{pitcher_context}", pitcher_context)
                 user_prompt = user_prompt.replace("{question}", question)
                 user_prompt = user_prompt.replace("{knowledge_context}", knowledge)
+
+                # F4: inject today's sanitized rationale context to ground the answer
+                from bot.services.rationale import build_qa_rationale_context
+                user_prompt = build_qa_rationale_context(pitcher_id) + user_prompt
 
                 from bot.services.llm import call_llm_reasoning
                 from bot.handlers.qa import _REASONING_KEYWORDS as _RK2
@@ -1620,18 +1630,25 @@ async def swap_exercise(pitcher_id: str, request: Request):
     }
 
 
-def _apply_mutations_to_entry(entry: dict, mutations: list, source: str = "coach") -> dict:
+def _apply_mutations_to_entry(
+    entry: dict, mutations: list, source: str = "coach", persist_model: bool = True
+) -> dict:
     """Apply mutations to a daily entry's plan. Returns the modified entry.
 
-    Also updates pitcher training model (swap history, preferences).
+    Also updates pitcher training model (swap history, preferences) unless
+    persist_model=False, in which case all bookkeeping writes are skipped (dry-run).
     """
-    from bot.services.db import get_training_model, upsert_training_model, get_exercise
+    from bot.services.db import get_training_model, upsert_training_model, get_exercise, get_pitcher
 
     pitcher_id = entry.get("pitcher_id")
     date = entry.get("date")
     plan = entry.get("plan_generated") or {}
-    model = get_training_model(pitcher_id) if pitcher_id else {}
-    swap_history = list(model.get("recent_swap_history") or [])
+    if persist_model and pitcher_id:
+        model = get_training_model(pitcher_id)
+        swap_history = list(model.get("recent_swap_history") or [])
+    else:
+        model = {}
+        swap_history = []
 
     # Mutations operate on the top-level entry.lifting.exercises (where
     # checkin_service writes). The nested plan_generated.lifting is legacy
@@ -1641,6 +1658,9 @@ def _apply_mutations_to_entry(entry: dict, mutations: list, source: str = "coach
         top_lifting = {}
     if "exercises" not in top_lifting or not isinstance(top_lifting.get("exercises"), list):
         top_lifting["exercises"] = []
+
+    touched_ids: set = set()
+    day_dirty: bool = False
 
     for m in mutations:
         action = m.get("action")
@@ -1660,7 +1680,11 @@ def _apply_mutations_to_entry(entry: dict, mutations: list, source: str = "coach
                         ex["rx"] = m["rx"]
                     ex["swapped_from"] = from_id
                     break
-            swap_history.append({"date": date, "from_id": from_id, "to_id": to_id, "reason": "coach", "source": source})
+            if to_id:
+                touched_ids.add(to_id)
+            day_dirty = True
+            if persist_model:
+                swap_history.append({"date": date, "from_id": from_id, "to_id": to_id, "reason": "coach", "source": source})
 
         elif action == "add":
             ex_id = m.get("exercise_id")
@@ -1683,10 +1707,14 @@ def _apply_mutations_to_entry(entry: dict, mutations: list, source: str = "coach
                         break
             if not inserted:
                 exercises.append(new_entry)
+            if ex_id:
+                touched_ids.add(ex_id)
+            day_dirty = True
 
         elif action == "remove":
             ex_id = m.get("exercise_id")
             exercises[:] = [ex for ex in exercises if ex.get("exercise_id") != ex_id]
+            day_dirty = True
 
         elif action == "modify":
             ex_id = m.get("exercise_id")
@@ -1698,6 +1726,9 @@ def _apply_mutations_to_entry(entry: dict, mutations: list, source: str = "coach
                     if m.get("note"):
                         ex["note"] = m["note"]
                     break
+            if ex_id:
+                touched_ids.add(ex_id)
+            day_dirty = True
 
         top_lifting["exercises"] = exercises
 
@@ -1713,8 +1744,52 @@ def _apply_mutations_to_entry(entry: dict, mutations: list, source: str = "coach
     plan["lifting"] = top_lifting
     entry["plan_generated"] = plan
 
-    # Update swap history and preferences in model
-    if pitcher_id:
+    # Rationale regeneration (Task 12 / A16 + A29):
+    # After mutations, regenerate per-exercise rationale for touched exercises
+    # and the day_summary_rationale. Triage rationale (entry["rationale"]) is
+    # intentionally left untouched — the flag didn't change, only the response did.
+    if day_dirty:
+        mods_applied = plan.get("modifications_applied") or []
+        triage_like = {
+            "flag_level": (entry.get("pre_training") or {}).get("flag_level", "green"),
+            "category_scores": (entry.get("pre_training") or {}).get("category_scores", {}),
+            "modifications": mods_applied,
+            "protocol_adjustments": {},
+        }
+
+        # Build pitcher context from real profile (Issue A: don't hardcode role).
+        profile = {}
+        if pitcher_id:
+            try:
+                profile = get_pitcher(pitcher_id) or {}
+            except Exception:
+                logger.exception("rationale_profile_lookup_failed | pitcher=%s", pitcher_id)
+                profile = {}
+        pitcher_ctx = {
+            "role": (profile.get("role") or "starter").lower(),
+            "days_since_outing": (profile.get("active_flags") or {}).get("days_since_outing"),
+        }
+
+        if touched_ids:
+            for ex in (top_lifting.get("exercises") or []):
+                ex_id = ex.get("exercise_id") or ex.get("id")
+                if ex_id in touched_ids:
+                    try:
+                        ex["rationale"] = generate_exercise_rationale(ex, mods_applied, plan_context=entry)
+                    except Exception:
+                        logger.exception("rationale_regen_failed | ex=%s", ex_id)
+                        ex["rationale"] = None
+
+        try:
+            new_day_rationale = generate_day_rationale(plan, triage_like, pitcher_context=pitcher_ctx)
+            if new_day_rationale is not None:
+                plan["day_summary_rationale"] = new_day_rationale
+        except Exception:
+            logger.exception("day_rationale_regen_failed | pitcher=%s", pitcher_id)
+
+    # Update swap history and preferences in model.
+    # Skipped when persist_model=False (dry-run / preview path).
+    if pitcher_id and persist_model:
         if len(swap_history) > 30:
             swap_history = swap_history[-30:]
         model["recent_swap_history"] = swap_history
@@ -1748,6 +1823,69 @@ async def apply_mutations(pitcher_id: str, request: Request):
     updated = _apply_mutations_to_entry(entry, mutations, source)
     upsert_daily_entry(pitcher_id, updated)
     return {"status": "ok", "mutations_applied": len(mutations)}
+
+
+@router.post("/pitcher/{pitcher_id}/preview-mutations")
+async def preview_mutations(pitcher_id: str, request: Request):
+    """Dry-run mutations: returns rationale diff without writing."""
+    _require_pitcher_auth(request, pitcher_id)
+    body = await request.json()
+    date = body.get("date")
+    mutations = body.get("mutations") or []
+    if not date or not mutations:
+        raise HTTPException(status_code=400, detail="date and mutations required")
+    from bot.services.db import get_daily_entry
+    entry = get_daily_entry(pitcher_id, date)
+    if not entry:
+        raise HTTPException(status_code=404, detail="No entry for this date")
+
+    # Snapshot rationale before applying mutations
+    lifting_before = (entry.get("lifting") or {}).get("exercises") or []
+    rationale_before = {
+        (ex.get("exercise_id") or ex.get("id")): ex.get("rationale")
+        for ex in lifting_before
+    }
+    day_before = (entry.get("plan_generated") or {}).get("day_summary_rationale")
+
+    # Apply mutations on a deep copy; persist_model=False skips all bookkeeping writes
+    entry_copy = copy.deepcopy(entry)
+    _apply_mutations_to_entry(entry_copy, mutations, source="preview", persist_model=False)
+
+    lifting_after = (entry_copy.get("lifting") or {}).get("exercises") or []
+    day_after = (entry_copy.get("plan_generated") or {}).get("day_summary_rationale")
+
+    # Build diff: emit any exercise whose rationale changed or is new/removed.
+    # For swaps, _apply_mutations_to_entry stamps swapped_from on the exercise so
+    # we can look up the original rationale by the pre-swap id rather than the new id.
+    diff = []
+    seen_before_keys: set = set()
+    for ex_after in lifting_after:
+        ex_id = ex_after.get("exercise_id") or ex_after.get("id")
+        swapped_from = ex_after.get("swapped_from")
+        before_key = swapped_from if swapped_from else ex_id
+        seen_before_keys.add(before_key)
+        before = rationale_before.get(before_key)
+        after = ex_after.get("rationale")
+        is_new = before_key not in rationale_before and not swapped_from
+        if before != after or is_new:
+            entry_dict: dict = {"exercise_id": ex_id, "before": before, "after": after}
+            if swapped_from:
+                entry_dict["swapped_from"] = swapped_from
+            diff.append(entry_dict)
+
+    # Removed exercises: present in before, not seen via after
+    for before_id, before_rationale in rationale_before.items():
+        if before_id not in seen_before_keys:
+            diff.append({"exercise_id": before_id, "before": before_rationale, "after": None})
+
+    return {
+        "mutations": mutations,
+        "proposed_rationale": {
+            "exercise_rationale_diff": diff,
+            "day_summary_before": day_before,
+            "day_summary_after": day_after,
+        },
+    }
 
 
 # ---------------------------------------------------------------------------

@@ -85,6 +85,10 @@ async def handle_question(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         user_prompt = user_prompt.replace("{question}", question)
         user_prompt = user_prompt.replace("{knowledge_context}", knowledge)
 
+        # F4: inject today's sanitized rationale context to ground the answer
+        from bot.services.rationale import build_qa_rationale_context
+        user_prompt = build_qa_rationale_context(pitcher_id) + user_prompt
+
         history = context.user_data.get("conversation_history", [])
 
         # Detect throwing intent (Task 4.2 — non-blocking)

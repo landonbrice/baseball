@@ -2,6 +2,7 @@
 
 import json
 import logging
+import os
 from datetime import datetime
 
 from bot.config import CHICAGO_TZ
@@ -20,8 +21,37 @@ from bot.services.context_manager import (
 )
 from bot.services.baselines import get_or_refresh_baseline
 from bot.services.db import get_daily_entries, update_training_model_partial
+from bot.services.rationale import (
+    generate_triage_rationale,
+    generate_exercise_rationale,
+    generate_day_rationale,
+    sanitize_for_llm,  # noqa: F401 — re-exported for downstream imports
+)
 
 logger = logging.getLogger(__name__)
+
+RATIONALE_ENABLED = os.getenv("RATIONALE_ENABLED", "true").lower() in ("true", "1", "yes")
+
+
+def _unwrap_morning_brief(raw) -> str:
+    """F4 consolidation of duplicate morning_brief dict-or-string coercions.
+
+    Scattered coercions across the codebase (tech-debt item in CLAUDE.md) check
+    ``isinstance(raw, dict)`` and pluck a few keys before falling back to str.
+    This helper centralises that logic. ``normalize_brief`` (the canonical
+    persistence helper) delegates here for the unwrap step, then JSON-wraps.
+    """
+    if raw is None:
+        return ""
+    if isinstance(raw, str):
+        return raw
+    if isinstance(raw, dict):
+        for k in ("text", "brief", "body", "content", "message"):
+            if raw.get(k):
+                value = raw[k]
+                return value if isinstance(value, str) else str(value)
+        return ""
+    return str(raw)
 
 
 def normalize_brief(raw) -> str:
@@ -266,6 +296,30 @@ async def process_checkin(
         except Exception as e:
             logger.warning(f"LLM triage refinement failed, using rule-based result: {e}")
 
+    # F4: triage rationale (non-fatal). Assemble the pitcher context early so
+    # we can pass the same object (mutated with plan_source later) through the
+    # exercise + day rationale pass below.
+    triage_rationale = None
+    pitcher_ctx_for_rationale = {
+        "pitcher_id": pitcher_id,
+        "name": profile.get("name"),
+        "role": profile.get("role", "starter"),
+        "baseline": pitcher_baseline or {},
+        "arm_feel": arm_feel,
+        "sleep_hours": sleep_hours,
+        "days_since_outing": (profile.get("active_flags") or {}).get("days_since_outing"),
+        "days_since_appearance": (profile.get("active_flags") or {}).get("days_since_appearance"),
+        "whoop_data": whoop_data,
+        "arm_clarification": arm_clarification or None,
+        "plan_source": None,  # filled after plan generation
+    }
+    if RATIONALE_ENABLED:
+        try:
+            triage_rationale = generate_triage_rationale(triage_result, pitcher_ctx_for_rationale)
+        except Exception:
+            logger.exception("rationale_generation_failed | triage | pitcher=%s", pitcher_id)
+            triage_rationale = None
+
     # Persist flag_level, arm_feel, and explicit check-in timestamp
     chicago_now = datetime.now(CHICAGO_TZ)
     today_str = chicago_now.strftime("%Y-%m-%d")
@@ -343,7 +397,11 @@ async def process_checkin(
         }
 
     try:
-        plan_result = await generate_plan(pitcher_id, triage_result, checkin_inputs=checkin_inputs)
+        plan_result = await generate_plan(
+            pitcher_id, triage_result,
+            checkin_inputs=checkin_inputs,
+            triage_rationale_detail=(triage_rationale or {}).get("detail"),
+        )
     except Exception as e:
         logger.error(f"Plan generation failed for {pitcher_id}: {e}", exc_info=True)
         plan_result = None
@@ -352,7 +410,55 @@ async def process_checkin(
     # the entry-build block below so the _emergency_alert key is stripped
     # from plan_result (via .pop) before any persistence path sees it.
     if plan_result:
+        # F4: enrich emergency alert with rationale_detail + pitcher identity
+        _alert = (plan_result or {}).get("_emergency_alert")
+        if _alert and triage_rationale:
+            _alert["rationale_detail"] = triage_rationale.get("detail")
+            _alert["pitcher_name"] = profile.get("name")
+            _alert["flag_level"] = triage_result.get("flag_level")
         await _send_emergency_alert_if_present(plan_result)
+
+    # F4: exercise + day rationale (single synchronous pass, non-fatal).
+    day_summary_rationale = None
+    if RATIONALE_ENABLED and plan_result:
+        pitcher_ctx_for_rationale["plan_source"] = plan_result.get("source", "llm_enriched")
+        # Regenerate triage rationale so the A20 fallback suffix reflects
+        # the actual plan_source (known only after plan generation).
+        if triage_rationale is not None:
+            try:
+                triage_rationale = generate_triage_rationale(
+                    triage_result, pitcher_ctx_for_rationale
+                )
+            except Exception:
+                logger.exception(
+                    "rationale_regen_for_plan_source_failed | pitcher=%s", pitcher_id
+                )
+
+        lifting_obj = plan_result.get("lifting") or {}
+        exercises = lifting_obj.get("exercises") if isinstance(lifting_obj, dict) else None
+        if exercises:
+            mods_applied = plan_result.get("modifications_applied") or []
+            for ex in exercises:
+                if not isinstance(ex, dict):
+                    continue
+                try:
+                    ex["rationale"] = generate_exercise_rationale(
+                        ex, constraints_applied=mods_applied, plan_context=plan_result,
+                    )
+                except Exception:
+                    logger.exception(
+                        "rationale_generation_failed | exercise | pitcher=%s | ex=%s",
+                        pitcher_id, ex.get("name"),
+                    )
+                    ex["rationale"] = None
+
+        try:
+            day_summary_rationale = generate_day_rationale(
+                plan_result, triage_result, pitcher_ctx_for_rationale,
+            )
+        except Exception:
+            logger.exception("rationale_generation_failed | day | pitcher=%s", pitcher_id)
+            day_summary_rationale = None
 
     # Build full entry and upsert (same date = updates the partial entry)
     entry = {
@@ -388,10 +494,20 @@ async def process_checkin(
             "estimated_duration_min": plan_result.get("estimated_duration_min") if plan_result else None,
             "source": plan_result.get("source") if plan_result else None,
             "source_reason": plan_result.get("source_reason") if plan_result else None,
+            # F4: per-day summary rationale (None when rationale disabled or generation failed)
+            "day_summary_rationale": day_summary_rationale,
         },
         "actual_logged": None,
         "completed_exercises": {},
         "bot_observations": bot_observations,
+        # F4: top-level rationale payload (None when disabled or generation failed)
+        "rationale": (
+            {
+                "rationale_short": triage_rationale["short"],
+                "rationale_detail": triage_rationale["detail"],
+            }
+            if triage_rationale else None
+        ),
     }
     append_log_entry(pitcher_id, entry)
 

@@ -7,6 +7,7 @@ code paths are a code review blocker.
 
 import logging
 from bot.services.db import get_client
+from bot.services.day_focus import derive_day_focus as _derive_day_focus
 
 logger = logging.getLogger(__name__)
 
@@ -164,21 +165,12 @@ def get_team_roster_overview(team_id: str, today_str: str) -> list:
         if throwing_val is None:
             throwing_val = plan.get("throwing_plan")
         bullpen_val = plan.get("bullpen")
-        if plan.get("day_focus"):
-            derived_day_focus = plan.get("day_focus")
-        elif bullpen_val:
-            derived_day_focus = "bullpen"
-        elif throwing_val:
-            derived_day_focus = "throw"
-        elif lifting_summary or isinstance(today.get("lifting") if today else None, dict):
-            derived_day_focus = "lift"
-        elif any(
-            (m if isinstance(m, str) else m.get("tag", "")) in ("rest_day", "no_throw")
-            for m in (plan.get("modifications_applied") or [])
-        ):
-            derived_day_focus = "recovery"
+        # F4: read persisted day_focus; fall back to helper for legacy rows.
+        persisted = plan.get("day_focus")
+        if persisted:
+            derived_day_focus = persisted
         else:
-            derived_day_focus = None
+            derived_day_focus = _derive_day_focus(plan, plan.get("modifications_applied") or [])
 
         # Normalize modifications — triage emits strings, some paths emit dicts. Normalize to {tag, reason}.
         raw_mods = plan.get("modifications_applied") or []
