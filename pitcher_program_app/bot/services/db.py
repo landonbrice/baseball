@@ -683,6 +683,41 @@ def get_team(team_id: str) -> dict | None:
     return resp.data[0] if resp.data else None
 
 
+# --- programs (new spec-defined `programs` table; coexists with legacy training_programs) ---
+
+def get_active_program(pitcher_id: str, domain: str) -> dict | None:
+    """Return the single row from `programs` where status='active' for (pitcher_id, domain), or None.
+
+    The partial unique index idx_programs_one_active_per_domain guarantees at most one such row.
+    """
+    if domain not in ("throwing", "lifting"):
+        raise ValueError(f"domain must be 'throwing' or 'lifting', got {domain!r}")
+    resp = (
+        get_client()
+        .table("programs")
+        .select("*")
+        .eq("pitcher_id", pitcher_id)
+        .eq("domain", domain)
+        .eq("status", "active")
+        .limit(1)
+        .execute()
+    )
+    return (resp.data or [None])[0]
+
+
+def get_block_library_row(template_id: str) -> dict | None:
+    """Fetch a single block_library row by its block_template_id (TEXT PK)."""
+    resp = (
+        get_client()
+        .table("block_library")
+        .select("*")
+        .eq("block_template_id", template_id)
+        .limit(1)
+        .execute()
+    )
+    return (resp.data or [None])[0]
+
+
 # --- coaches ---
 
 def get_coach_by_supabase_id(supabase_user_id: str) -> dict | None:
