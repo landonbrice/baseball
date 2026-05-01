@@ -2584,3 +2584,137 @@ async def ui_fallback_telemetry(request: Request):
         await _send_admin_dm(msg)
 
     return {"ok": True, "dmed": count_24h == 1}
+
+
+# ============================================================
+# Program Builder v1 — Layers 1, 3, 4 (Plan 2)
+# ============================================================
+
+from typing import Optional
+from pydantic import BaseModel, Field
+
+from bot.services import program_builder, program_generator, program_lifecycle
+
+
+class BuilderCandidatesRequest(BaseModel):
+    domain: str = Field(..., pattern="^(throwing|lifting)$")
+    goal: str
+    duration_weeks: int = Field(..., gt=0, le=52)
+    effective_phase: str
+    hard_constraints: list[str] = []
+
+
+class BuilderGenerateRequest(BaseModel):
+    session_id: str
+    tuned_spec: dict
+    chosen_template_id: Optional[str] = None  # explicit choice; v1 stub falls back to candidates[0]
+
+
+class ProgramArchiveRequest(BaseModel):
+    reason: str
+
+
+def _resolve_pitcher_id_from_request(request: Request) -> str:
+    """Resolve the authenticated pitcher_id for endpoints with no pitcher_id in URL.
+
+    Mirrors the auth pattern in `_require_pitcher_auth` / `auth_resolve`:
+    - In DISABLE_AUTH mode (dev/tests), honors `X-Test-Pitcher-Id` header.
+    - Otherwise, validates Telegram initData HMAC and resolves pitcher_id.
+    """
+    if DISABLE_AUTH:
+        test_pid = request.headers.get("X-Test-Pitcher-Id", "")
+        if not test_pid:
+            raise HTTPException(status_code=401, detail="Missing X-Test-Pitcher-Id (DISABLE_AUTH)")
+        return test_pid
+
+    init_data = request.headers.get("X-Telegram-Init-Data", "")
+    if not init_data:
+        raise HTTPException(status_code=401, detail="Missing authentication")
+    user = validate_init_data(init_data)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid authentication")
+    pitcher_id = resolve_pitcher(user["id"], user.get("username"))
+    if not pitcher_id:
+        raise HTTPException(status_code=404, detail="No pitcher profile linked")
+    return pitcher_id
+
+
+@router.post("/programs/builder/candidates")
+async def post_builder_candidates(req: BuilderCandidatesRequest, request: Request):
+    """Layer 1: match candidate block templates from a constraint envelope.
+
+    Returns `{session_id, candidates}`. The session captures the envelope and
+    candidate ids so Layer 3 can resolve a chosen template against it.
+    """
+    pitcher_id = _resolve_pitcher_id_from_request(request)
+    envelope = req.model_dump()
+    candidates = program_builder.match_candidates(envelope)
+    session_id = _db.create_builder_session({
+        "pitcher_id": pitcher_id,
+        "initiator_id": pitcher_id,
+        "initiator_role": "pitcher",
+        "interview_mode": "personalize",
+        "constraint_envelope_json": envelope,
+        "candidate_template_ids": [c["block_template_id"] for c in candidates],
+        "status": "in_progress",
+    })
+    return {"session_id": session_id, "candidates": candidates}
+
+
+@router.post("/programs/builder/generate")
+async def post_builder_generate(req: BuilderGenerateRequest, request: Request):
+    """Layer 3 + Layer 2 stub: generate a draft program from the chosen template.
+
+    Layer 2 (Socratic loop) is stubbed in v1 — when `chosen_template_id` is
+    omitted, the first candidate from the session is used. Plan 3 replaces
+    this with the real interview flow.
+    """
+    pitcher_id = _resolve_pitcher_id_from_request(request)
+    session = _db.get_builder_session(req.session_id)
+    if not session or session.get("pitcher_id") != pitcher_id:
+        # Keep ownership leakage opaque — 404 not 403.
+        raise HTTPException(status_code=404, detail="session not found")
+
+    template_id = req.chosen_template_id
+    if not template_id:
+        candidate_ids = session.get("candidate_template_ids") or []
+        if not candidate_ids:
+            raise HTTPException(status_code=400, detail="no candidates and no chosen_template_id")
+        template_id = candidate_ids[0]
+
+    program = program_generator.generate_program(
+        pitcher_id=pitcher_id,
+        template_id=template_id,
+        tuned_spec=req.tuned_spec,
+        constraint_envelope=session.get("constraint_envelope_json") or {},
+        session_id=req.session_id,
+    )
+
+    _db.update_builder_session(req.session_id, {
+        "chosen_template_id": template_id,
+        "tuned_spec_json": req.tuned_spec,
+        "status": "completed",
+        "generated_program_id": program["program_id"],
+    })
+
+    return {"program": program}
+
+
+@router.post("/programs/{program_id}/activate")
+async def post_program_activate(program_id: str, request: Request):
+    """Layer 4: activate a draft program (archives any existing active in same domain)."""
+    pitcher_id = _resolve_pitcher_id_from_request(request)
+    program = _db.get_program(program_id)
+    if not program or program.get("pitcher_id") != pitcher_id:
+        raise HTTPException(status_code=404, detail="program not found")
+    return program_lifecycle.activate(program_id)
+
+
+@router.post("/programs/{program_id}/archive")
+async def post_program_archive(program_id: str, req: ProgramArchiveRequest, request: Request):
+    """Layer 4: archive a draft or active program with a reason."""
+    pitcher_id = _resolve_pitcher_id_from_request(request)
+    program = _db.get_program(program_id)
+    if not program or program.get("pitcher_id") != pitcher_id:
+        raise HTTPException(status_code=404, detail="program not found")
+    return program_lifecycle.archive(program_id, reason=req.reason)
