@@ -1,0 +1,26 @@
+{
+  "template_id": "tpl_starter_7day_cadence_v1",
+  "name": "In-Season Maintenance — Starter 7-day",
+  "domain": "throwing",
+  "goal_tags": ["in_season_maintenance", "starter_cadence"],
+  "duration_range_weeks": "[12,12]",
+  "compatible_phases": ["in_season_active", "in_season"],
+  "tunable_parameters_schema": {},
+  "implied_phase": "in_season_active",
+  "research_doc_ids": [],
+  "modification_rules_json": null,
+  "week_scaffold_json": {
+    "scaffold_kind": "calendar_relative_repeating_7day",
+    "rotation_template_keys": [
+      {"day_offset": 0, "template_key": "day_0", "label": "Game Day"},
+      {"day_offset": 1, "template_key": "day_1", "label": "Day After — Active Recovery"},
+      {"day_offset": 2, "template_key": "day_2", "label": "Lower Body — Power Focus"},
+      {"day_offset": 3, "template_key": "day_3", "label": "Upper Body — Pull Emphasis"},
+      {"day_offset": 4, "template_key": "day_4", "label": "Lower Body — Strength Focus"},
+      {"day_offset": 5, "template_key": "day_5", "label": "Light Upper + Pre-Game Prep"},
+      {"day_offset": 6, "template_key": "day_6", "label": "Pre-Game Day — Rest/Mobility Only"}
+    ],
+    "source_template": "starter_7day_v1",
+    "notes": "Mirrors legacy plan_generator rotation: days_since_outing N (mod 7) selects starter_7day_v1.days.day_N. See bot/services/plan_generator.py:158-160. Captured 2026-04-30."
+  }
+}
