@@ -222,6 +222,26 @@ def upsert_daily_entry(pitcher_id: str, entry: dict) -> None:
     get_client().table("daily_entries").upsert(row, on_conflict="pitcher_id,date").execute()
 
 
+def write_daily_entry_with_counter_advance(entry, program_id, hold_event, event_date):
+    """Upsert daily_entries + atomically advance/hold the program counter via RPC.
+
+    NOT cross-step atomic (Supabase REST limitation): if the RPC fails after the
+    upsert succeeds, manual reconciliation may be needed. v2 follow-up could push
+    the entry payload into the Postgres function. program_id=None skips the RPC
+    entirely (cold-start parity for pitchers without an active program).
+    """
+    client = get_client()
+    safe = {k: v for k, v in entry.items() if k in _DAILY_ENTRY_COLUMNS}
+    client.table("daily_entries").upsert(safe, on_conflict="pitcher_id,date").execute()
+    if program_id is None:
+        return
+    client.rpc("advance_program_counter", {
+        "p_program_id": program_id,
+        "p_hold_event": hold_event,
+        "p_event_date": event_date.isoformat(),
+    }).execute()
+
+
 # ---------------------------------------------------------------------------
 # Chat Messages
 # ---------------------------------------------------------------------------
