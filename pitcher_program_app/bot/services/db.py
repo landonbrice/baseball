@@ -82,6 +82,30 @@ def get_training_model(pitcher_id: str) -> dict:
     return resp.data[0] if resp.data else {}
 
 
+def get_pitcher_training_model(pitcher_id: str) -> dict | None:
+    """Return pitcher_training_model row, or None if missing.
+
+    Thin wrapper around get_training_model() that returns None (not {})
+    on miss — matches the contract used by feature-flag/override readers
+    that need to distinguish "no row" from "row with empty fields".
+    """
+    row = get_training_model(pitcher_id)
+    return row or None
+
+
+def get_feature_flag(pitcher_id: str, key: str) -> bool:
+    """Read a per-pitcher feature flag from pitcher_training_model.feature_flags.
+
+    Returns False on missing model row, missing/None feature_flags, missing key,
+    or non-truthy value. Boolean coerced via bool() — explicit False stays False.
+    """
+    model = get_pitcher_training_model(pitcher_id)
+    if not model:
+        return False
+    flags = model.get("feature_flags") or {}
+    return bool(flags.get(key))
+
+
 def upsert_training_model(pitcher_id: str, data: dict) -> None:
     """Insert or update pitcher_training_model row."""
     data["pitcher_id"] = pitcher_id
