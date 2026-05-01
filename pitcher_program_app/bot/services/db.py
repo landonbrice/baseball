@@ -776,6 +776,39 @@ def update_program_status(program_id: str, status: str, **extras) -> None:
     get_client().table("programs").update(payload).eq("program_id", program_id).execute()
 
 
+def update_program_schedule(program_id: str, new_schedule: dict,
+                             trigger_type: str = "anchor_recompute") -> None:
+    """Persist a recomputed schedule and audit it.
+
+    Two writes (not cross-step atomic; v2 will move to a single RPC):
+    1. UPDATE programs SET generated_schedule_json = new_schedule
+    2. INSERT INTO program_schedule_revisions (program_id, trigger_type,
+       old_schedule, new_schedule)
+
+    Reads the current row first to capture `old_schedule` for the revision.
+    """
+    client = get_client()
+    existing = (
+        client.table("programs")
+        .select("generated_schedule_json")
+        .eq("program_id", program_id)
+        .limit(1)
+        .execute()
+    )
+    old_schedule = ((existing.data or [{}])[0] or {}).get("generated_schedule_json") or {}
+
+    client.table("programs").update(
+        {"generated_schedule_json": new_schedule}
+    ).eq("program_id", program_id).execute()
+
+    client.table("program_schedule_revisions").insert({
+        "program_id": program_id,
+        "trigger_type": trigger_type,
+        "old_schedule": old_schedule,
+        "new_schedule": new_schedule,
+    }).execute()
+
+
 def list_programs_for_pitcher(pitcher_id: str, status: str | None = None) -> list[dict]:
     q = get_client().table("programs").select("*").eq("pitcher_id", pitcher_id)
     if status:
