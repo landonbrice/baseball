@@ -727,6 +727,78 @@ def get_block_library_row(template_id: str) -> dict | None:
     return (resp.data or [None])[0]
 
 
+# ---------------- Programs (spec v1) ----------------
+
+def create_program(row: dict) -> str:
+    """Insert a programs row, return the new program_id."""
+    resp = get_client().table("programs").insert(row).execute()
+    return (resp.data or [{}])[0].get("program_id")
+
+
+def get_program(program_id: str) -> dict | None:
+    resp = (
+        get_client()
+        .table("programs")
+        .select("*")
+        .eq("program_id", program_id)
+        .limit(1)
+        .execute()
+    )
+    return (resp.data or [None])[0]
+
+
+def update_program_status(program_id: str, status: str, **extras) -> None:
+    """Patch a programs row's status (and optional extra fields like activated_at, archived_at, archive_reason)."""
+    valid = {"draft", "active", "archived", "error"}
+    if status not in valid:
+        raise ValueError(f"status must be one of {valid}, got {status!r}")
+    payload = {"status": status, **extras}
+    get_client().table("programs").update(payload).eq("program_id", program_id).execute()
+
+
+def list_programs_for_pitcher(pitcher_id: str, status: str | None = None) -> list[dict]:
+    q = get_client().table("programs").select("*").eq("pitcher_id", pitcher_id)
+    if status:
+        q = q.eq("status", status)
+    resp = q.order("created_at", desc=True).execute()
+    return resp.data or []
+
+
+# ---------------- Builder Sessions (spec v1) ----------------
+
+def create_builder_session(row: dict) -> str:
+    resp = get_client().table("program_builder_sessions").insert(row).execute()
+    return (resp.data or [{}])[0].get("session_id")
+
+
+def update_builder_session(session_id: str, patch: dict) -> None:
+    get_client().table("program_builder_sessions").update(patch).eq("session_id", session_id).execute()
+
+
+def get_builder_session(session_id: str) -> dict | None:
+    resp = (
+        get_client()
+        .table("program_builder_sessions")
+        .select("*")
+        .eq("session_id", session_id)
+        .limit(1)
+        .execute()
+    )
+    return (resp.data or [None])[0]
+
+
+# ---------------- Generation Failures ----------------
+
+def record_generation_failure(session_id: str | None, attempt_number: int,
+                               validation_failure_kind: str, llm_response: dict | None = None) -> None:
+    get_client().table("program_generation_failures").insert({
+        "session_id": session_id,
+        "attempt_number": attempt_number,
+        "validation_failure_kind": validation_failure_kind,
+        "llm_response": llm_response,
+    }).execute()
+
+
 # --- coaches ---
 
 def get_coach_by_supabase_id(supabase_user_id: str) -> dict | None:
