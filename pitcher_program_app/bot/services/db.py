@@ -12,6 +12,15 @@ from supabase import create_client, Client
 
 logger = logging.getLogger(__name__)
 
+# Canonical set of valid `plan_generated.source` discriminator values.
+# `plan_generated` is JSONB so there's no DB-level enum; this constant is the
+# single source of truth. Future sources must be added here explicitly.
+VALID_PLAN_SOURCES: frozenset = frozenset({
+    "python_fallback",
+    "llm_enriched",
+    "program_prescribed",  # written by Plan 4 daily composition pipeline
+})
+
 _client: Client = None
 
 
