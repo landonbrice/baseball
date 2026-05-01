@@ -97,7 +97,12 @@ async def team_overview(request: Request):
         "team": {
             "id": team_id,
             "name": team.get("name", ""),
+            # Per-domain phases (migration 011). `training_phase` retained for
+            # one cycle as a deprecated fallback; new readers should consume
+            # throwing_phase / lifting_phase via team_scope.get_team_phase.
             "training_phase": team.get("training_phase", ""),
+            "throwing_phase": team.get("throwing_phase") or team.get("training_phase", ""),
+            "lifting_phase": team.get("lifting_phase") or team.get("training_phase", ""),
             "today_schedule_summary": schedule_summary,
         },
         "compliance": compliance,
