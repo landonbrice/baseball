@@ -71,3 +71,36 @@ def get_effective_phase(pitcher_id: str, domain: str) -> Optional[str]:
         return override
 
     return _load_team_phase_for_pitcher(pitcher_id, domain)
+
+
+from datetime import date as _date
+
+
+def get_active_program_day(pitcher_id: str, domain: str, target_date: _date) -> Optional[dict]:
+    """Return today's prescribed day from the active program's schedule, or None.
+
+    The day_index used for lookup is `current_day_index` from the row — which
+    already reflects held days (held days don't advance the counter; spec D7
+    approach B). This function does NOT advance counters — that happens in the
+    daily composition pipeline (Plan 4) atomically with the daily_entries write.
+
+    `target_date` is unused in v1 — `current_day_index` carries all the date
+    logic. The parameter is retained for API stability since Plan 4's pipeline
+    always passes a target date and we may use it for assertions/audit later.
+
+    Returns the matching schedule day dict (with whatever shape the template
+    declared), or None if there's no active program OR target_date is past
+    the schedule's last day.
+    """
+    _ensure_domain(domain)
+
+    program = _load_active_program(pitcher_id, domain)
+    if not program:
+        return None
+
+    day_index = program.get("current_day_index", 0)
+    schedule = (program.get("generated_schedule_json") or {}).get("days") or []
+    for day in schedule:
+        if day.get("day_index") == day_index:
+            return day
+    return None

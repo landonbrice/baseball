@@ -72,3 +72,87 @@ def test_phase_rejects_unknown_domain():
     from bot.services import program_runtime
     with pytest.raises(ValueError, match="domain"):
         program_runtime.get_effective_phase("landon_brice", "yoga")
+
+
+from datetime import date
+
+
+def test_get_active_program_day_returns_current_day_from_schedule():
+    """current_day_index already reflects held days; the function just reads schedule[current_day_index]."""
+    from bot.services import program_runtime
+    program = {
+        "program_id": "p1",
+        "domain": "throwing",
+        "start_date": "2026-04-01",
+        "current_day_index": 30,
+        "held_days_count": 0,
+        "generated_schedule_json": {
+            "days": [{"day_index": i, "session": {"focus": f"day-{i}"}} for i in range(60)]
+        },
+    }
+    with patch.object(program_runtime, "_load_active_program", return_value=program):
+        result = program_runtime.get_active_program_day("landon_brice", "throwing", date(2026, 5, 1))
+        assert result is not None
+        assert result["day_index"] == 30
+        assert result["session"]["focus"] == "day-30"
+
+
+def test_get_active_program_day_held_days_already_baked_into_index():
+    """If pitcher has been held 3 days, current_day_index lags by 3. Read returns the lagged day."""
+    from bot.services import program_runtime
+    program = {
+        "program_id": "p1",
+        "domain": "throwing",
+        "start_date": "2026-04-01",
+        "current_day_index": 27,
+        "held_days_count": 3,
+        "generated_schedule_json": {
+            "days": [{"day_index": i, "session": {"focus": f"day-{i}"}} for i in range(60)]
+        },
+    }
+    with patch.object(program_runtime, "_load_active_program", return_value=program):
+        result = program_runtime.get_active_program_day("landon_brice", "throwing", date(2026, 5, 1))
+        assert result["day_index"] == 27
+        assert result["session"]["focus"] == "day-27"
+
+
+def test_get_active_program_day_returns_none_when_no_active_program():
+    from bot.services import program_runtime
+    with patch.object(program_runtime, "_load_active_program", return_value=None):
+        assert program_runtime.get_active_program_day("nobody", "throwing", date(2026, 5, 1)) is None
+
+
+def test_get_active_program_day_returns_none_past_end_of_schedule():
+    """day_index past the schedule's last day returns None (program is done)."""
+    from bot.services import program_runtime
+    program = {
+        "program_id": "p1",
+        "domain": "throwing",
+        "start_date": "2026-04-01",
+        "current_day_index": 84,
+        "held_days_count": 0,
+        "generated_schedule_json": {
+            "days": [{"day_index": i, "session": {"focus": f"day-{i}"}} for i in range(60)]
+        },
+    }
+    with patch.object(program_runtime, "_load_active_program", return_value=program):
+        assert program_runtime.get_active_program_day("landon_brice", "throwing", date(2026, 5, 1)) is None
+
+
+def test_get_active_program_day_rejects_unknown_domain():
+    from bot.services import program_runtime
+    with pytest.raises(ValueError, match="domain"):
+        program_runtime.get_active_program_day("landon_brice", "yoga", date(2026, 5, 1))
+
+
+def test_get_active_program_day_handles_missing_schedule_gracefully():
+    """Defensive: program exists but generated_schedule_json is empty/missing days."""
+    from bot.services import program_runtime
+    program = {
+        "program_id": "p1",
+        "domain": "throwing",
+        "current_day_index": 0,
+        "generated_schedule_json": {},
+    }
+    with patch.object(program_runtime, "_load_active_program", return_value=program):
+        assert program_runtime.get_active_program_day("landon_brice", "throwing", date(2026, 5, 1)) is None
