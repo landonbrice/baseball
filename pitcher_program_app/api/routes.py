@@ -2593,7 +2593,7 @@ async def ui_fallback_telemetry(request: Request):
 from typing import Optional
 from pydantic import BaseModel, Field
 
-from bot.services import program_builder, program_generator, program_lifecycle
+from bot.services import program_builder, program_builder_socratic, program_generator, program_lifecycle
 
 
 class BuilderCandidatesRequest(BaseModel):
@@ -2608,6 +2608,17 @@ class BuilderGenerateRequest(BaseModel):
     session_id: str
     tuned_spec: dict
     chosen_template_id: Optional[str] = None  # explicit choice; v1 stub falls back to candidates[0]
+
+
+class BuilderTurnRequest(BaseModel):
+    session_id: str
+    user_message: str
+
+
+class BuilderFinalizeRequest(BaseModel):
+    session_id: str
+    chosen_template_id: str
+    tuned_spec: dict
 
 
 class ProgramArchiveRequest(BaseModel):
@@ -2692,6 +2703,56 @@ async def post_builder_generate(req: BuilderGenerateRequest, request: Request):
 
     _db.update_builder_session(req.session_id, {
         "chosen_template_id": template_id,
+        "tuned_spec_json": req.tuned_spec,
+        "status": "completed",
+        "generated_program_id": program["program_id"],
+    })
+
+    return {"program": program}
+
+
+@router.post("/programs/builder/turn")
+async def post_builder_turn(req: BuilderTurnRequest, request: Request):
+    """Layer 2: advance the Socratic conversation by one turn.
+
+    Returns the dict from `program_builder_socratic.advance` directly:
+      - `{"kind": "question", "text": ...}` — relay to user, await reply
+      - `{"kind": "ready", "chosen_template_id": ..., "tuned_spec": ...}` — client calls /finalize
+    """
+    pitcher_id = _resolve_pitcher_id_from_request(request)
+    session = _db.get_builder_session(req.session_id)
+    if not session or session.get("pitcher_id") != pitcher_id:
+        raise HTTPException(status_code=404, detail="session not found")
+
+    try:
+        return await program_builder_socratic.advance(req.session_id, req.user_message)
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/programs/builder/finalize")
+async def post_builder_finalize(req: BuilderFinalizeRequest, request: Request):
+    """Layer 3: finalize the interview with an explicit chosen template + tuned_spec
+    and generate the draft program. Companion to /turn — clients call this once
+    /turn returns `{"kind": "ready", ...}`.
+    """
+    pitcher_id = _resolve_pitcher_id_from_request(request)
+    session = _db.get_builder_session(req.session_id)
+    if not session or session.get("pitcher_id") != pitcher_id:
+        raise HTTPException(status_code=404, detail="session not found")
+
+    program = program_generator.generate_program(
+        pitcher_id=pitcher_id,
+        template_id=req.chosen_template_id,
+        tuned_spec=req.tuned_spec,
+        constraint_envelope=session.get("constraint_envelope_json") or {},
+        session_id=req.session_id,
+    )
+
+    _db.update_builder_session(req.session_id, {
+        "chosen_template_id": req.chosen_template_id,
         "tuned_spec_json": req.tuned_spec,
         "status": "completed",
         "generated_program_id": program["program_id"],

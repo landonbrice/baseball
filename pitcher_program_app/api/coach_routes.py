@@ -834,6 +834,7 @@ from typing import Optional as _Optional
 from pydantic import BaseModel as _BaseModel, Field as _Field
 from bot.services import (
     program_builder as _program_builder,
+    program_builder_socratic as _program_builder_socratic,
     program_generator as _program_generator,
     program_lifecycle as _program_lifecycle,
 )
@@ -856,6 +857,17 @@ class CoachBuilderGenerateRequest(_BaseModel):
 
 class CoachProgramArchiveRequest(_BaseModel):
     reason: str
+
+
+class CoachBuilderTurnRequest(_BaseModel):
+    session_id: str
+    user_message: str
+
+
+class CoachBuilderFinalizeRequest(_BaseModel):
+    session_id: str
+    chosen_template_id: str
+    tuned_spec: dict
 
 
 def _require_team_pitcher(pitcher_id: str, team_id: str) -> dict:
@@ -928,6 +940,69 @@ async def coach_post_builder_generate(req: CoachBuilderGenerateRequest, request:
 
     _db.update_builder_session(req.session_id, {
         "chosen_template_id": template_id,
+        "tuned_spec_json": req.tuned_spec,
+        "status": "completed",
+        "generated_program_id": program["program_id"],
+    })
+
+    return {"program": program}
+
+
+@coach_router.post("/programs/builder/turn")
+async def coach_post_builder_turn(req: CoachBuilderTurnRequest, request: Request):
+    """Layer 2 (coach): advance the Socratic conversation by one turn."""
+    await require_coach_auth(request)
+    team_id = request.state.team_id
+
+    session = _db.get_builder_session(req.session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="session not found")
+    pitcher_id = session.get("pitcher_id")
+    if not pitcher_id:
+        raise HTTPException(status_code=404, detail="session not found")
+    _require_team_pitcher(pitcher_id, team_id)
+
+    try:
+        return await _program_builder_socratic.advance(req.session_id, req.user_message)
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@coach_router.post("/programs/builder/finalize")
+async def coach_post_builder_finalize(req: CoachBuilderFinalizeRequest, request: Request):
+    """Layer 3 (coach): finalize the interview and generate the draft program.
+
+    Stamps coach authorship into the constraint envelope (honored by
+    generate_program) so the program records `created_by` / `created_by_role`.
+    """
+    await require_coach_auth(request)
+    team_id = request.state.team_id
+    coach_id = request.state.coach_id
+
+    session = _db.get_builder_session(req.session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="session not found")
+    pitcher_id = session.get("pitcher_id")
+    if not pitcher_id:
+        raise HTTPException(status_code=404, detail="session not found")
+    _require_team_pitcher(pitcher_id, team_id)
+
+    envelope = dict(session.get("constraint_envelope_json") or {})
+    envelope["created_by"] = coach_id
+    envelope["created_by_role"] = "coach"
+
+    program = _program_generator.generate_program(
+        pitcher_id=pitcher_id,
+        template_id=req.chosen_template_id,
+        tuned_spec=req.tuned_spec,
+        constraint_envelope=envelope,
+        session_id=req.session_id,
+    )
+
+    _db.update_builder_session(req.session_id, {
+        "chosen_template_id": req.chosen_template_id,
         "tuned_spec_json": req.tuned_spec,
         "status": "completed",
         "generated_program_id": program["program_id"],
