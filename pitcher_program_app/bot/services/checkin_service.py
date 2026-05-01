@@ -11,6 +11,9 @@ from bot.services.triage import triage
 from bot.services.triage_llm import llm_triage_refinement
 from bot.services.plan_generator import generate_plan
 from bot.services.progression import analyze_progression
+from bot.services import db as _db
+from bot.services import program_runtime as _program_runtime
+from bot.services import program_aware_planner as _program_aware_planner
 from bot.services.context_manager import (
     load_profile,
     load_training_model,
@@ -142,23 +145,171 @@ def _build_recent_history_context(pitcher_id, n=5):
         lines.append(". ".join(parts))
 
     return "Recent history (last {} days):\n{}".format(len(lines), "\n".join(lines))
+def _is_program_aware_enabled(pitcher_id: str) -> bool:
+    """Check if the program-aware plan-gen feature flag is on for this pitcher.
+
+    Wrapper around db.get_feature_flag — exposed at module level so tests can
+    patch this single seam rather than the underlying db helper.
+    """
+    try:
+        return bool(_db.get_feature_flag(pitcher_id, "program_aware_plan_gen"))
+    except Exception:
+        logger.warning("get_feature_flag failed for %s", pitcher_id, exc_info=True)
+        return False
+
+
+def _has_any_active_program(pitcher_id: str) -> bool:
+    """True if the pitcher has any active program (throwing or lifting domain)."""
+    try:
+        if _db.get_active_program(pitcher_id, "throwing"):
+            return True
+        if _db.get_active_program(pitcher_id, "lifting"):
+            return True
+    except Exception:
+        logger.warning("get_active_program failed for %s", pitcher_id, exc_info=True)
+        return False
+    return False
+
+
+def _log_program_path_failure(pitcher_id: str, exc: Exception) -> None:
+    """Structured log of a program-path failure that auto-fell-through to legacy."""
+    logger.warning(
+        "program_aware_plan_path_failed pitcher=%s error=%s",
+        pitcher_id, exc, exc_info=True,
+    )
+
+
+async def _legacy_plan_path(pitcher_id: str, triage_result: dict, checkin_inputs: dict) -> dict:
+    """Legacy plan path: existing plan_generator.generate_plan call.
+
+    Used by the program-aware fork when flag is off OR no active program OR the
+    program path raised. Returns the plan_result dict (or a dict carrying source
+    when generation fails). The byte-identical legacy call is preserved by the
+    plan_generator goldens.
+    """
+    plan_result = await generate_plan(
+        pitcher_id, triage_result, checkin_inputs=checkin_inputs,
+    )
+    if plan_result is None:
+        return {"source": None}
+    return plan_result
+
+
+async def _program_aware_plan_path(
+    pitcher_id: str, triage_result: dict, checkin_inputs: dict,
+) -> dict:
+    """Program-aware plan path: compose from active programs, apply triage, persist.
+
+    Does NOT run the two-pass LLM enrichment in v1 — the prescribed plan ships
+    as-is, tagged source=program_prescribed. Two-pass review is a clean
+    follow-up (the legacy review hook is tightly coupled to plan_generator).
+
+    Persists via db.write_daily_entry_with_counter_advance with the program_id
+    from whichever domain has the active program (throwing wins on tie).
+    """
+    from datetime import date as _date_cls
+
+    target_date = _date_cls.fromisoformat(
+        datetime.now(CHICAGO_TZ).strftime("%Y-%m-%d")
+    )
+
+    throwing_program = _db.get_active_program(pitcher_id, "throwing")
+    lifting_program = _db.get_active_program(pitcher_id, "lifting")
+
+    throwing_rx = _program_runtime.get_active_program_day(
+        pitcher_id, "throwing", target_date,
+    ) if throwing_program else None
+    lifting_rx = _program_runtime.get_active_program_day(
+        pitcher_id, "lifting", target_date,
+    ) if lifting_program else None
+
+    profile = load_profile(pitcher_id)
+    prescribed = _program_aware_planner.compose_prescribed_plan(
+        throwing_rx, lifting_rx, profile, target_date=target_date,
+    )
+    if prescribed is None:
+        # Both rx None — caller should fall through to legacy.
+        raise RuntimeError("compose_prescribed_plan returned None")
+
+    final_plan, hold_event = _program_aware_planner.apply_triage_to_program_plan(
+        prescribed, triage_result,
+    )
+
+    # Pick the program_id for counter advance (throwing wins on tie).
+    program_for_counter = throwing_program or lifting_program
+    program_id = (program_for_counter or {}).get("program_id")
+
+    # Persist daily entry + advance/hold counter atomically (RPC).
+    entry = {
+        "pitcher_id": pitcher_id,
+        "date": target_date.isoformat(),
+        "pre_training": {
+            "arm_feel": (checkin_inputs or {}).get("arm_feel"),
+            "flag_level": (triage_result or {}).get("flag_level"),
+        },
+        "plan_generated": {
+            "source": "program_prescribed",
+            "program_prescription_snapshot": final_plan.get(
+                "program_prescription_snapshot"
+            ),
+        },
+        "throwing": final_plan.get("throwing"),
+        "lifting": final_plan.get("lifting"),
+    }
+    _db.write_daily_entry_with_counter_advance(
+        entry=entry,
+        program_id=program_id,
+        hold_event=hold_event,
+        event_date=target_date,
+    )
+
+    return final_plan
 
 
 async def process_checkin(
-    pitcher_id: str, arm_feel: int, sleep_hours: float, energy: int = 3,
+    pitcher_id: str, arm_feel: int = None, sleep_hours: float = None, energy: int = 3,
     arm_report: str = "", lift_preference: str = "",
     throw_intent: str = "", next_pitch_days=None,
     arm_detail_tags: list[str] | None = None,
     arm_clarification: str = "",
+    *,
+    checkin_inputs: dict | None = None,
 ) -> dict:
     """Run triage, generate plan, log entry, and return structured results.
 
-    Does NOT increment days_since_outing — callers handle that separately.
+    **Program-aware fork (Plan 4):** When called with the `checkin_inputs` kwarg
+    (the new bot/API entry point), this function forks based on the
+    `program_aware_plan_gen` feature flag + active-program presence. Flag off OR
+    no active program → legacy plan path (plan_generator.generate_plan,
+    byte-identical to pre-Plan-4). Flag on + active program → program path
+    (compose from prescribed days → triage-adjust → atomic counter advance/hold
+    + daily_entries upsert). Program-path failure logs + auto-falls-through to
+    legacy.
 
-    Returns dict with: flag_level, triage_reasoning, alerts, observations,
-    weekly_summary, plan_narrative, exercise_blocks, throwing_plan,
-    estimated_duration_min, modifications_applied, template_day, rotation_day.
+    **Legacy positional callers** (bot handlers passing arm_feel/sleep_hours
+    directly) continue through the original full-pipeline flow below — the
+    fork only fires when `checkin_inputs` is explicitly provided.
     """
+    # --- Plan 4 program-aware fork -------------------------------------------
+    if checkin_inputs is not None and arm_feel is None:
+        # New entry-point shape: pre-built checkin_inputs + triage already to be run here.
+        # For v1, run a minimal triage on the dict (the legacy/program path each
+        # then handle their own enrichment).
+        triage_result = (checkin_inputs or {}).get("triage_result") or {}
+        if _is_program_aware_enabled(pitcher_id) and _has_any_active_program(pitcher_id):
+            try:
+                return await _program_aware_plan_path(
+                    pitcher_id, triage_result, checkin_inputs,
+                )
+            except Exception as exc:
+                _log_program_path_failure(pitcher_id, exc)
+                return await _legacy_plan_path(
+                    pitcher_id, triage_result, checkin_inputs,
+                )
+        return await _legacy_plan_path(pitcher_id, triage_result, checkin_inputs)
+    # --- end Plan 4 fork ------------------------------------------------------
+
+    # Legacy positional path: existing full pipeline (unchanged).
     # Load profile (no longer clamping days_since_outing — plan_generator
     # handles extended time off by using lift preference for template selection)
     profile = load_profile(pitcher_id)
