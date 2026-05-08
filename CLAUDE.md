@@ -54,7 +54,7 @@ A training intelligence system for the UChicago baseball pitching staff. Telegra
 7. **Inline coach panel** — Coach button on lifting block for in-context refinement without navigating to Coach tab.
 8. **Persist `day_focus` in `plan_generated`** — Today it's derived at read time in `team_daily_status.py`. Moving the write into `plan_generator.py` removes a derivation hop and makes the field authoritative.
 9. **Regression #2** — Telegram `getUpdates` conflict (infra).
-10. **System Guardian / Ops Intelligence** — Draft spec at `docs/superpowers/specs/2026-05-02-system-guardian-ops-intelligence.md`. Integrate with the parallel ideation draft, then decide V1 scope: compose existing `health_monitor.py` rather than replace it, persist normalized observations/incidents, cluster repeated failures, expose admin-only incidents, generate Claude/Codex debug packets, and add rule-based vision-drift checks for RLS posture, silent fallback telemetry, plan source tagging, and deterministic constraint logic escaping into LLM/prompt paths.
+10. **System Guardian / Ops Intelligence** — Draft plan at `docs/superpowers/plans/2026-05-02-system-guardian-ops-intelligence.md`. Integrate with the parallel ideation draft, then decide V1 scope: compose existing `health_monitor.py` rather than replace it, persist normalized observations/incidents, cluster repeated failures, expose admin-only incidents, generate Claude/Codex debug packets, and add rule-based vision-drift checks for RLS posture, silent fallback telemetry, plan source tagging, and deterministic constraint logic escaping into LLM/prompt paths.
 
 ## Stack
 
