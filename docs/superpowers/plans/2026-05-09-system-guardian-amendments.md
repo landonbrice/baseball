@@ -22,6 +22,10 @@
 | D9 | Vision drift hooks | File-anchored + `# guardian:source-tagged` annotation **+** structural fallback rule | User chose annotation hooks; amended because annotations only catch regressions, not new drift. Structural rule fires when a function returns a plan-shaped dict from inside an `except` block without the annotation. |
 | D10 | `recent_changes` source | `git log` shelled out from Railway container | `.git` ships with the Railway deploy. New `subprocess` call only; no library dependency. |
 | D11 | Vision baseline docs | Owner to write `PRODUCT_VISION_DRAFT.md` + `PRODUCT_BUILD_PLAN.md` before Phase 3 | Phase 3 is blocked on these landing. Phases 1 and 2 are not. |
+| D12 | Shakedown ack mechanism | API-only: `POST /admin/guardian/shakedown/ack`, header auth vs `ADMIN_TELEGRAM_CHAT_ID`. No Telegram inline keyboard in V1. | Smallest viable surface. Telegram button can land in a follow-up if friction proves real. |
+| D13 | `compute_plan_health_rolling` integration | `existing_health` collector emits a separate observation with signature `plan_enrichment_health` per digest run, in addition to wrapping `compute_daily_digest()`. | Lets Guardian incident-cluster on enrichment ratio independent of digest output format; otherwise a digest schema change masks the LLM regression class. |
+| D14 | `recent_changes` cardinality | `git log` bounded to **last 50 commits AND last 7 days, whichever yields fewer**. Fields: `sha`, `subject`, `author`, `committed_at`. Used only inside debug packets. | Bounds the worst case during a deploy storm. |
+| D15 | Observation retention pruning | PR-1 ships SQL function `prune_old_observations()` enforcing the 14d window. PR-2 wires an APScheduler 3am daily job that calls it and emits a `guardian_self` observation with the row count pruned. | Without a scheduled prune the table grows unbounded; we'd discover it months later. Self-observation closes the loop. |
 
 ---
 
@@ -117,6 +121,7 @@ V1 is done when:
 8. Debug packet contract from §12 returns a valid JSON for at least one synthetic incident.
 9. `recent_changes` populated via `git log` (D10).
 10. Runtime contract from A1 is enforced — collector failures emit `collector_failure` observations and don't raise.
+11. Daily 3am pruning job (D15) runs and emits a `guardian_self` observation reporting rows pruned. `system_observations` row count stays bounded over a 30-day soak.
 
 Phase 2 (Railway + Supabase mgmt collectors) and Phase 3 (vision drift) are tracked separately and ship after V1.
 
