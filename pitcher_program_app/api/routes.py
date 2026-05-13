@@ -2619,6 +2619,7 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 from bot.services import program_builder, program_builder_socratic, program_generator, program_lifecycle
+from bot.services import favorites as favorites_svc
 
 
 class BuilderCandidatesRequest(BaseModel):
@@ -2804,3 +2805,56 @@ async def post_program_archive(program_id: str, req: ProgramArchiveRequest, requ
     if not program or program.get("pitcher_id") != pitcher_id:
         raise HTTPException(status_code=404, detail="program not found")
     return program_lifecycle.archive(program_id, reason=req.reason)
+
+
+# ---------------- Favorites (Plan 6 / A2) ----------------
+
+class FavoriteCreateRequest(BaseModel):
+    block_type: str = Field(..., pattern="^(lifting|arm_care|throwing|warmup)$")
+    source_entry_date: str = Field(..., pattern=r"^\d{4}-\d{2}-\d{2}$")
+    block_snapshot: dict
+    note: Optional[str] = None
+
+
+@router.post("/favorites")
+async def post_favorite(req: FavoriteCreateRequest, request: Request):
+    """Save an immutable snapshot of a block the pitcher just did.
+
+    `source_pitcher_id` is forced to the authenticated pitcher in v1 — the
+    block must come from this pitcher's own daily entry. Returns the inserted
+    row including `favorite_id`.
+    """
+    pitcher_id = _resolve_pitcher_id_from_request(request)
+    try:
+        row = favorites_svc.create_favorite(
+            pitcher_id=pitcher_id,
+            block_type=req.block_type,
+            source_entry_date=req.source_entry_date,
+            block_snapshot=req.block_snapshot,
+            note=req.note,
+        )
+    except favorites_svc.FavoritesError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return row
+
+
+@router.get("/favorites")
+async def get_favorites(request: Request, type: Optional[str] = Query(default=None)):
+    """List this pitcher's favorited blocks, newest first. Optional `?type=` filter."""
+    pitcher_id = _resolve_pitcher_id_from_request(request)
+    try:
+        rows = favorites_svc.list_favorites(pitcher_id, block_type=type)
+    except favorites_svc.FavoritesError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"favorites": rows}
+
+
+@router.delete("/favorites/{favorite_id}")
+async def delete_favorite(favorite_id: str, request: Request):
+    """Delete a favorite owned by the authenticated pitcher."""
+    pitcher_id = _resolve_pitcher_id_from_request(request)
+    try:
+        favorites_svc.delete_favorite(pitcher_id, favorite_id)
+    except favorites_svc.FavoriteNotFound:
+        raise HTTPException(status_code=404, detail="favorite not found")
+    return {"ok": True}

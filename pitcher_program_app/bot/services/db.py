@@ -822,6 +822,41 @@ def list_programs_for_pitcher(pitcher_id: str, status: str | None = None) -> lis
     return resp.data or []
 
 
+# ---------------- Favorited Blocks (Plan 6 / A2) ----------------
+
+def insert_favorited_block(row: dict) -> dict:
+    """Insert a new favorited_blocks row. Returns the inserted row (with favorite_id)."""
+    resp = get_client().table("favorited_blocks").insert(row).execute()
+    return (resp.data or [{}])[0]
+
+
+def list_favorited_blocks(pitcher_id: str, block_type: str | None = None) -> list[dict]:
+    """List favorited blocks for a pitcher, newest first. Optional block_type filter."""
+    q = get_client().table("favorited_blocks").select("*").eq("pitcher_id", pitcher_id)
+    if block_type:
+        q = q.eq("block_type", block_type)
+    resp = q.order("favorited_at", desc=True).execute()
+    return resp.data or []
+
+
+def get_favorited_block(favorite_id: str) -> dict | None:
+    """Fetch a single favorite row by id (ownership check is the caller's job)."""
+    resp = (
+        get_client()
+        .table("favorited_blocks")
+        .select("*")
+        .eq("favorite_id", favorite_id)
+        .limit(1)
+        .execute()
+    )
+    return (resp.data or [None])[0]
+
+
+def delete_favorited_block(favorite_id: str) -> None:
+    """Delete by favorite_id. Caller is responsible for ownership check."""
+    get_client().table("favorited_blocks").delete().eq("favorite_id", favorite_id).execute()
+
+
 # ---------------- Builder Sessions (spec v1) ----------------
 
 def create_builder_session(row: dict) -> str:
