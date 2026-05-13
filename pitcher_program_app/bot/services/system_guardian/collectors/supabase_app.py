@@ -89,23 +89,38 @@ def _signal_failure_obs(*, signal: str, exc: BaseException) -> dict:
     """Per-signal isolation: one query raised but others should still run.
 
     Emit an info-level note so the wiring layer can still cluster on signature.
+
+    **Severity bump for schema drift**: when the underlying exception message
+    contains ``column ... does not exist`` (case-insensitive), promote the
+    note from ``info`` to ``warning``. Rationale: the 2026-05-13 Guardian V1
+    deploy shipped with ``research_load_log.created_at`` (which doesn't
+    exist) — the resulting tick failures came through as ``info`` under the
+    A6 dedup contract, so the admin never got a DM. Bumping to ``warning``
+    makes the next column-drift surprise actually surface via the standard
+    first-occurrence DM path. The startup ``verify_collector_schema`` check
+    is the belt; this is the suspenders.
     """
+    raw_msg = str(exc)
+    msg_lower = raw_msg.lower()
+    is_schema_drift = "does not exist" in msg_lower and "column" in msg_lower
+    severity = "warning" if is_schema_drift else "info"
     return {
         "observed_at": _now_iso(),
         "source": _SOURCE,
         "service": "supabase",
         "event_type": f"{signal}_query_failed",
-        "severity_hint": "info",
+        "severity_hint": severity,
         "surface": "scheduled_collector",
         "route_or_job": f"supabase_app.{signal}",
         "message": (
-            f"{signal} query failed: {type(exc).__name__}: {str(exc)[:200]}"
+            f"{signal} query failed: {type(exc).__name__}: {raw_msg[:200]}"
         ),
         "metadata": {
             "category": "guardian_self",
             "code": "signal_failure",
             "signal": signal,
             "exception_class": type(exc).__name__,
+            "schema_drift": is_schema_drift,
         },
     }
 
@@ -208,11 +223,15 @@ def _build_daily_entries_stale_observation(rows: list[dict]) -> dict:
 
 
 def _query_research_load_log_24h(client) -> list[dict]:
+    # ``research_load_log`` uses ``ts`` (timestamptz) as its insertion-time
+    # column — NOT ``created_at``. The original PR used ``created_at`` which
+    # produced ``column research_load_log.created_at does not exist`` errors
+    # on every tick. Verified against information_schema 2026-05-13.
     cutoff = _utc_iso_n_hours_ago(24)
     resp = (
         client.table("research_load_log")
-        .select("pitcher_id, context, trigger_reason, total_chars, degraded, created_at")
-        .gte("created_at", cutoff)
+        .select("pitcher_id, context, trigger_reason, total_chars, degraded, ts")
+        .gte("ts", cutoff)
         .execute()
     )
     return resp.data or []

@@ -90,25 +90,67 @@ async def _send_admin_dm(text: str) -> bool:
 # ---------------------------------------------------------------------------
 
 
+def _resolve_signal_label(observation: dict, incident: dict) -> str:
+    """Pick the human-readable signal label for the DM headline.
+
+    Preference order:
+
+    1. ``observation.metadata.signal`` — set explicitly by Phase 1 collectors.
+    2. ``observation.metadata.code`` — set by classify / collectors as the
+       stable identifier for the incident class.
+    3. ``observation.event_type`` — the original observation kind, fine as a
+       fallback but never the FIRST choice because for failure observations
+       it's tokens like ``runtime_error`` which mean nothing to the recipient.
+    4. ``incident.category`` — last resort.
+
+    The 2026-05-13 bug was that ``_format_incident_line`` used
+    ``incident.category`` directly, which defaults to ``runtime_error``
+    when an observation arrives without an explicit category. The headline
+    on every DM read ``[INFO] runtime_error - ...`` which the human reader
+    couldn't tell apart from a real exception. Using the actual signal name
+    (e.g. ``research_load_anomaly``) is what the shakedown summary already
+    does and what the recipient needs.
+    """
+    md = observation.get("metadata")
+    if isinstance(md, dict):
+        sig = md.get("signal") or md.get("code")
+        if sig:
+            return str(sig)
+    et = observation.get("event_type")
+    if et:
+        return str(et)
+    cat = incident.get("category")
+    return str(cat) if cat else "incident"
+
+
 def _format_incident_line(observation: dict, incident: dict) -> str:
     """Single-line DM body for a new/escalated incident.
 
     Layout (one line, compact for Telegram preview):
-    ``[SEV] category - title (count=N) sig=<hash12>``
+    ``[SEV] service:signal - title (count=N) sig=<hash12>``
+
+    The ``service:signal`` prefix mirrors the format of the shakedown
+    summary lines (``* signal: detail``) so the recipient sees consistent
+    naming across both DM types. Pre-fix the format was ``[SEV] category -
+    title`` where ``category`` defaulted to the literal string
+    ``runtime_error`` for any observation without an explicit category —
+    which read like a bug, not a signal label. See `_resolve_signal_label`.
     """
     safe_obs = redact_observation_for_emit(observation)
     safe_inc = redact_observation_for_emit(incident)
 
     severity = safe_inc.get("severity") or safe_obs.get("severity_hint") or "info"
     icon = _SEVERITY_ICON.get(severity, "[????]")
-    category = safe_inc.get("category") or "incident"
+    signal = _resolve_signal_label(safe_obs, safe_inc)
+    service = (safe_obs.get("service") or safe_inc.get("service") or "").strip()
+    label = f"{service}:{signal}" if service else signal
     title = (safe_inc.get("title") or safe_obs.get("message") or "incident").strip()
     if len(title) > 140:
         title = title[:137] + "..."
     count = safe_inc.get("count") or 1
     signature = safe_inc.get("signature") or ""
     sig_tag = signature[:12] if signature else ""
-    parts = [f"{icon} {category} - {title} (count={count})"]
+    parts = [f"{icon} {label} - {title} (count={count})"]
     if sig_tag:
         parts.append(f"sig={sig_tag}")
     return " ".join(parts)
@@ -269,6 +311,54 @@ async def notify_status_change(
     return await _send_admin_dm(text)
 
 
+def _acknowledge_shakedown_baseline() -> int:
+    """Stamp every currently-open incident as "already notified".
+
+    The 2026-05-13 ack-flood fix. During shakedown, observations + incidents
+    persist but ``maybe_notify_admin`` returns False, so
+    ``advance_last_notified_at`` never gets called on first-occurrence
+    incidents. As soon as shakedown ends, every baseline incident still has
+    ``last_notified_at IS NULL`` and the next observation re-triggers A6
+    rule 2 (first-occurrence DM) for every signature seen during shakedown.
+
+    This helper closes that gap: BEFORE we flip shakedown off, stamp
+    ``last_notified_at = now()`` + ``last_notified_severity`` on every open
+    incident so the dedup logic treats them as already-notified baseline.
+    The actual end-of-window DM is the summary, not per-incident DMs.
+
+    Returns the number of incidents stamped. Never raises.
+    """
+    stamped = 0
+    try:
+        open_incidents = _store.list_open_incidents(limit=500)
+    except Exception as e:
+        logger.error(
+            "guardian.notify: list_open_incidents failed during baseline-ack: %s",
+            e,
+            exc_info=True,
+        )
+        return 0
+
+    for inc in open_incidents:
+        inc_id = inc.get("id")
+        if not inc_id:
+            continue
+        try:
+            _store.advance_last_notified_at(
+                inc_id, severity=inc.get("severity") or "info"
+            )
+            stamped += 1
+        except Exception as e:
+            logger.error(
+                "guardian.notify: advance_last_notified_at failed for %s during "
+                "baseline-ack: %s",
+                inc_id,
+                e,
+                exc_info=True,
+            )
+    return stamped
+
+
 async def send_shakedown_summary() -> None:
     """End-of-window summary DM. Idempotent.
 
@@ -277,11 +367,28 @@ async def send_shakedown_summary() -> None:
     DM success (audit trail), and flips :func:`store.set_shakedown_active`
     to ``False`` if it wasn't already.
 
+    **Ack-flood fix (2026-05-13)**: BEFORE flipping shakedown off, call
+    :func:`_acknowledge_shakedown_baseline` to stamp every currently-open
+    incident as already-notified. Without that step, all baseline incidents
+    accumulated during the 24h window have ``last_notified_at IS NULL``,
+    and the very next observation on each signature re-triggers A6 rule 2
+    (first-occurrence DM) — producing one Telegram DM per signature seen
+    during shakedown. Both the manual ack path and the auto-expire path
+    flow through this function so both are covered.
+
+    Order: (1) snapshot the baseline signatures for the summary DM,
+    (2) DM the summary, (3) self-observation, (4) baseline-ack the
+    incidents, (5) flip shakedown off. The DM-first ordering preserves the
+    pre-flip view; the baseline-ack-before-flip ordering ensures that even
+    if a tick fires concurrently, it sees ``shakedown_active=True`` until
+    the baseline is fully stamped.
+
     Idempotence: if shakedown is already inactive (no active sentinel), we
-    DM with an empty-signature summary noting the close and skip flipping
-    state. Calling twice in a row therefore results in two DMs but no
-    double-state-flip; if even the DM is undesired on a second call,
-    callers should check :func:`store.is_shakedown_active` themselves.
+    DM with an empty-signature summary noting the close and skip both the
+    baseline-ack AND flipping state. Calling twice in a row therefore
+    results in two DMs but no double-state-flip; if even the DM is undesired
+    on a second call, callers should check
+    :func:`store.is_shakedown_active` themselves.
     """
     started_at = _store.get_shakedown_started_at()
     started_at_iso = started_at.isoformat() if started_at is not None else None
@@ -323,6 +430,24 @@ async def send_shakedown_summary() -> None:
             "guardian.notify: self-observation insert failed: %s", e, exc_info=True
         )
 
+    # Baseline-ack every open incident BEFORE flipping shakedown off.
+    # See _acknowledge_shakedown_baseline docstring for the 2026-05-13
+    # ack-flood reasoning.
+    baseline_stamped = 0
+    if started_at is not None:
+        try:
+            baseline_stamped = _acknowledge_shakedown_baseline()
+            logger.info(
+                "guardian.notify: shakedown baseline-ack stamped %d open incident(s)",
+                baseline_stamped,
+            )
+        except Exception as e:
+            logger.error(
+                "guardian.notify: shakedown baseline-ack failed: %s",
+                e,
+                exc_info=True,
+            )
+
     # Flip the flag off when there was an active window.
     try:
         if started_at is not None:
@@ -339,4 +464,5 @@ __all__ = [
     "maybe_notify_admin",
     "notify_status_change",
     "send_shakedown_summary",
+    "_acknowledge_shakedown_baseline",
 ]

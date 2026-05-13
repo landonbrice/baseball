@@ -404,3 +404,235 @@ def test_format_incident_line_redacts_jwt_in_title():
     body = notify._format_incident_line(obs, inc)
     assert "eyJabc123" not in body
     assert "REDACTED" in body
+
+
+# ---------------------------------------------------------------------------
+# 2026-05-13 Bug B: DM headline must show the SIGNAL name, not the literal
+# category ``runtime_error`` (which incidents.py defaults to for any obs
+# without an explicit category).
+# ---------------------------------------------------------------------------
+
+
+def test_format_incident_line_uses_signal_not_runtime_error_for_info_obs():
+    """The 12:10 PM symptom: every DM read ``[INFO] runtime_error - ...``
+    because the formatter used ``incident.category`` directly. We now pull
+    the signal from ``observation.metadata.signal`` so the headline is
+    actually informative."""
+    obs = {
+        "severity_hint": "info",
+        "message": "research_load_anomaly: 0 calls in last 24h",
+        "service": "supabase",
+        "event_type": "research_load_anomaly",
+        "metadata": {
+            "category": "existing_health",
+            "code": "research_load_anomaly",
+            "signal": "research_load_anomaly",
+        },
+    }
+    inc = _mk_incident(
+        severity="info",
+        category="runtime_error",  # the legacy default that triggered the bug
+        title="research_load_anomaly: 0 calls in last 24h",
+        signature="aaaaaaaa1234",
+        count=1,
+    )
+    body = notify._format_incident_line(obs, inc)
+    # Must NOT contain the misleading default category.
+    assert "runtime_error" not in body
+    # MUST contain the actual signal name.
+    assert "research_load_anomaly" in body
+    # The service:signal prefix.
+    assert "supabase:research_load_anomaly" in body
+
+
+def test_format_incident_line_falls_back_to_event_type_when_no_metadata_signal():
+    """When metadata.signal isn't set (e.g. legacy obs from a path that
+    pre-dates the supabase_app collector), event_type stands in. Still no
+    ``runtime_error``."""
+    obs = {
+        "severity_hint": "info",
+        "message": "plan_health_summary heartbeat",
+        "service": "guardian",
+        "event_type": "plan_health_summary",
+        # NO metadata.signal / code
+    }
+    inc = _mk_incident(
+        severity="info",
+        category="runtime_error",
+        title="plan_health_summary heartbeat",
+    )
+    body = notify._format_incident_line(obs, inc)
+    assert "runtime_error" not in body
+    assert "plan_health_summary" in body
+
+
+def test_format_incident_line_snapshot_matches_expected_layout():
+    """Snapshot: exact format the recipient sees for a typical INFO obs."""
+    obs = {
+        "severity_hint": "info",
+        "message": "research_load_anomaly: 2 calls, 0 degraded (0%)",
+        "service": "supabase",
+        "event_type": "research_load_anomaly",
+        "metadata": {"signal": "research_load_anomaly"},
+    }
+    inc = _mk_incident(
+        severity="info",
+        category="existing_health",
+        title="research_load_anomaly: 2 calls, 0 degraded (0%)",
+        signature="abcdef123456more",
+        count=3,
+    )
+    body = notify._format_incident_line(obs, inc)
+    assert body == (
+        "[INFO] supabase:research_load_anomaly - "
+        "research_load_anomaly: 2 calls, 0 degraded (0%) "
+        "(count=3) sig=abcdef123456"
+    )
+
+
+# ---------------------------------------------------------------------------
+# 2026-05-13 Bug A: ack-flood. Both the manual ack path and the auto-expire
+# path flow through send_shakedown_summary; both must baseline-ack the
+# currently-open incidents BEFORE flipping shakedown off so the next tick's
+# A6 rule 2 (first-occurrence DM) does not fire for every signature seen.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_send_shakedown_summary_advances_last_notified_on_open_incidents():
+    """After ack, every previously-open incident must have ``last_notified_at``
+    set + ``severity`` stamped, so subsequent observations on the same
+    signatures are treated as already-notified baseline."""
+    from datetime import datetime, timedelta
+
+    from bot.config import CHICAGO_TZ
+
+    started = datetime.now(CHICAGO_TZ) - timedelta(hours=2)
+    open_incidents = [
+        {
+            "id": "inc-1",
+            "severity": "info",
+            "last_notified_at": None,  # baseline -> would re-fire rule 2
+            "status": "open",
+            "title": "research_load_anomaly: 0 calls",
+            "signature": "sig_research_aaaaaaaaaaaa",
+            "category": "runtime_error",
+            "count": 1,
+        },
+        {
+            "id": "inc-2",
+            "severity": "warning",
+            "last_notified_at": None,
+            "status": "open",
+            "title": "daily_entries_stale: 4 partials",
+            "signature": "sig_de_stale_bbbbbbbbbbbb",
+            "category": "silent_degradation",
+            "count": 1,
+        },
+    ]
+
+    captured_advances: list[tuple[str, str | None]] = []
+
+    def _fake_advance(incident_id, severity=None):
+        captured_advances.append((incident_id, severity))
+        return {"id": incident_id}
+
+    captured_state_flips: list[tuple[bool, object]] = []
+
+    def _fake_set_state(active, started_at=None):
+        # Ensure baseline-ack happens BEFORE the flag flips off.
+        # If this fires before advance was called, the order is wrong.
+        captured_state_flips.append((active, started_at, list(captured_advances)))
+
+    send_mock = AsyncMock(return_value=True)
+    with (
+        patch.object(notify._store, "get_shakedown_started_at", return_value=started),
+        patch.object(notify._store, "list_shakedown_signatures", return_value=[]),
+        patch.object(notify._store, "insert_observation", lambda p: p),
+        patch.object(notify._store, "list_open_incidents", return_value=open_incidents),
+        patch.object(notify._store, "advance_last_notified_at", _fake_advance),
+        patch.object(notify._store, "set_shakedown_active", _fake_set_state),
+        patch.object(notify, "_send_admin_dm", send_mock),
+    ):
+        await notify.send_shakedown_summary()
+
+    # Every open incident got stamped with its current severity.
+    assert ("inc-1", "info") in captured_advances
+    assert ("inc-2", "warning") in captured_advances
+    assert len(captured_advances) == 2
+    # ...and BEFORE the shakedown flag flip.
+    assert captured_state_flips == [(False, None, [("inc-1", "info"), ("inc-2", "warning")])]
+
+
+@pytest.mark.asyncio
+async def test_post_ack_next_observation_does_not_re_dm_baseline_signature():
+    """End-to-end: after ack stamps a baseline incident, the next call to
+    ``maybe_notify_admin`` for the same signature must NOT DM (because it
+    no longer matches rule 2, and there's no severity escalation)."""
+    # Step 1: pre-ack incident with NULL last_notified_at.
+    pre_ack_incident = _mk_incident(severity="info", last_notified_at=None)
+    # Step 2: simulate the ack stamping it with a timestamp.
+    post_ack_incident = _mk_incident(
+        severity="info",
+        last_notified_at="2026-05-13T17:10:00-05:00",
+    )
+
+    # Pre-ack: rule 2 fires, DM goes out.
+    pre_obs = _mk_observation(severity="info", prev_severity="info")
+    send_pre = AsyncMock(return_value=True)
+    with (
+        patch.object(notify._store, "is_shakedown_active", return_value=False),
+        patch.object(notify, "_send_admin_dm", send_pre),
+        patch.object(notify._store, "advance_last_notified_at", MagicMock()),
+    ):
+        sent_pre = await notify.maybe_notify_admin(pre_obs, pre_ack_incident)
+    assert sent_pre is True, "Pre-ack baseline should have DM'd"
+
+    # Post-ack: same observation on the same signature.
+    # Rule 2 no longer applies (last_notified_at is set), rule 3 doesn't
+    # either (same severity), so the dedup falls through to rule 5 → no DM.
+    post_obs = _mk_observation(severity="info", prev_severity="info")
+    send_post = AsyncMock(return_value=True)
+    with (
+        patch.object(notify._store, "is_shakedown_active", return_value=False),
+        patch.object(notify, "_send_admin_dm", send_post),
+        patch.object(notify._store, "advance_last_notified_at", MagicMock()),
+    ):
+        sent_post = await notify.maybe_notify_admin(post_obs, post_ack_incident)
+    assert sent_post is False, (
+        "Post-ack baseline observation re-fired rule 2 — ack-flood regression"
+    )
+    send_post.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_send_shakedown_summary_skips_baseline_ack_when_already_inactive():
+    """Idempotence: calling on an already-inactive shakedown still DMs an
+    empty summary but MUST NOT iterate open incidents — there's nothing to
+    baseline-ack and the spurious advance would noise the audit trail."""
+    captured_list_calls: list[bool] = []
+    captured_advances: list[tuple] = []
+
+    def _record_list(limit=50):
+        captured_list_calls.append(True)
+        return []
+
+    def _record_advance(*args, **kwargs):
+        captured_advances.append((args, kwargs))
+        return None
+
+    send_mock = AsyncMock(return_value=True)
+    with (
+        patch.object(notify._store, "get_shakedown_started_at", return_value=None),
+        patch.object(notify._store, "list_shakedown_signatures", return_value=[]),
+        patch.object(notify._store, "insert_observation", lambda p: p),
+        patch.object(notify._store, "list_open_incidents", _record_list),
+        patch.object(notify._store, "advance_last_notified_at", _record_advance),
+        patch.object(notify._store, "set_shakedown_active", MagicMock()),
+        patch.object(notify, "_send_admin_dm", send_mock),
+    ):
+        await notify.send_shakedown_summary()
+
+    # No baseline-ack should occur when there was no active window.
+    assert captured_list_calls == []
+    assert captured_advances == []
