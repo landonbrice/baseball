@@ -48,6 +48,11 @@ export default function HeroCard({ pitcher, onOpen }) {
           Today · {mark}
         </div>
         <div className="font-ui text-body text-charcoal mt-0.5">{text}</div>
+        {pitcher.baseline_state === 'no_baseline' && (
+          <div className="font-ui uppercase text-[9px] tracking-[0.16em] text-muted mt-1">
+            baseline establishing {pitcher.total_check_ins ?? 0}/14
+          </div>
+        )}
       </div>
 
       <div className="mt-2 grid grid-cols-3 gap-2">

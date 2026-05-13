@@ -191,8 +191,9 @@ export async function fetchMorningStatus(pitcherId, initData = null) {
 /**
  * Fetch staff pulse — team check-in status, roles, rotation info.
  */
-export async function fetchStaffPulse(initData = null) {
-  return fetchApi('/api/staff/pulse', initData);
+export async function fetchStaffPulse(initData = null, teamId = 'uchicago_baseball') {
+  const params = new URLSearchParams({ team_id: teamId });
+  return fetchApi(`/api/staff/pulse?${params}`, initData);
 }
 
 /**

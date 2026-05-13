@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { postCoachApi } from '../api'
+import { postCoachApi, previewMutations } from '../api'
 import { useCoachAuth } from '../hooks/useCoachAuth'
+import MutationPreview from './MutationPreview'
 
 export default function AdjustTodayModal({ pitcherId, onClose, onApplied }) {
   const { getAccessToken } = useCoachAuth()
@@ -10,11 +11,11 @@ export default function AdjustTodayModal({ pitcherId, onClose, onApplied }) {
   const [rx, setRx] = useState('')
   const [note, setNote] = useState('')
   const [saving, setSaving] = useState(false)
+  const [previewing, setPreviewing] = useState(false)
+  const [proposed, setProposed] = useState(null)
+  const [previewError, setPreviewError] = useState(null)
 
-  async function handleApply() {
-    if (!exerciseId) return
-    setSaving(true)
-
+  function buildMutation() {
     const mutation = { action, exercise_id: exerciseId }
     if (action === 'swap') {
       mutation.from_exercise_id = exerciseId
@@ -22,12 +23,38 @@ export default function AdjustTodayModal({ pitcherId, onClose, onApplied }) {
     }
     if (rx) mutation.rx = rx
     if (note) mutation.note = note
+    return mutation
+  }
+
+  async function handlePreview() {
+    if (!exerciseId) return
+    setPreviewing(true)
+    setPreviewError(null)
+    setProposed(null)
+    try {
+      const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' })
+      const out = await previewMutations(
+        pitcherId,
+        { mutations: [buildMutation()], date: today },
+        getAccessToken()
+      )
+      setProposed(out?.proposed_rationale || null)
+    } catch (err) {
+      setPreviewError(err.message)
+    } finally {
+      setPreviewing(false)
+    }
+  }
+
+  async function handleApply() {
+    if (!exerciseId) return
+    setSaving(true)
 
     try {
       const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' })
       await postCoachApi(
         `/api/coach/pitcher/${pitcherId}/adjust-today`,
-        { mutations: [mutation], date: today },
+        { mutations: [buildMutation()], date: today },
         getAccessToken()
       )
       onApplied?.()
@@ -105,12 +132,28 @@ export default function AdjustTodayModal({ pitcherId, onClose, onApplied }) {
           </div>
         </div>
 
+        {previewError && (
+          <p className="mt-3 text-xs text-crimson">{previewError}</p>
+        )}
+        {proposed && (
+          <div className="mt-3">
+            <MutationPreview proposed={proposed} />
+          </div>
+        )}
+
         <div className="flex gap-2 mt-4">
           <button
             onClick={onClose}
             className="flex-1 py-2 border border-cream-dark rounded text-sm"
           >
             Cancel
+          </button>
+          <button
+            onClick={handlePreview}
+            disabled={!exerciseId || previewing || saving}
+            className="flex-1 py-2 border border-maroon text-maroon rounded text-sm font-medium hover:bg-hover disabled:opacity-50"
+          >
+            {previewing ? 'Previewing...' : 'Preview'}
           </button>
           <button
             onClick={handleApply}

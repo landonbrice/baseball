@@ -20,6 +20,12 @@ try:
 except ImportError:
     _has_coach_routes = False
 
+try:
+    from bot.services.system_guardian.admin_router import router as guardian_admin_router
+    _has_guardian_admin = True
+except ImportError:
+    _has_guardian_admin = False
+
 app = FastAPI(title="Pitcher Dashboard API", version="0.1.0")
 
 # CORS — allow mini-app and coach-app origins
@@ -52,6 +58,12 @@ app.include_router(router)
 
 if _has_coach_routes:
     app.include_router(coach_router)
+
+if _has_guardian_admin:
+    # PR-5: /admin/guardian/* surface. Auth is the X-Guardian-Admin-Token
+    # shared-secret header (env var GUARDIAN_ADMIN_TOKEN). Routes return 503
+    # when the env var is unset.
+    app.include_router(guardian_admin_router)
 
 from bot.config import TELEGRAM_BOT_TOKEN, DEEPSEEK_API_KEY, MINI_APP_URL, DISABLE_AUTH
 

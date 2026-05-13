@@ -9,6 +9,7 @@ import HeroCard from '../components/team-overview/HeroCard'
 import CompactCard from '../components/team-overview/CompactCard'
 import PendingStrip from '../components/team-overview/PendingStrip'
 import PlayerSlideOver from '../components/PlayerSlideOver'
+import { hasCheckedIn } from '../utils/teamDailyStatus'
 
 const REFRESH_INTERVAL_MS = 90_000
 
@@ -87,7 +88,7 @@ function partitionRoster(roster) {
   const pending = []
   const onTrack = []
   for (const p of roster) {
-    const isPending = p.today_status !== 'checked_in'
+    const isPending = !hasCheckedIn(p)
     if (p.flag_level === 'red' || p.flag_level === 'yellow') {
       flagged.push(p)
     } else if (isPending) {

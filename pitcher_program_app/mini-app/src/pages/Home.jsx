@@ -137,13 +137,16 @@ export default function Home() {
   const navigate = useNavigate();
   const suffix = globalRefreshKey ? `?_r=${globalRefreshKey}` : '';
   const { profile, log, progression, loading, error } = usePitcher(pitcherId, initData, suffix);
+  const staffPulsePath = profile?.team_id
+    ? `/api/staff/pulse?team_id=${encodeURIComponent(profile.team_id)}${globalRefreshKey ? `&_r=${globalRefreshKey}` : ''}`
+    : null;
   const exercises = useApi('/api/exercises', initData);
   const slugs = useApi('/api/exercises/slugs', initData);
   const upcoming = useApi(pitcherId ? `/api/pitcher/${pitcherId}/upcoming${suffix}` : null, initData);
   const weekSummary = useApi(pitcherId ? `/api/pitcher/${pitcherId}/week-summary${suffix}` : null, initData);
   const trendData = useApi(pitcherId ? `/api/pitcher/${pitcherId}/trend${suffix}` : null, initData);
   const narrativeData = useApi(pitcherId ? `/api/pitcher/${pitcherId}/weekly-narrative${suffix}` : null, initData);
-  const staffPulse = useApi('/api/staff/pulse', initData);
+  const staffPulse = useApi(staffPulsePath, initData);
   const whoopData = useApi(pitcherId ? `/api/pitcher/${pitcherId}/whoop-today${suffix}` : null, initData);
 
   const exerciseMap = useMemo(() => {
@@ -176,8 +179,9 @@ export default function Home() {
   const flagLevel = String(flags.current_flag_level || 'green');
   const armFeel = typeof flags.current_arm_feel === 'number' ? flags.current_arm_feel : null;
   const isNewPitcher = !entries.length && !flags.last_outing_date;
-  const hasPlan = !!(todayEntry?.plan_narrative || todayEntry?.plan_generated?.exercise_blocks?.length);
-  const hasCheckedIn = checkinCompleted || !!((todayEntry?.pre_training || {}).arm_feel && hasPlan);
+  const todayPreTraining = todayEntry?.pre_training || {};
+  const hasCheckinInput = todayPreTraining.arm_feel != null || todayEntry?.arm_feel != null;
+  const hasCheckedIn = checkinCompleted || hasCheckinInput;
   const isViewingPast = selectedDate && selectedDate !== todayStr;
 
   const rawBrief = todayEntry?.morning_brief || (todayEntry?.plan_generated || {}).morning_brief;

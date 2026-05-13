@@ -33,6 +33,7 @@ def _profile_from_row(row: dict) -> dict:
     that all existing code expects."""
     profile = {
         "pitcher_id": row["pitcher_id"],
+        "team_id": row.get("team_id"),
         "telegram_id": row.get("telegram_id"),
         "telegram_username": row.get("telegram_username"),
         "name": row["name"],

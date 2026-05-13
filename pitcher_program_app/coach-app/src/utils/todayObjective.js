@@ -12,8 +12,22 @@ function markForModification(tag) {
   return MOD_MARK[tag] || 'Modified'
 }
 
+const DAY_FOCUS_MARK = {
+  bullpen: 'Bullpen',
+  lift: 'Lift',
+  throw: 'Throw',
+  plyocare: 'Plyocare',
+  recovery: 'Recovery',
+}
+
 export function buildTodayObjective(today) {
   if (!today) return REST
+
+  // F4: prefer rationale_short (forward-only — legacy rows get null).
+  if (today.rationale_short) {
+    const mark = DAY_FOCUS_MARK[today.day_focus] || 'Today'
+    return { mark, text: today.rationale_short }
+  }
 
   const mods = Array.isArray(today.modifications) ? today.modifications : []
   if (mods.length > 0) {

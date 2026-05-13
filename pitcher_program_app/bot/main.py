@@ -724,6 +724,10 @@ async def _send_health_digest(context) -> None:
     """Daily 9am Chicago health digest sent to the admin chat_id.
 
     Queries degradation signals from Supabase and posts a formatted summary.
+    Also runs the Guardian ``existing_health`` collector (PR-3 wiring) which
+    persists normalized observations to ``system_observations`` and appends a
+    Guardian summary section to the digest message.
+
     Never raises — monitoring should never crash the scheduler.
     """
     try:
@@ -731,7 +735,44 @@ async def _send_health_digest(context) -> None:
         from bot.config import ADMIN_TELEGRAM_CHAT_ID
 
         digest = compute_daily_digest()
-        message = format_digest_message(digest)
+
+        # Guardian: run the existing_health collector, persist each observation,
+        # and pass the in-memory list to the digest formatter for the
+        # appended summary section (V1 acceptance #2 + #7). The collector NEVER
+        # raises per A1, so any failure surfaces as a single collector_failure
+        # observation rather than crashing the digest.
+        guardian_observations: list[dict] = []
+        try:
+            from bot.services.system_guardian.collectors.existing_health import (
+                collect_existing_health,
+            )
+            from bot.services.system_guardian import store as _guardian_store
+
+            guardian_observations = await collect_existing_health()
+            for obs in guardian_observations:
+                try:
+                    # PR-5: route observations through the notify wrapper so
+                    # incidents auto-emit the A6 dedup DM when shakedown is
+                    # inactive. The wrapper falls back to a plain insert on
+                    # any failure inside the dispatch step.
+                    await _guardian_store.insert_observation_with_notify(obs)
+                except Exception as inner:
+                    # insert_observation_with_notify is defensive but we
+                    # belt-and-brace so the digest message still ships if
+                    # Supabase is down.
+                    logger.error(
+                        "guardian: insert_observation_with_notify failed during digest wiring: %s",
+                        inner,
+                        exc_info=True,
+                    )
+        except Exception as guardian_exc:
+            logger.error(
+                "guardian: existing_health collector wiring failed: %s",
+                guardian_exc,
+                exc_info=True,
+            )
+
+        message = format_digest_message(digest, guardian_observations=guardian_observations)
 
         await context.bot.send_message(
             chat_id=ADMIN_TELEGRAM_CHAT_ID,
@@ -907,6 +948,73 @@ def _schedule_jobs(application: Application) -> None:
         name="health_digest_daily",
     )
     logger.info("Scheduled daily health digest for 9:00 AM Chicago time")
+
+    # System Guardian prune — 3am Chicago (D15). Calls the SQL function
+    # public.prune_old_observations() and emits a guardian_self observation
+    # with the row count. All errors absorbed inside run_observation_prune
+    # per A1; the scheduler hook just awaits it.
+    async def _run_guardian_prune(context) -> None:
+        try:
+            from bot.services.system_guardian import run_observation_prune
+            pruned = await run_observation_prune()
+            logger.info("Guardian prune job completed (rows pruned=%s)", pruned)
+        except Exception as e:  # defense-in-depth — run_observation_prune already swallows
+            logger.error("Guardian prune job raised: %s", e, exc_info=True)
+
+    job_queue.run_daily(
+        _run_guardian_prune,
+        time=dt_time(hour=3, minute=0, tzinfo=CHICAGO_TZ),
+        name="guardian_prune_observations",
+    )
+    logger.info("Scheduled daily Guardian prune for 3:00 AM Chicago time")
+
+    # System Guardian shakedown expiry check — hourly (A6). On a true transition
+    # the helper dispatches the end-of-window summary DM via notify.py. ±1h
+    # auto-expiry granularity is fine for a 24h window. Never raises.
+    async def _run_guardian_shakedown_check(context) -> None:
+        try:
+            from bot.services.system_guardian import check_shakedown_expiry
+            transitioned = await check_shakedown_expiry()
+            if transitioned:
+                logger.info("Guardian shakedown window auto-expired; summary dispatched")
+        except Exception as e:  # defense-in-depth — check_shakedown_expiry already swallows
+            logger.error("Guardian shakedown check raised: %s", e, exc_info=True)
+
+    job_queue.run_repeating(
+        _run_guardian_shakedown_check,
+        interval=3600,  # hourly
+        first=3600,
+        name="guardian_shakedown_check",
+    )
+    logger.info("Scheduled hourly Guardian shakedown expiry check")
+
+    # System Guardian periodic tick — every 15 minutes (PR-6 / A1). Runs all
+    # three Phase 1 collectors in parallel under a 30s wallclock budget, with
+    # belt-and-suspenders 5s per-collector ceilings. Tracks consecutive
+    # over-budget ticks and emits a tick_budget_exceeded observation on the
+    # 2nd consecutive over-budget tick (A1's "twice in a row" rule). Never
+    # raises — all failures absorbed inside run_guardian_tick.
+    async def _run_guardian_tick(context) -> None:
+        try:
+            from bot.services.system_guardian import run_guardian_tick
+            summary = await run_guardian_tick()
+            logger.info(
+                "Guardian tick completed (duration=%.2fs, over_budget=%s, "
+                "persisted=%s)",
+                summary.get("duration_s", 0.0),
+                summary.get("over_budget", False),
+                summary.get("observations_persisted", 0),
+            )
+        except Exception as e:  # defense-in-depth — run_guardian_tick already swallows
+            logger.error("Guardian tick raised: %s", e, exc_info=True)
+
+    job_queue.run_repeating(
+        _run_guardian_tick,
+        interval=900,  # 15 min (matches the ops-intelligence spec §6 cadence)
+        first=300,  # 5 min after startup so we don't compete with bot init
+        name="guardian_tick",
+    )
+    logger.info("Scheduled 15-min Guardian tick (first run in 5 min)")
 
     # Exercise snapshot — warm synchronously at startup so first check-in after deploy
     # hits the cache, then refresh every 15 min via scheduler (D6).

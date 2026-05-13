@@ -64,4 +64,45 @@ describe('<HeroCard>', () => {
     await userEvent.click(screen.getByRole('button', { name: /carter heron/i }))
     expect(onOpen).toHaveBeenCalledWith('pitcher_heron_001')
   })
+
+  it('renders baseline establishing subscript for cold-start pitchers', () => {
+    render(
+      <HeroCard
+        pitcher={{
+          ...BASE,
+          baseline_state: 'no_baseline',
+          total_check_ins: 3,
+          today: { rationale_short: 'Arm feel down to 5.', day_focus: 'lift', modifications: [] },
+        }}
+      />
+    )
+    expect(screen.getByText(/baseline establishing 3\/14/i)).toBeInTheDocument()
+  })
+
+  it('does NOT render subscript for full-baseline pitchers', () => {
+    render(
+      <HeroCard
+        pitcher={{
+          ...BASE,
+          baseline_state: 'full',
+          total_check_ins: 40,
+          today: { rationale_short: 'All systems good.', day_focus: 'lift', modifications: [] },
+        }}
+      />
+    )
+    expect(screen.queryByText(/establishing/i)).not.toBeInTheDocument()
+  })
+
+  it('shows 0/14 when total_check_ins missing', () => {
+    render(
+      <HeroCard
+        pitcher={{
+          ...BASE,
+          baseline_state: 'no_baseline',
+          today: { rationale_short: 'New pitcher.', day_focus: 'lift', modifications: [] },
+        }}
+      />
+    )
+    expect(screen.getByText(/baseline establishing 0\/14/i)).toBeInTheDocument()
+  })
 })

@@ -29,7 +29,17 @@ function Item({ name, prescription }) {
 
 function ExerciseItem({ ex }) {
   const name = useExerciseName({ item: ex, component: 'PlayerToday' })
-  return <Item name={name} prescription={ex.prescribed || ex.rx || ''} />
+  return (
+    <div className="border-b border-cream-dark/60 last:border-b-0 py-1">
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="font-serif text-body text-charcoal">{name}</span>
+        <span className="font-ui text-meta text-muted tabular">{ex.prescribed || ex.rx || ''}</span>
+      </div>
+      {ex.rationale && (
+        <div className="font-ui text-meta text-muted italic mt-0.5">{ex.rationale}</div>
+      )}
+    </div>
+  )
 }
 
 function ArmAssessmentBlock({ assessment }) {
@@ -102,6 +112,11 @@ export default function PlayerToday({ data, onAdjust, onRestrict }) {
   const liftingItems = flattenLifting(lifting)
   const armAssessment = todayEntry?.pre_training?.arm_assessment
 
+  // F4: rationale layer — read from daily_entries.rationale JSONB on today's entry.
+  const rationaleObj = todayEntry?.rationale || data.rationale
+  const daySummary = rationaleObj?.day_summary_rationale ?? data.day_summary_rationale
+  const rationaleDetail = rationaleObj?.rationale_detail
+
   return (
     <div className="space-y-5">
       {coachingNote && (
@@ -111,6 +126,24 @@ export default function PlayerToday({ data, onAdjust, onRestrict }) {
       )}
 
       <ArmAssessmentBlock assessment={armAssessment} />
+
+      {daySummary && (
+        <p className="font-serif italic text-body-sm text-graphite">{daySummary}</p>
+      )}
+
+      {rationaleDetail && (
+        <div className="border-l-2 border-maroon pl-3 font-ui text-meta text-charcoal space-y-0.5">
+          {rationaleDetail.status_line && (
+            <div><span className="font-semibold">Status:</span> {rationaleDetail.status_line}</div>
+          )}
+          {rationaleDetail.signal_line && (
+            <div><span className="font-semibold">Signal:</span> {rationaleDetail.signal_line}</div>
+          )}
+          {rationaleDetail.response_line && (
+            <div><span className="font-semibold">Response:</span> {rationaleDetail.response_line}</div>
+          )}
+        </div>
+      )}
 
       {!todayEntry?.plan_generated && (
         <p className="font-ui text-meta text-muted">No plan generated yet today.</p>
