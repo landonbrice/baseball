@@ -637,6 +637,10 @@ async def process_checkin(
             "estimated_duration_min": plan_result.get("estimated_duration_min") if plan_result else None,
             "source": plan_result.get("source") if plan_result else None,
             "source_reason": plan_result.get("source_reason") if plan_result else None,
+            # Plan 6 / A1.5: persist day_focus at write time. team_daily_status
+            # falls back to derive_day_focus when this is missing (legacy rows
+            # + the cold-start partial entry path).
+            "day_focus": plan_result.get("day_focus") if plan_result else None,
             # F4: per-day summary rationale (None when rationale disabled or generation failed)
             "day_summary_rationale": day_summary_rationale,
         },
