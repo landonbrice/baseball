@@ -288,3 +288,99 @@ def test_set_shakedown_writes_sentinel_with_correct_signature():
         # Should have written the sentinel even though the auto-arm logic
         # also fires — but auto-arm is gated on sentinel existence so we end
         # up with exactly one row.
+
+
+# ---------------------------------------------------------------------------
+# 2026-05-13 Bug A: ack-flood fix exercised end-to-end via the auto-expire
+# scheduler hook. ``check_shakedown_expiry`` returns True past the 24h
+# threshold and the caller invokes ``send_shakedown_summary``. THAT function
+# is the ack-flood entrypoint; we cover the manual ack path in test_notify.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_auto_expire_path_invokes_send_shakedown_summary_with_baseline_ack():
+    """The hourly ``check_shakedown_expiry`` hook in ``__init__.py`` flips
+    state then dispatches the summary DM — same code path as the manual ack
+    so it gets the baseline-ack fix automatically. Smoke-test that the wiring
+    is intact."""
+    import asyncio as _asyncio
+    from unittest.mock import AsyncMock as _AsyncMock
+
+    from bot.services import system_guardian as _sg
+
+    # Pretend the 24h transition just fired.
+    with (
+        patch.object(_sg.store, "check_and_expire_shakedown", return_value=True),
+        patch(
+            "bot.services.system_guardian.notify.send_shakedown_summary",
+            new_callable=_AsyncMock,
+        ) as mock_summary,
+    ):
+        transitioned = await _sg.check_shakedown_expiry()
+
+    assert transitioned is True
+    mock_summary.assert_awaited_once()
+
+
+def test_baseline_ack_helper_advances_every_open_incident():
+    """Direct test of the baseline-ack helper: every open incident gets
+    ``last_notified_at`` stamped with its CURRENT severity (so a future
+    same-band observation is rule-5'd, not rule-2'd)."""
+    from bot.services.system_guardian import notify as _notify
+
+    fake = FakeSupabase()
+    fake.tables["system_incidents"] = [
+        {
+            "id": "inc-1",
+            "severity": "info",
+            "last_notified_at": None,
+            "status": "open",
+            "title": "research_load_anomaly: 0 calls",
+            "signature": "sig_a",
+            "category": "runtime_error",
+            "count": 1,
+            "last_seen": "2026-05-13T17:00:00-05:00",
+        },
+        {
+            "id": "inc-2",
+            "severity": "warning",
+            "last_notified_at": None,
+            "status": "ack",  # ack still counts as open per spec §8
+            "title": "daily_entries_stale: 4 partials",
+            "signature": "sig_b",
+            "category": "silent_degradation",
+            "count": 4,
+            "last_seen": "2026-05-13T17:00:00-05:00",
+        },
+        {
+            "id": "inc-3",
+            "severity": "critical",
+            "last_notified_at": None,
+            "status": "resolved",  # NOT open — should be skipped
+            "title": "resolved already",
+            "signature": "sig_c",
+            "category": "runtime_error",
+            "count": 9,
+            "last_seen": "2026-05-13T17:00:00-05:00",
+        },
+    ]
+
+    with patch(
+        "bot.services.system_guardian.store._db.get_client", return_value=fake
+    ):
+        stamped = _notify._acknowledge_shakedown_baseline()
+
+    # Two open + ack incidents stamped; the resolved one skipped.
+    assert stamped == 2
+    # The fake stores updates by patching the in-memory rows.
+    updated = {
+        r["id"]: r
+        for r in fake.tables["system_incidents"]
+    }
+    assert updated["inc-1"]["last_notified_at"] is not None
+    assert updated["inc-1"]["severity"] == "info"  # preserved
+    assert updated["inc-2"]["last_notified_at"] is not None
+    assert updated["inc-2"]["severity"] == "warning"  # preserved
+    # Resolved incident untouched.
+    assert updated["inc-3"]["last_notified_at"] is None

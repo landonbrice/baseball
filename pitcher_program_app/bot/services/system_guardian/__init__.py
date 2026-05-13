@@ -19,7 +19,17 @@ from datetime import datetime
 from typing import Any
 
 from bot.config import CHICAGO_TZ
-from bot.services.system_guardian import classify, cluster, debug_packet, incidents, normalize, store, tick
+from bot.services.system_guardian import (
+    classify,
+    cluster,
+    debug_packet,
+    incidents,
+    normalize,
+    schema_check,
+    store,
+    tick,
+)
+from bot.services.system_guardian.schema_check import verify_collector_schema
 from bot.services.system_guardian.tick import run_guardian_tick
 
 logger = logging.getLogger(__name__)
@@ -165,15 +175,62 @@ async def check_shakedown_expiry() -> bool:
     return True
 
 
+async def run_startup_schema_check() -> int:
+    """Startup hook: run :func:`verify_collector_schema` and persist results.
+
+    Wired into ``bot.main.post_init`` so a deploy with collector vs DB
+    schema drift surfaces a critical observation on the next boot, BEFORE
+    any user-facing 15-min tick produces an info-level query failure that
+    A6 silently dedups. Returns the number of drift observations persisted
+    (or ``-1`` on internal failure). Never raises.
+    """
+    try:
+        observations = await verify_collector_schema()
+    except Exception as e:
+        # verify_collector_schema is itself defensive but defense-in-depth
+        # so the bot process can never die on a startup hook.
+        logger.error(
+            "guardian: run_startup_schema_check verify call raised: %s",
+            e,
+            exc_info=True,
+        )
+        return -1
+
+    if not observations:
+        logger.info("guardian: startup schema check passed (no drift)")
+        return 0
+
+    persisted = 0
+    for obs in observations:
+        try:
+            await store.insert_observation_with_notify(obs)
+            persisted += 1
+        except Exception as e:
+            logger.error(
+                "guardian: startup schema-check observation persist failed: %s",
+                e,
+                exc_info=True,
+            )
+    logger.warning(
+        "guardian: startup schema check found %d drift observation(s); persisted=%d",
+        len(observations),
+        persisted,
+    )
+    return persisted
+
+
 __all__ = [
     "classify",
     "cluster",
     "debug_packet",
     "incidents",
     "normalize",
+    "schema_check",
     "store",
     "tick",
     "run_observation_prune",
     "check_shakedown_expiry",
     "run_guardian_tick",
+    "verify_collector_schema",
+    "run_startup_schema_check",
 ]

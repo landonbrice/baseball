@@ -1057,6 +1057,17 @@ async def post_init(application: Application) -> None:
 
     _schedule_jobs(application)
 
+    # System Guardian: one-shot startup schema sanity check. Catches
+    # collector-vs-DB column drift (e.g. the 2026-05-13 research_load_log
+    # ``created_at`` regression) BEFORE any 15-min tick produces a noisy
+    # baseline. Persists a critical observation per affected table — never
+    # raises and never blocks startup.
+    try:
+        from bot.services.system_guardian import run_startup_schema_check
+        await run_startup_schema_check()
+    except Exception as e:
+        logger.error("guardian: run_startup_schema_check raised: %s", e, exc_info=True)
+
 
 async def _text_dispatcher(update: Update, context) -> None:
     """Route free-text to skip details handler if awaiting, else Q&A."""
