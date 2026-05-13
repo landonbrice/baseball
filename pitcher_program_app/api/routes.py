@@ -2787,6 +2787,46 @@ async def post_builder_finalize(req: BuilderFinalizeRequest, request: Request):
     return {"program": program}
 
 
+@router.get("/programs/drafts")
+async def get_program_drafts(request: Request):
+    """List the pitcher's draft programs (status='draft'), newest first.
+
+    Excludes `generated_schedule_json` to keep the payload small — cards only
+    render scalar fields. Fetch a single draft endpoint (not yet defined) if
+    you need the full schedule body.
+    """
+    pitcher_id = _resolve_pitcher_id_from_request(request)
+    rows = _db.list_programs_for_pitcher_summary(pitcher_id, status="draft")
+    return {"drafts": rows}
+
+
+@router.get("/programs/history")
+async def get_program_history(request: Request):
+    """List the pitcher's archived programs ordered by `archived_at` (newest first)."""
+    pitcher_id = _resolve_pitcher_id_from_request(request)
+    rows = _db.list_programs_for_pitcher_summary(
+        pitcher_id, status="archived", order_by="archived_at"
+    )
+    return {"history": rows}
+
+
+@router.get("/programs/active")
+async def get_active_programs(request: Request):
+    """Return the pitcher's currently-active programs keyed by domain.
+
+    The partial unique index guarantees ≤1 active per (pitcher, domain),
+    so the shape is `{throwing: <program>|null, lifting: <program>|null}`.
+    """
+    pitcher_id = _resolve_pitcher_id_from_request(request)
+    rows = _db.list_programs_for_pitcher_summary(pitcher_id, status="active")
+    bucketed = {"throwing": None, "lifting": None}
+    for row in rows:
+        domain = row.get("domain")
+        if domain in bucketed:
+            bucketed[domain] = row
+    return bucketed
+
+
 @router.post("/programs/{program_id}/activate")
 async def post_program_activate(program_id: str, request: Request):
     """Layer 4: activate a draft program (archives any existing active in same domain)."""

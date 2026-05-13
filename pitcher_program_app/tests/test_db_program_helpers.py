@@ -54,6 +54,47 @@ def test_list_programs_for_pitcher_returns_list():
         assert len(result) == 2
 
 
+def test_list_programs_for_pitcher_summary_uses_projection_and_default_order():
+    """Verify the summary helper selects the trimmed column list (no generated_schedule_json)
+    and orders by created_at desc by default."""
+    client = MagicMock()
+    chain = (
+        client.table.return_value.select.return_value.eq.return_value.eq.return_value
+              .order.return_value
+    )
+    chain.execute.return_value = MagicMock(data=[{"program_id": "p1"}])
+    # Also support the no-status branch
+    client.table.return_value.select.return_value.eq.return_value.order.return_value \
+          .execute.return_value = MagicMock(data=[{"program_id": "p1"}])
+
+    with patch.object(db, "get_client", return_value=client):
+        out = db.list_programs_for_pitcher_summary("landon_brice", status="draft")
+    assert out == [{"program_id": "p1"}]
+    # First positional arg to select() is the column list — assert generated_schedule_json absent
+    select_call = client.table.return_value.select.call_args
+    cols = select_call.args[0]
+    assert "generated_schedule_json" not in cols
+    assert "tuned_spec_json" in cols
+    assert "program_id" in cols
+
+
+def test_list_programs_for_pitcher_summary_accepts_archived_at_order():
+    client = MagicMock()
+    client.table.return_value.select.return_value.eq.return_value.eq.return_value \
+          .order.return_value.execute.return_value = MagicMock(data=[])
+    with patch.object(db, "get_client", return_value=client):
+        db.list_programs_for_pitcher_summary("landon_brice", status="archived",
+                                             order_by="archived_at")
+    order_call = client.table.return_value.select.return_value.eq.return_value.eq.return_value.order.call_args
+    assert order_call.args[0] == "archived_at"
+    assert order_call.kwargs.get("desc") is True
+
+
+def test_list_programs_for_pitcher_summary_rejects_bad_order_by():
+    with pytest.raises(ValueError):
+        db.list_programs_for_pitcher_summary("landon_brice", order_by="random_column")
+
+
 def test_create_builder_session_returns_session_id():
     fake = [{"session_id": "sess-1", "pitcher_id": "landon_brice"}]
     with patch.object(db, "get_client", return_value=_mock_client(fake)):

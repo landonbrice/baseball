@@ -822,6 +822,41 @@ def list_programs_for_pitcher(pitcher_id: str, status: str | None = None) -> lis
     return resp.data or []
 
 
+# All columns except `generated_schedule_json` (the big JSONB body, ~10-50KB/row).
+# tuned_spec_json is kept — it holds the Socratic answers, ~1-3KB, useful for cards.
+_PROGRAM_SUMMARY_COLUMNS = (
+    "program_id,pitcher_id,parent_template_id,domain,tuned_spec_json,"
+    "start_date,nominal_end_date,current_day_index,held_days_count,status,"
+    "created_by,created_by_role,approval_required,"
+    "created_at,activated_at,archived_at,archive_reason"
+)
+
+
+def list_programs_for_pitcher_summary(
+    pitcher_id: str,
+    status: str | None = None,
+    *,
+    order_by: str = "created_at",
+) -> list[dict]:
+    """List programs without the heavy `generated_schedule_json` column.
+
+    For Plan 6 / A3 list endpoints — cards only need scalars + tuned_spec.
+    `order_by` accepts 'created_at' or 'archived_at' (history uses the latter).
+    """
+    if order_by not in ("created_at", "archived_at"):
+        raise ValueError(f"order_by must be 'created_at' or 'archived_at', got {order_by!r}")
+    q = (
+        get_client()
+        .table("programs")
+        .select(_PROGRAM_SUMMARY_COLUMNS)
+        .eq("pitcher_id", pitcher_id)
+    )
+    if status:
+        q = q.eq("status", status)
+    resp = q.order(order_by, desc=True).execute()
+    return resp.data or []
+
+
 # ---------------- Favorited Blocks (Plan 6 / A2) ----------------
 
 def insert_favorited_block(row: dict) -> dict:
