@@ -19,7 +19,8 @@ from datetime import datetime
 from typing import Any
 
 from bot.config import CHICAGO_TZ
-from bot.services.system_guardian import classify, cluster, debug_packet, incidents, normalize, store
+from bot.services.system_guardian import classify, cluster, debug_packet, incidents, normalize, store, tick
+from bot.services.system_guardian.tick import run_guardian_tick
 
 logger = logging.getLogger(__name__)
 
@@ -171,6 +172,8 @@ __all__ = [
     "incidents",
     "normalize",
     "store",
+    "tick",
     "run_observation_prune",
     "check_shakedown_expiry",
+    "run_guardian_tick",
 ]

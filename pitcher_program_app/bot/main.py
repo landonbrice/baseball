@@ -988,6 +988,34 @@ def _schedule_jobs(application: Application) -> None:
     )
     logger.info("Scheduled hourly Guardian shakedown expiry check")
 
+    # System Guardian periodic tick — every 15 minutes (PR-6 / A1). Runs all
+    # three Phase 1 collectors in parallel under a 30s wallclock budget, with
+    # belt-and-suspenders 5s per-collector ceilings. Tracks consecutive
+    # over-budget ticks and emits a tick_budget_exceeded observation on the
+    # 2nd consecutive over-budget tick (A1's "twice in a row" rule). Never
+    # raises — all failures absorbed inside run_guardian_tick.
+    async def _run_guardian_tick(context) -> None:
+        try:
+            from bot.services.system_guardian import run_guardian_tick
+            summary = await run_guardian_tick()
+            logger.info(
+                "Guardian tick completed (duration=%.2fs, over_budget=%s, "
+                "persisted=%s)",
+                summary.get("duration_s", 0.0),
+                summary.get("over_budget", False),
+                summary.get("observations_persisted", 0),
+            )
+        except Exception as e:  # defense-in-depth — run_guardian_tick already swallows
+            logger.error("Guardian tick raised: %s", e, exc_info=True)
+
+    job_queue.run_repeating(
+        _run_guardian_tick,
+        interval=900,  # 15 min (matches the ops-intelligence spec §6 cadence)
+        first=300,  # 5 min after startup so we don't compete with bot init
+        name="guardian_tick",
+    )
+    logger.info("Scheduled 15-min Guardian tick (first run in 5 min)")
+
     # Exercise snapshot — warm synchronously at startup so first check-in after deploy
     # hits the cache, then refresh every 15 min via scheduler (D6).
     try:
