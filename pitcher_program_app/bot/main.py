@@ -751,12 +751,17 @@ async def _send_health_digest(context) -> None:
             guardian_observations = await collect_existing_health()
             for obs in guardian_observations:
                 try:
-                    _guardian_store.insert_observation(obs)
+                    # PR-5: route observations through the notify wrapper so
+                    # incidents auto-emit the A6 dedup DM when shakedown is
+                    # inactive. The wrapper falls back to a plain insert on
+                    # any failure inside the dispatch step.
+                    await _guardian_store.insert_observation_with_notify(obs)
                 except Exception as inner:
-                    # insert_observation is defensive but we belt-and-brace
-                    # so the digest message still ships if Supabase is down.
+                    # insert_observation_with_notify is defensive but we
+                    # belt-and-brace so the digest message still ships if
+                    # Supabase is down.
                     logger.error(
-                        "guardian: insert_observation failed during digest wiring: %s",
+                        "guardian: insert_observation_with_notify failed during digest wiring: %s",
                         inner,
                         exc_info=True,
                     )
@@ -962,6 +967,26 @@ def _schedule_jobs(application: Application) -> None:
         name="guardian_prune_observations",
     )
     logger.info("Scheduled daily Guardian prune for 3:00 AM Chicago time")
+
+    # System Guardian shakedown expiry check — hourly (A6). On a true transition
+    # the helper dispatches the end-of-window summary DM via notify.py. ±1h
+    # auto-expiry granularity is fine for a 24h window. Never raises.
+    async def _run_guardian_shakedown_check(context) -> None:
+        try:
+            from bot.services.system_guardian import check_shakedown_expiry
+            transitioned = await check_shakedown_expiry()
+            if transitioned:
+                logger.info("Guardian shakedown window auto-expired; summary dispatched")
+        except Exception as e:  # defense-in-depth — check_shakedown_expiry already swallows
+            logger.error("Guardian shakedown check raised: %s", e, exc_info=True)
+
+    job_queue.run_repeating(
+        _run_guardian_shakedown_check,
+        interval=3600,  # hourly
+        first=3600,
+        name="guardian_shakedown_check",
+    )
+    logger.info("Scheduled hourly Guardian shakedown expiry check")
 
     # Exercise snapshot — warm synchronously at startup so first check-in after deploy
     # hits the cache, then refresh every 15 min via scheduler (D6).
