@@ -2,6 +2,28 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: superpowers:subagent-driven-development for backend tasks; **superpowers:frontend-design:frontend-design** for the React UI rebuilds. Steps use checkbox (`- [ ]`) syntax.
 
+## 2026-05-13 — Scope amendment
+
+Plan 6 split into **Plan 6 (pitcher half)** and **Plan 7 (coach half)** to ship pitcher value sooner. Plan 6 is the pitcher-facing slice; Plan 7 will add coach-app surfacing on top.
+
+**Plan 6 in-scope:**
+- **Backend:** A1 (wire fork live + parity), A1.5 (persist `day_focus` in `plan_generated`), A2 (favorites endpoints, pitcher-only), A3-pitcher (drafts/history/active endpoints), A5 (anchoring API + conflict), A6 (verification + tag).
+- **UI:** B1 (Programs tab; rename `Plans.jsx` → `Programs.jsx`), B2 (Home ribbon + per-block favorite buttons + held affordance), B3 (Builder slide-over, player flow only).
+
+**Deferred to Plan 7 (coach half):** A3-coach mirrors, A4 (coach insights), B4 (Team Overview additions), B5 (PlayerSlideOver Programs tab), B6 (Team Programs rebuild), B7 (build entry-point selector — collapses into B3's State A when coaches enter), B8 (Phases page), B9 (Insights wiring), B10 (final verification becomes Plan 7 closing).
+
+**Locked decisions:**
+- **A1 LLM-review parity:** Extract `_run_two_pass_llm_review(plan, profile, triage_result)` helper from `plan_generator.generate_plan`; both legacy and program paths call it. Goldens lock output not structure.
+- **`day_focus` persistence:** A1.5 moves derivation from `team_scope` read-time into `plan_generator` write-time. Closes the long-standing "What's Next" item.
+- **B3 Builder "Tweak" semantics:** Returns to Socratic State B with the previous `tuned_spec`; increments regeneration counter (D16 cap: 3, soft-warn at 2).
+- **Favorites render-only surface (acceptance #10):** Inline expansion within the Programs tab Favorites section. No new route, no modal — reinforces D13's "render-only snapshot" framing.
+- **B7 collapse:** When Plan 7 adds the coach entry-points, fold them into B3's State A as a coach-only sub-step rather than a separate modal.
+- **A1 deployment cadence:** Land afternoon outside pitcher check-in windows. Force `landon_brice` through both legacy and program paths same afternoon. Watch the 9am digest's `compute_plan_health_rolling(7d)` metric the next morning before others check in.
+
+The remainder of this document below is the original Plan 6 spec — Phase A tasks A1–A6 and Phase B tasks B1–B3 are the only ones executed in Plan 6; A3-coach / A4 / B4–B10 are read-only references for Plan 7.
+
+---
+
 **Goal:** Land the user-visible half of Program Builder v1: rebuild the mini-app `Programs` tab (single editorial scrolling page per spec D10), add the Builder slide-over (Layer 1 form → Socratic chat → preview), surface programs in Coach Team Overview + a new Coach Team Programs page + PlayerSlideOver Programs tab, wire the three coach builder entry points (build for pitcher / build team program / author template), and **complete Plan 4 by migrating live entry points to the new `checkin_inputs` kwarg shape** so the program-aware fork stops being dormant.
 
 **Architecture:** Two layers of work split into deliberately separated phases — **Phase A (backend)** wires entry points + adds favorites/drafts/lifecycle endpoints + completes Plan 4's parity gaps. **Phase B (UI)** rebuilds the Programs tab, builds the Builder slide-over, rebuilds Team Programs, adds Coach PlayerSlideOver Programs tab. Phase B uses the `frontend-design` skill for new components, and the existing brand shell (tokens, Masthead, Scoreboard, Lede, FlagPill, EditorialState) for layout. **Phase A must be 100% green before Phase B starts** — the UI calls Phase A's endpoints and a half-wired backend leaves the UI undebuggable.
