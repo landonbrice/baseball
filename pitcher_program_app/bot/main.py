@@ -908,6 +908,25 @@ def _schedule_jobs(application: Application) -> None:
     )
     logger.info("Scheduled daily health digest for 9:00 AM Chicago time")
 
+    # System Guardian prune — 3am Chicago (D15). Calls the SQL function
+    # public.prune_old_observations() and emits a guardian_self observation
+    # with the row count. All errors absorbed inside run_observation_prune
+    # per A1; the scheduler hook just awaits it.
+    async def _run_guardian_prune(context) -> None:
+        try:
+            from bot.services.system_guardian import run_observation_prune
+            pruned = await run_observation_prune()
+            logger.info("Guardian prune job completed (rows pruned=%s)", pruned)
+        except Exception as e:  # defense-in-depth — run_observation_prune already swallows
+            logger.error("Guardian prune job raised: %s", e, exc_info=True)
+
+    job_queue.run_daily(
+        _run_guardian_prune,
+        time=dt_time(hour=3, minute=0, tzinfo=CHICAGO_TZ),
+        name="guardian_prune_observations",
+    )
+    logger.info("Scheduled daily Guardian prune for 3:00 AM Chicago time")
+
     # Exercise snapshot — warm synchronously at startup so first check-in after deploy
     # hits the cache, then refresh every 15 min via scheduler (D6).
     try:
