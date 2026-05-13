@@ -724,6 +724,10 @@ async def _send_health_digest(context) -> None:
     """Daily 9am Chicago health digest sent to the admin chat_id.
 
     Queries degradation signals from Supabase and posts a formatted summary.
+    Also runs the Guardian ``existing_health`` collector (PR-3 wiring) which
+    persists normalized observations to ``system_observations`` and appends a
+    Guardian summary section to the digest message.
+
     Never raises — monitoring should never crash the scheduler.
     """
     try:
@@ -731,7 +735,39 @@ async def _send_health_digest(context) -> None:
         from bot.config import ADMIN_TELEGRAM_CHAT_ID
 
         digest = compute_daily_digest()
-        message = format_digest_message(digest)
+
+        # Guardian: run the existing_health collector, persist each observation,
+        # and pass the in-memory list to the digest formatter for the
+        # appended summary section (V1 acceptance #2 + #7). The collector NEVER
+        # raises per A1, so any failure surfaces as a single collector_failure
+        # observation rather than crashing the digest.
+        guardian_observations: list[dict] = []
+        try:
+            from bot.services.system_guardian.collectors.existing_health import (
+                collect_existing_health,
+            )
+            from bot.services.system_guardian import store as _guardian_store
+
+            guardian_observations = await collect_existing_health()
+            for obs in guardian_observations:
+                try:
+                    _guardian_store.insert_observation(obs)
+                except Exception as inner:
+                    # insert_observation is defensive but we belt-and-brace
+                    # so the digest message still ships if Supabase is down.
+                    logger.error(
+                        "guardian: insert_observation failed during digest wiring: %s",
+                        inner,
+                        exc_info=True,
+                    )
+        except Exception as guardian_exc:
+            logger.error(
+                "guardian: existing_health collector wiring failed: %s",
+                guardian_exc,
+                exc_info=True,
+            )
+
+        message = format_digest_message(digest, guardian_observations=guardian_observations)
 
         await context.bot.send_message(
             chat_id=ADMIN_TELEGRAM_CHAT_ID,

@@ -237,10 +237,20 @@ def compute_daily_digest(date: str = None) -> dict:
     }
 
 
-def format_digest_message(digest: dict) -> str:
+def format_digest_message(digest: dict, guardian_observations: list[dict] | None = None) -> str:
     """Format the digest dict as a Telegram message.
 
     Uses simple text (no markdown parse mode) to avoid escaping issues.
+
+    Args:
+        digest: The output of :func:`compute_daily_digest`.
+        guardian_observations: Optional list of observation dicts (per V1
+            acceptance #7 — System Guardian summary section). When provided,
+            :func:`format_guardian_summary_section` is appended to the
+            message body before the trailing footer. When ``None`` the
+            message is identical to the pre-Guardian shape (back-compat with
+            ``healthcheck_command`` and ``_send_health_digest`` callers that
+            opt out).
     """
     lines = []
     plan = digest.get("plan_health", {})
@@ -333,8 +343,160 @@ def format_digest_message(digest: dict) -> str:
                 ids = ", ".join(narrative["missing_pitchers"][:5])
                 lines.append(f"     Missing: {ids}")
 
+    # System Guardian summary section (V1 acceptance #7). Only appended when
+    # the caller passed normalized observations — preserves the pre-Guardian
+    # message shape for callers that opt out.
+    if guardian_observations is not None:
+        section = format_guardian_summary_section(guardian_observations)
+        if section:
+            lines.append("")
+            lines.append(section)
+
     lines.append("")
     lines.append("Reply /healthcheck any time for on-demand status (v3).")
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# System Guardian summary section (V1 acceptance #7)
+# ---------------------------------------------------------------------------
+
+# Severity icons mirror the rest of the digest. ``info`` is dotted to keep the
+# section quiet on healthy days.
+_GUARDIAN_ICONS = {
+    "critical": "🔴",
+    "warning": "🟡",
+    "info": "·",
+}
+
+# Cap on signature rows rendered. Section must stay ≤ 8 lines per spec; with a
+# 1-line header + up to 6 signature rows + an "and N more" overflow line we're
+# comfortably under.
+_GUARDIAN_MAX_SIGNATURES = 6
+
+
+def _guardian_severity_rank(sev: str | None) -> int:
+    """Local rank — Guardian section orders critical > warning > info."""
+    return {"critical": 2, "warning": 1, "info": 0}.get(sev or "info", 0)
+
+
+def _guardian_severity_for_cluster(rows: list[dict]) -> str:
+    """Pick the highest severity across an observation cluster."""
+    best = "info"
+    for row in rows:
+        sev = row.get("severity_hint") or row.get("severity") or "info"
+        if _guardian_severity_rank(sev) > _guardian_severity_rank(best):
+            best = sev
+    return best
+
+
+def _guardian_summary_for_cluster(rows: list[dict]) -> str:
+    """Single-line summary for one signature cluster.
+
+    Format: ``<icon> <signal> ×<count> — <first message excerpt>``.
+    """
+    if not rows:
+        return ""
+    sev = _guardian_severity_for_cluster(rows)
+    icon = _GUARDIAN_ICONS.get(sev, "·")
+    head = rows[0]
+    # Prefer the metadata "code" because it's the stable, agreed-upon signal
+    # name from classify.py; fall back to event_type, then signature.
+    metadata = head.get("metadata") or {}
+    code = (
+        metadata.get("code")
+        or head.get("event_type")
+        or head.get("signature")
+        or "observation"
+    )
+    msg = (head.get("message") or "").strip()
+    if len(msg) > 90:
+        msg = msg[:87] + "..."
+    count = len(rows)
+    if msg:
+        return f"{icon} {code} ×{count} — {msg}"
+    return f"{icon} {code} ×{count}"
+
+
+def format_guardian_summary_section(observations: list[dict] | None) -> str:
+    """Render a concise Guardian summary section for the 9am digest.
+
+    Modeled on the existing "7d enrichment: X%" line in
+    :func:`format_digest_message`. Aims for ≤ 8 lines total. Groups
+    observations by signature via :func:`cluster_observations` so repeated
+    signals collapse, then orders clusters by severity (critical first) and
+    count descending.
+
+    Returns an empty string when ``observations`` is ``None`` or empty so the
+    caller can append it unconditionally without producing a blank section.
+    """
+    if not observations:
+        return ""
+
+    # Read-time redaction: per A4, every emit path runs ``redact_observation_for_emit``
+    # as a last line of defense. We do this BEFORE clustering so the rendered
+    # message can never leak a secret pattern that survived write-time.
+    try:
+        from bot.services.system_guardian.normalize import redact_observation_for_emit
+        from bot.services.system_guardian.cluster import cluster_observations
+    except Exception as e:
+        logger.error("guardian summary: import failed: %s", e, exc_info=True)
+        return ""
+
+    safe_obs = []
+    for obs in observations:
+        try:
+            safe_obs.append(redact_observation_for_emit(obs))
+        except Exception:
+            # Defensive: if redaction fails on a row, skip it rather than
+            # let a partial render crash the digest.
+            logger.error("guardian summary: redaction failed for obs=%r", obs)
+    if not safe_obs:
+        return ""
+
+    try:
+        clusters = cluster_observations(safe_obs)
+    except Exception as e:
+        logger.error("guardian summary: clustering failed: %s", e, exc_info=True)
+        return ""
+
+    if not clusters:
+        return ""
+
+    # Sort by severity desc, then count desc, then signature for stability.
+    cluster_items = sorted(
+        clusters.items(),
+        key=lambda kv: (
+            -_guardian_severity_rank(_guardian_severity_for_cluster(kv[1])),
+            -len(kv[1]),
+            kv[0],
+        ),
+    )
+
+    # Headline counts.
+    total_obs = len(safe_obs)
+    severity_counts: dict[str, int] = {"critical": 0, "warning": 0, "info": 0}
+    for rows in clusters.values():
+        sev = _guardian_severity_for_cluster(rows)
+        severity_counts[sev] = severity_counts.get(sev, 0) + 1
+
+    lines: list[str] = []
+    lines.append(
+        "🛡️ Guardian: "
+        f"{severity_counts['critical']} critical, "
+        f"{severity_counts['warning']} warning, "
+        f"{severity_counts['info']} info "
+        f"({len(clusters)} signatures, {total_obs} obs)"
+    )
+
+    rendered = cluster_items[:_GUARDIAN_MAX_SIGNATURES]
+    overflow = max(0, len(cluster_items) - len(rendered))
+    for _signature, rows in rendered:
+        line = _guardian_summary_for_cluster(rows)
+        if line:
+            lines.append(f"     {line}")
+    if overflow:
+        lines.append(f"     · +{overflow} more signature(s)")
     return "\n".join(lines)
 
 
