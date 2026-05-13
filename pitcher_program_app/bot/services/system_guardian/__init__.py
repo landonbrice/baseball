@@ -130,6 +130,40 @@ async def run_observation_prune() -> int:
     return pruned
 
 
+async def check_shakedown_expiry() -> bool:
+    """Periodic scheduler hook (PR-5 / A6): auto-expire the shakedown window.
+
+    Hourly cadence in production. Calls
+    :func:`store.check_and_expire_shakedown` to detect the 24h transition,
+    and on a true transition dispatches the end-of-window summary DM via
+    :func:`notify.send_shakedown_summary`. Returns the transition bool.
+
+    Never raises - all failures are absorbed and logged so a single bad hour
+    doesn't stop the scheduler.
+    """
+    try:
+        transitioned = await asyncio.to_thread(store.check_and_expire_shakedown)
+    except Exception as e:
+        logger.error("guardian: check_shakedown_expiry probe failed: %s", e, exc_info=True)
+        return False
+
+    if not transitioned:
+        return False
+
+    try:
+        # Local import keeps the python-telegram-bot dep off the cold path.
+        from bot.services.system_guardian import notify as _notify
+
+        await _notify.send_shakedown_summary()
+    except Exception as e:
+        logger.error(
+            "guardian: send_shakedown_summary failed in expiry hook: %s",
+            e,
+            exc_info=True,
+        )
+    return True
+
+
 __all__ = [
     "classify",
     "cluster",
@@ -138,4 +172,5 @@ __all__ = [
     "normalize",
     "store",
     "run_observation_prune",
+    "check_shakedown_expiry",
 ]
