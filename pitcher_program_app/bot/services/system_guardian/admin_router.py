@@ -16,6 +16,7 @@ Routes:
 * ``POST   /admin/guardian/shakedown/ack``                  — close window now
 * ``POST   /admin/guardian/shakedown/rearm``                — re-arm 24h window
 * ``POST   /admin/guardian/collect-now``                    — fire all collectors
+* ``POST   /admin/guardian/tick``                           — fire a Guardian tick (PR-6 / A1)
 
 Per A7: ``debug-packet`` returns JSON only - no file artifacts.
 Per D12: ``shakedown/ack`` is the API-only ack surface in V1 (no Telegram
@@ -413,6 +414,37 @@ async def post_collect_now_route() -> dict:
 
     counts["total_observations"] = total
     return counts
+
+
+@router.post(
+    "/tick",
+    dependencies=[Depends(require_guardian_admin)],
+)
+async def post_tick_route() -> dict:
+    """Force-run a Guardian tick (PR-6 / A1).
+
+    Sibling to ``/collect-now``: this is the scheduled-tick path's manual
+    trigger, useful right after a deploy to surface any tick-level issues
+    without waiting for the next 15-minute interval. Returns the tick summary
+    dict from :func:`tick.run_guardian_tick`.
+
+    Notes:
+
+    * The tick orchestrator NEVER raises, so this route never 500s on a
+      collector error — it returns the summary with per-collector outcomes.
+    * Per-collector observations are persisted via
+      ``insert_observation_with_notify`` inside the tick; this route does
+      NOT double-persist.
+    * The consecutive-over-budget counter is process-local and shared with
+      the scheduled tick — invoking this endpoint advances/resets the
+      counter exactly as a scheduled tick would. This is intentional: an
+      admin force-tick during chronic over-budget should still see the
+      warning escalation.
+    """
+    from bot.services.system_guardian.tick import run_guardian_tick
+
+    summary = await run_guardian_tick()
+    return summary
 
 
 __all__ = ["router", "require_guardian_admin", "COLLECTOR_SOURCES"]
