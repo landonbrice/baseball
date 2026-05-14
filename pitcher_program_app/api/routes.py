@@ -2821,6 +2821,26 @@ async def get_program_history(request: Request):
     return {"history": rows}
 
 
+@router.get("/programs/holds-today")
+async def get_program_holds_today(request: Request):
+    """Return today's program-hold flags keyed by domain.
+
+    Used by Home (Plan 6 / B2) to render the "Program paused today" inline
+    affordance. Shape: `{throwing: bool, lifting: bool}`. False when no
+    active program exists for that domain or no hold was recorded today.
+    """
+    pitcher_id = _resolve_pitcher_id_from_request(request)
+    today_str = datetime.now(CHICAGO_TZ).strftime("%Y-%m-%d")
+    active_rows = _db.list_programs_for_pitcher_summary(pitcher_id, status="active")
+    held_ids = set(_db.list_program_holds_for_date(pitcher_id, today_str))
+    out = {"throwing": False, "lifting": False}
+    for row in active_rows:
+        domain = row.get("domain")
+        if domain in out and row.get("program_id") in held_ids:
+            out[domain] = True
+    return out
+
+
 @router.get("/programs/active")
 async def get_active_programs(request: Request):
     """Return the pitcher's currently-active programs keyed by domain.

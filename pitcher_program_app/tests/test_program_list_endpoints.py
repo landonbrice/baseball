@@ -124,3 +124,53 @@ def test_get_active_ignores_unknown_domain(client):
         resp = client.get("/api/programs/active", headers={"X-Test-Pitcher-Id": PID})
     assert resp.status_code == 200
     assert resp.json() == {"throwing": None, "lifting": None}
+
+
+# ----------------------------- /holds-today -----------------------------
+
+def test_get_holds_today_flags_held_active_programs(client):
+    from bot.services import db as _db
+    active = [
+        {"program_id": "p1", "status": "active", "domain": "throwing"},
+        {"program_id": "p2", "status": "active", "domain": "lifting"},
+    ]
+    with patch.object(_db, "list_programs_for_pitcher_summary", return_value=active), \
+         patch.object(_db, "list_program_holds_for_date", return_value=["p1"]) as holds:
+        resp = client.get("/api/programs/holds-today", headers={"X-Test-Pitcher-Id": PID})
+    assert resp.status_code == 200
+    assert resp.json() == {"throwing": True, "lifting": False}
+    holds.assert_called_once()
+    args = holds.call_args.args
+    assert args[0] == PID
+    # event_date is today's Chicago date; format is YYYY-MM-DD
+    assert len(args[1]) == 10 and args[1].count("-") == 2
+
+
+def test_get_holds_today_returns_false_when_no_holds(client):
+    from bot.services import db as _db
+    with patch.object(_db, "list_programs_for_pitcher_summary",
+                      return_value=[{"program_id": "p1", "domain": "throwing"}]), \
+         patch.object(_db, "list_program_holds_for_date", return_value=[]):
+        resp = client.get("/api/programs/holds-today", headers={"X-Test-Pitcher-Id": PID})
+    assert resp.status_code == 200
+    assert resp.json() == {"throwing": False, "lifting": False}
+
+
+def test_get_holds_today_returns_false_when_no_active_programs(client):
+    from bot.services import db as _db
+    with patch.object(_db, "list_programs_for_pitcher_summary", return_value=[]), \
+         patch.object(_db, "list_program_holds_for_date", return_value=[]):
+        resp = client.get("/api/programs/holds-today", headers={"X-Test-Pitcher-Id": PID})
+    assert resp.status_code == 200
+    assert resp.json() == {"throwing": False, "lifting": False}
+
+
+def test_get_holds_today_ignores_hold_for_non_active_program(client):
+    """Hold rows for archived programs should not flag the active domain."""
+    from bot.services import db as _db
+    active = [{"program_id": "p1", "status": "active", "domain": "throwing"}]
+    with patch.object(_db, "list_programs_for_pitcher_summary", return_value=active), \
+         patch.object(_db, "list_program_holds_for_date", return_value=["p_archived"]):
+        resp = client.get("/api/programs/holds-today", headers={"X-Test-Pitcher-Id": PID})
+    assert resp.status_code == 200
+    assert resp.json() == {"throwing": False, "lifting": False}

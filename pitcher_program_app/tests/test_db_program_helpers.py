@@ -156,6 +156,34 @@ def test_get_pitcher_scheduled_throws_returns_empty_when_state_missing():
         assert db.get_pitcher_scheduled_throws("landon_brice") == []
 
 
+def test_list_program_holds_for_date_returns_program_ids():
+    rows = [{"program_id": "p1"}, {"program_id": "p2"}]
+    client = MagicMock()
+    client.table.return_value.select.return_value.eq.return_value.eq.return_value \
+          .execute.return_value = MagicMock(data=rows)
+    with patch.object(db, "get_client", return_value=client):
+        out = db.list_program_holds_for_date("landon_brice", "2026-05-13")
+    assert out == ["p1", "p2"]
+
+
+def test_list_program_holds_for_date_drops_null_program_ids():
+    rows = [{"program_id": "p1"}, {"program_id": None}, {}]
+    client = MagicMock()
+    client.table.return_value.select.return_value.eq.return_value.eq.return_value \
+          .execute.return_value = MagicMock(data=rows)
+    with patch.object(db, "get_client", return_value=client):
+        out = db.list_program_holds_for_date("landon_brice", "2026-05-13")
+    assert out == ["p1"]
+
+
+def test_list_program_holds_for_date_empty_when_no_rows():
+    client = MagicMock()
+    client.table.return_value.select.return_value.eq.return_value.eq.return_value \
+          .execute.return_value = MagicMock(data=[])
+    with patch.object(db, "get_client", return_value=client):
+        assert db.list_program_holds_for_date("landon_brice", "2026-05-13") == []
+
+
 def test_create_builder_session_returns_session_id():
     fake = [{"session_id": "sess-1", "pitcher_id": "landon_brice"}]
     with patch.object(db, "get_client", return_value=_mock_client(fake)):

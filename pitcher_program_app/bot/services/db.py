@@ -857,6 +857,26 @@ def list_programs_for_pitcher_summary(
     return resp.data or []
 
 
+# ---------------- Program Hold Events (Plan 6 / B2 read-side) ----------------
+
+def list_program_holds_for_date(pitcher_id: str, event_date_iso: str) -> list[str]:
+    """Return program_ids that were held for the pitcher on the given date.
+
+    Used by GET /api/programs/holds-today to surface the "Program paused today"
+    inline note on Home (B2). Empty list if no holds exist.
+    """
+    resp = (
+        get_client()
+        .table("program_hold_events")
+        .select("program_id")
+        .eq("pitcher_id", pitcher_id)
+        .eq("event_date", event_date_iso)
+        .execute()
+    )
+    rows = resp.data or []
+    return [r.get("program_id") for r in rows if r.get("program_id")]
+
+
 # ---------------- Coach-visible Override Events (Plan 6 / A5) ----------------
 
 def insert_override_event(
