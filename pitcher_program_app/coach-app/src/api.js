@@ -61,6 +61,12 @@ export async function previewMutations(pitcherId, body, accessToken) {
   return postCoachApi(`/api/coach/pitcher/${pitcherId}/preview-mutations`, body, accessToken)
 }
 
+// -- Plan 7 / C1: active programs for a pitcher (Team Overview strip) --
+
+export async function fetchPitcherActivePrograms(pitcherId, accessToken) {
+  return fetchCoachApi(`/api/coach/pitcher/${pitcherId}/programs?status=active`, accessToken)
+}
+
 // -- Nudge --
 
 export async function nudgePitcher(pitcherId, accessToken) {

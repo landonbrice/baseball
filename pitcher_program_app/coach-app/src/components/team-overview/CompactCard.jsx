@@ -1,4 +1,5 @@
 import LastSevenStrip from './LastSevenStrip'
+import ProgramStrip from './ProgramStrip'
 import { buildTodayObjective } from '../../utils/todayObjective'
 
 function formatDate(iso) {
@@ -7,7 +8,7 @@ function formatDate(iso) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/Chicago' })
 }
 
-export default function CompactCard({ pitcher, onOpen }) {
+export default function CompactCard({ pitcher, onOpen, activePrograms }) {
   const { mark, text } = buildTodayObjective(pitcher.today)
   const af = pitcher.af_7d
 
@@ -35,6 +36,8 @@ export default function CompactCard({ pitcher, onOpen }) {
         <LastSevenStrip days={pitcher.last_7_days || []} />
         <span className="font-ui text-meta text-muted">Next: {formatDate(pitcher.next_scheduled_start)}</span>
       </div>
+
+      <ProgramStrip programs={activePrograms} />
     </button>
   )
 }

@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useCoachApi } from '../hooks/useApi'
+import { useCoachAuth } from '../hooks/useCoachAuth'
+import { fetchPitcherActivePrograms } from '../api'
 import { TODAY } from '../utils/formatToday'
 import Masthead from '../components/shell/Masthead'
 import Scoreboard from '../components/shell/Scoreboard'
@@ -110,7 +112,10 @@ function partitionRoster(roster) {
 
 export default function TeamOverview() {
   const { data, loading, error, refetch } = useCoachApi('/api/coach/team/overview')
+  const { getAccessToken } = useCoachAuth()
   const [selectedPlayer, setSelectedPlayer] = useState(null)
+  // Plan 7 / C1: per-pitcher active programs. N+1 fetch is acceptable for v1 per spec.
+  const [programsByPitcher, setProgramsByPitcher] = useState({})
 
   useEffect(() => {
     let intervalId = null
@@ -128,6 +133,37 @@ export default function TeamOverview() {
     document.addEventListener('visibilitychange', onVis)
     return () => { stop(); document.removeEventListener('visibilitychange', onVis) }
   }, [refetch])
+
+  // Fetch active programs per pitcher whenever the roster reloads. Promise.allSettled
+  // ensures a single bad pitcher fetch can't break the page — failed entries are
+  // simply omitted from the resulting map and the card falls back to "no strip".
+  useEffect(() => {
+    const roster = data?.roster
+    if (!roster || roster.length === 0) {
+      setProgramsByPitcher({})
+      return
+    }
+    let cancelled = false
+    const token = getAccessToken()
+    Promise.allSettled(
+      roster.map((p) =>
+        fetchPitcherActivePrograms(p.pitcher_id, token).then((r) => ({
+          pitcherId: p.pitcher_id,
+          programs: r?.programs || [],
+        }))
+      )
+    ).then((results) => {
+      if (cancelled) return
+      const next = {}
+      for (const r of results) {
+        if (r.status === 'fulfilled' && r.value?.pitcherId) {
+          next[r.value.pitcherId] = r.value.programs
+        }
+      }
+      setProgramsByPitcher(next)
+    })
+    return () => { cancelled = true }
+  }, [data, getAccessToken])
 
   const stub = (
     <Masthead
@@ -189,7 +225,12 @@ export default function TeamOverview() {
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
               {sections.flagged.slice(0, 6).map(p => (
-                <HeroCard key={p.pitcher_id} pitcher={p} onOpen={setSelectedPlayer} />
+                <HeroCard
+                  key={p.pitcher_id}
+                  pitcher={p}
+                  onOpen={setSelectedPlayer}
+                  activePrograms={programsByPitcher[p.pitcher_id]}
+                />
               ))}
             </div>
           </section>
@@ -202,7 +243,12 @@ export default function TeamOverview() {
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2.5">
               {sections.onTrack.map(p => (
-                <CompactCard key={p.pitcher_id} pitcher={p} onOpen={setSelectedPlayer} />
+                <CompactCard
+                  key={p.pitcher_id}
+                  pitcher={p}
+                  onOpen={setSelectedPlayer}
+                  activePrograms={programsByPitcher[p.pitcher_id]}
+                />
               ))}
             </div>
           </section>

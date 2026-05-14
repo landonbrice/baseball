@@ -1,5 +1,6 @@
 import FlagPill from '../shell/FlagPill'
 import LastSevenStrip from './LastSevenStrip'
+import ProgramStrip from './ProgramStrip'
 import { buildTodayObjective } from '../../utils/todayObjective'
 
 const BORDER = {
@@ -14,7 +15,7 @@ function formatDate(iso) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/Chicago' })
 }
 
-export default function HeroCard({ pitcher, onOpen }) {
+export default function HeroCard({ pitcher, onOpen, activePrograms }) {
   const flag = pitcher.flag_level || 'green'
   const border = BORDER[flag] || BORDER.green
   const { mark, text } = buildTodayObjective(pitcher.today)
@@ -73,6 +74,8 @@ export default function HeroCard({ pitcher, onOpen }) {
           </div>
         </div>
       </div>
+
+      <ProgramStrip programs={activePrograms} />
     </button>
   )
 }
