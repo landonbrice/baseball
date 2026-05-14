@@ -74,7 +74,7 @@ describe('BuilderSlideOver: Inputs state', () => {
     const user = userEvent.setup();
     fetchBuilderCandidates.mockResolvedValue({ session_id: 'sess-1', candidates: [] });
     render(<BuilderSlideOver onClose={() => {}} />);
-    await user.type(screen.getByLabelText('Goal'), 'add velocity');
+    await user.click(screen.getByText('Velocity'));
     await user.click(screen.getByText('Continue'));
     await waitFor(() => {
       expect(screen.getByRole('alert')).toHaveTextContent(/no templates match/i);
@@ -90,7 +90,7 @@ describe('BuilderSlideOver: Inputs state', () => {
     });
     sendBuilderTurn.mockResolvedValue({ kind: 'question', text: 'What is your top priority?' });
     render(<BuilderSlideOver onClose={() => {}} />);
-    await user.type(screen.getByLabelText('Goal'), 'add velocity');
+    await user.click(screen.getByText('Velocity'));
     await user.click(screen.getByText('Continue'));
     await waitFor(() => {
       expect(screen.getByTestId('socratic-chat')).toBeInTheDocument();
@@ -107,20 +107,47 @@ describe('BuilderSlideOver: Inputs state', () => {
     });
     sendBuilderTurn.mockResolvedValue({ kind: 'question', text: '?' });
     render(<BuilderSlideOver onClose={() => {}} />);
-    await user.click(screen.getByText('Lifting'));
+    // Stay on Throwing (Lifting has no goals seeded yet)
     await user.click(screen.getByText('8 wk'));
     await user.click(screen.getByText('Preseason'));
     await user.click(screen.getByText('No max effort'));
-    await user.type(screen.getByLabelText('Goal'), 'gpp base');
+    await user.click(screen.getByText('Off-season base'));
     await user.click(screen.getByText('Continue'));
     await waitFor(() => expect(fetchBuilderCandidates).toHaveBeenCalled());
     expect(fetchBuilderCandidates.mock.calls[0][0]).toEqual({
-      domain: 'lifting',
-      goal: 'gpp base',
+      domain: 'throwing',
+      goal: 'offseason_base',
       duration_weeks: 8,
       effective_phase: 'preseason',
       hard_constraints: ['no_max_effort'],
     });
+  });
+
+  it('shows "coming soon" for Lifting and disables Continue with empty goal', async () => {
+    const user = userEvent.setup();
+    render(<BuilderSlideOver onClose={() => {}} />);
+    await user.click(screen.getByText('Lifting'));
+    expect(screen.getByTestId('goal-domain-unsupported')).toBeInTheDocument();
+    expect(screen.queryByTestId('goal-chips')).not.toBeInTheDocument();
+    await user.click(screen.getByText('Continue'));
+    expect(screen.getByRole('alert')).toHaveTextContent(/goal/i);
+    expect(fetchBuilderCandidates).not.toHaveBeenCalled();
+  });
+
+  it('clears goal selection when domain switches', async () => {
+    const user = userEvent.setup();
+    fetchBuilderCandidates.mockResolvedValue({
+      session_id: 'sess-1', candidates: [{ block_template_id: 'tpl_a' }],
+    });
+    render(<BuilderSlideOver onClose={() => {}} />);
+    await user.click(screen.getByText('Velocity'));  // pick throwing goal
+    expect(screen.getByText('Velocity')).toHaveAttribute('aria-pressed', 'true');
+    await user.click(screen.getByText('Lifting'));    // switch domain
+    await user.click(screen.getByText('Throwing'));   // switch back
+    // Goal must be cleared — Continue with no selection should error
+    await user.click(screen.getByText('Continue'));
+    expect(screen.getByRole('alert')).toHaveTextContent(/goal/i);
+    expect(fetchBuilderCandidates).not.toHaveBeenCalled();
   });
 });
 
@@ -133,7 +160,7 @@ describe('BuilderSlideOver: Socratic state', () => {
       candidates: [{ block_template_id: 'tpl_a' }],
     });
     sendBuilderTurn.mockResolvedValueOnce({ kind: 'question', text: 'Q1' });
-    await user.type(screen.getByLabelText('Goal'), 'go');
+    await user.click(screen.getByText('Velocity'));
     await user.click(screen.getByText('Continue'));
     // Wait for the kickoff response to settle (Q1 visible → input enabled)
     await waitFor(() => expect(screen.getByText('Q1')).toBeInTheDocument());
@@ -220,7 +247,7 @@ describe('BuilderSlideOver: Preview state', () => {
       citations: withCitations ? [{ id: 'c1', title: 'Cite', summary: 's' }] : [],
     });
 
-    await user.type(screen.getByLabelText('Goal'), 'go');
+    await user.click(screen.getByText('Velocity'));
     await user.click(screen.getByText('Continue'));
     // Wait for the kickoff response to settle (Q1 visible → input enabled)
     await waitFor(() => expect(screen.getByText('Q1')).toBeInTheDocument());

@@ -28,8 +28,21 @@ const DOMAINS = [
   { id: 'lifting',  label: 'Lifting'  },
 ];
 
+// Goal chips map 1:1 to block_library.goal_tags. Selecting a chip sends the
+// exact tag string the matcher expects. Pitchers don't see / type tag IDs.
+// New tags added to block_library should be added here (and gated by domain).
+const GOALS_THROWING = [
+  { id: 'in_season_maintenance', label: 'In-season maintenance' },
+  { id: 'velocity',              label: 'Velocity'              },
+  { id: 'longtoss',              label: 'Long toss'             },
+  { id: 'arm_health',            label: 'Arm health / return'   },
+  { id: 'offseason_base',        label: 'Off-season base'       },
+];
+const GOALS_LIFTING = [];  // Plan 7 — no lifting templates seeded yet.
+
 const DURATIONS = [
   { id: 4,  label: '4 wk'  },
+  { id: 6,  label: '6 wk'  },
   { id: 8,  label: '8 wk'  },
   { id: 12, label: '12 wk' },
   { id: 16, label: '16 wk' },
@@ -114,7 +127,7 @@ export default function BuilderSlideOver({ onClose, onProgramActivated, onDraftS
   const [domain, setDomain]                       = useState(
     initialDomain === 'lifting' || initialDomain === 'throwing' ? initialDomain : 'throwing'
   );
-  const [goal, setGoal]                           = useState('');
+  const [goal, setGoal]                           = useState(null);  // chip id or null
   const [durationWeeks, setDurationWeeks]         = useState(12);
   const [effectivePhase, setEffectivePhase]       = useState('in_season');
   const [hardConstraints, setHardConstraints]     = useState([]);
@@ -151,15 +164,15 @@ export default function BuilderSlideOver({ onClose, onProgramActivated, onDraftS
   // ---- State A → State B ----
   const handleContinue = async () => {
     setError(null);
-    if (!goal.trim()) {
-      setError('Pick a goal — even a short one.');
+    if (!goal) {
+      setError('Pick a goal to continue.');
       return;
     }
     setSubmittingInputs(true);
     try {
       const res = await fetchBuilderCandidates({
         domain,
-        goal: goal.trim(),
+        goal,  // chip id already matches a real goal_tag
         duration_weeks: durationWeeks,
         effective_phase: effectivePhase,
         hard_constraints: hardConstraints,
@@ -366,12 +379,21 @@ function InputsForm({
   hardConstraints, toggleConstraint,
   onContinue, submitting,
 }) {
+  const goalOptions = domain === 'lifting' ? GOALS_LIFTING : GOALS_THROWING;
+  // When domain switches, the prior goal selection may not exist in the new
+  // domain's goal list → clear so the user picks again.
+  const handleDomainChange = (id) => {
+    if (id === domain) return;
+    setDomain(id);
+    setGoal(null);
+  };
+
   return (
     <div data-testid="inputs-form">
       <p style={sectionLabelStyle}>Domain</p>
       <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
         {DOMAINS.map(d => (
-          <button key={d.id} onClick={() => setDomain(d.id)}
+          <button key={d.id} onClick={() => handleDomainChange(d.id)}
             style={chipStyle(domain === d.id)} aria-pressed={domain === d.id}>
             {d.label}
           </button>
@@ -379,20 +401,28 @@ function InputsForm({
       </div>
 
       <p style={sectionLabelStyle}>Goal</p>
-      <input
-        type="text" value={goal} onChange={e => setGoal(e.target.value)}
-        placeholder="e.g. add velocity, post-surgery rebuild, in-season maintain"
-        style={{
-          width: '100%', padding: '8px 10px', fontSize: 12,
-          border: '0.5px solid var(--color-cream-border)', borderRadius: 6,
-          marginBottom: 14, background: 'var(--color-white, #fff)',
-          color: 'var(--color-ink-primary)', boxSizing: 'border-box',
-        }}
-        aria-label="Goal"
-      />
+      {goalOptions.length === 0 ? (
+        <div style={{
+          padding: '8px 10px', fontSize: 11, marginBottom: 14,
+          background: 'rgba(184,109,0,0.08)',
+          color: 'var(--color-flag-amber, #b86d00)', borderRadius: 6,
+        }} data-testid="goal-domain-unsupported">
+          Lifting programs coming soon — try Throwing for now.
+        </div>
+      ) : (
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}
+          data-testid="goal-chips">
+          {goalOptions.map(g => (
+            <button key={g.id} onClick={() => setGoal(g.id)}
+              style={chipStyle(goal === g.id)} aria-pressed={goal === g.id}>
+              {g.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       <p style={sectionLabelStyle}>Duration</p>
-      <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
         {DURATIONS.map(d => (
           <button key={d.id} onClick={() => setDurationWeeks(d.id)}
             style={chipStyle(durationWeeks === d.id)} aria-pressed={durationWeeks === d.id}>
