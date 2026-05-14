@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 
 // useCoachApi is mocked per-test by reassigning the array of values it
-// returns in fetch order: (1) /team-programs/active, (2) /programs/templates,
+// returns in fetch order: (1) /team-programs/active, (2) /coach/programs/templates,
 // (3) /api/coach/programs/recent-player-built?limit=20
 const useCoachApiCalls = []
 const useCoachApiResponses = []
@@ -109,7 +109,7 @@ describe('<TeamPrograms>', () => {
     expect(screen.getByText(/^Recent Player-Built Programs$/i)).toBeInTheDocument()
   })
 
-  it('library section populates from /api/programs/templates', () => {
+  it('library section populates from /api/coach/programs/templates', () => {
     setResponses([
       res({ blocks: [] }),
       res({
@@ -127,8 +127,10 @@ describe('<TeamPrograms>', () => {
     ])
     render(<TeamPrograms />)
 
-    // Verify the templates path was requested.
-    expect(useCoachApiCalls).toContain('/api/programs/templates')
+    // Verify the templates path was requested (coach mirror — see
+    // api/coach_routes.py::coach_get_program_templates; the pitcher-facing
+    // /api/programs/templates rejects Supabase Bearer JWTs).
+    expect(useCoachApiCalls).toContain('/api/coach/programs/templates')
     // Template name + duration range render.
     expect(screen.getByText(/Long Toss 6 Week/)).toBeInTheDocument()
     expect(screen.getByText(/4–8wk/)).toBeInTheDocument()

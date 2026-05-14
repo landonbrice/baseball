@@ -28,7 +28,7 @@ export default function TeamPrograms() {
   const { data: activeData, loading: activeLoading, error: activeError, refetch: refetchActive } =
     useCoachApi('/api/coach/team-programs/active')
   const { data: templatesData, loading: templatesLoading, error: templatesError } =
-    useCoachApi('/api/programs/templates')
+    useCoachApi('/api/coach/programs/templates')
   const { data: recentData, loading: recentLoading, error: recentError } =
     useCoachApi('/api/coach/programs/recent-player-built?limit=20')
 

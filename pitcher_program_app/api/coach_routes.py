@@ -1134,6 +1134,30 @@ async def coach_get_recent_player_built_programs(
     return {"programs": rows}
 
 
+# ---- Plan 7 / C3 hotfix: coach mirror of GET /api/programs/templates -------
+
+
+@coach_router.get("/programs/templates")
+async def coach_get_program_templates(
+    request: Request,
+    domain: _Optional[str] = Query(default=None, pattern="^(throwing|lifting)$"),
+    phase: _Optional[str] = Query(default=None),
+):
+    """Plan 7 / C3 — coach mirror of GET /api/programs/templates.
+
+    Same payload as the pitcher-facing endpoint (api/routes.py::get_program_templates),
+    just authed via require_coach_auth instead of _resolve_pitcher_id_from_request.
+    Without this, the coach-app's TeamPrograms Library section sends only the
+    Supabase Bearer JWT and the pitcher-auth helper would reject it with 401,
+    silently rendering the error state. Same query params (`domain`, `phase`),
+    same response shape (`{"templates": [...]}`), reuses
+    `_db.list_block_library_templates`.
+    """
+    await require_coach_auth(request)
+    rows = _db.list_block_library_templates(domain=domain, phase=phase)
+    return {"templates": rows}
+
+
 # ---- Plan 7 / C2: program-holds log + phase override write -----------------
 
 

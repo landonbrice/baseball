@@ -84,7 +84,11 @@ export async function fetchTemplates(accessToken, { domain, phase } = {}) {
   if (domain) params.set('domain', domain)
   if (phase) params.set('phase', phase)
   const qs = params.toString()
-  const path = qs ? `/api/programs/templates?${qs}` : '/api/programs/templates'
+  // Coach mirror — see api/coach_routes.py::coach_get_program_templates.
+  // The pitcher-facing /api/programs/templates rejects Supabase Bearer JWTs.
+  const path = qs
+    ? `/api/coach/programs/templates?${qs}`
+    : '/api/coach/programs/templates'
   return fetchCoachApi(path, accessToken)
 }
 
