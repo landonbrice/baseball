@@ -15,6 +15,7 @@
  */
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../App';
+import { useBackButton } from '../hooks/useTelegram';
 import {
   fetchBuilderCandidates,
   sendBuilderTurn,
@@ -136,6 +137,10 @@ export default function BuilderSlideOver({
   initialDomain = 'throwing', initialGoal = null,
 }) {
   const { pitcherId, initData } = useAuth();
+  // Hardware/Telegram BackButton: pressing back inside the slide-over closes
+  // the sheet instead of exiting the WebApp. Active while this component is
+  // mounted; hidden on unmount. No-op outside Telegram.
+  useBackButton(onClose);
   const [state, setState] = useState(BUILDER_STATES.INPUTS);
   const [error, setError] = useState(null);
 
