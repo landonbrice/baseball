@@ -2878,6 +2878,27 @@ async def get_active_programs(request: Request):
     return bucketed
 
 
+@router.get("/programs/templates")
+async def get_program_templates(
+    request: Request,
+    domain: Optional[str] = Query(default=None, pattern="^(throwing|lifting)$"),
+    phase: Optional[str] = Query(default=None),
+):
+    """List canonical block_library templates (Plan 7 / A12).
+
+    Returns block_library rows with Plan-1 schema fields populated. Skips
+    legacy stub rows (`domain IS NULL`). Optional filters: `domain`
+    ('throwing'|'lifting'), `phase` (matched against `compatible_phases`).
+
+    Used by the mini-app Browse Templates section (B13) and coach-app
+    template library views (C3, C5). Lifting filter returns `[]` until
+    lifting templates are seeded (A13).
+    """
+    _resolve_pitcher_id_from_request(request)  # auth gate
+    rows = _db.list_block_library_templates(domain=domain, phase=phase)
+    return {"templates": rows}
+
+
 @router.post("/programs/{program_id}/activate")
 async def post_program_activate(program_id: str, request: Request):
     """Layer 4: activate a draft program (archives any existing active in same domain)."""

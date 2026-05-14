@@ -867,6 +867,43 @@ def get_block_library_row(template_id: str) -> dict | None:
     return (resp.data or [None])[0]
 
 
+# Summary columns for the canonical /api/programs/templates list endpoint
+# (Plan 7 / A12). Skips heavy template_body JSON — clients use this list for
+# filterable browse cards; full body is fetched on selection elsewhere.
+_TEMPLATE_SUMMARY_COLUMNS = (
+    "block_template_id,name,description,domain,goal_tags,compatible_phases,"
+    "duration_range_weeks,implied_phase,research_doc_ids"
+)
+
+
+def list_block_library_templates(
+    domain: Optional[str] = None,
+    phase: Optional[str] = None,
+) -> list[dict]:
+    """Return block_library rows with Plan-1 schema fields populated.
+
+    Skips legacy stub rows (`domain IS NULL`). Optional filters:
+    - `domain` ('throwing' | 'lifting') applied at the DB layer.
+    - `phase` (e.g. 'off_season') applied in Python because PostgREST
+      doesn't expose a clean array-contains-text filter for text[] columns.
+
+    Returns `[]` when no rows match.
+    """
+    q = (
+        get_client()
+        .table("block_library")
+        .select(_TEMPLATE_SUMMARY_COLUMNS)
+        .not_.is_("domain", "null")
+    )
+    if domain:
+        q = q.eq("domain", domain)
+    resp = q.order("name").execute()
+    rows = resp.data or []
+    if phase:
+        rows = [r for r in rows if phase in (r.get("compatible_phases") or [])]
+    return rows
+
+
 # ---------------- Programs (spec v1) ----------------
 
 def create_program(row: dict) -> str:
