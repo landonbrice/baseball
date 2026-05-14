@@ -125,15 +125,74 @@ describe('BuilderSlideOver: Inputs state', () => {
     });
   });
 
-  it('shows "coming soon" for Lifting and disables Continue with empty goal', async () => {
+  it('renders lifting goal chips when domain is lifting (no "coming soon")', async () => {
     const user = userEvent.setup();
     render(<BuilderSlideOver onClose={() => {}} />);
     await user.click(screen.getByText('Lifting'));
-    expect(screen.getByTestId('goal-domain-unsupported')).toBeInTheDocument();
-    expect(screen.queryByTestId('goal-chips')).not.toBeInTheDocument();
+    // Chips render; banner is gone.
+    expect(screen.getByTestId('goal-chips')).toBeInTheDocument();
+    expect(screen.queryByTestId('goal-domain-unsupported')).not.toBeInTheDocument();
+    expect(screen.queryByText(/coming soon/i)).not.toBeInTheDocument();
+    // All four lifting chips visible
+    expect(screen.getByText('Hypertrophy')).toBeInTheDocument();
+    expect(screen.getByText('Strength maintenance')).toBeInTheDocument();
+    expect(screen.getByText('In-season lifting')).toBeInTheDocument();
+    expect(screen.getByText('Other / describe…')).toBeInTheDocument();
+    // Continue with no chip selected still blocks
     await user.click(screen.getByText('Continue'));
     expect(screen.getByRole('alert')).toHaveTextContent(/goal/i);
     expect(fetchBuilderCandidates).not.toHaveBeenCalled();
+  });
+
+  it('switching to lifting defaults duration to 8 wk', async () => {
+    const user = userEvent.setup();
+    render(<BuilderSlideOver onClose={() => {}} />);
+    // Throwing default is 12 wk
+    expect(screen.getByText('12 wk')).toHaveAttribute('aria-pressed', 'true');
+    await user.click(screen.getByText('Lifting'));
+    expect(screen.getByText('8 wk')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText('12 wk')).toHaveAttribute('aria-pressed', 'false');
+    // Switch back to throwing — duration returns to 12 wk
+    await user.click(screen.getByText('Throwing'));
+    expect(screen.getByText('12 wk')).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('hypertrophy chip on lifting domain → /candidates called with goal=hypertrophy', async () => {
+    const user = userEvent.setup();
+    fetchBuilderCandidates.mockResolvedValue({
+      session_id: 'sess-1',
+      candidates: [{ block_template_id: 'hypertrophy_8wk_v1' }],
+    });
+    sendBuilderTurn.mockResolvedValue({ kind: 'question', text: 'Kick off?' });
+    render(<BuilderSlideOver onClose={() => {}} />);
+
+    await user.click(screen.getByText('Lifting'));
+    await user.click(screen.getByText('Hypertrophy'));
+    // Default duration auto-flipped to 8 wk; pick off-season explicitly.
+    await user.click(screen.getByText('Off-season'));
+    await user.click(screen.getByText('Continue'));
+
+    await waitFor(() => expect(fetchBuilderCandidates).toHaveBeenCalled());
+    expect(fetchBuilderCandidates.mock.calls[0][0]).toEqual({
+      domain: 'lifting',
+      goal: 'hypertrophy',
+      duration_weeks: 8,
+      effective_phase: 'off_season',
+      hard_constraints: [],
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId('socratic-chat')).toBeInTheDocument();
+    });
+  });
+
+  it('Other / describe… on lifting domain reveals the text input', async () => {
+    const user = userEvent.setup();
+    render(<BuilderSlideOver onClose={() => {}} />);
+    await user.click(screen.getByText('Lifting'));
+    expect(screen.queryByTestId('goal-other-input')).not.toBeInTheDocument();
+    await user.click(screen.getByText('Other / describe…'));
+    const input = await screen.findByTestId('goal-other-input');
+    expect(input).toHaveAttribute('aria-label', 'Goal description');
   });
 
   it('clears goal selection when domain switches', async () => {

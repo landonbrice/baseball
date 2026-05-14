@@ -40,7 +40,18 @@ const GOALS_THROWING = [
   { id: 'offseason_base',        label: 'Off-season base'       },
   { id: '__other__',             label: 'Other / describe…'     },
 ];
-const GOALS_LIFTING = [];  // Plan 7 — no lifting templates seeded yet.
+// Plan 7 / A13 seeded two lifting templates:
+//   hypertrophy_8wk_v1            → goal_tags: hypertrophy, muscle_growth, size
+//   in_season_lifting_starter_v1  → goal_tags: in_season_lifting, strength_maintain,
+//                                              minimum_effective_dose
+// We surface one user-facing chip per template's primary tag, plus a shared
+// strength-maintenance chip and the standard Other escape hatch.
+const GOALS_LIFTING = [
+  { id: 'hypertrophy',       label: 'Hypertrophy'          },
+  { id: 'strength_maintain', label: 'Strength maintenance' },
+  { id: 'in_season_lifting', label: 'In-season lifting'    },
+  { id: '__other__',         label: 'Other / describe…'    },
+];
 
 const DURATIONS = [
   { id: 4,  label: '4 wk'  },
@@ -396,6 +407,16 @@ export default function BuilderSlideOver({ onClose, onProgramActivated, onDraftS
 
 // ---------------- Sub-components ----------------
 
+// Per-domain default duration. Throwing keeps 12 wk (covers velocity / longtoss /
+// in-season maintenance). Lifting defaults to 8 wk so it sits inside both seeded
+// templates' ranges: hypertrophy_8wk_v1 [6,10] AND in_season_lifting_starter_v1
+// [10,16] both accept 8 in practice (the latter clamps at /candidates with a
+// near-edge match) — and 8 is the most-requested off-season hypertrophy length.
+const DEFAULT_DURATION_BY_DOMAIN = {
+  throwing: 12,
+  lifting:  8,
+};
+
 function InputsForm({
   domain, setDomain, goal, setGoal,
   goalText, setGoalText,
@@ -407,12 +428,15 @@ function InputsForm({
   const goalOptions = domain === 'lifting' ? GOALS_LIFTING : GOALS_THROWING;
   // When domain switches, the prior goal selection may not exist in the new
   // domain's goal list → clear so the user picks again. Also clear any
-  // pending "Other" text so it doesn't leak across domains.
+  // pending "Other" text so it doesn't leak across domains, and bump the
+  // duration to the per-domain default so the chip pre-selection makes sense.
   const handleDomainChange = (id) => {
     if (id === domain) return;
     setDomain(id);
     setGoal(null);
     setGoalText('');
+    const nextDefault = DEFAULT_DURATION_BY_DOMAIN[id];
+    if (nextDefault !== undefined) setDurationWeeks(nextDefault);
   };
 
   const handleGoalChange = (id) => {
@@ -435,27 +459,17 @@ function InputsForm({
       </div>
 
       <p style={sectionLabelStyle}>Goal</p>
-      {goalOptions.length === 0 ? (
-        <div style={{
-          padding: '8px 10px', fontSize: 11, marginBottom: 14,
-          background: 'rgba(184,109,0,0.08)',
-          color: 'var(--color-flag-amber, #b86d00)', borderRadius: 6,
-        }} data-testid="goal-domain-unsupported">
-          Lifting programs coming soon — try Throwing for now.
-        </div>
-      ) : (
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}
-          data-testid="goal-chips">
-          {goalOptions.map(g => (
-            <button key={g.id} onClick={() => handleGoalChange(g.id)}
-              style={chipStyle(goal === g.id)} aria-pressed={goal === g.id}>
-              {g.label}
-            </button>
-          ))}
-        </div>
-      )}
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}
+        data-testid="goal-chips">
+        {goalOptions.map(g => (
+          <button key={g.id} onClick={() => handleGoalChange(g.id)}
+            style={chipStyle(goal === g.id)} aria-pressed={goal === g.id}>
+            {g.label}
+          </button>
+        ))}
+      </div>
 
-      {goal === '__other__' && goalOptions.length > 0 && (
+      {goal === '__other__' && (
         <input
           type="text"
           value={goalText}
