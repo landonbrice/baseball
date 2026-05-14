@@ -405,3 +405,73 @@ describe('Programs: Browse Templates section', () => {
   });
 });
 
+// ---------- Scheduled-throw anchors (Plan 7 / B14) ----------
+
+describe('Programs: Active program scheduled-throw anchors', () => {
+  // Compute Chicago today + a future + past ISO date around it. The component
+  // uses string comparison on YYYY-MM-DD, so the absolute date doesn't matter —
+  // we just need one strictly before todayStr and one >= todayStr.
+  const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+  const addDays = (iso, n) => {
+    const d = new Date(iso + 'T12:00:00Z');
+    d.setUTCDate(d.getUTCDate() + n);
+    return d.toISOString().slice(0, 10);
+  };
+  const futureDate = addDays(todayStr, 2);
+  const pastDate   = addDays(todayStr, -3);
+
+  it('shows next future throw on the throwing program card; past throws are not rendered', () => {
+    setApi('/api/programs/active', {
+      throwing: {
+        program_id: 'p1', domain: 'throwing',
+        current_day_index: 5, held_days_count: 0,
+        start_date: '2026-05-01', nominal_end_date: '2026-07-01',
+      },
+      lifting: {
+        program_id: 'p2', domain: 'lifting',
+        current_day_index: 5, held_days_count: 0,
+        start_date: '2026-05-01', nominal_end_date: '2026-06-15',
+      },
+    });
+    // API is pre-sorted ASC; past first, then future — filter must drop the past.
+    setApi(`/api/pitcher/landon_brice/scheduled-throws`, {
+      scheduled_throws: [
+        { date: pastDate,   kind: 'longtoss' },
+        { date: futureDate, kind: 'bullpen' },
+      ],
+    });
+    render(<Programs />);
+
+    // Throwing card carries the next-throw banner with future date + kind.
+    const throwingCard = screen.getByTestId('active-card-throwing');
+    const banner = within(throwingCard).getByTestId('active-card-throwing-next-throw');
+    expect(banner).toHaveTextContent(/Next bullpen/i);
+    expect(banner).toHaveTextContent(futureDate);
+    // Past date is not rendered anywhere on the throwing card.
+    expect(within(throwingCard).queryByText(pastDate)).not.toBeInTheDocument();
+
+    // Lifting card stays clean — no next-throw banner.
+    const liftingCard = screen.getByTestId('active-card-lifting');
+    expect(within(liftingCard).queryByTestId('active-card-lifting-next-throw'))
+      .not.toBeInTheDocument();
+  });
+
+  it('renders no next-throw banner when scheduled_throws is empty', () => {
+    setApi('/api/programs/active', {
+      throwing: {
+        program_id: 'p1', domain: 'throwing',
+        current_day_index: 0, held_days_count: 0,
+        start_date: '2026-05-12', nominal_end_date: '2026-05-19',
+      },
+      lifting: null,
+    });
+    setApi(`/api/pitcher/landon_brice/scheduled-throws`, { scheduled_throws: [] });
+    render(<Programs />);
+    expect(screen.getByTestId('active-card-throwing')).toBeInTheDocument();
+    expect(screen.queryByTestId('active-card-throwing-next-throw'))
+      .not.toBeInTheDocument();
+    // No stray "Next:" text leaks into the DOM.
+    expect(screen.queryByText(/^Next[: ]/)).not.toBeInTheDocument();
+  });
+});
+

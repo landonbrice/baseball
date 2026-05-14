@@ -88,8 +88,19 @@ export default function Programs() {
   const history    = useApi(pitcherId ? `/api/programs/history${bust}` : null, initData);
   const holdsToday = useApi(pitcherId ? `/api/programs/holds-today${bust}` : null, initData);
   const favorites  = useApi(pitcherId ? `/api/favorites${bust}` : null, initData);
+  // B14: scheduled-throw anchors for the throwing Active card.
+  const throws     = useApi(
+    pitcherId ? `/api/pitcher/${pitcherId}/scheduled-throws${bust}` : null,
+    initData,
+  );
 
   const todayStr = TODAY_STR();
+
+  // B14: pick next future throw (date >= today, Chicago tz). API already sorts ASC.
+  const nextThrow = useMemo(() => {
+    const list = throws.data?.scheduled_throws || [];
+    return list.find(t => (t?.date || '') >= todayStr) || null;
+  }, [throws.data, todayStr]);
   const entries = log?.entries || [];
   const todayEntry = entries.find(e => e.date === todayStr);
 
@@ -119,6 +130,7 @@ export default function Programs() {
         active={active.data}
         loading={active.loading}
         holdsToday={holdsToday.data}
+        nextThrow={nextThrow}
         onReplace={openBuilder}
         onView={(programId) => navigate(`/programs/${programId}`)}
       />
@@ -245,7 +257,7 @@ function SourceTag({ info }) {
 
 // ---------- 3. Active Programs ----------
 
-function ActiveSection({ active, loading, holdsToday, onReplace, onView }) {
+function ActiveSection({ active, loading, holdsToday, nextThrow, onReplace, onView }) {
   if (loading) {
     return (
       <>
@@ -273,6 +285,7 @@ function ActiveSection({ active, loading, holdsToday, onReplace, onView }) {
         {throwing && (
           <ProgramCard
             program={throwing} heldToday={!!holdsToday?.throwing}
+            nextThrow={nextThrow}
             onView={() => onView(throwing.program_id)}
             onReplace={() => onReplace('throwing')}
           />
@@ -289,11 +302,14 @@ function ActiveSection({ active, loading, holdsToday, onReplace, onView }) {
   );
 }
 
-function ProgramCard({ program, heldToday, onView, onReplace }) {
+function ProgramCard({ program, heldToday, nextThrow, onView, onReplace }) {
   const dayIndex = (program.current_day_index ?? 0) + 1;
   const totalDays = computeTotalDays(program);
   const heldDays = program.held_days_count ?? 0;
   const domainLabel = DOMAIN_LABEL[program.domain] || program.domain;
+  // B14: only the throwing card gets the scheduled-throw anchor banner.
+  const showNextThrow = program.domain === 'throwing' && !!nextThrow;
+  const throwKind = nextThrow?.kind || nextThrow?.type;
 
   return (
     <div style={cardStyle} data-testid={`active-card-${program.domain}`}>
@@ -328,6 +344,18 @@ function ProgramCard({ program, heldToday, onView, onReplace }) {
           <> · Started <span style={{ color: 'var(--color-ink-secondary)' }}>{program.start_date}</span></>
         )}
       </div>
+      {showNextThrow && (
+        <div
+          data-testid={`active-card-${program.domain}-next-throw`}
+          style={{
+            fontSize: 11, color: 'var(--color-ink-muted)',
+            marginTop: -4, marginBottom: 10,
+          }}
+        >
+          Next{throwKind ? ` ${throwKind}` : ''}:{' '}
+          <strong style={{ color: 'var(--color-ink-secondary)' }}>{nextThrow.date}</strong>
+        </div>
+      )}
       <div style={{ display: 'flex', gap: 8 }}>
         <button
           type="button" onClick={onView}
