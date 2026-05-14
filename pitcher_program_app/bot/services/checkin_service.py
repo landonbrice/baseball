@@ -208,6 +208,8 @@ async def _select_plan_path(
                 triage_result=triage_result,
                 profile=profile,
                 target_date=target_date,
+                checkin_inputs=checkin_inputs,
+                triage_rationale_detail=triage_rationale_detail,
             )
             return composer["plan"], composer["program_id"], composer["hold_event"]
         except Exception as exc:
@@ -231,16 +233,21 @@ async def _compose_program_plan(
     triage_result: dict,
     profile: dict,
     target_date,
+    *,
+    checkin_inputs: dict | None = None,
+    triage_rationale_detail: dict | None = None,
 ) -> dict:
     """Compose a program-prescribed plan for today's check-in. Pure composer; persists nothing.
 
-    Plan 6 / A1: replaces the v0 `_program_aware_plan_path` which both composed
-    AND persisted. Persistence is now centralized in `process_checkin` so the
-    program path goes through the same rich entry-build and weekly-state flow
-    as the legacy path.
+    Calls ``program_aware_planner.compose_program_aware_plan`` which delegates
+    to the legacy ``generate_plan`` pipeline with ``rotation_day_override`` set
+    from the program's ``template_key`` / ``day_index``. The returned plan
+    has the full legacy shape (warmup, mobility, arm_care, exercise_blocks,
+    morning_brief, narrative, day_focus, etc.) but tagged
+    ``source='program_prescribed'`` with the prescription snapshot attached.
 
     Returns ``{plan, program_id, hold_event}`` where:
-    - ``plan`` is a dict shaped like ``generate_plan``'s return, tagged ``source='program_prescribed'``
+    - ``plan`` is a fully-enriched plan_result, source='program_prescribed'
     - ``program_id`` is the program whose counter advances on success (throwing wins on tie)
     - ``hold_event`` is the dict to log when triage paused the counter, else None
 
@@ -256,15 +263,20 @@ async def _compose_program_plan(
         pitcher_id, "lifting", target_date,
     ) if lifting_program else None
 
-    prescribed = _program_aware_planner.compose_prescribed_plan(
-        throwing_rx, lifting_rx, profile, target_date=target_date,
+    final_plan = await _program_aware_planner.compose_program_aware_plan(
+        pitcher_id=pitcher_id,
+        triage_result=triage_result,
+        throwing_rx=throwing_rx,
+        lifting_rx=lifting_rx,
+        profile=profile,
+        target_date=target_date,
+        checkin_inputs=checkin_inputs,
+        triage_rationale_detail=triage_rationale_detail,
     )
-    if prescribed is None:
-        raise RuntimeError("compose_prescribed_plan returned None")
+    if final_plan is None:
+        raise RuntimeError("compose_program_aware_plan returned None")
 
-    final_plan, hold_event = _program_aware_planner.apply_triage_to_program_plan(
-        prescribed, triage_result,
-    )
+    hold_event = _program_aware_planner.derive_hold_event(triage_result)
 
     # Throwing program wins on tie for the counter-advance program_id.
     program_for_counter = throwing_program or lifting_program
@@ -618,7 +630,7 @@ async def process_checkin(
             "arm_detail_tags": arm_assessment.get("detail_tags", []),
             "arm_assessment": arm_assessment,
         },
-        "plan_narrative": plan_result["narrative"] if plan_result else None,
+        "plan_narrative": plan_result.get("narrative") if plan_result else None,
         "morning_brief": normalize_brief(plan_result.get("morning_brief")) if plan_result else normalize_brief(None),
         "arm_care": plan_result.get("arm_care") if plan_result else None,
         "lifting": plan_result.get("lifting") if plan_result else None,
@@ -747,7 +759,7 @@ async def process_checkin(
         "alerts": triage_result.get("alerts", []),
         "observations": progression.get("observations", []),
         "weekly_summary": progression.get("weekly_summary"),
-        "plan_narrative": plan_result["narrative"] if plan_result else "",
+        "plan_narrative": plan_result.get("narrative", "") if plan_result else "",
         "morning_brief": plan_result.get("morning_brief") if plan_result else None,
         "arm_care": plan_result.get("arm_care") if plan_result else None,
         "lifting": plan_result.get("lifting") if plan_result else None,
