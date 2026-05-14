@@ -21,6 +21,7 @@ vi.mock('../../api', () => ({
   finalizeBuilder: vi.fn(),
   activateProgram: vi.fn(),
   archiveProgram: vi.fn(),
+  interpretGoal: vi.fn(),
 }));
 
 import {
@@ -29,6 +30,7 @@ import {
   finalizeBuilder,
   activateProgram,
   archiveProgram,
+  interpretGoal,
 } from '../../api';
 
 const PROG = {
@@ -352,6 +354,84 @@ describe('BuilderSlideOver: Preview state', () => {
     const tweakBtn = screen.getByRole('button', { name: /^Tweak/i });
     expect(tweakBtn).toBeDisabled();
     expect(tweakBtn).toHaveAttribute('title', expect.stringMatching(/limit/i));
+  });
+});
+
+// ---------- Plan 7 / B11: "Other / describe…" goal chip ----------
+
+describe('BuilderSlideOver: Other goal chip + LLM interpreter', () => {
+  it('reveals text input when "Other / describe…" chip is selected', async () => {
+    const user = userEvent.setup();
+    render(<BuilderSlideOver onClose={() => {}} />);
+    // Input is hidden before the chip is picked
+    expect(screen.queryByTestId('goal-other-input')).not.toBeInTheDocument();
+    await user.click(screen.getByText('Other / describe…'));
+    const input = await screen.findByTestId('goal-other-input');
+    expect(input).toHaveAttribute('aria-label', 'Goal description');
+    expect(input).toHaveAttribute(
+      'placeholder',
+      expect.stringMatching(/describe your goal/i),
+    );
+  });
+
+  it('calls interpretGoal then proceeds to candidates when LLM returns a real tag', async () => {
+    const user = userEvent.setup();
+    interpretGoal.mockResolvedValue({ tag: 'velocity', confidence: 'matched' });
+    fetchBuilderCandidates.mockResolvedValue({
+      session_id: 'sess-1',
+      candidates: [{ block_template_id: 'tpl_a' }],
+    });
+    sendBuilderTurn.mockResolvedValue({ kind: 'question', text: 'Kick off?' });
+    render(<BuilderSlideOver onClose={() => {}} />);
+
+    await user.click(screen.getByText('Other / describe…'));
+    await user.type(
+      screen.getByTestId('goal-other-input'),
+      'I want to throw harder',
+    );
+    await user.click(screen.getByText('Continue'));
+
+    await waitFor(() => expect(interpretGoal).toHaveBeenCalledWith(
+      'I want to throw harder', 'throwing', 'fake-init-data',
+    ));
+    await waitFor(() => expect(fetchBuilderCandidates).toHaveBeenCalled());
+    // Resolved tag must be forwarded into the candidates envelope
+    expect(fetchBuilderCandidates.mock.calls[0][0]).toMatchObject({
+      domain: 'throwing',
+      goal: 'velocity',
+    });
+    // And we should have advanced to the Socratic state
+    await waitFor(() => {
+      expect(screen.getByTestId('socratic-chat')).toBeInTheDocument();
+    });
+  });
+
+  it('shows inline error when LLM confidence is unknown — stays on inputs, no /candidates call', async () => {
+    const user = userEvent.setup();
+    interpretGoal.mockResolvedValue({ tag: 'unknown', confidence: 'unknown' });
+    render(<BuilderSlideOver onClose={() => {}} />);
+
+    await user.click(screen.getByText('Other / describe…'));
+    await user.type(screen.getByTestId('goal-other-input'), 'abracadabra');
+    await user.click(screen.getByText('Continue'));
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent(/couldn't match/i);
+    });
+    expect(fetchBuilderCandidates).not.toHaveBeenCalled();
+    expect(screen.getByTestId('inputs-form')).toBeInTheDocument();
+  });
+
+  it('blocks Continue with empty Other text and never calls interpretGoal', async () => {
+    const user = userEvent.setup();
+    render(<BuilderSlideOver onClose={() => {}} />);
+
+    await user.click(screen.getByText('Other / describe…'));
+    await user.click(screen.getByText('Continue'));
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/describe your goal/i);
+    expect(interpretGoal).not.toHaveBeenCalled();
+    expect(fetchBuilderCandidates).not.toHaveBeenCalled();
   });
 });
 

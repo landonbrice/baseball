@@ -334,6 +334,15 @@ export async function archiveProgram(programId, reason, initData = null) {
 }
 
 /**
+ * Plan 7 / B11: interpret a free-text "Other / describe…" goal via LLM.
+ * Returns {tag, confidence}. confidence='unknown' means no match — caller
+ * should surface an inline error and stay on the inputs form.
+ */
+export async function interpretGoal(text, domain, initData = null) {
+  return postApi('/api/programs/builder/interpret-goal', { text, domain }, initData);
+}
+
+/**
  * Fire-and-forget telemetry when an exercise name falls back to ID/Unknown (D9).
  * Never throws; best-effort.
  */

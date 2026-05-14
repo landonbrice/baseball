@@ -21,6 +21,7 @@ import {
   finalizeBuilder,
   activateProgram,
   archiveProgram,
+  interpretGoal,
 } from '../api';
 
 const DOMAINS = [
@@ -37,6 +38,7 @@ const GOALS_THROWING = [
   { id: 'longtoss',              label: 'Long toss'             },
   { id: 'arm_health',            label: 'Arm health / return'   },
   { id: 'offseason_base',        label: 'Off-season base'       },
+  { id: '__other__',             label: 'Other / describe…'     },
 ];
 const GOALS_LIFTING = [];  // Plan 7 — no lifting templates seeded yet.
 
@@ -128,6 +130,7 @@ export default function BuilderSlideOver({ onClose, onProgramActivated, onDraftS
     initialDomain === 'lifting' || initialDomain === 'throwing' ? initialDomain : 'throwing'
   );
   const [goal, setGoal]                           = useState(null);  // chip id or null
+  const [goalText, setGoalText]                   = useState('');    // free-text when goal === '__other__'
   const [durationWeeks, setDurationWeeks]         = useState(12);
   const [effectivePhase, setEffectivePhase]       = useState('in_season');
   const [hardConstraints, setHardConstraints]     = useState([]);
@@ -168,11 +171,31 @@ export default function BuilderSlideOver({ onClose, onProgramActivated, onDraftS
       setError('Pick a goal to continue.');
       return;
     }
+    // "Other / describe…" → resolve via LLM interpreter before /candidates.
+    // Empty text short-circuits without an API call.
+    if (goal === '__other__' && !goalText.trim()) {
+      setError('Describe your goal to continue.');
+      return;
+    }
     setSubmittingInputs(true);
     try {
+      let resolvedGoal = goal;
+      if (goal === '__other__') {
+        try {
+          const res = await interpretGoal(goalText.trim(), domain, initData);
+          if (!res || res.confidence === 'unknown') {
+            setError("I couldn't match that goal. Try a chip above or rephrase.");
+            return;
+          }
+          resolvedGoal = res.tag;
+        } catch (e) {
+          setError(e?.detail || 'Could not reach the goal interpreter. Try again.');
+          return;
+        }
+      }
       const res = await fetchBuilderCandidates({
         domain,
-        goal,  // chip id already matches a real goal_tag
+        goal: resolvedGoal,  // chip id (or interpreter-resolved tag) — already matches a real goal_tag
         duration_weeks: durationWeeks,
         effective_phase: effectivePhase,
         hard_constraints: hardConstraints,
@@ -333,6 +356,7 @@ export default function BuilderSlideOver({ onClose, onProgramActivated, onDraftS
           <InputsForm
             domain={domain} setDomain={setDomain}
             goal={goal} setGoal={setGoal}
+            goalText={goalText} setGoalText={setGoalText}
             durationWeeks={durationWeeks} setDurationWeeks={setDurationWeeks}
             effectivePhase={effectivePhase} setEffectivePhase={setEffectivePhase}
             hardConstraints={hardConstraints} toggleConstraint={toggleConstraint}
@@ -374,6 +398,7 @@ export default function BuilderSlideOver({ onClose, onProgramActivated, onDraftS
 
 function InputsForm({
   domain, setDomain, goal, setGoal,
+  goalText, setGoalText,
   durationWeeks, setDurationWeeks,
   effectivePhase, setEffectivePhase,
   hardConstraints, toggleConstraint,
@@ -381,11 +406,20 @@ function InputsForm({
 }) {
   const goalOptions = domain === 'lifting' ? GOALS_LIFTING : GOALS_THROWING;
   // When domain switches, the prior goal selection may not exist in the new
-  // domain's goal list → clear so the user picks again.
+  // domain's goal list → clear so the user picks again. Also clear any
+  // pending "Other" text so it doesn't leak across domains.
   const handleDomainChange = (id) => {
     if (id === domain) return;
     setDomain(id);
     setGoal(null);
+    setGoalText('');
+  };
+
+  const handleGoalChange = (id) => {
+    setGoal(id);
+    // Clear the free-text when leaving the Other branch so a stale draft
+    // doesn't survive after picking a real chip.
+    if (id !== '__other__') setGoalText('');
   };
 
   return (
@@ -413,12 +447,34 @@ function InputsForm({
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}
           data-testid="goal-chips">
           {goalOptions.map(g => (
-            <button key={g.id} onClick={() => setGoal(g.id)}
+            <button key={g.id} onClick={() => handleGoalChange(g.id)}
               style={chipStyle(goal === g.id)} aria-pressed={goal === g.id}>
               {g.label}
             </button>
           ))}
         </div>
+      )}
+
+      {goal === '__other__' && goalOptions.length > 0 && (
+        <input
+          type="text"
+          value={goalText}
+          onChange={e => setGoalText(e.target.value)}
+          placeholder="Describe your goal — e.g. add velocity post-surgery"
+          aria-label="Goal description"
+          data-testid="goal-other-input"
+          style={{
+            width: '100%',
+            padding: '8px 10px',
+            fontSize: 12,
+            border: '0.5px solid var(--color-cream-border)',
+            borderRadius: 6,
+            background: 'var(--color-white, #fff)',
+            color: 'var(--color-ink-primary)',
+            marginBottom: 14,
+            boxSizing: 'border-box',
+          }}
+        />
       )}
 
       <p style={sectionLabelStyle}>Duration</p>
