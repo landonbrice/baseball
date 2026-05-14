@@ -2619,6 +2619,7 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 from bot.services import program_builder, program_builder_socratic, program_generator, program_lifecycle
+from bot.services import program_anchoring
 from bot.services import favorites as favorites_svc
 
 
@@ -2845,6 +2846,68 @@ async def post_program_archive(program_id: str, req: ProgramArchiveRequest, requ
     if not program or program.get("pitcher_id") != pitcher_id:
         raise HTTPException(status_code=404, detail="program not found")
     return program_lifecycle.archive(program_id, reason=req.reason)
+
+
+def _count_shifted_days(old_days: list, new_days: list) -> int:
+    """Count days whose `date` field changed. Both lists assumed aligned by index."""
+    if len(old_days) != len(new_days):
+        return max(len(old_days), len(new_days))
+    return sum(
+        1 for o, n in zip(old_days, new_days)
+        if (o or {}).get("date") != (n or {}).get("date")
+    )
+
+
+@router.post("/programs/{program_id}/recompute")
+async def post_program_recompute(program_id: str, request: Request):
+    """Re-anchor a program's schedule around the pitcher's current scheduled throws.
+
+    Reads scheduled_throws server-side from pitcher_training_model — the caller
+    (mini-app WeekArc) has already persisted the throw via add_scheduled_throw
+    before invoking this endpoint.
+
+    Always returns 200. Players can build/move throws whenever — v1 has no
+    "prohibited day" conflict check. Calendar-relative templates no-op.
+
+    Returns: {updated: bool, days_shifted: int, schedule: dict|None}.
+    When `updated=true`, also writes a coach_visible_override_event so coaches
+    can see player-driven schedule shifts.
+    """
+    pitcher_id = _resolve_pitcher_id_from_request(request)
+    program = _db.get_program(program_id)
+    if not program or program.get("pitcher_id") != pitcher_id:
+        raise HTTPException(status_code=404, detail="program not found")
+
+    raw_throws = _db.get_pitcher_scheduled_throws(pitcher_id)
+    # weekly_model stores `type`; program_anchoring reads `kind`. Shim here.
+    throws = [
+        {"date": t.get("date"), "kind": t.get("type")}
+        for t in raw_throws
+        if t.get("date") and t.get("type")
+    ]
+
+    old_schedule = program.get("generated_schedule_json") or {}
+    new_schedule = program_anchoring.recompute_program_schedule(program, throws)
+
+    old_days = (old_schedule or {}).get("days") or []
+    new_days = (new_schedule or {}).get("days") or []
+    days_shifted = _count_shifted_days(old_days, new_days)
+
+    if days_shifted == 0:
+        return {"updated": False, "days_shifted": 0, "schedule": None}
+
+    _db.update_program_schedule(program_id, new_schedule, trigger_type="anchor_recompute")
+    _db.insert_override_event(
+        pitcher_id=pitcher_id,
+        program_id=program_id,
+        event_kind="schedule_recompute",
+        event_date=datetime.now(CHICAGO_TZ).strftime("%Y-%m-%d"),
+        details={
+            "trigger": "scheduled_throw_change",
+            "days_shifted": days_shifted,
+        },
+    )
+    return {"updated": True, "days_shifted": days_shifted, "schedule": new_schedule}
 
 
 # ---------------- Favorites (Plan 6 / A2) ----------------

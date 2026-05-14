@@ -95,6 +95,67 @@ def test_list_programs_for_pitcher_summary_rejects_bad_order_by():
         db.list_programs_for_pitcher_summary("landon_brice", order_by="random_column")
 
 
+def test_insert_override_event_writes_row():
+    inserted = [{"event_id": "ev-1", "pitcher_id": "landon_brice"}]
+    client = MagicMock()
+    client.table.return_value.insert.return_value.execute.return_value = MagicMock(data=inserted)
+    with patch.object(db, "get_client", return_value=client):
+        out = db.insert_override_event(
+            pitcher_id="landon_brice",
+            program_id="prog-1",
+            event_kind="schedule_recompute",
+            event_date="2026-05-13",
+            details={"trigger": "scheduled_throw_change", "days_shifted": 3},
+        )
+    assert out == inserted[0]
+    payload = client.table.return_value.insert.call_args.args[0]
+    assert payload["pitcher_id"] == "landon_brice"
+    assert payload["program_id"] == "prog-1"
+    assert payload["event_kind"] == "schedule_recompute"
+    assert payload["event_date"] == "2026-05-13"
+    assert payload["details"] == {"trigger": "scheduled_throw_change", "days_shifted": 3}
+
+
+def test_insert_override_event_defaults_empty_details():
+    client = MagicMock()
+    client.table.return_value.insert.return_value.execute.return_value = MagicMock(data=[{}])
+    with patch.object(db, "get_client", return_value=client):
+        db.insert_override_event(
+            pitcher_id="landon_brice", program_id=None,
+            event_kind="x", event_date="2026-05-13",
+        )
+    payload = client.table.return_value.insert.call_args.args[0]
+    assert payload["details"] == {}
+    assert payload["program_id"] is None
+
+
+def test_get_pitcher_scheduled_throws_returns_throws_array():
+    throws = [{"id": "t1", "date": "2026-05-15", "type": "bullpen"}]
+    state = {"scheduled_throws": throws, "other": "ignored"}
+    client = MagicMock()
+    client.table.return_value.select.return_value.eq.return_value.limit.return_value \
+          .execute.return_value = MagicMock(data=[{"current_week_state": state}])
+    with patch.object(db, "get_client", return_value=client):
+        out = db.get_pitcher_scheduled_throws("landon_brice")
+    assert out == throws
+
+
+def test_get_pitcher_scheduled_throws_returns_empty_when_no_model_row():
+    client = MagicMock()
+    client.table.return_value.select.return_value.eq.return_value.limit.return_value \
+          .execute.return_value = MagicMock(data=[])
+    with patch.object(db, "get_client", return_value=client):
+        assert db.get_pitcher_scheduled_throws("nonexistent") == []
+
+
+def test_get_pitcher_scheduled_throws_returns_empty_when_state_missing():
+    client = MagicMock()
+    client.table.return_value.select.return_value.eq.return_value.limit.return_value \
+          .execute.return_value = MagicMock(data=[{"current_week_state": None}])
+    with patch.object(db, "get_client", return_value=client):
+        assert db.get_pitcher_scheduled_throws("landon_brice") == []
+
+
 def test_create_builder_session_returns_session_id():
     fake = [{"session_id": "sess-1", "pitcher_id": "landon_brice"}]
     with patch.object(db, "get_client", return_value=_mock_client(fake)):

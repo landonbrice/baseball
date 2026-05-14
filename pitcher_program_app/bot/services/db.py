@@ -857,6 +857,48 @@ def list_programs_for_pitcher_summary(
     return resp.data or []
 
 
+# ---------------- Coach-visible Override Events (Plan 6 / A5) ----------------
+
+def insert_override_event(
+    pitcher_id: str,
+    program_id: str | None,
+    event_kind: str,
+    event_date: str,
+    details: dict | None = None,
+) -> dict:
+    """Insert a row into coach_visible_override_events. Returns the inserted row.
+
+    `event_date` is an ISO date string (YYYY-MM-DD). `details` is opaque JSON for
+    surfacing context to coaches later.
+    """
+    row = {
+        "pitcher_id": pitcher_id,
+        "program_id": program_id,
+        "event_kind": event_kind,
+        "event_date": event_date,
+        "details": details or {},
+    }
+    resp = get_client().table("coach_visible_override_events").insert(row).execute()
+    return (resp.data or [{}])[0]
+
+
+def get_pitcher_scheduled_throws(pitcher_id: str) -> list[dict]:
+    """Read `current_week_state.scheduled_throws` for a pitcher; returns [] if absent."""
+    resp = (
+        get_client()
+        .table("pitcher_training_model")
+        .select("current_week_state")
+        .eq("pitcher_id", pitcher_id)
+        .limit(1)
+        .execute()
+    )
+    rows = resp.data or []
+    if not rows:
+        return []
+    state = rows[0].get("current_week_state") or {}
+    return state.get("scheduled_throws") or []
+
+
 # ---------------- Favorited Blocks (Plan 6 / A2) ----------------
 
 def insert_favorited_block(row: dict) -> dict:
