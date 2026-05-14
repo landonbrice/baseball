@@ -2648,6 +2648,11 @@ class BuilderFinalizeRequest(BaseModel):
     tuned_spec: dict
 
 
+class InterpretGoalRequest(BaseModel):
+    text: str = Field(..., min_length=1, max_length=500)
+    domain: str = Field(..., pattern="^(throwing|lifting)$")
+
+
 class ProgramArchiveRequest(BaseModel):
     reason: str
 
@@ -2796,6 +2801,21 @@ async def post_builder_finalize(req: BuilderFinalizeRequest, request: Request):
     citations = get_citations_for_ids(doc_ids)
 
     return {"program": program, "citations": citations}
+
+
+@router.post("/programs/builder/interpret-goal")
+async def post_builder_interpret_goal(req: InterpretGoalRequest, request: Request):
+    """Plan 7 / A11: free-text goal description → canonical goal_tag.
+
+    Returns {"tag": "...", "confidence": "matched|unknown"}. UI uses the
+    returned tag in the next /candidates call. "unknown" means the LLM
+    couldn't map the text to any existing tag — caller should show inline
+    error and let the pitcher pick a chip instead.
+    """
+    _resolve_pitcher_id_from_request(request)  # auth gate
+    from bot.services.goal_interpreter import interpret_goal
+    tag = await interpret_goal(req.text, req.domain)
+    return {"tag": tag, "confidence": "matched" if tag != "unknown" else "unknown"}
 
 
 @router.get("/programs/drafts")
