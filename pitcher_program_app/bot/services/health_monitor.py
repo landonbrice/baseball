@@ -227,14 +227,200 @@ def compute_weekly_narrative_health() -> dict | None:
 
 
 def compute_daily_digest(date: str = None) -> dict:
-    """Compose the full daily health snapshot."""
-    return {
+    """Compose the full daily health snapshot.
+
+    Plan 7 / A4 side-effect: after computing the snapshot we trigger the
+    rule-based coach insight generators (drift / flag mismatch / team
+    completion). Insertion is dedup-gated by ``suggestion_exists_for_today``
+    so multiple digest runs within the same Chicago day are idempotent.
+    Failures inside the generator are caught + logged so the digest pipeline
+    never breaks.
+    """
+    digest = {
         "plan_health": compute_plan_health(date),
         "plan_health_rolling": compute_plan_health_rolling(days=7),
         "whoop_health": compute_whoop_health(date),
         "weekly_narrative": compute_weekly_narrative_health(),
         "qa_health": compute_qa_health(),
     }
+
+    # Coach insight generation — runs after the read-only checks complete.
+    # Single-team for now (uchicago_baseball); when multi-team lands this loop
+    # extends naturally. Try/except scoped tight so insight failures never
+    # surface to the digest message.
+    try:
+        new_count = _generate_coach_insights_for_team_sync("uchicago_baseball")
+        if new_count:
+            logger.info("Plan 7 / A4: generated %d coach insights for uchicago_baseball", new_count)
+    except Exception as e:
+        logger.error("Plan 7 / A4 coach insight generation failed: %s", e, exc_info=True)
+
+    return digest
+
+
+async def _generate_coach_insights_for_team(team_id: str) -> int:
+    """Plan 7 / A4: generate drift / mismatch / completion insights for every
+    active program / pitcher / team_assigned_block in the team.
+
+    Returns count of new coach_suggestions rows inserted. Idempotent within
+    a Chicago day via category + pitcher_id (or block_id) + created_at
+    dedup at insert time.
+
+    Async signature kept for future LLM polish (L6 — Plan 8). v1 body is
+    synchronous because all generators are rule-based.
+    """
+    return _generate_coach_insights_for_team_sync(team_id)
+
+
+def _generate_coach_insights_for_team_sync(team_id: str) -> int:
+    """Synchronous body of the A4 generator pipeline.
+
+    Split out so ``compute_daily_digest`` (sync) can drive insight generation
+    without spawning an event loop, while the async wrapper remains available
+    for future LLM-polish callers.
+    """
+    from datetime import date as _date
+    from bot.services import coach_insights, team_scope
+    # late import to avoid circulars at module load
+    today_iso = _today_iso()
+    try:
+        today_date = _date.fromisoformat(today_iso)
+    except (TypeError, ValueError):
+        today_date = _date.today()
+    new_count = 0
+
+    try:
+        roster = team_scope.get_team_roster_overview(team_id, today_iso) or []
+    except Exception as e:
+        logger.error("A4: roster lookup failed for team_id=%s: %s", team_id, e, exc_info=True)
+        roster = []
+
+    for row in roster:
+        pitcher_id = row.get("pitcher_id")
+        if not pitcher_id:
+            continue
+
+        try:
+            programs = _db.list_programs_for_pitcher_summary(pitcher_id, status="active")
+        except Exception as e:
+            logger.warning("A4: program list failed for %s: %s", pitcher_id, e)
+            programs = []
+
+        # 1) Drift — one observation per active program
+        for p in programs:
+            try:
+                sug = coach_insights.generate_drift_insight_for_program(p, today=today_date)
+            except Exception as e:
+                logger.warning("A4: drift generator threw for %s/%s: %s",
+                               pitcher_id, p.get("program_id"), e)
+                continue
+            if not sug:
+                continue
+            if _db.suggestion_exists_for_today(
+                pitcher_id, "program_drift",
+                context_program_id=p.get("program_id"),
+            ):
+                continue
+            sug["team_id"] = team_id
+            try:
+                _db.insert_coach_suggestion(sug)
+                new_count += 1
+            except Exception as e:
+                logger.error("A4: insert drift insight failed for %s/%s: %s",
+                             pitcher_id, p.get("program_id"), e)
+
+        # 2) Flag mismatch — at most one per pitcher across all active programs
+        try:
+            flag_row = _db.get_active_flags(pitcher_id) or {}
+        except Exception as e:
+            logger.warning("A4: active flags lookup failed for %s: %s", pitcher_id, e)
+            flag_row = {}
+        flag_level = flag_row.get("current_flag_level")
+
+        profile_seed = {
+            "pitcher_id": pitcher_id,
+            "name": row.get("name") or row.get("pitcher_name") or pitcher_id,
+        }
+        try:
+            mis = _await_sync(
+                coach_insights.generate_mismatch_insight_for_pitcher(
+                    profile_seed, flag_level, programs
+                )
+            )
+        except Exception as e:
+            logger.warning("A4: mismatch generator threw for %s: %s", pitcher_id, e)
+            mis = None
+        if mis and not _db.suggestion_exists_for_today(pitcher_id, "program_flag_mismatch"):
+            mis["team_id"] = team_id
+            try:
+                _db.insert_coach_suggestion(mis)
+                new_count += 1
+            except Exception as e:
+                logger.error("A4: insert mismatch insight failed for %s: %s", pitcher_id, e)
+
+    # 3) Team completion rollups — one per team_assigned_block
+    try:
+        team_blocks = _db.list_team_assigned_blocks(team_id, status="active")
+    except Exception as e:
+        logger.warning("A4: team_assigned_blocks lookup failed for %s: %s", team_id, e)
+        team_blocks = []
+
+    for tab in team_blocks:
+        block_id_key = tab.get("block_template_id") or tab.get("block_id")
+        try:
+            members = _db.list_member_programs_for_team_block(tab)
+        except Exception as e:
+            logger.warning("A4: member program lookup failed for block %s: %s",
+                           block_id_key, e)
+            members = []
+        try:
+            comp = coach_insights.generate_team_completion_insight(tab, members, today=today_date)
+        except Exception as e:
+            logger.warning("A4: team completion generator threw for block %s: %s",
+                           block_id_key, e)
+            continue
+        if not comp:
+            continue
+        if _db.suggestion_exists_for_today(
+            None, "team_program_lagging",
+            context_block_id=block_id_key,
+        ):
+            continue
+        # team_id was already set by the generator from the row; make sure.
+        comp["team_id"] = comp.get("team_id") or team_id
+        try:
+            _db.insert_coach_suggestion(comp)
+            new_count += 1
+        except Exception as e:
+            logger.error("A4: insert team completion insight failed for block %s: %s",
+                         block_id_key, e)
+
+    return new_count
+
+
+def _await_sync(coroutine_or_value):
+    """Drive a coroutine to completion from sync code, returning its result.
+
+    The A4 generators are async-typed for future LLM polish but
+    synchronous-bodied today, so awaiting them never actually yields. This
+    helper does the minimal coroutine drive without requiring a running
+    event loop — `coroutine.send(None)` raises StopIteration whose .value is
+    the eventual return. If the input isn't a coroutine (defensive: a future
+    sync rewrite), it's returned as-is.
+    """
+    import inspect
+    if not inspect.iscoroutine(coroutine_or_value):
+        return coroutine_or_value
+    try:
+        coroutine_or_value.send(None)
+    except StopIteration as stop:
+        return stop.value
+    # If the coroutine actually awaits something (future LLM polish), it will
+    # surface here. Per L6 we don't support that in the sync digest path; the
+    # async wrapper _generate_coach_insights_for_team is the right entry point
+    # for those callers.
+    coroutine_or_value.close()
+    return None
 
 
 def format_digest_message(digest: dict, guardian_observations: list[dict] | None = None) -> str:

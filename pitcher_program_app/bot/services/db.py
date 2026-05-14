@@ -668,6 +668,121 @@ def upsert_suggestion(suggestion: dict) -> dict:
     return resp.data[0] if resp.data else {}
 
 
+def suggestion_exists_for_today(
+    pitcher_id: str | None,
+    category: str,
+    *,
+    context_program_id: str | None = None,
+    context_block_id: str | None = None,
+) -> bool:
+    """Plan 7 / A4 — idempotency check for the daily insight generators.
+
+    Returns True if a coach_suggestions row with the given category exists for
+    the pitcher (or team-scoped for team_program_lagging when pitcher_id is None
+    and context_block_id is provided) with `created_at >= today's Chicago-tz
+    midnight`. Used by health_monitor._generate_coach_insights_for_team to avoid
+    re-inserting the same insight across re-runs of the 9am digest.
+
+    Optional context_program_id / context_block_id further scope the match by
+    proposed_action JSONB so multiple programs/blocks for the same pitcher
+    don't dedup against each other.
+    """
+    from bot.config import CHICAGO_TZ
+    from datetime import datetime as _dt
+    now_chicago = _dt.now(CHICAGO_TZ)
+    start_of_day_chicago = now_chicago.replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
+    cutoff_iso = start_of_day_chicago.isoformat()
+
+    q = (
+        get_client().table("coach_suggestions")
+        .select("suggestion_id, proposed_action")
+        .eq("category", category)
+        .gte("created_at", cutoff_iso)
+    )
+    if pitcher_id is not None:
+        q = q.eq("pitcher_id", pitcher_id)
+    resp = q.execute()
+    rows = resp.data or []
+    if not rows:
+        return False
+
+    if context_program_id is None and context_block_id is None:
+        return True
+
+    for row in rows:
+        action = row.get("proposed_action") or {}
+        if context_program_id is not None and action.get("program_id") == context_program_id:
+            return True
+        if context_block_id is not None and action.get("block_id") == context_block_id:
+            return True
+        if context_block_id is not None and action.get("block_template_id") == context_block_id:
+            return True
+    return False
+
+
+def insert_coach_suggestion(row: dict) -> dict:
+    """Plan 7 / A4 — insert a new coach_suggestions row. Returns the inserted
+    row (Supabase echoes the row + generated suggestion_id).
+
+    Plain insert (not upsert) because the A4 generators are dedup-gated by
+    suggestion_exists_for_today before they reach this helper. Distinct from
+    upsert_suggestion, which the pre_start_nudge path uses with an explicit
+    suggestion_id for re-runs.
+    """
+    resp = get_client().table("coach_suggestions").insert(row).execute()
+    return resp.data[0] if resp.data else {}
+
+
+def list_team_assigned_blocks(team_id: str, status: str | None = None) -> list[dict]:
+    """Plan 7 / A4 — list team_assigned_blocks for a team, optionally
+    filtered by status. Mirrors get_active_team_blocks but exposes the status
+    knob so the insight generator can scan any subset (active / archived).
+    """
+    q = get_client().table("team_assigned_blocks").select("*").eq("team_id", team_id)
+    if status:
+        q = q.eq("status", status)
+    resp = q.execute()
+    return resp.data or []
+
+
+def list_member_programs_for_team_block(team_assigned_block: dict) -> list[dict]:
+    """Plan 7 / A4 — return active programs across the team whose
+    parent_template_id matches the team-assigned block's block_template_id.
+
+    Programs are not formally FK'd to team_assigned_blocks; the link is by
+    template ID convention. Selects the summary projection
+    (no generated_schedule_json) — the team completion generator falls back to
+    a typical-program-length default when the days array isn't present.
+    """
+    template_id = team_assigned_block.get("block_template_id")
+    team_id = team_assigned_block.get("team_id")
+    if not template_id or not team_id:
+        return []
+
+    client = get_client()
+    pitchers_resp = (
+        client.table("pitchers")
+        .select("pitcher_id")
+        .eq("team_id", team_id)
+        .execute()
+    )
+    pitcher_ids = [r["pitcher_id"] for r in (pitchers_resp.data or []) if r.get("pitcher_id")]
+    if not pitcher_ids:
+        return []
+
+    prog_resp = (
+        client.table("programs")
+        .select(_PROGRAM_SUMMARY_COLUMNS)
+        .eq("parent_template_id", template_id)
+        .eq("status", "active")
+        .in_("pitcher_id", pitcher_ids)
+        .execute()
+    )
+    return prog_resp.data or []
+
+
 # --- training_phase_blocks ---
 
 def get_phase_blocks(team_id: str) -> list:
