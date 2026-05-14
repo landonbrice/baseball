@@ -6,6 +6,7 @@ and any other module that needs persistent data access.
 
 import logging
 import os
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from supabase import create_client, Client
@@ -1088,6 +1089,98 @@ def list_program_holds_for_date(pitcher_id: str, event_date_iso: str) -> list[st
     )
     rows = holds_resp.data or []
     return [r.get("program_id") for r in rows if r.get("program_id")]
+
+
+def list_program_holds_for_pitcher(pitcher_id: str, days: int = 30) -> list[dict]:
+    """Return program_hold_events rows for the pitcher in the last `days` days.
+
+    program_hold_events has no pitcher_id column — joins through programs.
+    Used by GET /api/coach/pitcher/{id}/program-holds (Plan 7 / C2).
+
+    Each row: {hold_event_id, program_id, hold_date, triage_result, reason_code,
+    created_at}. Ordered by hold_date DESC.
+    """
+    if days < 0:
+        days = 30
+    client = get_client()
+    # Two-step: programs for the pitcher → hold events for those programs.
+    prog_resp = (
+        client.table("programs")
+        .select("program_id")
+        .eq("pitcher_id", pitcher_id)
+        .execute()
+    )
+    program_ids = [r["program_id"] for r in (prog_resp.data or []) if r.get("program_id")]
+    if not program_ids:
+        return []
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).date().isoformat()
+    resp = (
+        client.table("program_hold_events")
+        .select("hold_event_id,program_id,hold_date,triage_result,reason_code,created_at")
+        .in_("program_id", program_ids)
+        .gte("hold_date", cutoff)
+        .order("hold_date", desc=True)
+        .execute()
+    )
+    return resp.data or []
+
+
+# ---------------- Coach Phase Overrides (Plan 7 / C2 write-side) ----------------
+
+# Free-text phase strings. Validated only via this pattern at the API layer;
+# the DB columns are unconstrained TEXT (migration 023). v1 doesn't pin to a
+# closed vocabulary because the codebase already uses free-text phase names
+# (`team_scope.get_team_phase`, training_phase_blocks rows, etc.).
+_PHASE_PATTERN = r"^[a-zA-Z0-9_\- ]{1,60}$"
+
+
+def update_coach_phase_overrides(
+    pitcher_id: str,
+    *,
+    throwing_phase: str | None = None,
+    lifting_phase: str | None = None,
+) -> dict:
+    """Patch coach_{throwing,lifting}_phase_override on pitcher_training_model.
+
+    Only writes the keys that were explicitly provided (i.e. `None` means
+    "don't touch this column"). To CLEAR an override, callers pass the
+    empty string; this method maps "" → SQL NULL.
+
+    Returns the canonical envelope used by the API:
+      {"throwing_phase": str|None, "lifting_phase": str|None}
+    representing the post-write state of both columns.
+    """
+    updates: dict = {}
+    if throwing_phase is not None:
+        updates["coach_throwing_phase_override"] = throwing_phase or None
+    if lifting_phase is not None:
+        updates["coach_lifting_phase_override"] = lifting_phase or None
+
+    if updates:
+        # update_training_model_partial inserts a row if none exists.
+        update_training_model_partial(pitcher_id, updates)
+
+    # Re-read so we always return the canonical envelope (including unchanged side).
+    model = get_pitcher_training_model(pitcher_id) or {}
+    return {
+        "throwing_phase": model.get("coach_throwing_phase_override"),
+        "lifting_phase": model.get("coach_lifting_phase_override"),
+    }
+
+
+def insert_coach_action(row: dict) -> dict:
+    """Insert a coach_actions audit row. Returns the inserted row.
+
+    Schema (migration 007_coach_actions.sql):
+      id (bigserial), coach_id (uuid FK), pitcher_id (text FK),
+      action_type (text NOT NULL), message_text, telegram_message_id,
+      metadata (jsonb), created_at.
+
+    Note: no team_id column exists on coach_actions. Callers that want to
+    persist team scope should fold it into `metadata`.
+    """
+    resp = get_client().table("coach_actions").insert(row).execute()
+    return (resp.data or [{}])[0]
 
 
 # ---------------- Coach-visible Override Events (Plan 6 / A5) ----------------

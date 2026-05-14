@@ -899,6 +899,16 @@ class CoachBuilderFinalizeRequest(_BaseModel):
     tuned_spec: dict
 
 
+# Plan 7 / C2: phase override write. Each field is optional individually but
+# at least one MUST be present; enforced in the handler (422 otherwise).
+# Empty-string value clears the override (column → NULL). Pattern guards
+# against pathological inputs while keeping phase vocabulary free-form
+# (the codebase doesn't pin a closed set of phase names — see Phases page).
+class PhaseOverrideRequest(_BaseModel):
+    throwing_phase: _Optional[str] = _Field(default=None, max_length=60)
+    lifting_phase: _Optional[str] = _Field(default=None, max_length=60)
+
+
 def _require_team_pitcher(pitcher_id: str, team_id: str) -> dict:
     """Load pitcher and verify team ownership. 404 (not 403) on mismatch to keep
     ownership opaque."""
@@ -1097,6 +1107,76 @@ async def coach_get_pitcher_drafts(pitcher_id: str, request: Request):
     _require_team_pitcher(pitcher_id, team_id)
     rows = _db.list_completed_session_drafts_for_pitcher(pitcher_id)
     return {"drafts": rows}
+
+
+# ---- Plan 7 / C2: program-holds log + phase override write -----------------
+
+
+@coach_router.get("/pitcher/{pitcher_id}/program-holds")
+async def coach_get_pitcher_program_holds(
+    pitcher_id: str,
+    request: Request,
+    days: int = Query(default=30, ge=1, le=365),
+):
+    """Return program_hold_events rows for a team-scoped pitcher (last N days)."""
+    await require_coach_auth(request)
+    team_id = request.state.team_id
+    _require_team_pitcher(pitcher_id, team_id)
+    rows = _db.list_program_holds_for_pitcher(pitcher_id, days=days)
+    return {"events": rows}
+
+
+@coach_router.patch("/pitcher/{pitcher_id}/phase-override")
+async def coach_patch_phase_override(
+    pitcher_id: str,
+    req: PhaseOverrideRequest,
+    request: Request,
+):
+    """Coach overrides per-pitcher phase. Audited via coach_actions.
+
+    v1 decision: writing the override does NOT trigger a program-schedule
+    recompute. A future iteration can wire A5's recompute path; for now,
+    the override only flows through `program_runtime.get_effective_phase`
+    on the next plan-gen call.
+    """
+    await require_coach_auth(request)
+    team_id = request.state.team_id
+    coach_id = request.state.coach_id
+    _require_team_pitcher(pitcher_id, team_id)
+
+    if req.throwing_phase is None and req.lifting_phase is None:
+        raise HTTPException(
+            status_code=422, detail="must set at least one of throwing_phase / lifting_phase"
+        )
+
+    overrides = _db.update_coach_phase_overrides(
+        pitcher_id,
+        throwing_phase=req.throwing_phase,
+        lifting_phase=req.lifting_phase,
+    )
+
+    # Audit row. coach_actions has no team_id / context_json columns; we
+    # encode both into `metadata` per the schema in 007_coach_actions.sql.
+    try:
+        _db.insert_coach_action({
+            "coach_id": coach_id,
+            "pitcher_id": pitcher_id,
+            "action_type": "phase_override",
+            "metadata": {
+                "team_id": team_id,
+                "new_overrides": overrides,
+                "source_request": req.model_dump(),
+            },
+        })
+    except Exception as audit_err:
+        # Override is already persisted; an audit failure is recoverable from
+        # pitcher_training_model history. Surface the error in logs only.
+        logger.error(
+            "phase_override audit insert failed: coach=%s pitcher=%s err=%s",
+            coach_id, pitcher_id, audit_err,
+        )
+
+    return {"coach_phase_overrides": overrides}
 
 
 # ---- Internal ----

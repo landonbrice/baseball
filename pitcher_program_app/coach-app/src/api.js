@@ -67,6 +67,16 @@ export async function fetchPitcherActivePrograms(pitcherId, accessToken) {
   return fetchCoachApi(`/api/coach/pitcher/${pitcherId}/programs?status=active`, accessToken)
 }
 
+// -- Plan 7 / C2: program hold-event log + phase override --
+
+export async function fetchProgramHolds(pitcherId, accessToken, { days = 30 } = {}) {
+  return fetchCoachApi(`/api/coach/pitcher/${pitcherId}/program-holds?days=${days}`, accessToken)
+}
+
+export async function patchPhaseOverride(pitcherId, body, accessToken) {
+  return patchCoachApi(`/api/coach/pitcher/${pitcherId}/phase-override`, body, accessToken)
+}
+
 // -- Nudge --
 
 export async function nudgePitcher(pitcherId, accessToken) {
