@@ -249,7 +249,7 @@ def compute_daily_digest(date: str = None) -> dict:
     # extends naturally. Try/except scoped tight so insight failures never
     # surface to the digest message.
     try:
-        new_count = _generate_coach_insights_for_team_sync("uchicago_baseball")
+        new_count = _generate_coach_insights_for_team("uchicago_baseball")
         if new_count:
             logger.info("Plan 7 / A4: generated %d coach insights for uchicago_baseball", new_count)
     except Exception as e:
@@ -258,7 +258,7 @@ def compute_daily_digest(date: str = None) -> dict:
     return digest
 
 
-async def _generate_coach_insights_for_team(team_id: str) -> int:
+def _generate_coach_insights_for_team(team_id: str) -> int:
     """Plan 7 / A4: generate drift / mismatch / completion insights for every
     active program / pitcher / team_assigned_block in the team.
 
@@ -266,18 +266,8 @@ async def _generate_coach_insights_for_team(team_id: str) -> int:
     a Chicago day via category + pitcher_id (or block_id) + created_at
     dedup at insert time.
 
-    Async signature kept for future LLM polish (L6 — Plan 8). v1 body is
-    synchronous because all generators are rule-based.
-    """
-    return _generate_coach_insights_for_team_sync(team_id)
-
-
-def _generate_coach_insights_for_team_sync(team_id: str) -> int:
-    """Synchronous body of the A4 generator pipeline.
-
-    Split out so ``compute_daily_digest`` (sync) can drive insight generation
-    without spawning an event loop, while the async wrapper remains available
-    for future LLM-polish callers.
+    Synchronous — all v1 generators are rule-based. Plan 8 (LLM polish) will
+    introduce its own async entry point at that time, not before.
     """
     from datetime import date as _date
     from bot.services import coach_insights, team_scope
@@ -342,10 +332,8 @@ def _generate_coach_insights_for_team_sync(team_id: str) -> int:
             "name": row.get("name") or row.get("pitcher_name") or pitcher_id,
         }
         try:
-            mis = _await_sync(
-                coach_insights.generate_mismatch_insight_for_pitcher(
-                    profile_seed, flag_level, programs
-                )
+            mis = coach_insights.generate_mismatch_insight_for_pitcher(
+                profile_seed, flag_level, programs
             )
         except Exception as e:
             logger.warning("A4: mismatch generator threw for %s: %s", pitcher_id, e)
@@ -381,8 +369,11 @@ def _generate_coach_insights_for_team_sync(team_id: str) -> int:
             continue
         if not comp:
             continue
+        # comp["pitcher_id"] is now a real representative pitcher (first lagger)
+        # per C1 fix — coach_suggestions.pitcher_id is NOT NULL + FK on
+        # pitchers(pitcher_id). Dedup keys off pitcher_id + block_id together.
         if _db.suggestion_exists_for_today(
-            None, "team_program_lagging",
+            comp.get("pitcher_id"), "team_program_lagging",
             context_block_id=block_id_key,
         ):
             continue
@@ -396,31 +387,6 @@ def _generate_coach_insights_for_team_sync(team_id: str) -> int:
                          block_id_key, e)
 
     return new_count
-
-
-def _await_sync(coroutine_or_value):
-    """Drive a coroutine to completion from sync code, returning its result.
-
-    The A4 generators are async-typed for future LLM polish but
-    synchronous-bodied today, so awaiting them never actually yields. This
-    helper does the minimal coroutine drive without requiring a running
-    event loop — `coroutine.send(None)` raises StopIteration whose .value is
-    the eventual return. If the input isn't a coroutine (defensive: a future
-    sync rewrite), it's returned as-is.
-    """
-    import inspect
-    if not inspect.iscoroutine(coroutine_or_value):
-        return coroutine_or_value
-    try:
-        coroutine_or_value.send(None)
-    except StopIteration as stop:
-        return stop.value
-    # If the coroutine actually awaits something (future LLM polish), it will
-    # surface here. Per L6 we don't support that in the sync digest path; the
-    # async wrapper _generate_coach_insights_for_team is the right entry point
-    # for those callers.
-    coroutine_or_value.close()
-    return None
 
 
 def format_digest_message(digest: dict, guardian_observations: list[dict] | None = None) -> str:

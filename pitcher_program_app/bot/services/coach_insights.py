@@ -173,8 +173,8 @@ def generate_drift_insight_for_program(
 ) -> Optional[dict]:
     """Return a coach_suggestions row dict if the program has drifted >5 days.
 
-    Drift = expected_day_index - current_day_index. Held days count toward drift
-    only after the 5-day grace window so brief illnesses don't trigger alerts.
+    Drift = expected_day_index - current_day_index. A flat 5-day grace covers
+    brief illnesses; sustained drift beyond that surfaces an insight.
 
     Returns None when within grace window, when start_date is missing, or when
     the program is somehow ahead of schedule.
@@ -210,7 +210,7 @@ def generate_drift_insight_for_program(
     }
 
 
-async def generate_mismatch_insight_for_pitcher(
+def generate_mismatch_insight_for_pitcher(
     profile: dict,
     flag_level: Optional[str],
     active_programs: list,
@@ -218,8 +218,10 @@ async def generate_mismatch_insight_for_pitcher(
     """Return a coach_suggestions row if the pitcher's flag level is yellow/red
     AND they are running a high-intent program (velocity / off-season base).
 
-    Note: async signature kept for future LLM polish (L6), but v1 body is
-    synchronous + rule-based.
+    Pure / synchronous / rule-based. When Plan 8 introduces LLM polish, that
+    PR can introduce its own async entry point — pre-building one here was
+    YAGNI and silently dropped insights (`coroutine.send(None)` only worked
+    while the body never awaited).
 
     `flag_level` is read separately from the profile because `db.get_pitcher`
     returns the raw pitcher row without the compat-layer `active_flags` nest.
@@ -268,6 +270,13 @@ def generate_team_completion_insight(
     member pitchers' programs. Flag if mean <50% AND at least one pitcher is
     individually <50%.
 
+    The returned row is keyed to the first lagger as a *representative
+    pitcher_id* — `coach_suggestions.pitcher_id` is NOT NULL + FK on
+    `pitchers(pitcher_id)`, so we cannot persist a true team-scoped row
+    without a schema migration. The full lagger list lives in
+    ``proposed_action.lagger_pitcher_ids``; ``proposed_action.scope = "team"``
+    marks the row as team-scoped so renderers know to show the team frame.
+
     Returns None when there are no member programs.
     """
     if not member_programs:
@@ -295,6 +304,10 @@ def generate_team_completion_insight(
     if mean_pct >= 0.5 or not laggers:
         return None
 
+    # Representative pitcher — stable (first in member_programs ordering, which
+    # the caller fixes via list_member_programs_for_team_block).
+    representative_pitcher_id = laggers[0]
+
     block_label = (
         team_assigned_block_row.get("block_template_id")
         or team_assigned_block_row.get("block_id")
@@ -304,7 +317,9 @@ def generate_team_completion_insight(
 
     return {
         "team_id": team_assigned_block_row.get("team_id"),
-        "pitcher_id": None,  # team-scoped — caller decides how to persist
+        # NOT NULL + FK on pitchers — must be a real pitcher_id. The insight is
+        # logically team-scoped; see scope="team" in proposed_action below.
+        "pitcher_id": representative_pitcher_id,
         "category": "team_program_lagging",
         "title": f"{len(laggers)} pitchers <50% on {block_label}",
         "reasoning": (
@@ -318,6 +333,9 @@ def generate_team_completion_insight(
             "block_template_id": team_assigned_block_row.get("block_template_id"),
             "mean_completion_pct": round(mean_pct, 2),
             "lagger_pitcher_ids": laggers,
+            # Flags this as a team-scoped insight despite the pitcher_id key.
+            # Renderers (Insights UI / C6) read this to display team frame.
+            "scope": "team",
         },
         "status": "pending",
     }

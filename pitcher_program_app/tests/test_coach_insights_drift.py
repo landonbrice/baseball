@@ -2,7 +2,7 @@
 
 Covers the rule-based generator + the suggestion_exists_for_today dedup gate
 + a small integration-style smoke test that drives
-_generate_coach_insights_for_team_sync end-to-end with mocked DB layer.
+_generate_coach_insights_for_team end-to-end with mocked DB layer.
 """
 from datetime import date
 from unittest.mock import MagicMock, patch
@@ -123,7 +123,7 @@ def test_drift_insight_dedup_skips_insert_when_today_row_exists():
                           "proposed_action": {"program_id": "p1"},
                           "status": "pending",
                       }):
-        new_count = health_monitor._generate_coach_insights_for_team_sync(
+        new_count = health_monitor._generate_coach_insights_for_team(
             "uchicago_baseball"
         )
 
@@ -185,7 +185,7 @@ def test_generate_coach_insights_for_team_drives_all_three_generators():
          patch("bot.services.coach_insights.date") as mock_date:
         mock_date.today.return_value = date(2026, 5, 1)
         mock_date.fromisoformat.side_effect = date.fromisoformat
-        new_count = health_monitor._generate_coach_insights_for_team_sync(
+        new_count = health_monitor._generate_coach_insights_for_team(
             "uchicago_baseball"
         )
 

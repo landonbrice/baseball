@@ -1,16 +1,9 @@
 """Plan 7 / A4 — flag mismatch insight tests."""
-import asyncio
 from unittest.mock import patch
-
-import pytest
 
 from bot.services import coach_insights
 from bot.services import db as _db
 from bot.services import health_monitor
-
-
-def _run(coro):
-    return asyncio.get_event_loop().run_until_complete(coro) if False else asyncio.run(coro)
 
 
 # ---------------------------------------------------------------------------
@@ -25,9 +18,9 @@ def test_mismatch_fires_when_yellow_flag_and_velocity_program():
         "pitcher_id": "pitcher_heron_001",
         "domain": "throwing",
     }]
-    out = _run(coach_insights.generate_mismatch_insight_for_pitcher(
+    out = coach_insights.generate_mismatch_insight_for_pitcher(
         profile, "yellow", programs
-    ))
+    )
     assert out is not None
     assert out["category"] == "program_flag_mismatch"
     assert out["pitcher_id"] == "pitcher_heron_001"
@@ -49,9 +42,9 @@ def test_mismatch_fires_for_red_and_critical_red():
         "pitcher_id": "p2",
     }]
     for flag in ("red", "critical_red"):
-        out = _run(coach_insights.generate_mismatch_insight_for_pitcher(
+        out = coach_insights.generate_mismatch_insight_for_pitcher(
             profile, flag, programs
-        ))
+        )
         assert out is not None, f"expected insight for flag={flag}"
         assert out["proposed_action"]["flag_level"] == flag
 
@@ -67,9 +60,9 @@ def test_mismatch_does_not_fire_when_green_flag():
         "parent_template_id": "velocity_12wk_v1",
         "pitcher_id": "p1",
     }]
-    out = _run(coach_insights.generate_mismatch_insight_for_pitcher(
+    out = coach_insights.generate_mismatch_insight_for_pitcher(
         profile, "green", programs
-    ))
+    )
     assert out is None
 
 
@@ -80,9 +73,9 @@ def test_mismatch_does_not_fire_when_flag_level_missing():
         "parent_template_id": "velocity_12wk_v1",
         "pitcher_id": "p1",
     }]
-    out = _run(coach_insights.generate_mismatch_insight_for_pitcher(
+    out = coach_insights.generate_mismatch_insight_for_pitcher(
         profile, None, programs
-    ))
+    )
     assert out is None
 
 
@@ -94,18 +87,18 @@ def test_mismatch_does_not_fire_on_low_intent_template():
         "parent_template_id": "tpl_starter_7day_cadence_v1",
         "pitcher_id": "p1",
     }]
-    out = _run(coach_insights.generate_mismatch_insight_for_pitcher(
+    out = coach_insights.generate_mismatch_insight_for_pitcher(
         profile, "yellow", programs
-    ))
+    )
     assert out is None
 
 
 def test_mismatch_does_not_fire_with_no_active_programs():
     """Edge case: pitcher is yellow but has no active programs at all."""
     profile = {"pitcher_id": "p1", "name": "P1"}
-    out = _run(coach_insights.generate_mismatch_insight_for_pitcher(
+    out = coach_insights.generate_mismatch_insight_for_pitcher(
         profile, "yellow", []
-    ))
+    )
     assert out is None
 
 
@@ -143,7 +136,7 @@ def test_mismatch_dedup_skips_insert_when_today_row_exists():
          patch.object(_db, "suggestion_exists_for_today", side_effect=dedup), \
          patch.object(_db, "insert_coach_suggestion",
                       side_effect=lambda row: inserted.append(row) or row):
-        new_count = health_monitor._generate_coach_insights_for_team_sync(
+        new_count = health_monitor._generate_coach_insights_for_team(
             "uchicago_baseball"
         )
 
@@ -177,7 +170,7 @@ def test_mismatch_inserts_when_dedup_clean_and_flag_yellow():
          patch.object(_db, "suggestion_exists_for_today", return_value=False), \
          patch.object(_db, "insert_coach_suggestion",
                       side_effect=lambda row: inserted.append(row) or row):
-        new_count = health_monitor._generate_coach_insights_for_team_sync(
+        new_count = health_monitor._generate_coach_insights_for_team(
             "uchicago_baseball"
         )
 

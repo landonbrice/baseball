@@ -39,11 +39,44 @@ def test_team_completion_fires_when_mean_below_50_pct():
     assert out is not None
     assert out["category"] == "team_program_lagging"
     assert out["team_id"] == "uchicago_baseball"
-    assert out["pitcher_id"] is None  # team-scoped
+    # Representative pitcher — first lagger by member-program order. Required
+    # because coach_suggestions.pitcher_id is NOT NULL + FK on pitchers.
+    assert out["pitcher_id"] == "p1"
+    assert out["proposed_action"]["scope"] == "team"
     assert out["proposed_action"]["mean_completion_pct"] < 0.5
     laggers = out["proposed_action"]["lagger_pitcher_ids"]
     assert set(laggers) == {"p1", "p2"}
     assert "2 pitchers <50%" in out["title"]
+
+
+def test_team_completion_pitcher_id_is_real_member_pitcher_never_none():
+    """C1 contract: pitcher_id on a team_program_lagging insight must be a real
+    pitcher_id drawn from member_programs, never None — coach_suggestions has
+    NOT NULL + FK constraints that would reject the row otherwise.
+    """
+    block = {
+        "block_id": "tab1",
+        "block_template_id": "velocity_12wk_v1",
+        "team_id": "uchicago_baseball",
+    }
+    member_ids = ["pitcher_alpha", "pitcher_beta", "pitcher_gamma"]
+    members = [
+        {
+            "pitcher_id": pid,
+            "current_day_index": 5,
+            "start_date": "2026-02-01",
+            "generated_schedule_json": {"days": [{} for _ in range(84)]},
+        }
+        for pid in member_ids
+    ]
+    out = coach_insights.generate_team_completion_insight(
+        block, members, today=date(2026, 5, 1),
+    )
+    assert out is not None
+    assert out["pitcher_id"] is not None
+    assert out["pitcher_id"] in member_ids
+    # Stable: first lagger in input order.
+    assert out["pitcher_id"] == "pitcher_alpha"
 
 
 def test_team_completion_does_not_fire_when_mean_at_or_above_50_pct():
@@ -183,7 +216,7 @@ def test_team_completion_dedup_skips_insert_when_today_row_exists():
          patch.object(_db, "suggestion_exists_for_today", side_effect=dedup), \
          patch.object(_db, "insert_coach_suggestion",
                       side_effect=lambda row: inserted.append(row) or row):
-        new_count = health_monitor._generate_coach_insights_for_team_sync(
+        new_count = health_monitor._generate_coach_insights_for_team(
             "uchicago_baseball"
         )
 
