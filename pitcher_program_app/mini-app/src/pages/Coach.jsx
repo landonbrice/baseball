@@ -4,7 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import { useAuth } from '../App';
 import { useAppContext } from '../hooks/useChatState';
 import { usePitcher } from '../hooks/usePitcher';
-import { sendChat, sendChatWithPlan, setNextOuting, savePlan, fetchChatHistory, applyMutations } from '../api';
+import { sendChat, sendChatWithPlan, setNextOuting, fetchChatHistory, applyMutations } from '../api';
 import { useToast } from '../hooks/useToast';
 import MutationPreview from '../components/MutationPreview';
 import { parseBrief } from '@shared/parseBrief.js';
@@ -223,18 +223,6 @@ export default function Coach() {
       }
     }
     return newMsgs;
-  };
-
-  // Save plan from a save_plan message
-  const handleSavePlan = async (plan, msgIndex) => {
-    try {
-      await savePlan(pitcherId, plan, initData);
-      setMessages(prev => prev.map((m, i) =>
-        i === msgIndex ? { ...m, saved: true } : m
-      ));
-    } catch {
-      // Show error inline
-    }
   };
 
   // ── Send free-text message ──
@@ -856,23 +844,6 @@ export default function Coach() {
                   <div className="chat-markdown"><ReactMarkdown>{typeof m.content === 'string' ? m.content : ''}</ReactMarkdown></div>
                 ) : (
                   <p style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{typeof m.content === 'string' ? m.content : String(m.content ?? '')}</p>
-                )}
-                {/* Save plan button */}
-                {m.type === 'save_plan' && m.plan && (
-                  <div style={{ marginTop: 8 }}>
-                    {m.saved ? (
-                      <span style={{ fontSize: 10, color: 'var(--color-flag-green)' }}>Saved \u2014 find it under Plans.</span>
-                    ) : (
-                      <button onClick={() => handleSavePlan(m.plan, i)}
-                        style={{
-                          padding: '4px 10px', fontSize: 10, fontWeight: 600,
-                          background: 'rgba(92,16,32,0.1)', color: 'var(--color-maroon)',
-                          border: '0.5px solid var(--color-maroon)', borderRadius: 6, cursor: 'pointer',
-                        }}>
-                        Save this plan
-                      </button>
-                    )}
-                  </div>
                 )}
                 {/* Plan mutation preview */}
                 {m.type === 'plan_mutation' && m.mutations && (
