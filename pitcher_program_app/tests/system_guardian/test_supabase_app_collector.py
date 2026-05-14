@@ -473,7 +473,14 @@ async def test_whoop_all_pulled_emits_no_warnings():
 
 @pytest.mark.asyncio
 async def test_one_table_query_raises_others_still_produce():
-    """Schema drift on research_load_log shouldn't kill the rest of the run."""
+    """Schema drift on research_load_log shouldn't kill the rest of the run.
+
+    Also covers the 2026-05-13 severity bump: a ``column ... does not exist``
+    PostgREST error promotes the signal-failure note from ``info`` to
+    ``warning``, so the next time a real tick hits the drift the resulting
+    failure actually DMs the admin under A6 rules instead of dying silently
+    at info-level.
+    """
     fake = _FakeClient(
         {
             "daily_entries": [
@@ -505,9 +512,12 @@ async def test_one_table_query_raises_others_still_produce():
         if o["event_type"] == "research_load_anomaly_query_failed"
     ]
     assert len(sig_failures) == 1
-    assert sig_failures[0]["severity_hint"] == "info"
+    # 2026-05-13: schema-drift errors are bumped from info to warning so the
+    # A6 dedup contract treats them as DM-worthy.
+    assert sig_failures[0]["severity_hint"] == "warning"
     assert sig_failures[0]["metadata"]["category"] == "guardian_self"
     assert sig_failures[0]["metadata"]["code"] == "signal_failure"
+    assert sig_failures[0]["metadata"]["schema_drift"] is True
 
     # Other signals still produced.
     types = {o["event_type"] for o in out}
@@ -519,6 +529,87 @@ async def test_one_table_query_raises_others_still_produce():
     # No top-level collector_failure.
     cf = [o for o in out if o["event_type"] == "collector_failure"]
     assert cf == []
+
+
+@pytest.mark.asyncio
+async def test_non_schema_drift_signal_failure_stays_info():
+    """A generic runtime error (not a column-drift PostgREST error) should
+    still surface at the original ``info`` severity. Only the
+    ``column ... does not exist`` substring triggers the warning bump."""
+    fake = _FakeClient(
+        {
+            "daily_entries": [],
+            # Generic transient — NOT a schema-drift signal.
+            "research_load_log": RuntimeError("connection reset by peer"),
+            "ui_fallback_log": [],
+            "whoop_tokens": [],
+            "whoop_daily": [],
+        }
+    )
+
+    with _patch_get_client(fake):
+        out = await collect_supabase_app()
+
+    sig_failures = [
+        o
+        for o in out
+        if o["event_type"] == "research_load_anomaly_query_failed"
+    ]
+    assert len(sig_failures) == 1
+    assert sig_failures[0]["severity_hint"] == "info"
+    assert sig_failures[0]["metadata"]["schema_drift"] is False
+
+
+@pytest.mark.asyncio
+async def test_research_load_log_query_uses_ts_column():
+    """Regression guard for the 2026-05-13 ack-flood: the original PR-4
+    queried ``research_load_log.created_at`` which doesn't exist in
+    information_schema. The query must use ``ts`` (the actual column).
+    Filter assertion below would have caught Bug C pre-deploy."""
+    captured_queries: list[tuple] = []
+
+    class _RecordingClient(_FakeClient):
+        def table(self, name: str):
+            q = super().table(name)
+            # Wrap execute so we capture the filter list before it runs.
+            orig_execute = q.execute
+
+            def _exec():
+                captured_queries.append((name, list(q.filters)))
+                return orig_execute()
+
+            q.execute = _exec
+            return q
+
+    fake = _RecordingClient(
+        {
+            "daily_entries": [],
+            "research_load_log": [],
+            "ui_fallback_log": [],
+            "whoop_tokens": [],
+            "whoop_daily": [],
+        }
+    )
+
+    with _patch_get_client(fake):
+        await collect_supabase_app()
+
+    # Find the research_load_log query.
+    rl_filters = [
+        filters
+        for (name, filters) in captured_queries
+        if name == "research_load_log"
+    ]
+    assert rl_filters, "expected at least one research_load_log query"
+    # Every filter on research_load_log must be on the ``ts`` column,
+    # never ``created_at``.
+    for filters in rl_filters:
+        for op, col, _val in filters:
+            assert col == "ts", (
+                f"research_load_log query used column {col!r}; expected 'ts'. "
+                "If this fires, schema drift snuck back in — update the "
+                "collector AND verify_collector_schema's column map."
+            )
 
 
 # ---------------------------------------------------------------------------
