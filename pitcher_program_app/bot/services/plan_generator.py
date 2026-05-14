@@ -102,7 +102,14 @@ def _build_python_notes(triage_result, flag_level, checkin_inputs):
     return notes
 
 
-async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: dict = None, *, triage_rationale_detail: dict | None = None) -> dict:
+async def generate_plan(
+    pitcher_id: str,
+    triage_result: dict,
+    checkin_inputs: dict = None,
+    *,
+    triage_rationale_detail: dict | None = None,
+    rotation_day_override: int | None = None,
+) -> dict:
     """Generate today's training protocol for a pitcher.
 
     Two-pass architecture:
@@ -114,6 +121,12 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
     Falls back to Python-constructed plan if the LLM response can't be parsed.
     exercise blocks if the LLM response can't be parsed.
 
+    ``rotation_day_override`` lets the program-aware path (Plan 6 / A1) anchor
+    template selection on the active program's ``current_day_index`` instead of
+    the legacy ``days_since_outing`` derivation. When provided, it replaces the
+    profile-derived rotation day at the seed; explicit lift preferences and
+    upcoming-start overrides still apply on top.
+
     Returns dict with keys:
         narrative, morning_brief, arm_care, lifting, throwing, notes,
         soreness_response, exercise_blocks, throwing_plan,
@@ -122,7 +135,11 @@ async def generate_plan(pitcher_id: str, triage_result: dict, checkin_inputs: di
     profile = load_profile(pitcher_id)
     context = load_context(pitcher_id)
     recent_logs = get_recent_entries(pitcher_id, n=7)
-    rotation_day = get_rotation_day(profile)
+    rotation_day = (
+        rotation_day_override
+        if rotation_day_override is not None
+        else get_rotation_day(profile)
+    )
     rotation_length = profile.get("rotation_length", 7)
     phase = (profile.get("active_flags") or {}).get("phase", "")
     lift_pref = (checkin_inputs or {}).get("lift_preference", "")
