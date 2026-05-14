@@ -156,32 +156,91 @@ def test_get_pitcher_scheduled_throws_returns_empty_when_state_missing():
         assert db.get_pitcher_scheduled_throws("landon_brice") == []
 
 
-def test_list_program_holds_for_date_returns_program_ids():
-    rows = [{"program_id": "p1"}, {"program_id": "p2"}]
+def _mock_holds_client(programs_rows, holds_rows):
+    """Build a chainable mock for the two-step list_program_holds_for_date query.
+
+    Step 1: client.table('programs').select('program_id').eq('pitcher_id', ...).execute()
+    Step 2: client.table('program_hold_events').select('program_id').in_('program_id', [...]).eq('hold_date', ...).execute()
+
+    `table` is called twice with different names; we use side_effect so each
+    call returns its own chain.
+    """
+    programs_chain = MagicMock()
+    programs_chain.select.return_value.eq.return_value.execute.return_value = (
+        MagicMock(data=programs_rows)
+    )
+    holds_chain = MagicMock()
+    holds_chain.select.return_value.in_.return_value.eq.return_value.execute.return_value = (
+        MagicMock(data=holds_rows)
+    )
     client = MagicMock()
-    client.table.return_value.select.return_value.eq.return_value.eq.return_value \
-          .execute.return_value = MagicMock(data=rows)
+    client.table.side_effect = lambda name: (
+        programs_chain if name == "programs" else holds_chain
+    )
+    return client, programs_chain, holds_chain
+
+
+def test_list_program_holds_for_date_returns_program_ids():
+    programs = [{"program_id": "p1"}, {"program_id": "p2"}]
+    holds = [{"program_id": "p1"}, {"program_id": "p2"}]
+    client, _, _ = _mock_holds_client(programs, holds)
     with patch.object(db, "get_client", return_value=client):
         out = db.list_program_holds_for_date("landon_brice", "2026-05-13")
     assert out == ["p1", "p2"]
 
 
 def test_list_program_holds_for_date_drops_null_program_ids():
-    rows = [{"program_id": "p1"}, {"program_id": None}, {}]
-    client = MagicMock()
-    client.table.return_value.select.return_value.eq.return_value.eq.return_value \
-          .execute.return_value = MagicMock(data=rows)
+    programs = [{"program_id": "p1"}, {"program_id": "p2"}]
+    holds = [{"program_id": "p1"}, {"program_id": None}, {}]
+    client, _, _ = _mock_holds_client(programs, holds)
     with patch.object(db, "get_client", return_value=client):
         out = db.list_program_holds_for_date("landon_brice", "2026-05-13")
     assert out == ["p1"]
 
 
 def test_list_program_holds_for_date_empty_when_no_rows():
-    client = MagicMock()
-    client.table.return_value.select.return_value.eq.return_value.eq.return_value \
-          .execute.return_value = MagicMock(data=[])
+    programs = [{"program_id": "p1"}]
+    holds = []
+    client, _, _ = _mock_holds_client(programs, holds)
     with patch.object(db, "get_client", return_value=client):
         assert db.list_program_holds_for_date("landon_brice", "2026-05-13") == []
+
+
+def test_list_program_holds_for_date_short_circuits_when_no_programs():
+    """When the pitcher has zero programs we must NOT issue an .in_([]) query
+    against PostgREST (implementation-defined). The function early-returns []
+    and never touches `program_hold_events`.
+    """
+    client, _, holds_chain = _mock_holds_client(programs_rows=[], holds_rows=[])
+    with patch.object(db, "get_client", return_value=client):
+        assert db.list_program_holds_for_date("landon_brice", "2026-05-13") == []
+    # programs table was hit; program_hold_events was NOT.
+    holds_chain.select.assert_not_called()
+
+
+def test_list_program_holds_for_date_queries_real_columns():
+    """Regression: the function used to query `pitcher_id` and `event_date` on
+    `program_hold_events`, but the real schema is `program_id` + `hold_date`.
+    This test pins the column names so the bug cannot reappear.
+    """
+    programs = [{"program_id": "p1"}]
+    holds = [{"program_id": "p1"}]
+    client, programs_chain, holds_chain = _mock_holds_client(programs, holds)
+    with patch.object(db, "get_client", return_value=client):
+        db.list_program_holds_for_date("landon_brice", "2026-05-13")
+    # Step 1: programs filtered by pitcher_id (the column that DOES exist there).
+    programs_chain.select.assert_called_once_with("program_id")
+    programs_chain.select.return_value.eq.assert_called_once_with(
+        "pitcher_id", "landon_brice"
+    )
+    # Step 2: program_hold_events filtered by program_id IN (...) AND hold_date,
+    # NOT pitcher_id / event_date.
+    holds_chain.select.assert_called_once_with("program_id")
+    holds_chain.select.return_value.in_.assert_called_once_with(
+        "program_id", ["p1"]
+    )
+    in_chain = holds_chain.select.return_value.in_.return_value
+    in_chain.eq.assert_called_once_with("hold_date", "2026-05-13")
 
 
 def test_create_builder_session_returns_session_id():
