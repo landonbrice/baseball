@@ -864,16 +864,32 @@ def list_program_holds_for_date(pitcher_id: str, event_date_iso: str) -> list[st
 
     Used by GET /api/programs/holds-today to surface the "Program paused today"
     inline note on Home (B2). Empty list if no holds exist.
+
+    `program_hold_events` has no `pitcher_id` column — it keys off `program_id`.
+    Two-step query: pull the pitcher's program_ids first, then filter
+    `program_hold_events` by `program_id IN (...)` AND `hold_date = event_date`.
+    Early-returns `[]` when the pitcher has no programs so we don't issue a
+    `.in_([])` against PostgREST (implementation-defined behavior).
     """
-    resp = (
-        get_client()
-        .table("program_hold_events")
+    client = get_client()
+    prog_resp = (
+        client.table("programs")
         .select("program_id")
         .eq("pitcher_id", pitcher_id)
-        .eq("event_date", event_date_iso)
         .execute()
     )
-    rows = resp.data or []
+    program_ids = [r["program_id"] for r in (prog_resp.data or [])
+                   if r.get("program_id")]
+    if not program_ids:
+        return []
+    holds_resp = (
+        client.table("program_hold_events")
+        .select("program_id")
+        .in_("program_id", program_ids)
+        .eq("hold_date", event_date_iso)
+        .execute()
+    )
+    rows = holds_resp.data or []
     return [r.get("program_id") for r in rows if r.get("program_id")]
 
 
