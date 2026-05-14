@@ -1125,6 +1125,73 @@ def list_program_holds_for_pitcher(pitcher_id: str, days: int = 30) -> list[dict
     return resp.data or []
 
 
+# ---------------- Recent player-built programs (Plan 7 / C3) ----------------
+
+# Summary columns + the pitcher's display name for the team-wide
+# `/api/coach/programs/recent-player-built` strip. The pitchers join is done
+# in a second hop because PostgREST embeds add a `pitchers` object key that
+# inflates the payload; a name-only lookup keeps the row shape flat.
+_RECENT_PLAYER_BUILT_COLUMNS = (
+    "program_id,pitcher_id,parent_template_id,domain,status,"
+    "current_day_index,held_days_count,created_by,created_by_role,"
+    "created_at,activated_at,archived_at"
+)
+
+
+def list_recent_player_built_programs(
+    team_id: str,
+    limit: int = 20,
+) -> list[dict]:
+    """Return the most recent N programs across a team, newest-first.
+
+    Used by the coach Team Programs page (Plan 7 / C3) to render the
+    "Recent player-built programs" roster strip. Each row carries the
+    pitcher's display name (`pitcher_name`) joined from `pitchers` so the
+    UI can render `{pitcher_name} · {domain} · {template_id} · {status}`
+    without a second round-trip.
+
+    Implementation: two-step join. (1) Pull team pitcher_ids from
+    `pitchers`. (2) Select recent programs WHERE pitcher_id IN (those ids)
+    ordered by created_at DESC limit N. (3) Backfill pitcher_name from the
+    map built in step 1. Returns `[]` when the team has no pitchers.
+
+    v1 does NOT filter on a `coach_built` flag — every program for the
+    team surfaces here. The strip is a roster overview, not a feed.
+    """
+    if limit <= 0:
+        return []
+    client = get_client()
+    pitchers_resp = (
+        client.table("pitchers")
+        .select("pitcher_id,name")
+        .eq("team_id", team_id)
+        .execute()
+    )
+    pitcher_rows = pitchers_resp.data or []
+    if not pitcher_rows:
+        return []
+    name_by_id = {
+        r.get("pitcher_id"): r.get("name") or r.get("pitcher_id")
+        for r in pitcher_rows
+        if r.get("pitcher_id")
+    }
+    pitcher_ids = list(name_by_id.keys())
+
+    prog_resp = (
+        client.table("programs")
+        .select(_RECENT_PLAYER_BUILT_COLUMNS)
+        .in_("pitcher_id", pitcher_ids)
+        .order("created_at", desc=True)
+        .limit(limit)
+        .execute()
+    )
+    rows = prog_resp.data or []
+    for row in rows:
+        pid = row.get("pitcher_id")
+        row["pitcher_name"] = name_by_id.get(pid) or pid
+    return rows
+
+
 # ---------------- Coach Phase Overrides (Plan 7 / C2 write-side) ----------------
 
 # Free-text phase strings. Validated only via this pattern at the API layer;

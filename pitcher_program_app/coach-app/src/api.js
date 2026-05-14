@@ -77,6 +77,24 @@ export async function patchPhaseOverride(pitcherId, body, accessToken) {
   return patchCoachApi(`/api/coach/pitcher/${pitcherId}/phase-override`, body, accessToken)
 }
 
+// -- Plan 7 / C3: program templates + recent player-built strip --
+
+export async function fetchTemplates(accessToken, { domain, phase } = {}) {
+  const params = new URLSearchParams()
+  if (domain) params.set('domain', domain)
+  if (phase) params.set('phase', phase)
+  const qs = params.toString()
+  const path = qs ? `/api/programs/templates?${qs}` : '/api/programs/templates'
+  return fetchCoachApi(path, accessToken)
+}
+
+export async function fetchRecentPlayerBuiltPrograms(accessToken, { limit = 20 } = {}) {
+  return fetchCoachApi(
+    `/api/coach/programs/recent-player-built?limit=${limit}`,
+    accessToken,
+  )
+}
+
 // -- Nudge --
 
 export async function nudgePitcher(pitcherId, accessToken) {

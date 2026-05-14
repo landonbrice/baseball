@@ -1109,6 +1109,31 @@ async def coach_get_pitcher_drafts(pitcher_id: str, request: Request):
     return {"drafts": rows}
 
 
+# ---- Plan 7 / C3: recent player-built programs (team roster strip) ---------
+
+
+@coach_router.get("/programs/recent-player-built")
+async def coach_get_recent_player_built_programs(
+    request: Request,
+    limit: int = Query(default=20, ge=1, le=100),
+):
+    """Return the most recent player-built programs across the coach's team.
+
+    Used by the coach Team Programs page (Plan 7 / C3) "Recent player-built"
+    roster strip. Each row carries the pitcher's display name so the UI can
+    render `{pitcher_name} · {domain} · {template_id} · {status} · created
+    {date}` without a second round-trip.
+
+    Team scoping: `db.list_recent_player_built_programs` joins via the
+    pitchers table filtered by `team_id` — cross-team rows are not
+    reachable from this endpoint.
+    """
+    await require_coach_auth(request)
+    team_id = request.state.team_id
+    rows = _db.list_recent_player_built_programs(team_id=team_id, limit=limit)
+    return {"programs": rows}
+
+
 # ---- Plan 7 / C2: program-holds log + phase override write -----------------
 
 
