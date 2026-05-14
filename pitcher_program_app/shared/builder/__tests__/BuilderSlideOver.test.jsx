@@ -1,8 +1,10 @@
 /**
- * BuilderSlideOver — state machine + API glue tests (Plan 6 / B3).
+ * BuilderSlideOver — state machine + API glue tests (Plan 6 / B3, hoisted in
+ * Plan 7 / C0).
  *
- * Mocks ../../api so we exercise pure UI orchestration without touching fetch.
- * Also mocks ../../App to provide a stable useAuth context.
+ * The component now takes its API + auth concerns as PROPS, so these tests
+ * construct a fake `api` object with vi.fn() stubs and pass it directly. No
+ * module mocks needed (the old `../../api` + `../../App` mocks are gone).
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
@@ -10,28 +12,19 @@ import userEvent from '@testing-library/user-event';
 
 import BuilderSlideOver, { BUILDER_STATES } from '../BuilderSlideOver';
 
-// ---- Mocks ----
-vi.mock('../../App', () => ({
-  useAuth: () => ({ pitcherId: 'landon_brice', initData: 'fake-init-data' }),
-}));
-
-vi.mock('../../api', () => ({
-  fetchBuilderCandidates: vi.fn(),
-  sendBuilderTurn: vi.fn(),
-  finalizeBuilder: vi.fn(),
-  activateProgram: vi.fn(),
-  archiveProgram: vi.fn(),
-  interpretGoal: vi.fn(),
-}));
-
-import {
-  fetchBuilderCandidates,
-  sendBuilderTurn,
-  finalizeBuilder,
-  activateProgram,
-  archiveProgram,
-  interpretGoal,
-} from '../../api';
+// ---- Fake api factory ----
+// Each test gets its own fresh object so per-test mockResolvedValueOnce ordering
+// doesn't leak across cases.
+function makeFakeApi() {
+  return {
+    fetchCandidates:  vi.fn(),
+    sendTurn:         vi.fn(),
+    finalize:         vi.fn(),
+    activateProgram:  vi.fn(),
+    archiveProgram:   vi.fn(),
+    interpretGoal:    vi.fn(),
+  };
+}
 
 const PROG = {
   program_id: 'prog-1',
@@ -50,15 +43,17 @@ const PROG = {
   },
 };
 
+// Hoisted per-test fake; recreated in beforeEach so each test sees a clean slate.
+let api;
 beforeEach(() => {
-  vi.clearAllMocks();
+  api = makeFakeApi();
 });
 
 // ---------- State A: INPUTS ----------
 
 describe('BuilderSlideOver: Inputs state', () => {
   it('renders the inputs form with default chips selected', () => {
-    render(<BuilderSlideOver onClose={() => {}} />);
+    render(<BuilderSlideOver api={api} onClose={() => {}} />);
     expect(screen.getByTestId('inputs-form')).toBeInTheDocument();
     expect(screen.getByText('Throwing')).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByText('12 wk')).toHaveAttribute('aria-pressed', 'true');
@@ -66,16 +61,16 @@ describe('BuilderSlideOver: Inputs state', () => {
 
   it('blocks Continue when goal is empty', async () => {
     const user = userEvent.setup();
-    render(<BuilderSlideOver onClose={() => {}} />);
+    render(<BuilderSlideOver api={api} onClose={() => {}} />);
     await user.click(screen.getByText('Continue'));
     expect(screen.getByRole('alert')).toHaveTextContent(/goal/i);
-    expect(fetchBuilderCandidates).not.toHaveBeenCalled();
+    expect(api.fetchCandidates).not.toHaveBeenCalled();
   });
 
   it('shows inline error and stays on inputs when 0 candidates returned', async () => {
     const user = userEvent.setup();
-    fetchBuilderCandidates.mockResolvedValue({ session_id: 'sess-1', candidates: [] });
-    render(<BuilderSlideOver onClose={() => {}} />);
+    api.fetchCandidates.mockResolvedValue({ session_id: 'sess-1', candidates: [] });
+    render(<BuilderSlideOver api={api} onClose={() => {}} />);
     await user.click(screen.getByText('Velocity'));
     await user.click(screen.getByText('Continue'));
     await waitFor(() => {
@@ -86,48 +81,49 @@ describe('BuilderSlideOver: Inputs state', () => {
 
   it('transitions to socratic on successful candidates fetch and kicks off first turn', async () => {
     const user = userEvent.setup();
-    fetchBuilderCandidates.mockResolvedValue({
+    api.fetchCandidates.mockResolvedValue({
       session_id: 'sess-1',
       candidates: [{ block_template_id: 'tpl_a', name: 'A' }],
     });
-    sendBuilderTurn.mockResolvedValue({ kind: 'question', text: 'What is your top priority?' });
-    render(<BuilderSlideOver onClose={() => {}} />);
+    api.sendTurn.mockResolvedValue({ kind: 'question', text: 'What is your top priority?' });
+    render(<BuilderSlideOver api={api} onClose={() => {}} />);
     await user.click(screen.getByText('Velocity'));
     await user.click(screen.getByText('Continue'));
     await waitFor(() => {
       expect(screen.getByTestId('socratic-chat')).toBeInTheDocument();
     });
-    expect(sendBuilderTurn).toHaveBeenCalledWith('sess-1', '', 'fake-init-data');
+    expect(api.sendTurn).toHaveBeenCalledWith('sess-1', '');
     expect(screen.getByText('What is your top priority?')).toBeInTheDocument();
   });
 
-  it('passes the full envelope (domain, goal, duration, phase, hard_constraints) to /candidates', async () => {
+  it('passes the full envelope (domain, goal, duration, phase, hard_constraints, interview_mode) to /candidates', async () => {
     const user = userEvent.setup();
-    fetchBuilderCandidates.mockResolvedValue({
+    api.fetchCandidates.mockResolvedValue({
       session_id: 'sess-1',
       candidates: [{ block_template_id: 'tpl_a' }],
     });
-    sendBuilderTurn.mockResolvedValue({ kind: 'question', text: '?' });
-    render(<BuilderSlideOver onClose={() => {}} />);
+    api.sendTurn.mockResolvedValue({ kind: 'question', text: '?' });
+    render(<BuilderSlideOver api={api} onClose={() => {}} />);
     // Stay on Throwing (Lifting has no goals seeded yet)
     await user.click(screen.getByText('8 wk'));
     await user.click(screen.getByText('Preseason'));
     await user.click(screen.getByText('No max effort'));
     await user.click(screen.getByText('Off-season base'));
     await user.click(screen.getByText('Continue'));
-    await waitFor(() => expect(fetchBuilderCandidates).toHaveBeenCalled());
-    expect(fetchBuilderCandidates.mock.calls[0][0]).toEqual({
+    await waitFor(() => expect(api.fetchCandidates).toHaveBeenCalled());
+    expect(api.fetchCandidates.mock.calls[0][0]).toEqual({
       domain: 'throwing',
       goal: 'offseason_base',
       duration_weeks: 8,
       effective_phase: 'preseason',
       hard_constraints: ['no_max_effort'],
+      interview_mode: 'personalize',  // default
     });
   });
 
   it('renders lifting goal chips when domain is lifting (no "coming soon")', async () => {
     const user = userEvent.setup();
-    render(<BuilderSlideOver onClose={() => {}} />);
+    render(<BuilderSlideOver api={api} onClose={() => {}} />);
     await user.click(screen.getByText('Lifting'));
     // Chips render; banner is gone.
     expect(screen.getByTestId('goal-chips')).toBeInTheDocument();
@@ -141,12 +137,12 @@ describe('BuilderSlideOver: Inputs state', () => {
     // Continue with no chip selected still blocks
     await user.click(screen.getByText('Continue'));
     expect(screen.getByRole('alert')).toHaveTextContent(/goal/i);
-    expect(fetchBuilderCandidates).not.toHaveBeenCalled();
+    expect(api.fetchCandidates).not.toHaveBeenCalled();
   });
 
   it('switching to lifting defaults duration to 8 wk', async () => {
     const user = userEvent.setup();
-    render(<BuilderSlideOver onClose={() => {}} />);
+    render(<BuilderSlideOver api={api} onClose={() => {}} />);
     // Throwing default is 12 wk
     expect(screen.getByText('12 wk')).toHaveAttribute('aria-pressed', 'true');
     await user.click(screen.getByText('Lifting'));
@@ -159,12 +155,12 @@ describe('BuilderSlideOver: Inputs state', () => {
 
   it('hypertrophy chip on lifting domain → /candidates called with goal=hypertrophy', async () => {
     const user = userEvent.setup();
-    fetchBuilderCandidates.mockResolvedValue({
+    api.fetchCandidates.mockResolvedValue({
       session_id: 'sess-1',
       candidates: [{ block_template_id: 'hypertrophy_8wk_v1' }],
     });
-    sendBuilderTurn.mockResolvedValue({ kind: 'question', text: 'Kick off?' });
-    render(<BuilderSlideOver onClose={() => {}} />);
+    api.sendTurn.mockResolvedValue({ kind: 'question', text: 'Kick off?' });
+    render(<BuilderSlideOver api={api} onClose={() => {}} />);
 
     await user.click(screen.getByText('Lifting'));
     await user.click(screen.getByText('Hypertrophy'));
@@ -172,13 +168,14 @@ describe('BuilderSlideOver: Inputs state', () => {
     await user.click(screen.getByText('Off-season'));
     await user.click(screen.getByText('Continue'));
 
-    await waitFor(() => expect(fetchBuilderCandidates).toHaveBeenCalled());
-    expect(fetchBuilderCandidates.mock.calls[0][0]).toEqual({
+    await waitFor(() => expect(api.fetchCandidates).toHaveBeenCalled());
+    expect(api.fetchCandidates.mock.calls[0][0]).toEqual({
       domain: 'lifting',
       goal: 'hypertrophy',
       duration_weeks: 8,
       effective_phase: 'off_season',
       hard_constraints: [],
+      interview_mode: 'personalize',
     });
     await waitFor(() => {
       expect(screen.getByTestId('socratic-chat')).toBeInTheDocument();
@@ -187,7 +184,7 @@ describe('BuilderSlideOver: Inputs state', () => {
 
   it('Other / describe… on lifting domain reveals the text input', async () => {
     const user = userEvent.setup();
-    render(<BuilderSlideOver onClose={() => {}} />);
+    render(<BuilderSlideOver api={api} onClose={() => {}} />);
     await user.click(screen.getByText('Lifting'));
     expect(screen.queryByTestId('goal-other-input')).not.toBeInTheDocument();
     await user.click(screen.getByText('Other / describe…'));
@@ -197,10 +194,10 @@ describe('BuilderSlideOver: Inputs state', () => {
 
   it('clears goal selection when domain switches', async () => {
     const user = userEvent.setup();
-    fetchBuilderCandidates.mockResolvedValue({
+    api.fetchCandidates.mockResolvedValue({
       session_id: 'sess-1', candidates: [{ block_template_id: 'tpl_a' }],
     });
-    render(<BuilderSlideOver onClose={() => {}} />);
+    render(<BuilderSlideOver api={api} onClose={() => {}} />);
     await user.click(screen.getByText('Velocity'));  // pick throwing goal
     expect(screen.getByText('Velocity')).toHaveAttribute('aria-pressed', 'true');
     await user.click(screen.getByText('Lifting'));    // switch domain
@@ -208,7 +205,7 @@ describe('BuilderSlideOver: Inputs state', () => {
     // Goal must be cleared — Continue with no selection should error
     await user.click(screen.getByText('Continue'));
     expect(screen.getByRole('alert')).toHaveTextContent(/goal/i);
-    expect(fetchBuilderCandidates).not.toHaveBeenCalled();
+    expect(api.fetchCandidates).not.toHaveBeenCalled();
   });
 });
 
@@ -216,11 +213,11 @@ describe('BuilderSlideOver: Inputs state', () => {
 
 describe('BuilderSlideOver: Socratic state', () => {
   async function arriveAtSocratic(user) {
-    fetchBuilderCandidates.mockResolvedValue({
+    api.fetchCandidates.mockResolvedValue({
       session_id: 'sess-1',
       candidates: [{ block_template_id: 'tpl_a' }],
     });
-    sendBuilderTurn.mockResolvedValueOnce({ kind: 'question', text: 'Q1' });
+    api.sendTurn.mockResolvedValueOnce({ kind: 'question', text: 'Q1' });
     await user.click(screen.getByText('Velocity'));
     await user.click(screen.getByText('Continue'));
     // Wait for the kickoff response to settle (Q1 visible → input enabled)
@@ -229,15 +226,15 @@ describe('BuilderSlideOver: Socratic state', () => {
 
   it("loops /turn with user answers until {kind: 'ready'}", async () => {
     const user = userEvent.setup();
-    render(<BuilderSlideOver onClose={() => {}} />);
+    render(<BuilderSlideOver api={api} onClose={() => {}} />);
     await arriveAtSocratic(user);
 
-    sendBuilderTurn.mockResolvedValueOnce({ kind: 'question', text: 'Q2' });
+    api.sendTurn.mockResolvedValueOnce({ kind: 'question', text: 'Q2' });
     await user.type(screen.getByLabelText('Chat input'), 'velocity');
     await user.click(screen.getByText('Send'));
     await waitFor(() => expect(screen.getByText('Q2')).toBeInTheDocument());
 
-    sendBuilderTurn.mockResolvedValueOnce({
+    api.sendTurn.mockResolvedValueOnce({
       kind: 'ready',
       chosen_template_id: 'tpl_a',
       tuned_spec: { weeks: 12 },
@@ -254,13 +251,13 @@ describe('BuilderSlideOver: Socratic state', () => {
 
   it("'I don't know — you decide' sends the canonical message", async () => {
     const user = userEvent.setup();
-    render(<BuilderSlideOver onClose={() => {}} />);
+    render(<BuilderSlideOver api={api} onClose={() => {}} />);
     await arriveAtSocratic(user);
 
-    sendBuilderTurn.mockResolvedValueOnce({ kind: 'question', text: 'Q2' });
+    api.sendTurn.mockResolvedValueOnce({ kind: 'question', text: 'Q2' });
     await user.click(screen.getByText(/I don't know/i));
     await waitFor(() => {
-      const calls = sendBuilderTurn.mock.calls;
+      const calls = api.sendTurn.mock.calls;
       const second = calls[1];  // [0] was the kickoff empty turn
       expect(second[1]).toMatch(/I don't know/);
     });
@@ -268,10 +265,10 @@ describe('BuilderSlideOver: Socratic state', () => {
 
   it('finalizing transitions to preview with program + citations', async () => {
     const user = userEvent.setup();
-    render(<BuilderSlideOver onClose={() => {}} />);
+    render(<BuilderSlideOver api={api} onClose={() => {}} />);
     await arriveAtSocratic(user);
 
-    sendBuilderTurn.mockResolvedValueOnce({
+    api.sendTurn.mockResolvedValueOnce({
       kind: 'ready',
       chosen_template_id: 'tpl_a',
       tuned_spec: { weeks: 12 },
@@ -280,7 +277,7 @@ describe('BuilderSlideOver: Socratic state', () => {
     await user.click(screen.getByText('Send'));
     await waitFor(() => expect(screen.getByText('See the program')).toBeInTheDocument());
 
-    finalizeBuilder.mockResolvedValue({
+    api.finalize.mockResolvedValue({
       program: PROG,
       citations: [{ id: 'velocity_arc', title: 'Velocity Programming', summary: 'why' }],
     });
@@ -295,15 +292,15 @@ describe('BuilderSlideOver: Socratic state', () => {
 
 describe('BuilderSlideOver: Preview state', () => {
   async function arriveAtPreview(user, { withCitations = true } = {}) {
-    fetchBuilderCandidates.mockResolvedValue({
+    api.fetchCandidates.mockResolvedValue({
       session_id: 'sess-1', candidates: [{ block_template_id: 'tpl_a' }],
     });
-    sendBuilderTurn
+    api.sendTurn
       .mockResolvedValueOnce({ kind: 'question', text: 'Q1' })  // kickoff
       .mockResolvedValueOnce({
         kind: 'ready', chosen_template_id: 'tpl_a', tuned_spec: { weeks: 12 },
       });  // after user types
-    finalizeBuilder.mockResolvedValue({
+    api.finalize.mockResolvedValue({
       program: PROG,
       citations: withCitations ? [{ id: 'c1', title: 'Cite', summary: 's' }] : [],
     });
@@ -321,7 +318,7 @@ describe('BuilderSlideOver: Preview state', () => {
 
   it('renders header stats from the program payload', async () => {
     const user = userEvent.setup();
-    render(<BuilderSlideOver onClose={() => {}} />);
+    render(<BuilderSlideOver api={api} onClose={() => {}} />);
     await arriveAtPreview(user);
     expect(screen.getByText('throwing')).toBeInTheDocument();  // domain
     expect(screen.getByText('1 wk')).toBeInTheDocument();      // 3 days → 1 wk
@@ -330,7 +327,7 @@ describe('BuilderSlideOver: Preview state', () => {
 
   it('expandable timeline toggles open and renders day rows', async () => {
     const user = userEvent.setup();
-    render(<BuilderSlideOver onClose={() => {}} />);
+    render(<BuilderSlideOver api={api} onClose={() => {}} />);
     await arriveAtPreview(user);
     const toggle = screen.getByRole('button', { name: /Day-by-day timeline/i });
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
@@ -343,7 +340,7 @@ describe('BuilderSlideOver: Preview state', () => {
 
   it('hides citations section when none returned', async () => {
     const user = userEvent.setup();
-    render(<BuilderSlideOver onClose={() => {}} />);
+    render(<BuilderSlideOver api={api} onClose={() => {}} />);
     await arriveAtPreview(user, { withCitations: false });
     expect(screen.queryByTestId('citations')).not.toBeInTheDocument();
   });
@@ -352,11 +349,11 @@ describe('BuilderSlideOver: Preview state', () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
     const onActivated = vi.fn();
-    activateProgram.mockResolvedValue({ ...PROG, status: 'active' });
-    render(<BuilderSlideOver onClose={onClose} onProgramActivated={onActivated} />);
+    api.activateProgram.mockResolvedValue({ ...PROG, status: 'active' });
+    render(<BuilderSlideOver api={api} onClose={onClose} onProgramActivated={onActivated} />);
     await arriveAtPreview(user);
     await user.click(screen.getByText('Activate'));
-    await waitFor(() => expect(activateProgram).toHaveBeenCalledWith('prog-1', 'fake-init-data'));
+    await waitFor(() => expect(api.activateProgram).toHaveBeenCalledWith('prog-1'));
     expect(onActivated).toHaveBeenCalled();
     expect(onClose).toHaveBeenCalled();
   });
@@ -365,40 +362,40 @@ describe('BuilderSlideOver: Preview state', () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
     const onDraft = vi.fn();
-    render(<BuilderSlideOver onClose={onClose} onDraftSaved={onDraft} />);
+    render(<BuilderSlideOver api={api} onClose={onClose} onDraftSaved={onDraft} />);
     await arriveAtPreview(user);
     await user.click(screen.getByText('Save as draft'));
-    expect(activateProgram).not.toHaveBeenCalled();
+    expect(api.activateProgram).not.toHaveBeenCalled();
     expect(onDraft).toHaveBeenCalled();
     expect(onClose).toHaveBeenCalled();
   });
 
   it('Tweak archives current draft, increments regen counter, returns to socratic', async () => {
     const user = userEvent.setup();
-    archiveProgram.mockResolvedValue({ ok: true });
-    render(<BuilderSlideOver onClose={() => {}} />);
+    api.archiveProgram.mockResolvedValue({ ok: true });
+    render(<BuilderSlideOver api={api} onClose={() => {}} />);
     await arriveAtPreview(user);
     // After tweak, the Socratic continuation turn fires
-    sendBuilderTurn.mockResolvedValueOnce({ kind: 'question', text: 'Tweaked Q' });
+    api.sendTurn.mockResolvedValueOnce({ kind: 'question', text: 'Tweaked Q' });
     await user.click(screen.getByText(/^Tweak/));
-    await waitFor(() => expect(archiveProgram).toHaveBeenCalledWith(
-      'prog-1', 'rebuilt_in_builder', 'fake-init-data'));
+    await waitFor(() => expect(api.archiveProgram).toHaveBeenCalledWith(
+      'prog-1', 'rebuilt_in_builder'));
     await waitFor(() => expect(screen.getByTestId('socratic-chat')).toBeInTheDocument());
   });
 
   it('disables Tweak after 3 regenerations (cap)', async () => {
     const user = userEvent.setup();
-    archiveProgram.mockResolvedValue({ ok: true });
-    finalizeBuilder.mockResolvedValue({
+    api.archiveProgram.mockResolvedValue({ ok: true });
+    api.finalize.mockResolvedValue({
       program: PROG, citations: [],
     });
-    render(<BuilderSlideOver onClose={() => {}} />);
+    render(<BuilderSlideOver api={api} onClose={() => {}} />);
     await arriveAtPreview(user);
 
     // Tweak x3 — after each, get back to preview
     for (let i = 0; i < 3; i++) {
-      sendBuilderTurn.mockResolvedValueOnce({ kind: 'question', text: 'Q' });
-      sendBuilderTurn.mockResolvedValueOnce({
+      api.sendTurn.mockResolvedValueOnce({ kind: 'question', text: 'Q' });
+      api.sendTurn.mockResolvedValueOnce({
         kind: 'ready', chosen_template_id: 'tpl_a', tuned_spec: {},
       });
       await user.click(screen.getByText(/^Tweak/));
@@ -421,7 +418,7 @@ describe('BuilderSlideOver: Preview state', () => {
 describe('BuilderSlideOver: Other goal chip + LLM interpreter', () => {
   it('reveals text input when "Other / describe…" chip is selected', async () => {
     const user = userEvent.setup();
-    render(<BuilderSlideOver onClose={() => {}} />);
+    render(<BuilderSlideOver api={api} onClose={() => {}} />);
     // Input is hidden before the chip is picked
     expect(screen.queryByTestId('goal-other-input')).not.toBeInTheDocument();
     await user.click(screen.getByText('Other / describe…'));
@@ -435,13 +432,13 @@ describe('BuilderSlideOver: Other goal chip + LLM interpreter', () => {
 
   it('calls interpretGoal then proceeds to candidates when LLM returns a real tag', async () => {
     const user = userEvent.setup();
-    interpretGoal.mockResolvedValue({ tag: 'velocity', confidence: 'matched' });
-    fetchBuilderCandidates.mockResolvedValue({
+    api.interpretGoal.mockResolvedValue({ tag: 'velocity', confidence: 'matched' });
+    api.fetchCandidates.mockResolvedValue({
       session_id: 'sess-1',
       candidates: [{ block_template_id: 'tpl_a' }],
     });
-    sendBuilderTurn.mockResolvedValue({ kind: 'question', text: 'Kick off?' });
-    render(<BuilderSlideOver onClose={() => {}} />);
+    api.sendTurn.mockResolvedValue({ kind: 'question', text: 'Kick off?' });
+    render(<BuilderSlideOver api={api} onClose={() => {}} />);
 
     await user.click(screen.getByText('Other / describe…'));
     await user.type(
@@ -450,12 +447,12 @@ describe('BuilderSlideOver: Other goal chip + LLM interpreter', () => {
     );
     await user.click(screen.getByText('Continue'));
 
-    await waitFor(() => expect(interpretGoal).toHaveBeenCalledWith(
-      'I want to throw harder', 'throwing', 'fake-init-data',
+    await waitFor(() => expect(api.interpretGoal).toHaveBeenCalledWith(
+      'I want to throw harder', 'throwing',
     ));
-    await waitFor(() => expect(fetchBuilderCandidates).toHaveBeenCalled());
+    await waitFor(() => expect(api.fetchCandidates).toHaveBeenCalled());
     // Resolved tag must be forwarded into the candidates envelope
-    expect(fetchBuilderCandidates.mock.calls[0][0]).toMatchObject({
+    expect(api.fetchCandidates.mock.calls[0][0]).toMatchObject({
       domain: 'throwing',
       goal: 'velocity',
     });
@@ -467,8 +464,8 @@ describe('BuilderSlideOver: Other goal chip + LLM interpreter', () => {
 
   it('shows inline error when LLM confidence is unknown — stays on inputs, no /candidates call', async () => {
     const user = userEvent.setup();
-    interpretGoal.mockResolvedValue({ tag: 'unknown', confidence: 'unknown' });
-    render(<BuilderSlideOver onClose={() => {}} />);
+    api.interpretGoal.mockResolvedValue({ tag: 'unknown', confidence: 'unknown' });
+    render(<BuilderSlideOver api={api} onClose={() => {}} />);
 
     await user.click(screen.getByText('Other / describe…'));
     await user.type(screen.getByTestId('goal-other-input'), 'abracadabra');
@@ -477,20 +474,20 @@ describe('BuilderSlideOver: Other goal chip + LLM interpreter', () => {
     await waitFor(() => {
       expect(screen.getByRole('alert')).toHaveTextContent(/couldn't match/i);
     });
-    expect(fetchBuilderCandidates).not.toHaveBeenCalled();
+    expect(api.fetchCandidates).not.toHaveBeenCalled();
     expect(screen.getByTestId('inputs-form')).toBeInTheDocument();
   });
 
   it('blocks Continue with empty Other text and never calls interpretGoal', async () => {
     const user = userEvent.setup();
-    render(<BuilderSlideOver onClose={() => {}} />);
+    render(<BuilderSlideOver api={api} onClose={() => {}} />);
 
     await user.click(screen.getByText('Other / describe…'));
     await user.click(screen.getByText('Continue'));
 
     expect(screen.getByRole('alert')).toHaveTextContent(/describe your goal/i);
-    expect(interpretGoal).not.toHaveBeenCalled();
-    expect(fetchBuilderCandidates).not.toHaveBeenCalled();
+    expect(api.interpretGoal).not.toHaveBeenCalled();
+    expect(api.fetchCandidates).not.toHaveBeenCalled();
   });
 });
 

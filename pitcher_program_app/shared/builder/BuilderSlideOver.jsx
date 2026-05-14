@@ -1,5 +1,5 @@
 /**
- * BuilderSlideOver — Program Builder funnel (Plan 6 / B3).
+ * BuilderSlideOver — Program Builder funnel (Plan 6 / B3, Plan 7 / C0).
  *
  * Three states inside one bottom-sheet:
  *   - INPUTS:   form collects {domain, goal, duration_weeks, effective_phase,
@@ -10,20 +10,27 @@
  *               day timeline. Activate / Save as draft / Tweak buttons.
  *               Tweak → SOCRATIC with regen counter (cap 3, warn at 2).
  *
- * Wires to the existing builder endpoints. Pure UI orchestration — all
- * business logic stays server-side.
+ * Plan 7 / C0: hoisted to shared/builder/ so both mini-app (pitcher) and
+ * coach-app (coach) can consume it. All app-specific concerns (auth,
+ * Telegram BackButton, the actual fetch implementations) are now PROPS:
+ *   - `api`: object with the six builder fns. Caller wraps initData /
+ *     auth headers inside each fn so this component never touches initData.
+ *   - `interview_mode`: 'personalize' (pitcher, default) | 'team_personalize'
+ *     (coach building for a specific pitcher) | 'authoring' (coach team
+ *     template — no pitcher attached). Forwarded to /candidates + /finalize.
+ *   - `pitcherIdForCoach`: optional pitcher_id for the coach surface. When
+ *     set, the candidates+finalize payloads include personalize_pitcher_id
+ *     so the server can pull that pitcher's profile/state into the prompt.
+ *     Mini-app leaves this null — the authed pitcher IS the target.
+ *
+ * Telegram BackButton handling: pulled OUT of this component. The mini-app
+ * caller wraps the slide-over in a tiny adapter that calls useBackButton
+ * inside its own render so the hook stays with the surface that ships in
+ * Telegram. Coach-app callers don't need it.
+ *
+ * Pure UI orchestration — all business logic stays server-side.
  */
 import { useState, useEffect, useRef } from 'react';
-import { useAuth } from '../App';
-import { useBackButton } from '../hooks/useTelegram';
-import {
-  fetchBuilderCandidates,
-  sendBuilderTurn,
-  finalizeBuilder,
-  activateProgram,
-  archiveProgram,
-  interpretGoal,
-} from '../api';
 
 const DOMAINS = [
   { id: 'throwing', label: 'Throwing' },
@@ -133,14 +140,12 @@ const secondaryButtonStyle = {
 };
 
 export default function BuilderSlideOver({
+  api,
   onClose, onProgramActivated, onDraftSaved,
   initialDomain = 'throwing', initialGoal = null,
+  interview_mode = 'personalize',
+  pitcherIdForCoach = null,
 }) {
-  const { pitcherId, initData } = useAuth();
-  // Hardware/Telegram BackButton: pressing back inside the slide-over closes
-  // the sheet instead of exiting the WebApp. Active while this component is
-  // mounted; hidden on unmount. No-op outside Telegram.
-  useBackButton(onClose);
   const [state, setState] = useState(BUILDER_STATES.INPUTS);
   const [error, setError] = useState(null);
 
@@ -204,7 +209,7 @@ export default function BuilderSlideOver({
       let resolvedGoal = goal;
       if (goal === '__other__') {
         try {
-          const res = await interpretGoal(goalText.trim(), domain, initData);
+          const res = await api.interpretGoal(goalText.trim(), domain);
           if (!res || res.confidence === 'unknown') {
             setError("I couldn't match that goal. Try a chip above or rephrase.");
             return;
@@ -215,13 +220,16 @@ export default function BuilderSlideOver({
           return;
         }
       }
-      const res = await fetchBuilderCandidates({
+      const envelope = {
         domain,
         goal: resolvedGoal,  // chip id (or interpreter-resolved tag) — already matches a real goal_tag
         duration_weeks: durationWeeks,
         effective_phase: effectivePhase,
         hard_constraints: hardConstraints,
-      }, initData);
+        interview_mode,
+      };
+      if (pitcherIdForCoach) envelope.personalize_pitcher_id = pitcherIdForCoach;
+      const res = await api.fetchCandidates(envelope);
       if (!res.candidates || res.candidates.length === 0) {
         setError('No templates match those inputs. Try a different goal, duration, or phase.');
         return;
@@ -244,7 +252,7 @@ export default function BuilderSlideOver({
       if (userMessage) {
         setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
       }
-      const res = await sendBuilderTurn(sid, userMessage, initData);
+      const res = await api.sendTurn(sid, userMessage);
       if (res.kind === 'question') {
         setMessages(prev => [...prev, { role: 'bot', content: res.text }]);
       } else if (res.kind === 'ready') {
@@ -280,11 +288,10 @@ export default function BuilderSlideOver({
     setFinalizing(true);
     setError(null);
     try {
-      const res = await finalizeBuilder(
+      const res = await api.finalize(
         sessionId,
         readyPayload.chosen_template_id,
         readyPayload.tuned_spec,
-        initData,
       );
       setProgram(res.program || null);
       setCitations(res.citations || []);
@@ -301,7 +308,7 @@ export default function BuilderSlideOver({
     if (!program?.program_id) return;
     setFinalizing(true);
     try {
-      const activated = await activateProgram(program.program_id, initData);
+      const activated = await api.activateProgram(program.program_id);
       onProgramActivated?.(activated);
       onClose?.();
     } catch (e) {
@@ -323,7 +330,7 @@ export default function BuilderSlideOver({
     // loop in the SAME session with the previous tuned_spec carried forward.
     if (program?.program_id) {
       try {
-        await archiveProgram(program.program_id, 'rebuilt_in_builder', initData);
+        await api.archiveProgram(program.program_id, 'rebuilt_in_builder');
       } catch (_e) { /* best-effort */ }
     }
     setRegenCount(r => r + 1);

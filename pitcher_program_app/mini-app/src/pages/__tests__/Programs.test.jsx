@@ -49,7 +49,7 @@ vi.mock('../../hooks/usePitcher', () => ({
 }));
 
 const builderSpy = vi.fn();
-vi.mock('../../components/BuilderSlideOver', () => ({
+vi.mock('@shared/builder/BuilderSlideOver.jsx', () => ({
   default: (props) => {
     builderSpy(props);
     return <div data-testid="builder-slideover-mounted">

@@ -18,7 +18,39 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../App';
 import { useApi } from '../hooks/useApi';
 import { usePitcher } from '../hooks/usePitcher';
-import BuilderSlideOver from '../components/BuilderSlideOver';
+import { useBackButton } from '../hooks/useTelegram';
+import BuilderSlideOver from '@shared/builder/BuilderSlideOver.jsx';
+import {
+  fetchBuilderCandidates,
+  sendBuilderTurn,
+  finalizeBuilder,
+  activateProgram,
+  archiveProgram,
+  interpretGoal,
+} from '../api';
+
+/**
+ * Mini-app adapter for the shared BuilderSlideOver.
+ *
+ * The shared component takes its API as a prop (no module-level imports) so
+ * it can be reused by coach-app. The Telegram BackButton hook stays here in
+ * the mini-app — it's a no-op outside Telegram, but keeping it inside the
+ * shared component would couple it to a mini-app-only hook. We mount this
+ * wrapper only when the slide-over is open, so `useBackButton(onClose)` is
+ * active for exactly the window that the sheet is visible.
+ */
+function MiniAppBuilderSlideOver({ initData, ...rest }) {
+  useBackButton(rest.onClose);
+  const api = useMemo(() => ({
+    fetchCandidates: (envelope)            => fetchBuilderCandidates(envelope, initData),
+    sendTurn:        (sid, msg)             => sendBuilderTurn(sid, msg, initData),
+    finalize:        (sid, tplId, spec)     => finalizeBuilder(sid, tplId, spec, initData),
+    activateProgram: (programId)            => activateProgram(programId, initData),
+    archiveProgram:  (programId, reason)    => archiveProgram(programId, reason, initData),
+    interpretGoal:   (text, domain)         => interpretGoal(text, domain, initData),
+  }), [initData]);
+  return <BuilderSlideOver api={api} {...rest} />;
+}
 
 const TODAY_STR = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
 
@@ -159,7 +191,8 @@ export default function Programs() {
       />
 
       {builderState.open && (
-        <BuilderSlideOver
+        <MiniAppBuilderSlideOver
+          initData={initData}
           initialDomain={builderState.domain}
           initialGoal={builderState.goal}
           onClose={closeBuilder}
