@@ -870,12 +870,24 @@ from bot.services import (
 
 
 class CoachBuilderCandidatesRequest(_BaseModel):
-    pitcher_id: str
+    # Plan 7 / C4: pitcher_id + personalize_pitcher_id are both optional.
+    #   - mode='personalize'        → personalize_pitcher_id REQUIRED (the target pitcher)
+    #   - mode='team_personalize'   → personalize_pitcher_id optional (template baked from team defaults)
+    #   - mode='authoring'          → personalize_pitcher_id MUST be None (pure template)
+    # `pitcher_id` is kept for back-compat with the pre-C4 mirror (treated as
+    # an alias for personalize_pitcher_id) and is folded into the latter at
+    # validation time. Handler enforces the per-mode rules.
+    pitcher_id: _Optional[str] = None
+    personalize_pitcher_id: _Optional[str] = None
     domain: str = _Field(..., pattern="^(throwing|lifting)$")
     goal: str
     duration_weeks: int = _Field(..., gt=0, le=52)
     effective_phase: str
     hard_constraints: list[str] = []
+    interview_mode: str = _Field(
+        default="personalize",
+        pattern="^(personalize|team_personalize|authoring)$",
+    )
 
 
 class CoachBuilderGenerateRequest(_BaseModel):
@@ -899,6 +911,11 @@ class CoachBuilderFinalizeRequest(_BaseModel):
     tuned_spec: dict
 
 
+class CoachInterpretGoalRequest(_BaseModel):
+    text: str = _Field(..., min_length=1, max_length=500)
+    domain: str = _Field(..., pattern="^(throwing|lifting)$")
+
+
 # Plan 7 / C2: phase override write. Each field is optional individually but
 # at least one MUST be present; enforced in the handler (422 otherwise).
 # Empty-string value clears the override (column → NULL). Pattern guards
@@ -920,21 +937,58 @@ def _require_team_pitcher(pitcher_id: str, team_id: str) -> dict:
 
 @coach_router.post("/programs/builder/candidates")
 async def coach_post_builder_candidates(req: CoachBuilderCandidatesRequest, request: Request):
-    """Layer 1 (coach): match candidate block templates from a constraint envelope."""
+    """Layer 1 (coach): match candidate block templates from a constraint envelope.
+
+    Plan 7 / C4: three modes are now supported. The session row is persisted
+    with the chosen mode so the Socratic loop can pick the right prompt
+    variant (see program_builder_socratic.advance).
+      - 'personalize'      — coach builds FOR a specific pitcher; pitcher_id
+                             required; ownership-checked.
+      - 'team_personalize' — coach builds a team-wide program; pitcher_id
+                             optional (when provided, used as a baseline
+                             reference but the program still records the
+                             coach as creator).
+      - 'authoring'        — coach authors a new template; pitcher_id MUST
+                             be omitted (pure template work).
+    """
     await require_coach_auth(request)
     team_id = request.state.team_id
     coach_id = request.state.coach_id
 
-    _require_team_pitcher(req.pitcher_id, team_id)
+    # Fold legacy `pitcher_id` field into the canonical `personalize_pitcher_id`.
+    target_pitcher_id = req.personalize_pitcher_id or req.pitcher_id
+
+    if req.interview_mode == "personalize":
+        if not target_pitcher_id:
+            raise HTTPException(
+                status_code=422,
+                detail="personalize_pitcher_id required for interview_mode='personalize'",
+            )
+        _require_team_pitcher(target_pitcher_id, team_id)
+    elif req.interview_mode == "team_personalize":
+        if target_pitcher_id:
+            _require_team_pitcher(target_pitcher_id, team_id)
+    elif req.interview_mode == "authoring":
+        if target_pitcher_id:
+            raise HTTPException(
+                status_code=422,
+                detail="personalize_pitcher_id must be omitted for interview_mode='authoring'",
+            )
 
     envelope = req.model_dump()
-    envelope.pop("pitcher_id", None)  # envelope mirrors the pitcher-facing shape
+    # Envelope mirrors the pitcher-facing /candidates shape. Strip both
+    # pitcher-key aliases before forwarding to the matcher.
+    envelope.pop("pitcher_id", None)
+    envelope.pop("personalize_pitcher_id", None)
+    if target_pitcher_id:
+        envelope["personalize_pitcher_id"] = target_pitcher_id
+
     candidates = _program_builder.match_candidates(envelope)
     session_id = _db.create_builder_session({
-        "pitcher_id": req.pitcher_id,
+        "pitcher_id": target_pitcher_id,
         "initiator_id": coach_id,
         "initiator_role": "coach",
-        "interview_mode": "personalize",
+        "interview_mode": req.interview_mode,
         "constraint_envelope_json": envelope,
         "candidate_template_ids": [c["block_template_id"] for c in candidates],
         "status": "in_progress",
@@ -952,10 +1006,14 @@ async def coach_post_builder_generate(req: CoachBuilderGenerateRequest, request:
     session = _db.get_builder_session(req.session_id)
     if not session:
         raise HTTPException(status_code=404, detail="session not found")
+    # Authoring mode sessions have no pitcher_id. Other modes must point at a
+    # team-scoped pitcher.
     pitcher_id = session.get("pitcher_id")
-    if not pitcher_id:
-        raise HTTPException(status_code=404, detail="session not found")
-    _require_team_pitcher(pitcher_id, team_id)
+    mode = session.get("interview_mode") or "personalize"
+    if mode != "authoring":
+        if not pitcher_id:
+            raise HTTPException(status_code=404, detail="session not found")
+        _require_team_pitcher(pitcher_id, team_id)
 
     template_id = req.chosen_template_id
     if not template_id:
@@ -989,7 +1047,12 @@ async def coach_post_builder_generate(req: CoachBuilderGenerateRequest, request:
 
 @coach_router.post("/programs/builder/turn")
 async def coach_post_builder_turn(req: CoachBuilderTurnRequest, request: Request):
-    """Layer 2 (coach): advance the Socratic conversation by one turn."""
+    """Layer 2 (coach): advance the Socratic conversation by one turn.
+
+    Plan 7 / C4: authoring-mode sessions have no associated pitcher — auth is
+    coach team membership only. personalize/team_personalize still require
+    that the session's pitcher belongs to the coach's team.
+    """
     await require_coach_auth(request)
     team_id = request.state.team_id
 
@@ -997,9 +1060,11 @@ async def coach_post_builder_turn(req: CoachBuilderTurnRequest, request: Request
     if not session:
         raise HTTPException(status_code=404, detail="session not found")
     pitcher_id = session.get("pitcher_id")
-    if not pitcher_id:
-        raise HTTPException(status_code=404, detail="session not found")
-    _require_team_pitcher(pitcher_id, team_id)
+    mode = session.get("interview_mode") or "personalize"
+    if mode != "authoring":
+        if not pitcher_id:
+            raise HTTPException(status_code=404, detail="session not found")
+        _require_team_pitcher(pitcher_id, team_id)
 
     try:
         return await _program_builder_socratic.advance(req.session_id, req.user_message)
@@ -1015,6 +1080,11 @@ async def coach_post_builder_finalize(req: CoachBuilderFinalizeRequest, request:
 
     Stamps coach authorship into the constraint envelope (honored by
     generate_program) so the program records `created_by` / `created_by_role`.
+
+    Plan 7 / C4: returns `{program, citations}` to match the pitcher-facing
+    /finalize shape — the shared BuilderSlideOver renders the "why this
+    program" research cards from `citations`. Authoring-mode sessions skip
+    the pitcher ownership check (no associated pitcher).
     """
     await require_coach_auth(request)
     team_id = request.state.team_id
@@ -1024,9 +1094,11 @@ async def coach_post_builder_finalize(req: CoachBuilderFinalizeRequest, request:
     if not session:
         raise HTTPException(status_code=404, detail="session not found")
     pitcher_id = session.get("pitcher_id")
-    if not pitcher_id:
-        raise HTTPException(status_code=404, detail="session not found")
-    _require_team_pitcher(pitcher_id, team_id)
+    mode = session.get("interview_mode") or "personalize"
+    if mode != "authoring":
+        if not pitcher_id:
+            raise HTTPException(status_code=404, detail="session not found")
+        _require_team_pitcher(pitcher_id, team_id)
 
     envelope = dict(session.get("constraint_envelope_json") or {})
     envelope["created_by"] = coach_id
@@ -1047,7 +1119,32 @@ async def coach_post_builder_finalize(req: CoachBuilderFinalizeRequest, request:
         "generated_program_id": program["program_id"],
     })
 
-    return {"program": program}
+    template = _db.get_block_library_row(req.chosen_template_id) or {}
+    doc_ids = template.get("research_doc_ids") or []
+    from bot.services.research_resolver import get_citations_for_ids
+    citations = get_citations_for_ids(doc_ids)
+
+    return {"program": program, "citations": citations}
+
+
+@coach_router.post("/programs/builder/interpret-goal")
+async def coach_post_builder_interpret_goal(
+    req: CoachInterpretGoalRequest,
+    request: Request,
+):
+    """Plan 7 / C4 — coach mirror of POST /api/programs/builder/interpret-goal.
+
+    The BuilderSlideOver's "Other / describe…" goal chip calls this when the
+    coach types a free-text description. Same payload + same response as the
+    pitcher-facing endpoint (api/routes.py::post_builder_interpret_goal),
+    just gated by require_coach_auth instead of pitcher initData. No team
+    scoping needed — the interpreter is read-only against a static set of
+    canonical goal_tags.
+    """
+    await require_coach_auth(request)
+    from bot.services.goal_interpreter import interpret_goal
+    tag = await interpret_goal(req.text, req.domain)
+    return {"tag": tag, "confidence": "matched" if tag != "unknown" else "unknown"}
 
 
 @coach_router.post("/programs/{program_id}/activate")

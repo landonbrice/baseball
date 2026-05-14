@@ -1,124 +1,106 @@
-import { useState, useEffect } from 'react'
-import { useToast } from '../shell/Toast'
-import { createTeamProgram } from '../../api'
-import WeeklyStructurePreview from './WeeklyStructurePreview'
+/**
+ * CreateProgramSlideOver — Plan 7 / C4 rebuild.
+ *
+ * The coach "+ Build Program" chrome. Drives a three-step state machine:
+ *
+ *   1. <BuildEntrypointSelector>           → pick a build mode
+ *   2. <PitcherPicker> (conditional)        → pick the target pitcher
+ *   3. <BuilderSlideOver>                   → shared builder flow
+ *
+ * Locked decisions:
+ *   - L2: coach build UX reuses the shared BuilderSlideOver with `interview_mode`.
+ *   - L9: BuilderSlideOver mounts inside this slide-over chrome (no separate page).
+ *
+ * The shared BuilderSlideOver takes its API surface as a prop so it can run
+ * inside both mini-app (pitcher) and coach-app. We wrap the six coach client
+ * fns in a memoized adapter that closes over the current access token.
+ *
+ * The legacy `library` prop is accepted (and ignored) so the existing
+ * TeamPrograms callsite keeps compiling during the C4 cutover.
+ */
+import { useState, useMemo } from 'react'
+import { useCoachAuth } from '../../hooks/useCoachAuth'
+import BuilderSlideOver from '@shared/builder/BuilderSlideOver.jsx'
+import BuildEntrypointSelector from '../BuildEntrypointSelector'
+import PitcherPicker from '../PitcherPicker'
+import {
+  coachFetchBuilderCandidates,
+  coachSendBuilderTurn,
+  coachFinalizeBuilder,
+  coachActivateProgram,
+  coachArchiveProgram,
+  coachInterpretGoal,
+} from '../../api'
 
-export default function CreateProgramSlideOver({ library = [], onClose }) {
-  const toast = useToast()
-  const [form, setForm] = useState({
-    name: '',
-    baseBlockId: '',
-    startDate: new Date().toLocaleDateString('en-CA'),
-    durationWeeks: '',
-    notes: '',
-  })
-  const [submitting, setSubmitting] = useState(false)
+// Selector ids → interview_mode forwarded to BuilderSlideOver.
+const SELECTOR_TO_MODE = {
+  team_personalize: 'team_personalize',
+  personalize_for_pitcher: 'personalize',
+  authoring: 'authoring',
+}
 
-  const selectedBlock = library.find(b => b.block_template_id === form.baseBlockId) || null
+export default function CreateProgramSlideOver({
+  onClose,
+  onProgramActivated,
+  onDraftSaved,
+  // eslint-disable-next-line no-unused-vars -- legacy prop preserved for back-compat with TeamPrograms callsite
+  library,
+}) {
+  const { getAccessToken } = useCoachAuth()
 
-  useEffect(() => {
-    if (selectedBlock?.duration_days) {
-      setForm(f => ({ ...f, durationWeeks: String(Math.round(selectedBlock.duration_days / 7)) }))
-    }
-  }, [form.baseBlockId])
+  // null → selector; otherwise an id from SELECTOR_TO_MODE
+  const [pickedSelector, setPickedSelector] = useState(null)
+  // null → picker (when pickedSelector === 'personalize_for_pitcher'); else {pitcher_id, name}
+  const [pickedPitcher, setPickedPitcher] = useState(null)
 
-  useEffect(() => {
-    function onKey(e) { if (e.key === 'Escape') onClose?.() }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [onClose])
+  // Token-bound API adapter consumed by the shared BuilderSlideOver.
+  // getAccessToken is sync (`session?.access_token || ''`) — we call it on
+  // every request so a Supabase refresh during a long Socratic loop swaps
+  // the bearer in without remounting. Same pattern as the mini-app's
+  // MiniAppBuilderSlideOver adapter.
+  const api = useMemo(
+    () => ({
+      fetchCandidates: (envelope)            => coachFetchBuilderCandidates(envelope, getAccessToken()),
+      sendTurn:        (sid, msg)            => coachSendBuilderTurn(sid, msg, getAccessToken()),
+      finalize:        (sid, tplId, spec)    => coachFinalizeBuilder(sid, tplId, spec, getAccessToken()),
+      activateProgram: (programId)           => coachActivateProgram(programId, getAccessToken()),
+      archiveProgram:  (programId, reason)   => coachArchiveProgram(programId, reason, getAccessToken()),
+      interpretGoal:   (text, domain)        => coachInterpretGoal(text, domain, getAccessToken()),
+    }),
+    [getAccessToken],
+  )
 
-  async function handleSubmit(e) {
-    e.preventDefault()
-    if (!form.name.trim()) { toast.error('Program name is required'); return }
-    setSubmitting(true)
-    try {
-      await createTeamProgram({
-        name: form.name,
-        baseBlockId: form.baseBlockId,
-        startDate: form.startDate,
-        durationWeeks: form.durationWeeks ? parseInt(form.durationWeeks, 10) : null,
-        notes: form.notes,
-      })
-      toast.success('Program created (preview mode — backend pending)')
-      onClose?.()
-    } catch (err) {
-      toast.error(err?.message || 'Failed to create program')
-    } finally {
-      setSubmitting(false)
-    }
+  // ---- Step 1: entry-point selector ----
+  if (pickedSelector === null) {
+    return (
+      <BuildEntrypointSelector
+        onPick={({ mode }) => setPickedSelector(mode)}
+        onClose={onClose}
+      />
+    )
   }
 
+  // ---- Step 2 (conditional): pitcher picker ----
+  if (pickedSelector === 'personalize_for_pitcher' && !pickedPitcher) {
+    return (
+      <PitcherPicker
+        onPick={setPickedPitcher}
+        onClose={onClose}
+        onBack={() => setPickedSelector(null)}
+      />
+    )
+  }
+
+  // ---- Step 3: BuilderSlideOver ----
+  const interviewMode = SELECTOR_TO_MODE[pickedSelector] || 'team_personalize'
   return (
-    <div className="fixed top-0 right-0 h-full w-[560px] bg-bone shadow-xl z-50 flex flex-col border-l border-cream-dark">
-      <div className="flex items-center justify-between px-6 py-4 border-b border-cream-dark">
-        <h2 className="font-serif font-bold text-h1 text-charcoal">New Program</h2>
-        <button type="button" onClick={onClose} aria-label="Close"
-          className="font-ui text-h1 text-muted hover:text-charcoal leading-none">×</button>
-      </div>
-
-      <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
-          <div>
-            <label className="block font-ui text-body-sm text-subtle mb-1">Program name *</label>
-            <input type="text" required autoFocus value={form.name}
-              onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-              className="w-full px-3 py-2 border border-cream-dark rounded-[3px] font-ui text-body-sm bg-bone text-charcoal"
-              placeholder="e.g., Spring Velocity Block" />
-          </div>
-          <div>
-            <label className="block font-ui text-body-sm text-subtle mb-1">Base block</label>
-            <select value={form.baseBlockId}
-              onChange={e => setForm(f => ({ ...f, baseBlockId: e.target.value }))}
-              className="w-full px-3 py-2 border border-cream-dark rounded-[3px] font-ui text-body-sm bg-bone text-charcoal">
-              <option value="">— Select a block —</option>
-              {library.map(b => (
-                <option key={b.block_template_id} value={b.block_template_id}>
-                  {b.name} · {Math.round((b.duration_days || 0) / 7)}w · {b.block_type}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block font-ui text-body-sm text-subtle mb-1">Start date</label>
-              <input type="date" value={form.startDate}
-                onChange={e => setForm(f => ({ ...f, startDate: e.target.value }))}
-                className="w-full px-3 py-2 border border-cream-dark rounded-[3px] font-ui text-body-sm bg-bone text-charcoal" />
-            </div>
-            <div>
-              <label className="block font-ui text-body-sm text-subtle mb-1">Duration (weeks)</label>
-              <input type="number" min="1" value={form.durationWeeks}
-                onChange={e => setForm(f => ({ ...f, durationWeeks: e.target.value }))}
-                className="w-full px-3 py-2 border border-cream-dark rounded-[3px] font-ui text-body-sm bg-bone text-charcoal" />
-            </div>
-          </div>
-          <div>
-            <label className="block font-ui text-body-sm text-subtle mb-1">Notes</label>
-            <textarea rows={2} value={form.notes}
-              onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
-              className="w-full px-3 py-2 border border-cream-dark rounded-[3px] font-ui text-body-sm bg-bone text-charcoal"
-              placeholder="Optional…" />
-          </div>
-          {selectedBlock && (
-            <div>
-              <p className="font-ui text-eyebrow uppercase tracking-[0.16em] text-subtle mb-2">Weekly Structure</p>
-              <WeeklyStructurePreview block={selectedBlock} />
-            </div>
-          )}
-        </div>
-
-        <div className="bg-bone border-t border-cream-dark px-6 py-3 flex gap-3 justify-end">
-          <button type="button" onClick={onClose}
-            className="font-ui text-body-sm text-subtle hover:text-charcoal px-3 py-2">
-            Cancel
-          </button>
-          <button type="submit" disabled={submitting}
-            className="font-ui font-semibold text-body-sm text-bone bg-maroon px-4 py-2 rounded-[3px] hover:bg-maroon-ink disabled:opacity-50">
-            {submitting ? 'Creating…' : 'Create Program'}
-          </button>
-        </div>
-      </form>
-    </div>
+    <BuilderSlideOver
+      api={api}
+      interview_mode={interviewMode}
+      pitcherIdForCoach={pickedPitcher?.pitcher_id || null}
+      onClose={onClose}
+      onProgramActivated={onProgramActivated}
+      onDraftSaved={onDraftSaved}
+    />
   )
 }

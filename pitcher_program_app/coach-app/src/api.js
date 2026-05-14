@@ -99,6 +99,49 @@ export async function fetchRecentPlayerBuiltPrograms(accessToken, { limit = 20 }
   )
 }
 
+// -- Plan 7 / C4: coach Program Builder client fns --
+//
+// These wrap the coach mirror endpoints of /api/coach/programs/builder/*
+// (see api/coach_routes.py Plan 2 + C4 extensions). The shared
+// BuilderSlideOver consumes a token-bound `api` adapter object (see
+// CreateProgramSlideOver) so the slide-over never touches auth headers.
+
+export async function coachFetchBuilderCandidates(envelope, accessToken) {
+  return postCoachApi('/api/coach/programs/builder/candidates', envelope, accessToken)
+}
+
+export async function coachSendBuilderTurn(sessionId, userMessage, accessToken) {
+  return postCoachApi(
+    '/api/coach/programs/builder/turn',
+    { session_id: sessionId, user_message: userMessage },
+    accessToken,
+  )
+}
+
+export async function coachFinalizeBuilder(sessionId, chosenTemplateId, tunedSpec, accessToken) {
+  return postCoachApi(
+    '/api/coach/programs/builder/finalize',
+    { session_id: sessionId, chosen_template_id: chosenTemplateId, tuned_spec: tunedSpec },
+    accessToken,
+  )
+}
+
+export async function coachActivateProgram(programId, accessToken) {
+  return postCoachApi(`/api/coach/programs/${programId}/activate`, {}, accessToken)
+}
+
+export async function coachArchiveProgram(programId, reason, accessToken) {
+  return postCoachApi(`/api/coach/programs/${programId}/archive`, { reason }, accessToken)
+}
+
+export async function coachInterpretGoal(text, domain, accessToken) {
+  return postCoachApi(
+    '/api/coach/programs/builder/interpret-goal',
+    { text, domain },
+    accessToken,
+  )
+}
+
 // -- Nudge --
 
 export async function nudgePitcher(pitcherId, accessToken) {

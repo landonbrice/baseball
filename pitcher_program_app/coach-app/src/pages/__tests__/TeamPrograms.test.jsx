@@ -183,7 +183,7 @@ describe('<TeamPrograms>', () => {
     expect(screen.getByText(/^draft$/i)).toBeInTheDocument()
   })
 
-  it('"+ Build Program" Masthead button opens CreateProgramSlideOver', () => {
+  it('"+ Build Program" Masthead button opens BuildEntrypointSelector', () => {
     setResponses([
       res({ blocks: [] }),
       res({ templates: [] }),
@@ -191,17 +191,20 @@ describe('<TeamPrograms>', () => {
     ])
     render(<TeamPrograms />)
 
-    // Slide-over not initially mounted — its "New Program" heading is absent.
+    // Selector not initially mounted — its "Build a Program" heading is absent.
     expect(
-      screen.queryByRole('heading', { name: /New Program/i }),
+      screen.queryByRole('heading', { name: /Build a Program/i }),
     ).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: /\+ Build Program/i }))
 
-    // The legacy slide-over chrome mounts; C4 will replace its body with
-    // the BuilderSlideOver selector.
+    // Plan 7 / C4: CreateProgramSlideOver now renders the BuildEntrypointSelector
+    // first. The three build options are visible.
     expect(
-      screen.getByRole('heading', { name: /New Program/i }),
+      screen.getByRole('heading', { name: /Build a Program/i }),
     ).toBeInTheDocument()
+    expect(screen.getByText(/Build a team program/i)).toBeInTheDocument()
+    expect(screen.getByText(/Build for a specific pitcher/i)).toBeInTheDocument()
+    expect(screen.getByText(/Author a new template/i)).toBeInTheDocument()
   })
 })
