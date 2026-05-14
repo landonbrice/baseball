@@ -2555,6 +2555,20 @@ async def delete_scheduled_throw(pitcher_id: str, throw_id: str, request: Reques
     return {"removed": True}
 
 
+@router.get("/pitcher/{pitcher_id}/scheduled-throws")
+async def get_scheduled_throws(pitcher_id: str, request: Request):
+    """Plan 7 / A14: read-only view of scheduled_throws for UI anchor display.
+
+    Pitcher's mini-app reads this when rendering the Programs tab Active card
+    to show "Next bullpen: Wed May 14" inline.
+    """
+    _require_pitcher_auth(request, pitcher_id)
+    throws = _db.get_pitcher_scheduled_throws(pitcher_id) or []
+    # Sort by date ASC so "next" is index 0; entries missing date sort to the end.
+    throws.sort(key=lambda t: t.get("date") or "9999")
+    return {"scheduled_throws": throws}
+
+
 async def _send_admin_dm(text: str) -> None:
     """Fire an admin Telegram DM. Best-effort — never raises."""
     try:
