@@ -131,7 +131,10 @@ const secondaryButtonStyle = {
   cursor: 'pointer',
 };
 
-export default function BuilderSlideOver({ onClose, onProgramActivated, onDraftSaved, initialDomain = 'throwing' }) {
+export default function BuilderSlideOver({
+  onClose, onProgramActivated, onDraftSaved,
+  initialDomain = 'throwing', initialGoal = null,
+}) {
   const { pitcherId, initData } = useAuth();
   const [state, setState] = useState(BUILDER_STATES.INPUTS);
   const [error, setError] = useState(null);
@@ -140,7 +143,10 @@ export default function BuilderSlideOver({ onClose, onProgramActivated, onDraftS
   const [domain, setDomain]                       = useState(
     initialDomain === 'lifting' || initialDomain === 'throwing' ? initialDomain : 'throwing'
   );
-  const [goal, setGoal]                           = useState(null);  // chip id or null
+  // initialGoal lets callers (e.g. Browse Templates "Build with this template")
+  // pre-select a goal chip. The chip must exist in the resolved domain's chip
+  // list — InputsForm will simply render it as unselected if it doesn't match.
+  const [goal, setGoal]                           = useState(() => initialGoal || null);  // chip id or null
   const [goalText, setGoalText]                   = useState('');    // free-text when goal === '__other__'
   const [durationWeeks, setDurationWeeks]         = useState(12);
   const [effectivePhase, setEffectivePhase]       = useState('in_season');

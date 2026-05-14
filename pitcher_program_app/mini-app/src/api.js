@@ -343,6 +343,18 @@ export async function interpretGoal(text, domain, initData = null) {
 }
 
 /**
+ * Plan 7 / B13: list block_library templates for the Browse Templates section.
+ * Optional domain filter ('throwing' | 'lifting'). Returns
+ * {templates: [{block_template_id, name, description, domain, goal_tags,
+ *               compatible_phases, duration_range_weeks, implied_phase,
+ *               research_doc_ids}]}.
+ */
+export async function fetchTemplates(domain = null, initData = null) {
+  const qs = domain ? `?domain=${encodeURIComponent(domain)}` : '';
+  return fetchApi(`/api/programs/templates${qs}`, initData);
+}
+
+/**
  * Fire-and-forget telemetry when an exercise name falls back to ID/Unknown (D9).
  * Never throws; best-effort.
  */

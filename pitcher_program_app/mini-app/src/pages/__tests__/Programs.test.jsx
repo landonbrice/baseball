@@ -21,8 +21,10 @@ vi.mock('../../App', () => ({
 }));
 
 const apiResponses = {};
+const useApiCalls = []; // paths passed to useApi each render (null = skipped)
 vi.mock('../../hooks/useApi', () => ({
   useApi: (path) => {
+    useApiCalls.push(path);
     if (!path) return { data: null, loading: false, error: null, refetch: vi.fn() };
     // Strip cache-bust suffix for keying
     const key = path.replace(/\?_r=\d+$/, '');
@@ -52,6 +54,7 @@ vi.mock('../../components/BuilderSlideOver', () => ({
     builderSpy(props);
     return <div data-testid="builder-slideover-mounted">
       <span data-testid="builder-initial-domain">{props.initialDomain}</span>
+      <span data-testid="builder-initial-goal">{props.initialGoal ?? ''}</span>
       <button data-testid="builder-close" onClick={props.onClose}>close</button>
       <button data-testid="builder-activated" onClick={() => props.onProgramActivated?.({})}>
         activated
@@ -68,6 +71,7 @@ function setApi(path, data, loading = false) {
 
 beforeEach(() => {
   for (const k of Object.keys(apiResponses)) delete apiResponses[k];
+  useApiCalls.length = 0;
   vi.clearAllMocks();
   mockProfile.mockReturnValue({ name: 'Landon Brice' });
   mockLog.mockReturnValue({ entries: [] });
@@ -335,6 +339,69 @@ describe('Programs: History section', () => {
     expect(screen.getByText('Program History')).toBeInTheDocument();
     expect(screen.getByTestId('history-h1')).toBeInTheDocument();
     expect(screen.getByText('superseded')).toBeInTheDocument();
+  });
+});
+
+// ---------- Browse Templates (Plan 7 / B13) ----------
+
+describe('Programs: Browse Templates section', () => {
+  const TEMPLATES = [
+    {
+      block_template_id: 'tpl_velocity_12wk_v1',
+      name: 'Velocity 12wk',
+      description: '12-week velocity development block',
+      domain: 'throwing',
+      goal_tags: ['velocity', 'longtoss'],
+      compatible_phases: ['off_season'],
+      duration_range_weeks: '[10,14]',
+    },
+    {
+      block_template_id: 'tpl_hypertrophy_8wk_v1',
+      name: 'Hypertrophy 8wk',
+      description: 'Off-season size phase',
+      domain: 'lifting',
+      goal_tags: ['hypertrophy'],
+      compatible_phases: ['off_season'],
+      duration_range_weeks: '[6,10)',
+    },
+  ];
+
+  it('starts collapsed and does not fetch /api/programs/templates until expanded', () => {
+    render(<Programs />);
+    // The toggle is rendered…
+    expect(screen.getByTestId('browse-templates-toggle')).toBeInTheDocument();
+    // …but the body is not present and useApi was never called with the
+    // templates URL (the section passes `null` while collapsed).
+    expect(screen.queryByTestId('browse-templates-body')).not.toBeInTheDocument();
+    const templatesCalls = useApiCalls.filter(p => p && p.startsWith('/api/programs/templates'));
+    expect(templatesCalls).toHaveLength(0);
+  });
+
+  it('renders template rows on expand and opens Builder with the template domain + first goal_tag', async () => {
+    const user = userEvent.setup();
+    setApi('/api/programs/templates', { templates: TEMPLATES });
+    render(<Programs />);
+
+    // Expand the section.
+    await user.click(screen.getByTestId('browse-templates-toggle'));
+    expect(screen.getByTestId('browse-templates-body')).toBeInTheDocument();
+
+    // Both template rows render.
+    expect(screen.getByTestId('template-row-tpl_velocity_12wk_v1')).toBeInTheDocument();
+    expect(screen.getByTestId('template-row-tpl_hypertrophy_8wk_v1')).toBeInTheDocument();
+    expect(screen.getByText('Velocity 12wk')).toBeInTheDocument();
+    expect(screen.getByText('Hypertrophy 8wk')).toBeInTheDocument();
+
+    // useApi was called with the templates URL once the section opened.
+    const templatesCalls = useApiCalls.filter(p => p && p.startsWith('/api/programs/templates'));
+    expect(templatesCalls.length).toBeGreaterThan(0);
+
+    // Tap "Build with this template" on the lifting row → Builder opens
+    // with the template's domain and first goal_tag pre-selected.
+    await user.click(screen.getByTestId('template-build-tpl_hypertrophy_8wk_v1'));
+    expect(screen.getByTestId('builder-slideover-mounted')).toBeInTheDocument();
+    expect(screen.getByTestId('builder-initial-domain')).toHaveTextContent('lifting');
+    expect(screen.getByTestId('builder-initial-goal')).toHaveTextContent('hypertrophy');
   });
 });
 

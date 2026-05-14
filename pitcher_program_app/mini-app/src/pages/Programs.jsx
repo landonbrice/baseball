@@ -1,5 +1,5 @@
 /**
- * Programs — Plan 6 / B1.
+ * Programs — Plan 6 / B1, extended Plan 7 / B13.
  *
  * Single editorial scrolling page (spec D10). Sections top-to-bottom:
  *   1. Masthead — kicker, first-name title, today's date
@@ -9,7 +9,9 @@
  *   5. Drafts
  *   6. Favorites — block snapshots with inline expansion (D13 render-only)
  *   7. Program History — archived chronologically
- *   (Browse Templates section deferred to Plan 7 — no endpoint yet.)
+ *   8. Browse Templates — collapsed by default; tap to expand → list of
+ *      block_library templates with "Build with this template" entry into
+ *      the BuilderSlideOver (Plan 7 / B13).
  */
 import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -73,8 +75,11 @@ export default function Programs() {
   const navigate = useNavigate();
   const { profile, log } = usePitcher(pitcherId, initData);
 
-  const [builderOpen, setBuilderOpen]   = useState(false);
-  const [builderDomain, setBuilderDomain] = useState('throwing');
+  // Combined builder state — Browse Templates threads through `initialGoal`
+  // alongside the existing `initialDomain` from Build CTA / Replace.
+  const [builderState, setBuilderState] = useState({
+    open: false, domain: 'throwing', goal: null,
+  });
   const [refreshKey, setRefreshKey]     = useState(0);
   const bust = refreshKey ? `?_r=${refreshKey}` : '';
 
@@ -89,10 +94,19 @@ export default function Programs() {
   const todayEntry = entries.find(e => e.date === todayStr);
 
   const refetchAll = () => setRefreshKey(k => k + 1);
+  const closeBuilder = () => setBuilderState({ open: false, domain: 'throwing', goal: null });
 
   const openBuilder = (domain) => {
-    setBuilderDomain(domain || 'throwing');
-    setBuilderOpen(true);
+    setBuilderState({ open: true, domain: domain || 'throwing', goal: null });
+  };
+
+  // B13: Browse Templates "Build with this template" entry point.
+  const handleBuildWithTemplate = ({ domain, goal }) => {
+    setBuilderState({
+      open: true,
+      domain: domain || 'throwing',
+      goal: goal || null,
+    });
   };
 
   return (
@@ -127,12 +141,18 @@ export default function Programs() {
         loading={history.loading}
       />
 
-      {builderOpen && (
+      <BrowseTemplatesSection
+        initData={initData}
+        onBuildWith={handleBuildWithTemplate}
+      />
+
+      {builderState.open && (
         <BuilderSlideOver
-          initialDomain={builderDomain}
-          onClose={() => setBuilderOpen(false)}
-          onProgramActivated={() => { setBuilderOpen(false); refetchAll(); }}
-          onDraftSaved={() => { setBuilderOpen(false); refetchAll(); }}
+          initialDomain={builderState.domain}
+          initialGoal={builderState.goal}
+          onClose={closeBuilder}
+          onProgramActivated={() => { closeBuilder(); refetchAll(); }}
+          onDraftSaved={() => { closeBuilder(); refetchAll(); }}
         />
       )}
     </div>
@@ -531,6 +551,130 @@ function FavoriteRow({ favorite, expanded, onToggle }) {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+// ---------- 8. Browse Templates ----------
+
+// Parse a Postgres int4range string into a "low–high weeks" label.
+// Server returns shapes like "[8,12]", "[6,10)", "[4,)". Inclusive vs
+// exclusive bounds matter — we render the *inclusive* range so the user
+// sees the actually-allowed durations, not the raw bracket form.
+function formatDurationRange(raw) {
+  if (raw == null) return null;
+  if (typeof raw !== 'string') return String(raw);
+  const m = raw.match(/^([\[\(])\s*(\d+)?\s*,\s*(\d+)?\s*([\]\)])$/);
+  if (!m) return raw; // unknown shape — fall back to raw string
+  const [, lb, lowStr, highStr, ub] = m;
+  if (lowStr == null && highStr == null) return null;
+  let low = lowStr != null ? parseInt(lowStr, 10) : null;
+  let high = highStr != null ? parseInt(highStr, 10) : null;
+  // Postgres int4range with exclusive bracket: shift to inclusive.
+  if (low != null && lb === '(') low += 1;
+  if (high != null && ub === ')') high -= 1;
+  if (low != null && high != null) {
+    return low === high ? `${low} wk` : `${low}–${high} wk`;
+  }
+  if (low != null) return `${low}+ wk`;
+  if (high != null) return `up to ${high} wk`;
+  return null;
+}
+
+function BrowseTemplatesSection({ initData, onBuildWith }) {
+  const [open, setOpen] = useState(false);
+  // useApi skips fetching when path is null — gate by `open` so we don't
+  // hit the network until the user expands the section.
+  const { data, loading, error } = useApi(
+    open ? '/api/programs/templates' : null,
+    initData,
+  );
+  const templates = data?.templates || [];
+
+  return (
+    <>
+      <button
+        type="button"
+        data-testid="browse-templates-toggle"
+        onClick={() => setOpen(o => !o)}
+        aria-expanded={open}
+        style={{
+          ...sectionLabelStyle,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          width: '100%',
+          background: 'transparent', border: 'none', cursor: 'pointer',
+          textAlign: 'left',
+        }}
+      >
+        <span>Browse Templates</span>
+        <span style={{ fontSize: 10, color: 'var(--color-ink-muted)' }}>
+          {open ? '▾' : '▸'}
+        </span>
+      </button>
+      {open && (
+        <div style={{ padding: '0 16px' }} data-testid="browse-templates-body">
+          {loading && (
+            <div style={emptyHintStyle}>Loading templates…</div>
+          )}
+          {error && (
+            <div role="alert" style={emptyHintStyle}>
+              Could not load templates.
+            </div>
+          )}
+          {!loading && !error && templates.length === 0 && (
+            <div style={emptyHintStyle}>No templates available.</div>
+          )}
+          {!loading && !error && templates.map(t => (
+            <TemplateRow
+              key={t.block_template_id}
+              template={t}
+              onBuildWith={() => onBuildWith?.({
+                domain: t.domain,
+                goal: Array.isArray(t.goal_tags) ? t.goal_tags[0] : null,
+              })}
+            />
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
+function TemplateRow({ template, onBuildWith }) {
+  const durationLabel = formatDurationRange(template.duration_range_weeks);
+  const domainLabel = DOMAIN_LABEL[template.domain] || template.domain;
+  return (
+    <div
+      style={cardStyle}
+      data-testid={`template-row-${template.block_template_id}`}
+    >
+      <div style={{
+        display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
+        marginBottom: 6, gap: 8,
+      }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{
+            fontSize: 9, fontWeight: 700, letterSpacing: '0.08em',
+            color: 'var(--color-ink-faint)', textTransform: 'uppercase',
+            marginBottom: 2,
+          }}>{domainLabel}{durationLabel ? ` · ${durationLabel}` : ''}</div>
+          <div style={{
+            fontSize: 13, fontWeight: 700, color: 'var(--color-ink-primary)',
+          }}>{template.name}</div>
+        </div>
+      </div>
+      {template.description && (
+        <div style={{
+          fontSize: 11, color: 'var(--color-ink-muted)', marginBottom: 10,
+          lineHeight: 1.4,
+        }}>{template.description}</div>
+      )}
+      <button
+        type="button"
+        onClick={onBuildWith}
+        data-testid={`template-build-${template.block_template_id}`}
+        style={smallActionStyle('primary')}
+      >Build with this template</button>
     </div>
   );
 }
