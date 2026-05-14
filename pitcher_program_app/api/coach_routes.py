@@ -8,7 +8,7 @@ import os
 import logging
 from datetime import date, datetime, timedelta
 
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, Request, HTTPException, Query
 
 from api.coach_auth import require_coach_auth
 from bot.config import CHICAGO_TZ
@@ -1064,6 +1064,39 @@ async def coach_post_program_archive(program_id: str, req: CoachProgramArchiveRe
         raise HTTPException(status_code=404, detail="program not found")
     _require_team_pitcher(program.get("pitcher_id") or "", team_id)
     return _program_lifecycle.archive(program_id, reason=req.reason)
+
+
+# ---- Coach mirrors of /api/programs/{drafts,active,history} (Plan 7 / A3-coach) ----
+# A unified /programs endpoint with optional ?status= covers active/draft/archived
+# views in one route — coaches don't need a separate /active mirror. /drafts is
+# split out because of D14: coach sees only finalized drafts (completed sessions).
+
+
+@coach_router.get("/pitcher/{pitcher_id}/programs")
+async def coach_get_pitcher_programs(
+    pitcher_id: str,
+    request: Request,
+    status: _Optional[str] = Query(default=None, pattern="^(draft|active|archived|error)$"),
+):
+    """List all programs for a team-scoped pitcher. Optional status filter."""
+    await require_coach_auth(request)
+    team_id = request.state.team_id
+    _require_team_pitcher(pitcher_id, team_id)
+    rows = _db.list_programs_for_pitcher_summary(pitcher_id, status=status)
+    return {"programs": rows}
+
+
+@coach_router.get("/pitcher/{pitcher_id}/drafts")
+async def coach_get_pitcher_drafts(pitcher_id: str, request: Request):
+    """List drafts visible to the coach: only programs whose builder_session
+    has status='completed'. Per Plan 6 D14, an in-flight Socratic session does
+    not show up as a draft on the coach view — only finalized drafts.
+    """
+    await require_coach_auth(request)
+    team_id = request.state.team_id
+    _require_team_pitcher(pitcher_id, team_id)
+    rows = _db.list_completed_session_drafts_for_pitcher(pitcher_id)
+    return {"drafts": rows}
 
 
 # ---- Internal ----

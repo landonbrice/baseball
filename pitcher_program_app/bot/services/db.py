@@ -857,6 +857,41 @@ def list_programs_for_pitcher_summary(
     return resp.data or []
 
 
+def list_completed_session_drafts_for_pitcher(pitcher_id: str) -> list[dict]:
+    """Return draft programs whose generating builder_session.status='completed'.
+
+    Per Plan 6 D14: the coach sees finalized drafts only; in-flight Socratic
+    sessions are private to the pitcher until they hit Save/Activate. Used by
+    GET /api/coach/pitcher/{id}/drafts (Plan 7 / A3-coach).
+    """
+    client = get_client()
+    # Two-step: pull completed session IDs first, then filter programs by them.
+    sess_resp = (
+        client.table("program_builder_sessions")
+        .select("generated_program_id")
+        .eq("pitcher_id", pitcher_id)
+        .eq("status", "completed")
+        .execute()
+    )
+    program_ids = [
+        r["generated_program_id"]
+        for r in (sess_resp.data or [])
+        if r.get("generated_program_id")
+    ]
+    if not program_ids:
+        return []
+    prog_resp = (
+        client.table("programs")
+        .select(_PROGRAM_SUMMARY_COLUMNS)
+        .eq("pitcher_id", pitcher_id)
+        .eq("status", "draft")
+        .in_("program_id", program_ids)
+        .order("created_at", desc=True)
+        .execute()
+    )
+    return prog_resp.data or []
+
+
 # ---------------- Program Hold Events (Plan 6 / B2 read-side) ----------------
 
 def list_program_holds_for_date(pitcher_id: str, event_date_iso: str) -> list[str]:
