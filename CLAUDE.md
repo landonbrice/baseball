@@ -434,6 +434,9 @@ GitHub (landonbrice/baseball)
 - Project: `pitcher-training-intel` (us-east-1)
 - URL: `https://beyolhukpbvvoxvjnwtd.supabase.co`
 - FK pattern: `pitchers` PK is `pitcher_id` (not `id`)
+- **MCP is HTTP-based** (`.mcp.json` → `https://mcp.supabase.com/mcp?project_ref=beyolhukpbvvoxvjnwtd`), auths via Supabase OAuth login. **No `SUPABASE_ACCESS_TOKEN` / `SUPABASE_DB_URL` / `SUPABASE_PROJECT_REF` env vars needed** — and intentionally not set locally. Project ref is `beyolhukpbvvoxvjnwtd`.
+- **No local `.env`** — only `.env.example`. Runtime secrets live in Railway/Vercel; SQL ops go through MCP. Minimizes secrets-on-disk surface (cf. WHOOP token incident in Known Issues).
+- **Capabilities deferred** (add only when needed): Supabase CLI scripting / CI migrations (needs PAT), `psql` + `pg_dump` + GUI clients + multi-statement TX (needs `DB_URL`). All `010`/`011`/`012` lockdown migrations ran fine via `apply_migration` MCP — no DB URL required for current ops surface. **Note:** Guardian Phase 2 (What's Next #10) plans to add `SUPABASE_ACCESS_TOKEN` + `SUPABASE_PROJECT_REF` for a Management API collector (advisor lints / RLS posture) — that's a *different* use case from CLI/psql, and the same PAT can serve both if/when added. `DB_URL` is not on any roadmap.
 
 ### Deploy Checklist
 1. Push to `main` → Railway + Vercel auto-deploy
