@@ -167,6 +167,16 @@ def _today_summary(today: dict | None) -> dict:
     rationale = today.get("rationale") if today else None
     rationale_short = rationale.get("rationale_short") if isinstance(rationale, dict) else None
 
+    # C7: surface Phase 1 category scores from pre_training so coach surfaces can
+    # render the 3-stat row + flag-pill driving-category suffix. Pitchers without
+    # a baseline have no category_scores; we pass `None` through and the UI hides.
+    pre = today.get("pre_training") if today else None
+    category_scores = None
+    if isinstance(pre, dict):
+        cs = pre.get("category_scores")
+        if isinstance(cs, dict):
+            category_scores = cs
+
     return {
         "day_focus": day_focus,
         "lifting_summary": lifting_summary,
@@ -174,6 +184,7 @@ def _today_summary(today: dict | None) -> dict:
         "throwing": throwing_val,
         "modifications": _normalize_modifications(plan) if isinstance(plan, dict) else [],
         "rationale_short": rationale_short,
+        "category_scores": category_scores,
     }
 
 
@@ -293,6 +304,16 @@ def get_team_daily_status(team_id: str, today_str: str | None = None, *, client=
         baseline_state = snapshot.get("baseline_state") if isinstance(snapshot, dict) else None
         total_check_ins = snapshot.get("total_check_ins") if isinstance(snapshot, dict) else None
 
+        # C7: lift today's Phase 1 category scores onto the roster row so flag-pill
+        # copy in HeroCard/CompactCard can show "yellow · tissue 2.3" without
+        # reaching into `today`. None when no baseline / no scores persisted.
+        today_pre = (today or {}).get("pre_training") if today else None
+        category_scores = None
+        if isinstance(today_pre, dict):
+            cs = today_pre.get("category_scores")
+            if isinstance(cs, dict):
+                category_scores = cs
+
         full_name = p.get("name") or pid
         role = p.get("role", "")
         roster.append({
@@ -318,6 +339,7 @@ def get_team_daily_status(team_id: str, today_str: str | None = None, *, client=
             "today": _today_summary(today),
             "baseline_state": baseline_state,
             "total_check_ins": total_check_ins,
+            "category_scores": category_scores,
         })
 
     checked_in = sum(1 for r in roster if r["checkin_status"] == "checked_in")
@@ -374,6 +396,7 @@ def to_coach_roster(status: dict) -> list[dict]:
             "today": p.get("today", {}),
             "baseline_state": p.get("baseline_state"),
             "total_check_ins": p.get("total_check_ins"),
+            "category_scores": p.get("category_scores"),
         }
         for p in status.get("pitchers", [])
     ]

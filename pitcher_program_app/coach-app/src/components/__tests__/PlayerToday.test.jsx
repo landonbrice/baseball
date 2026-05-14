@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import PlayerToday from '../PlayerToday'
 
 vi.mock('../../hooks/useExerciseName', () => ({
@@ -84,5 +84,53 @@ describe('<PlayerToday> F4 rationale layer', () => {
     expect(screen.getByText(/only status/i)).toBeInTheDocument()
     expect(screen.queryByText(/Signal:/)).not.toBeInTheDocument()
     expect(screen.queryByText(/Response:/)).not.toBeInTheDocument()
+  })
+})
+
+describe('<PlayerToday> C7 category scores 3-stat row', () => {
+  it('renders 3-stat row when category_scores present and marks lowest as driving', () => {
+    const data = buildData({
+      pre_training: {
+        arm_feel: 6,
+        category_scores: { tissue_score: 2.3, load_score: 6.1, recovery_score: 5.4 },
+      },
+      lifting: LIFTING,
+    })
+    render(<PlayerToday data={data} />)
+    const row = screen.getByTestId('category-scores')
+    expect(row).toBeInTheDocument()
+    expect(within(row).getByText(/Tissue/i)).toBeInTheDocument()
+    expect(within(row).getByText(/Load/i)).toBeInTheDocument()
+    expect(within(row).getByText(/Recovery/i)).toBeInTheDocument()
+    expect(within(row).getByText('2.3')).toBeInTheDocument()
+    expect(within(row).getByText('6.1')).toBeInTheDocument()
+    expect(within(row).getByText('5.4')).toBeInTheDocument()
+    expect(within(row).getByText(/driving/i)).toBeInTheDocument()
+  })
+
+  it('omits 3-stat row when no category_scores', () => {
+    const data = buildData({ pre_training: { arm_feel: 7 }, lifting: LIFTING })
+    render(<PlayerToday data={data} />)
+    expect(screen.queryByTestId('category-scores')).toBeNull()
+  })
+
+  it('omits 3-stat row when pre_training missing entirely', () => {
+    const data = buildData({ lifting: LIFTING })
+    render(<PlayerToday data={data} />)
+    expect(screen.queryByTestId('category-scores')).toBeNull()
+  })
+
+  it('renders driving on tissue when tissue is the lowest', () => {
+    const data = buildData({
+      pre_training: {
+        category_scores: { tissue_score: 2.0, load_score: 8.0, recovery_score: 7.0 },
+      },
+      lifting: LIFTING,
+    })
+    render(<PlayerToday data={data} />)
+    const row = screen.getByTestId('category-scores')
+    expect(row).toBeInTheDocument()
+    // "driving" label sits in the same cell as "Tissue" — verify it renders once
+    expect(within(row).getAllByText(/driving/i).length).toBe(1)
   })
 })

@@ -105,4 +105,62 @@ describe('<HeroCard>', () => {
     )
     expect(screen.getByText(/baseline establishing 0\/14/i)).toBeInTheDocument()
   })
+
+  // ---- C7: flag-pill driving-category suffix ----
+
+  it('renders flag suffix "· tissue 2.3" when yellow + category scores present', () => {
+    render(
+      <HeroCard
+        pitcher={{
+          ...BASE,
+          flag_level: 'yellow',
+          category_scores: { tissue_score: 2.3, load_score: 6.1, recovery_score: 5.4 },
+        }}
+      />
+    )
+    const suffix = screen.getByTestId('flag-driving-suffix')
+    expect(suffix).toHaveTextContent(/tissue/i)
+    expect(suffix).toHaveTextContent('2.3')
+  })
+
+  it('omits flag suffix on green even when category scores present', () => {
+    render(
+      <HeroCard
+        pitcher={{
+          ...BASE,
+          flag_level: 'green',
+          category_scores: { tissue_score: 7.2, load_score: 8.1, recovery_score: 6.5 },
+        }}
+      />
+    )
+    expect(screen.queryByTestId('flag-driving-suffix')).toBeNull()
+  })
+
+  it('omits flag suffix when yellow but no category scores (no baseline)', () => {
+    render(
+      <HeroCard
+        pitcher={{
+          ...BASE,
+          flag_level: 'yellow',
+          category_scores: null,
+        }}
+      />
+    )
+    expect(screen.queryByTestId('flag-driving-suffix')).toBeNull()
+  })
+
+  it('renders red flag with the driving category suffix', () => {
+    render(
+      <HeroCard
+        pitcher={{
+          ...BASE,
+          flag_level: 'red',
+          category_scores: { tissue_score: 6.0, load_score: 1.5, recovery_score: 4.0 },
+        }}
+      />
+    )
+    const suffix = screen.getByTestId('flag-driving-suffix')
+    expect(suffix).toHaveTextContent(/load/i)
+    expect(suffix).toHaveTextContent('1.5')
+  })
 })

@@ -2,6 +2,7 @@ import FlagPill from '../shell/FlagPill'
 import LastSevenStrip from './LastSevenStrip'
 import ProgramStrip from './ProgramStrip'
 import { buildTodayObjective } from '../../utils/todayObjective'
+import { getDrivingSuffix } from '../../utils/categoryScores'
 
 const BORDER = {
   red: 'border-l-crimson',
@@ -20,6 +21,11 @@ export default function HeroCard({ pitcher, onOpen, activePrograms }) {
   const border = BORDER[flag] || BORDER.green
   const { mark, text } = buildTodayObjective(pitcher.today)
   const af = pitcher.af_7d
+  // C7: flag-pill suffix only cites the driving category when non-green AND
+  // category scores were persisted (pitchers without a baseline have none).
+  // GREEN pitchers stay visually quiet — no suffix.
+  const drivingSuffix =
+    flag !== 'green' ? getDrivingSuffix(pitcher.category_scores) : null
 
   return (
     <button
@@ -35,7 +41,17 @@ export default function HeroCard({ pitcher, onOpen, activePrograms }) {
             {pitcher.role}
           </div>
         </div>
-        <FlagPill level={flag} />
+        <div className="flex items-center gap-1.5">
+          <FlagPill level={flag} />
+          {drivingSuffix && (
+            <span
+              data-testid="flag-driving-suffix"
+              className="font-ui text-[10px] uppercase tracking-[0.12em] text-muted tabular"
+            >
+              · {drivingSuffix.short} {drivingSuffix.score}
+            </span>
+          )}
+        </div>
       </div>
 
       {pitcher.active_injury_flags && pitcher.active_injury_flags.length > 0 && (

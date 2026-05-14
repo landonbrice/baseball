@@ -47,4 +47,39 @@ describe('<CompactCard>', () => {
     render(<CompactCard pitcher={{ ...BASE, af_7d: null }} />)
     expect(screen.getByText('—')).toBeInTheDocument()
   })
+
+  // ---- C7: driving-category suffix ----
+
+  it('omits driving suffix when green and all scores ≥ 4 (visually quiet)', () => {
+    render(
+      <CompactCard
+        pitcher={{
+          ...BASE,
+          flag_level: 'green',
+          category_scores: { tissue_score: 6.0, load_score: 7.5, recovery_score: 5.2 },
+        }}
+      />
+    )
+    expect(screen.queryByTestId('flag-driving-suffix')).toBeNull()
+  })
+
+  it('shows driving suffix on green when a category score is below 4 (early warning)', () => {
+    render(
+      <CompactCard
+        pitcher={{
+          ...BASE,
+          flag_level: 'green',
+          category_scores: { tissue_score: 3.4, load_score: 7.0, recovery_score: 6.0 },
+        }}
+      />
+    )
+    const suffix = screen.getByTestId('flag-driving-suffix')
+    expect(suffix).toHaveTextContent(/tissue/i)
+    expect(suffix).toHaveTextContent('3.4')
+  })
+
+  it('omits suffix when no category_scores present', () => {
+    render(<CompactCard pitcher={{ ...BASE, category_scores: null }} />)
+    expect(screen.queryByTestId('flag-driving-suffix')).toBeNull()
+  })
 })
