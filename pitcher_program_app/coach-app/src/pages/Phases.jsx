@@ -15,9 +15,14 @@ export default function Phases() {
   const { getAccessToken } = useCoachAuth()
   const toast = useToast()
   const { data, loading, error, refetch } = useCoachApi('/api/coach/phases')
+  // C5: fetch all templates once and partition client-side by compatible_phases.
+  // Cheaper than N per-phase fetches, and the coach-mirror endpoint already
+  // returns a small list.
+  const { data: templatesData } = useCoachApi('/api/coach/programs/templates')
   const [editing, setEditing] = useState(null) // null | 'new' | phase object
 
   const phases = data?.phases || []
+  const templates = templatesData?.templates || []
   // ISO date for comparisons (Chicago TZ). TODAY is the display string reserved for Masthead.
   const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' })
 
@@ -103,7 +108,7 @@ export default function Phases() {
               <p className="font-ui text-eyebrow uppercase tracking-[0.2em] text-maroon mb-3">
                 Phase Timeline
               </p>
-              <PhaseTimeline phases={phases} onSelect={p => setEditing(p)} />
+              <PhaseTimeline phases={phases} templates={templates} onSelect={p => setEditing(p)} />
               {phases.length === 0 && (
                 <EditorialState type="empty" copy="No phases defined. Add one with + Add Phase." />
               )}

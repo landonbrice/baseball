@@ -3,6 +3,7 @@ import { useCoachApi } from '../hooks/useApi'
 import PlayerToday from './PlayerToday'
 import PlayerWeek from './PlayerWeek'
 import PlayerHistory from './PlayerHistory'
+import PlayerPrograms from './PlayerPrograms'
 import AdjustTodayModal from './AdjustTodayModal'
 import AddRestrictionModal from './AddRestrictionModal'
 import FlagPill from './shell/FlagPill'
@@ -12,6 +13,7 @@ const TABS = [
   { key: 'today', label: 'Today' },
   { key: 'week', label: 'Week' },
   { key: 'history', label: 'History' },
+  { key: 'programs', label: 'Programs' },
 ]
 
 function formatShortDate(iso) {
@@ -150,6 +152,15 @@ export default function PlayerSlideOver({ pitcherId, onClose }) {
               )}
               {activeTab === 'week' && <PlayerWeek data={data} />}
               {activeTab === 'history' && <PlayerHistory data={data} />}
+              {activeTab === 'programs' && (
+                <PlayerPrograms
+                  pitcherId={pitcherId}
+                  initialOverrides={{
+                    throwing_phase: model.coach_throwing_phase_override || null,
+                    lifting_phase: model.coach_lifting_phase_override || null,
+                  }}
+                />
+              )}
             </>
           )}
         </div>

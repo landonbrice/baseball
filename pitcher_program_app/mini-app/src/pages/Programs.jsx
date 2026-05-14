@@ -1,5 +1,5 @@
 /**
- * Programs — Plan 6 / B1.
+ * Programs — Plan 6 / B1, extended Plan 7 / B13.
  *
  * Single editorial scrolling page (spec D10). Sections top-to-bottom:
  *   1. Masthead — kicker, first-name title, today's date
@@ -9,14 +9,48 @@
  *   5. Drafts
  *   6. Favorites — block snapshots with inline expansion (D13 render-only)
  *   7. Program History — archived chronologically
- *   (Browse Templates section deferred to Plan 7 — no endpoint yet.)
+ *   8. Browse Templates — collapsed by default; tap to expand → list of
+ *      block_library templates with "Build with this template" entry into
+ *      the BuilderSlideOver (Plan 7 / B13).
  */
 import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../App';
 import { useApi } from '../hooks/useApi';
 import { usePitcher } from '../hooks/usePitcher';
-import BuilderSlideOver from '../components/BuilderSlideOver';
+import { useBackButton } from '../hooks/useTelegram';
+import BuilderSlideOver from '@shared/builder/BuilderSlideOver.jsx';
+import {
+  fetchBuilderCandidates,
+  sendBuilderTurn,
+  finalizeBuilder,
+  activateProgram,
+  archiveProgram,
+  interpretGoal,
+} from '../api';
+
+/**
+ * Mini-app adapter for the shared BuilderSlideOver.
+ *
+ * The shared component takes its API as a prop (no module-level imports) so
+ * it can be reused by coach-app. The Telegram BackButton hook stays here in
+ * the mini-app — it's a no-op outside Telegram, but keeping it inside the
+ * shared component would couple it to a mini-app-only hook. We mount this
+ * wrapper only when the slide-over is open, so `useBackButton(onClose)` is
+ * active for exactly the window that the sheet is visible.
+ */
+function MiniAppBuilderSlideOver({ initData, ...rest }) {
+  useBackButton(rest.onClose);
+  const api = useMemo(() => ({
+    fetchCandidates: (envelope)            => fetchBuilderCandidates(envelope, initData),
+    sendTurn:        (sid, msg)             => sendBuilderTurn(sid, msg, initData),
+    finalize:        (sid, tplId, spec)     => finalizeBuilder(sid, tplId, spec, initData),
+    activateProgram: (programId)            => activateProgram(programId, initData),
+    archiveProgram:  (programId, reason)    => archiveProgram(programId, reason, initData),
+    interpretGoal:   (text, domain)         => interpretGoal(text, domain, initData),
+  }), [initData]);
+  return <BuilderSlideOver api={api} {...rest} />;
+}
 
 const TODAY_STR = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
 
@@ -73,8 +107,11 @@ export default function Programs() {
   const navigate = useNavigate();
   const { profile, log } = usePitcher(pitcherId, initData);
 
-  const [builderOpen, setBuilderOpen]   = useState(false);
-  const [builderDomain, setBuilderDomain] = useState('throwing');
+  // Combined builder state — Browse Templates threads through `initialGoal`
+  // alongside the existing `initialDomain` from Build CTA / Replace.
+  const [builderState, setBuilderState] = useState({
+    open: false, domain: 'throwing', goal: null,
+  });
   const [refreshKey, setRefreshKey]     = useState(0);
   const bust = refreshKey ? `?_r=${refreshKey}` : '';
 
@@ -83,16 +120,36 @@ export default function Programs() {
   const history    = useApi(pitcherId ? `/api/programs/history${bust}` : null, initData);
   const holdsToday = useApi(pitcherId ? `/api/programs/holds-today${bust}` : null, initData);
   const favorites  = useApi(pitcherId ? `/api/favorites${bust}` : null, initData);
+  // B14: scheduled-throw anchors for the throwing Active card.
+  const throws     = useApi(
+    pitcherId ? `/api/pitcher/${pitcherId}/scheduled-throws${bust}` : null,
+    initData,
+  );
 
   const todayStr = TODAY_STR();
+
+  // B14: pick next future throw (date >= today, Chicago tz). API already sorts ASC.
+  const nextThrow = useMemo(() => {
+    const list = throws.data?.scheduled_throws || [];
+    return list.find(t => (t?.date || '') >= todayStr) || null;
+  }, [throws.data, todayStr]);
   const entries = log?.entries || [];
   const todayEntry = entries.find(e => e.date === todayStr);
 
   const refetchAll = () => setRefreshKey(k => k + 1);
+  const closeBuilder = () => setBuilderState({ open: false, domain: 'throwing', goal: null });
 
   const openBuilder = (domain) => {
-    setBuilderDomain(domain || 'throwing');
-    setBuilderOpen(true);
+    setBuilderState({ open: true, domain: domain || 'throwing', goal: null });
+  };
+
+  // B13: Browse Templates "Build with this template" entry point.
+  const handleBuildWithTemplate = ({ domain, goal }) => {
+    setBuilderState({
+      open: true,
+      domain: domain || 'throwing',
+      goal: goal || null,
+    });
   };
 
   return (
@@ -105,6 +162,7 @@ export default function Programs() {
         active={active.data}
         loading={active.loading}
         holdsToday={holdsToday.data}
+        nextThrow={nextThrow}
         onReplace={openBuilder}
         onView={(programId) => navigate(`/programs/${programId}`)}
       />
@@ -127,12 +185,19 @@ export default function Programs() {
         loading={history.loading}
       />
 
-      {builderOpen && (
-        <BuilderSlideOver
-          initialDomain={builderDomain}
-          onClose={() => setBuilderOpen(false)}
-          onProgramActivated={() => { setBuilderOpen(false); refetchAll(); }}
-          onDraftSaved={() => { setBuilderOpen(false); refetchAll(); }}
+      <BrowseTemplatesSection
+        initData={initData}
+        onBuildWith={handleBuildWithTemplate}
+      />
+
+      {builderState.open && (
+        <MiniAppBuilderSlideOver
+          initData={initData}
+          initialDomain={builderState.domain}
+          initialGoal={builderState.goal}
+          onClose={closeBuilder}
+          onProgramActivated={() => { closeBuilder(); refetchAll(); }}
+          onDraftSaved={() => { closeBuilder(); refetchAll(); }}
         />
       )}
     </div>
@@ -225,7 +290,7 @@ function SourceTag({ info }) {
 
 // ---------- 3. Active Programs ----------
 
-function ActiveSection({ active, loading, holdsToday, onReplace, onView }) {
+function ActiveSection({ active, loading, holdsToday, nextThrow, onReplace, onView }) {
   if (loading) {
     return (
       <>
@@ -253,6 +318,7 @@ function ActiveSection({ active, loading, holdsToday, onReplace, onView }) {
         {throwing && (
           <ProgramCard
             program={throwing} heldToday={!!holdsToday?.throwing}
+            nextThrow={nextThrow}
             onView={() => onView(throwing.program_id)}
             onReplace={() => onReplace('throwing')}
           />
@@ -269,11 +335,14 @@ function ActiveSection({ active, loading, holdsToday, onReplace, onView }) {
   );
 }
 
-function ProgramCard({ program, heldToday, onView, onReplace }) {
+function ProgramCard({ program, heldToday, nextThrow, onView, onReplace }) {
   const dayIndex = (program.current_day_index ?? 0) + 1;
   const totalDays = computeTotalDays(program);
   const heldDays = program.held_days_count ?? 0;
   const domainLabel = DOMAIN_LABEL[program.domain] || program.domain;
+  // B14: only the throwing card gets the scheduled-throw anchor banner.
+  const showNextThrow = program.domain === 'throwing' && !!nextThrow;
+  const throwKind = nextThrow?.kind || nextThrow?.type;
 
   return (
     <div style={cardStyle} data-testid={`active-card-${program.domain}`}>
@@ -308,6 +377,18 @@ function ProgramCard({ program, heldToday, onView, onReplace }) {
           <> · Started <span style={{ color: 'var(--color-ink-secondary)' }}>{program.start_date}</span></>
         )}
       </div>
+      {showNextThrow && (
+        <div
+          data-testid={`active-card-${program.domain}-next-throw`}
+          style={{
+            fontSize: 11, color: 'var(--color-ink-muted)',
+            marginTop: -4, marginBottom: 10,
+          }}
+        >
+          Next{throwKind ? ` ${throwKind}` : ''}:{' '}
+          <strong style={{ color: 'var(--color-ink-secondary)' }}>{nextThrow.date}</strong>
+        </div>
+      )}
       <div style={{ display: 'flex', gap: 8 }}>
         <button
           type="button" onClick={onView}
@@ -531,6 +612,130 @@ function FavoriteRow({ favorite, expanded, onToggle }) {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+// ---------- 8. Browse Templates ----------
+
+// Parse a Postgres int4range string into a "low–high weeks" label.
+// Server returns shapes like "[8,12]", "[6,10)", "[4,)". Inclusive vs
+// exclusive bounds matter — we render the *inclusive* range so the user
+// sees the actually-allowed durations, not the raw bracket form.
+function formatDurationRange(raw) {
+  if (raw == null) return null;
+  if (typeof raw !== 'string') return String(raw);
+  const m = raw.match(/^([\[\(])\s*(\d+)?\s*,\s*(\d+)?\s*([\]\)])$/);
+  if (!m) return raw; // unknown shape — fall back to raw string
+  const [, lb, lowStr, highStr, ub] = m;
+  if (lowStr == null && highStr == null) return null;
+  let low = lowStr != null ? parseInt(lowStr, 10) : null;
+  let high = highStr != null ? parseInt(highStr, 10) : null;
+  // Postgres int4range with exclusive bracket: shift to inclusive.
+  if (low != null && lb === '(') low += 1;
+  if (high != null && ub === ')') high -= 1;
+  if (low != null && high != null) {
+    return low === high ? `${low} wk` : `${low}–${high} wk`;
+  }
+  if (low != null) return `${low}+ wk`;
+  if (high != null) return `up to ${high} wk`;
+  return null;
+}
+
+function BrowseTemplatesSection({ initData, onBuildWith }) {
+  const [open, setOpen] = useState(false);
+  // useApi skips fetching when path is null — gate by `open` so we don't
+  // hit the network until the user expands the section.
+  const { data, loading, error } = useApi(
+    open ? '/api/programs/templates' : null,
+    initData,
+  );
+  const templates = data?.templates || [];
+
+  return (
+    <>
+      <button
+        type="button"
+        data-testid="browse-templates-toggle"
+        onClick={() => setOpen(o => !o)}
+        aria-expanded={open}
+        style={{
+          ...sectionLabelStyle,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          width: '100%',
+          background: 'transparent', border: 'none', cursor: 'pointer',
+          textAlign: 'left',
+        }}
+      >
+        <span>Browse Templates</span>
+        <span style={{ fontSize: 10, color: 'var(--color-ink-muted)' }}>
+          {open ? '▾' : '▸'}
+        </span>
+      </button>
+      {open && (
+        <div style={{ padding: '0 16px' }} data-testid="browse-templates-body">
+          {loading && (
+            <div style={emptyHintStyle}>Loading templates…</div>
+          )}
+          {error && (
+            <div role="alert" style={emptyHintStyle}>
+              Could not load templates.
+            </div>
+          )}
+          {!loading && !error && templates.length === 0 && (
+            <div style={emptyHintStyle}>No templates available.</div>
+          )}
+          {!loading && !error && templates.map(t => (
+            <TemplateRow
+              key={t.block_template_id}
+              template={t}
+              onBuildWith={() => onBuildWith?.({
+                domain: t.domain,
+                goal: Array.isArray(t.goal_tags) ? t.goal_tags[0] : null,
+              })}
+            />
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
+function TemplateRow({ template, onBuildWith }) {
+  const durationLabel = formatDurationRange(template.duration_range_weeks);
+  const domainLabel = DOMAIN_LABEL[template.domain] || template.domain;
+  return (
+    <div
+      style={cardStyle}
+      data-testid={`template-row-${template.block_template_id}`}
+    >
+      <div style={{
+        display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
+        marginBottom: 6, gap: 8,
+      }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{
+            fontSize: 9, fontWeight: 700, letterSpacing: '0.08em',
+            color: 'var(--color-ink-faint)', textTransform: 'uppercase',
+            marginBottom: 2,
+          }}>{domainLabel}{durationLabel ? ` · ${durationLabel}` : ''}</div>
+          <div style={{
+            fontSize: 13, fontWeight: 700, color: 'var(--color-ink-primary)',
+          }}>{template.name}</div>
+        </div>
+      </div>
+      {template.description && (
+        <div style={{
+          fontSize: 11, color: 'var(--color-ink-muted)', marginBottom: 10,
+          lineHeight: 1.4,
+        }}>{template.description}</div>
+      )}
+      <button
+        type="button"
+        onClick={onBuildWith}
+        data-testid={`template-build-${template.block_template_id}`}
+        style={smallActionStyle('primary')}
+      >Build with this template</button>
     </div>
   );
 }

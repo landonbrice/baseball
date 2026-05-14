@@ -272,7 +272,7 @@ def test_coach_post_builder_turn_happy_path(coach_client):
 
 
 def test_coach_post_builder_finalize_stamps_coach_authorship(coach_client):
-    from bot.services import program_generator
+    from bot.services import program_generator, research_resolver
     from bot.services import db as _db
 
     session_row = {
@@ -286,6 +286,8 @@ def test_coach_post_builder_finalize_stamps_coach_authorship(coach_client):
     with patch.object(_db, "get_builder_session", return_value=session_row), \
          patch.object(_db, "get_pitcher", return_value={"pitcher_id": "p1", "team_id": "uchicago_baseball"}), \
          patch.object(_db, "update_builder_session"), \
+         patch.object(_db, "get_block_library_row", return_value={"research_doc_ids": []}), \
+         patch.object(research_resolver, "get_citations_for_ids", return_value=[]), \
          patch.object(program_generator, "generate_program", return_value=program_row) as gen_mock:
         resp = coach_client.post(
             "/api/coach/programs/builder/finalize",
@@ -297,3 +299,7 @@ def test_coach_post_builder_finalize_stamps_coach_authorship(coach_client):
     assert kwargs["pitcher_id"] == "p1"
     assert kwargs["constraint_envelope"]["created_by"] == "dev_coach"
     assert kwargs["constraint_envelope"]["created_by_role"] == "coach"
+    body = resp.json()
+    assert "program" in body
+    # Plan 7 / C4: coach finalize now mirrors pitcher /finalize shape — returns citations alongside program.
+    assert body.get("citations") == []

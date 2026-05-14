@@ -144,3 +144,119 @@ def test_coach_archive_passes_reason(client):
         )
     assert resp.status_code == 200, resp.text
     arc.assert_called_once_with("prog-1", reason="superseded")
+
+
+# ---------- Plan 7 / C4: three-mode candidates + interpret-goal mirror ----------
+
+
+def test_coach_candidates_authoring_mode_no_pitcher(client):
+    """interview_mode='authoring' has no associated pitcher. Session row stores
+    pitcher_id=None and the matcher gets called with the bare envelope."""
+    from bot.services import program_builder
+    from bot.services import db as _db
+    with patch.object(program_builder, "match_candidates", return_value=[{"block_template_id": "tpl_a"}]), \
+         patch.object(_db, "create_builder_session", return_value="sess-auth") as create_mock:
+        resp = client.post(
+            "/api/coach/programs/builder/candidates",
+            json={
+                "interview_mode": "authoring",
+                "domain": "lifting",
+                "goal": "hypertrophy",
+                "duration_weeks": 8,
+                "effective_phase": "off_season",
+                "hard_constraints": [],
+            },
+        )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["session_id"] == "sess-auth"
+    payload = create_mock.call_args[0][0]
+    assert payload["pitcher_id"] is None
+    assert payload["interview_mode"] == "authoring"
+
+
+def test_coach_candidates_personalize_requires_pitcher(client):
+    """interview_mode='personalize' without a pitcher_id → 422."""
+    resp = client.post(
+        "/api/coach/programs/builder/candidates",
+        json={
+            "interview_mode": "personalize",
+            "domain": "throwing",
+            "goal": "velocity",
+            "duration_weeks": 12,
+            "effective_phase": "preseason",
+            "hard_constraints": [],
+        },
+    )
+    assert resp.status_code == 422
+
+
+def test_coach_candidates_personalize_with_personalize_pitcher_id(client):
+    """personalize mode accepts `personalize_pitcher_id` as the canonical key.
+    Session row records the pitcher_id and the mode."""
+    from bot.services import program_builder
+    from bot.services import db as _db
+    with patch.object(_db, "get_pitcher", return_value={"pitcher_id": "p1", "team_id": "uchicago_baseball"}), \
+         patch.object(program_builder, "match_candidates", return_value=[]), \
+         patch.object(_db, "create_builder_session", return_value="sess-p") as create_mock:
+        resp = client.post(
+            "/api/coach/programs/builder/candidates",
+            json={
+                "interview_mode": "personalize",
+                "personalize_pitcher_id": "p1",
+                "domain": "throwing",
+                "goal": "velocity",
+                "duration_weeks": 12,
+                "effective_phase": "preseason",
+                "hard_constraints": [],
+            },
+        )
+    assert resp.status_code == 200, resp.text
+    payload = create_mock.call_args[0][0]
+    assert payload["pitcher_id"] == "p1"
+    assert payload["interview_mode"] == "personalize"
+    # Envelope-forwarded personalize_pitcher_id survives for the matcher / server prompts.
+    assert payload["constraint_envelope_json"]["personalize_pitcher_id"] == "p1"
+
+
+def test_coach_candidates_authoring_rejects_pitcher(client):
+    """interview_mode='authoring' with a pitcher_id → 422 (pure template only)."""
+    resp = client.post(
+        "/api/coach/programs/builder/candidates",
+        json={
+            "interview_mode": "authoring",
+            "personalize_pitcher_id": "p1",
+            "domain": "lifting",
+            "goal": "hypertrophy",
+            "duration_weeks": 8,
+            "effective_phase": "off_season",
+            "hard_constraints": [],
+        },
+    )
+    assert resp.status_code == 422
+
+
+def test_coach_interpret_goal_mirrors_pitcher_endpoint(client):
+    """Coach mirror of /programs/builder/interpret-goal — coach auth, same shape."""
+    async def _stub(_text, _domain):
+        return "velocity"
+    with patch("bot.services.goal_interpreter.interpret_goal", new=_stub):
+        resp = client.post(
+            "/api/coach/programs/builder/interpret-goal",
+            json={"text": "add a few miles to my fastball", "domain": "throwing"},
+        )
+    assert resp.status_code == 200, resp.text
+    assert resp.json() == {"tag": "velocity", "confidence": "matched"}
+
+
+def test_coach_interpret_goal_returns_unknown_confidence(client):
+    """When interpreter returns 'unknown', confidence is 'unknown'."""
+    async def _stub(_text, _domain):
+        return "unknown"
+    with patch("bot.services.goal_interpreter.interpret_goal", new=_stub):
+        resp = client.post(
+            "/api/coach/programs/builder/interpret-goal",
+            json={"text": "make me a sandwich", "domain": "lifting"},
+        )
+    assert resp.status_code == 200, resp.text
+    assert resp.json() == {"tag": "unknown", "confidence": "unknown"}

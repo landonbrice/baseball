@@ -380,3 +380,94 @@ def test_checkin_status_uses_pre_training_not_plan_generation(mock_client):
     assert roster[0]["today_status"] == "checked_in"
     assert roster[0]["last_7_days"][-1]["status"] == "checked_in"
     assert get_team_compliance("team_x", today, roster)["checked_in_today"] == 1
+
+
+@patch("bot.services.team_scope.get_client")
+def test_category_scores_threaded_from_pre_training(mock_client):
+    """C7: pre_training.category_scores surfaces as top-level row.category_scores AND under today."""
+    today = "2026-04-22"
+    client = MagicMock()
+    mock_client.return_value = client
+
+    table_calls = [
+        _mock_exec([{"pitcher_id": "p1", "name": "Cat", "role": "Starter (7-day)", "telegram_username": None}]),
+        _mock_exec([{
+            "pitcher_id": "p1",
+            "pre_training": {
+                "arm_feel": 6,
+                "category_scores": {"tissue_score": 2.3, "load_score": 6.1, "recovery_score": 5.4},
+            },
+            "plan_generated": {"day_focus": "lift", "modifications_applied": []},
+            "completed_exercises": {},
+            "warmup": None,
+            "lifting": None,
+            "throwing": None,
+            "plan_narrative": None,
+        }]),
+        _mock_exec([
+            {"pitcher_id": "p1", "date": today, "completed_exercises": {}, "pre_training": {"arm_feel": 6}},
+        ]),
+        _mock_exec([{"pitcher_id": "p1", "current_flag_level": "yellow", "active_modifications": [], "days_since_outing": 1}]),
+        _mock_exec([]),
+        _mock_exec([]),
+    ]
+    exec_seq = iter(table_calls)
+    chain = MagicMock()
+    chain.execute.side_effect = lambda: next(exec_seq)
+    for m in ("table", "select", "eq", "gte", "lte", "in_", "order", "limit", "not_"):
+        getattr(chain, m).return_value = chain
+    chain.not_.is_.return_value = chain
+    client.table.return_value = chain
+
+    from bot.services.team_scope import get_team_roster_overview
+
+    roster = get_team_roster_overview("team_x", today)
+    assert roster[0]["category_scores"] == {
+        "tissue_score": 2.3,
+        "load_score": 6.1,
+        "recovery_score": 5.4,
+    }
+    assert roster[0]["today"]["category_scores"] == {
+        "tissue_score": 2.3,
+        "load_score": 6.1,
+        "recovery_score": 5.4,
+    }
+
+
+@patch("bot.services.team_scope.get_client")
+def test_category_scores_none_when_absent(mock_client):
+    """C7: pitchers without baseline produce no category_scores — roster row is None."""
+    today = "2026-04-22"
+    client = MagicMock()
+    mock_client.return_value = client
+
+    table_calls = [
+        _mock_exec([{"pitcher_id": "p1", "name": "NoBase", "role": "Reliever (short)", "telegram_username": None}]),
+        _mock_exec([{
+            "pitcher_id": "p1",
+            "pre_training": {"arm_feel": 8},  # no category_scores
+            "plan_generated": None,
+            "completed_exercises": {},
+            "warmup": None,
+            "lifting": None,
+            "throwing": None,
+            "plan_narrative": None,
+        }]),
+        _mock_exec([]),
+        _mock_exec([{"pitcher_id": "p1", "current_flag_level": "green", "active_modifications": [], "days_since_outing": 0}]),
+        _mock_exec([]),
+        _mock_exec([]),
+    ]
+    exec_seq = iter(table_calls)
+    chain = MagicMock()
+    chain.execute.side_effect = lambda: next(exec_seq)
+    for m in ("table", "select", "eq", "gte", "lte", "in_", "order", "limit", "not_"):
+        getattr(chain, m).return_value = chain
+    chain.not_.is_.return_value = chain
+    client.table.return_value = chain
+
+    from bot.services.team_scope import get_team_roster_overview
+
+    roster = get_team_roster_overview("team_x", today)
+    assert roster[0]["category_scores"] is None
+    assert roster[0]["today"]["category_scores"] is None

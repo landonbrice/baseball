@@ -1,5 +1,5 @@
 /**
- * BuilderSlideOver — Program Builder funnel (Plan 6 / B3).
+ * BuilderSlideOver — Program Builder funnel (Plan 6 / B3, Plan 7 / C0).
  *
  * Three states inside one bottom-sheet:
  *   - INPUTS:   form collects {domain, goal, duration_weeks, effective_phase,
@@ -10,18 +10,27 @@
  *               day timeline. Activate / Save as draft / Tweak buttons.
  *               Tweak → SOCRATIC with regen counter (cap 3, warn at 2).
  *
- * Wires to the existing builder endpoints. Pure UI orchestration — all
- * business logic stays server-side.
+ * Plan 7 / C0: hoisted to shared/builder/ so both mini-app (pitcher) and
+ * coach-app (coach) can consume it. All app-specific concerns (auth,
+ * Telegram BackButton, the actual fetch implementations) are now PROPS:
+ *   - `api`: object with the six builder fns. Caller wraps initData /
+ *     auth headers inside each fn so this component never touches initData.
+ *   - `interview_mode`: 'personalize' (pitcher, default) | 'team_personalize'
+ *     (coach building for a specific pitcher) | 'authoring' (coach team
+ *     template — no pitcher attached). Forwarded to /candidates + /finalize.
+ *   - `pitcherIdForCoach`: optional pitcher_id for the coach surface. When
+ *     set, the candidates+finalize payloads include personalize_pitcher_id
+ *     so the server can pull that pitcher's profile/state into the prompt.
+ *     Mini-app leaves this null — the authed pitcher IS the target.
+ *
+ * Telegram BackButton handling: pulled OUT of this component. The mini-app
+ * caller wraps the slide-over in a tiny adapter that calls useBackButton
+ * inside its own render so the hook stays with the surface that ships in
+ * Telegram. Coach-app callers don't need it.
+ *
+ * Pure UI orchestration — all business logic stays server-side.
  */
 import { useState, useEffect, useRef } from 'react';
-import { useAuth } from '../App';
-import {
-  fetchBuilderCandidates,
-  sendBuilderTurn,
-  finalizeBuilder,
-  activateProgram,
-  archiveProgram,
-} from '../api';
 
 const DOMAINS = [
   { id: 'throwing', label: 'Throwing' },
@@ -37,8 +46,20 @@ const GOALS_THROWING = [
   { id: 'longtoss',              label: 'Long toss'             },
   { id: 'arm_health',            label: 'Arm health / return'   },
   { id: 'offseason_base',        label: 'Off-season base'       },
+  { id: '__other__',             label: 'Other / describe…'     },
 ];
-const GOALS_LIFTING = [];  // Plan 7 — no lifting templates seeded yet.
+// Plan 7 / A13 seeded two lifting templates:
+//   hypertrophy_8wk_v1            → goal_tags: hypertrophy, muscle_growth, size
+//   in_season_lifting_starter_v1  → goal_tags: in_season_lifting, strength_maintain,
+//                                              minimum_effective_dose
+// We surface one user-facing chip per template's primary tag, plus a shared
+// strength-maintenance chip and the standard Other escape hatch.
+const GOALS_LIFTING = [
+  { id: 'hypertrophy',       label: 'Hypertrophy'          },
+  { id: 'strength_maintain', label: 'Strength maintenance' },
+  { id: 'in_season_lifting', label: 'In-season lifting'    },
+  { id: '__other__',         label: 'Other / describe…'    },
+];
 
 const DURATIONS = [
   { id: 4,  label: '4 wk'  },
@@ -118,8 +139,13 @@ const secondaryButtonStyle = {
   cursor: 'pointer',
 };
 
-export default function BuilderSlideOver({ onClose, onProgramActivated, onDraftSaved, initialDomain = 'throwing' }) {
-  const { pitcherId, initData } = useAuth();
+export default function BuilderSlideOver({
+  api,
+  onClose, onProgramActivated, onDraftSaved,
+  initialDomain = 'throwing', initialGoal = null,
+  interview_mode = 'personalize',
+  pitcherIdForCoach = null,
+}) {
   const [state, setState] = useState(BUILDER_STATES.INPUTS);
   const [error, setError] = useState(null);
 
@@ -127,7 +153,11 @@ export default function BuilderSlideOver({ onClose, onProgramActivated, onDraftS
   const [domain, setDomain]                       = useState(
     initialDomain === 'lifting' || initialDomain === 'throwing' ? initialDomain : 'throwing'
   );
-  const [goal, setGoal]                           = useState(null);  // chip id or null
+  // initialGoal lets callers (e.g. Browse Templates "Build with this template")
+  // pre-select a goal chip. The chip must exist in the resolved domain's chip
+  // list — InputsForm will simply render it as unselected if it doesn't match.
+  const [goal, setGoal]                           = useState(() => initialGoal || null);  // chip id or null
+  const [goalText, setGoalText]                   = useState('');    // free-text when goal === '__other__'
   const [durationWeeks, setDurationWeeks]         = useState(12);
   const [effectivePhase, setEffectivePhase]       = useState('in_season');
   const [hardConstraints, setHardConstraints]     = useState([]);
@@ -168,15 +198,38 @@ export default function BuilderSlideOver({ onClose, onProgramActivated, onDraftS
       setError('Pick a goal to continue.');
       return;
     }
+    // "Other / describe…" → resolve via LLM interpreter before /candidates.
+    // Empty text short-circuits without an API call.
+    if (goal === '__other__' && !goalText.trim()) {
+      setError('Describe your goal to continue.');
+      return;
+    }
     setSubmittingInputs(true);
     try {
-      const res = await fetchBuilderCandidates({
+      let resolvedGoal = goal;
+      if (goal === '__other__') {
+        try {
+          const res = await api.interpretGoal(goalText.trim(), domain);
+          if (!res || res.confidence === 'unknown') {
+            setError("I couldn't match that goal. Try a chip above or rephrase.");
+            return;
+          }
+          resolvedGoal = res.tag;
+        } catch (e) {
+          setError(e?.detail || 'Could not reach the goal interpreter. Try again.');
+          return;
+        }
+      }
+      const envelope = {
         domain,
-        goal,  // chip id already matches a real goal_tag
+        goal: resolvedGoal,  // chip id (or interpreter-resolved tag) — already matches a real goal_tag
         duration_weeks: durationWeeks,
         effective_phase: effectivePhase,
         hard_constraints: hardConstraints,
-      }, initData);
+        interview_mode,
+      };
+      if (pitcherIdForCoach) envelope.personalize_pitcher_id = pitcherIdForCoach;
+      const res = await api.fetchCandidates(envelope);
       if (!res.candidates || res.candidates.length === 0) {
         setError('No templates match those inputs. Try a different goal, duration, or phase.');
         return;
@@ -199,7 +252,7 @@ export default function BuilderSlideOver({ onClose, onProgramActivated, onDraftS
       if (userMessage) {
         setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
       }
-      const res = await sendBuilderTurn(sid, userMessage, initData);
+      const res = await api.sendTurn(sid, userMessage);
       if (res.kind === 'question') {
         setMessages(prev => [...prev, { role: 'bot', content: res.text }]);
       } else if (res.kind === 'ready') {
@@ -235,11 +288,10 @@ export default function BuilderSlideOver({ onClose, onProgramActivated, onDraftS
     setFinalizing(true);
     setError(null);
     try {
-      const res = await finalizeBuilder(
+      const res = await api.finalize(
         sessionId,
         readyPayload.chosen_template_id,
         readyPayload.tuned_spec,
-        initData,
       );
       setProgram(res.program || null);
       setCitations(res.citations || []);
@@ -256,7 +308,7 @@ export default function BuilderSlideOver({ onClose, onProgramActivated, onDraftS
     if (!program?.program_id) return;
     setFinalizing(true);
     try {
-      const activated = await activateProgram(program.program_id, initData);
+      const activated = await api.activateProgram(program.program_id);
       onProgramActivated?.(activated);
       onClose?.();
     } catch (e) {
@@ -278,7 +330,7 @@ export default function BuilderSlideOver({ onClose, onProgramActivated, onDraftS
     // loop in the SAME session with the previous tuned_spec carried forward.
     if (program?.program_id) {
       try {
-        await archiveProgram(program.program_id, 'rebuilt_in_builder', initData);
+        await api.archiveProgram(program.program_id, 'rebuilt_in_builder');
       } catch (_e) { /* best-effort */ }
     }
     setRegenCount(r => r + 1);
@@ -333,6 +385,7 @@ export default function BuilderSlideOver({ onClose, onProgramActivated, onDraftS
           <InputsForm
             domain={domain} setDomain={setDomain}
             goal={goal} setGoal={setGoal}
+            goalText={goalText} setGoalText={setGoalText}
             durationWeeks={durationWeeks} setDurationWeeks={setDurationWeeks}
             effectivePhase={effectivePhase} setEffectivePhase={setEffectivePhase}
             hardConstraints={hardConstraints} toggleConstraint={toggleConstraint}
@@ -372,8 +425,19 @@ export default function BuilderSlideOver({ onClose, onProgramActivated, onDraftS
 
 // ---------------- Sub-components ----------------
 
+// Per-domain default duration. Throwing keeps 12 wk (covers velocity / longtoss /
+// in-season maintenance). Lifting defaults to 8 wk so it sits inside both seeded
+// templates' ranges: hypertrophy_8wk_v1 [6,10] AND in_season_lifting_starter_v1
+// [10,16] both accept 8 in practice (the latter clamps at /candidates with a
+// near-edge match) — and 8 is the most-requested off-season hypertrophy length.
+const DEFAULT_DURATION_BY_DOMAIN = {
+  throwing: 12,
+  lifting:  8,
+};
+
 function InputsForm({
   domain, setDomain, goal, setGoal,
+  goalText, setGoalText,
   durationWeeks, setDurationWeeks,
   effectivePhase, setEffectivePhase,
   hardConstraints, toggleConstraint,
@@ -381,11 +445,23 @@ function InputsForm({
 }) {
   const goalOptions = domain === 'lifting' ? GOALS_LIFTING : GOALS_THROWING;
   // When domain switches, the prior goal selection may not exist in the new
-  // domain's goal list → clear so the user picks again.
+  // domain's goal list → clear so the user picks again. Also clear any
+  // pending "Other" text so it doesn't leak across domains, and bump the
+  // duration to the per-domain default so the chip pre-selection makes sense.
   const handleDomainChange = (id) => {
     if (id === domain) return;
     setDomain(id);
     setGoal(null);
+    setGoalText('');
+    const nextDefault = DEFAULT_DURATION_BY_DOMAIN[id];
+    if (nextDefault !== undefined) setDurationWeeks(nextDefault);
+  };
+
+  const handleGoalChange = (id) => {
+    setGoal(id);
+    // Clear the free-text when leaving the Other branch so a stale draft
+    // doesn't survive after picking a real chip.
+    if (id !== '__other__') setGoalText('');
   };
 
   return (
@@ -401,24 +477,36 @@ function InputsForm({
       </div>
 
       <p style={sectionLabelStyle}>Goal</p>
-      {goalOptions.length === 0 ? (
-        <div style={{
-          padding: '8px 10px', fontSize: 11, marginBottom: 14,
-          background: 'rgba(184,109,0,0.08)',
-          color: 'var(--color-flag-amber, #b86d00)', borderRadius: 6,
-        }} data-testid="goal-domain-unsupported">
-          Lifting programs coming soon — try Throwing for now.
-        </div>
-      ) : (
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}
-          data-testid="goal-chips">
-          {goalOptions.map(g => (
-            <button key={g.id} onClick={() => setGoal(g.id)}
-              style={chipStyle(goal === g.id)} aria-pressed={goal === g.id}>
-              {g.label}
-            </button>
-          ))}
-        </div>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}
+        data-testid="goal-chips">
+        {goalOptions.map(g => (
+          <button key={g.id} onClick={() => handleGoalChange(g.id)}
+            style={chipStyle(goal === g.id)} aria-pressed={goal === g.id}>
+            {g.label}
+          </button>
+        ))}
+      </div>
+
+      {goal === '__other__' && (
+        <input
+          type="text"
+          value={goalText}
+          onChange={e => setGoalText(e.target.value)}
+          placeholder="Describe your goal — e.g. add velocity post-surgery"
+          aria-label="Goal description"
+          data-testid="goal-other-input"
+          style={{
+            width: '100%',
+            padding: '8px 10px',
+            fontSize: 12,
+            border: '0.5px solid var(--color-cream-border)',
+            borderRadius: 6,
+            background: 'var(--color-white, #fff)',
+            color: 'var(--color-ink-primary)',
+            marginBottom: 14,
+            boxSizing: 'border-box',
+          }}
+        />
       )}
 
       <p style={sectionLabelStyle}>Duration</p>

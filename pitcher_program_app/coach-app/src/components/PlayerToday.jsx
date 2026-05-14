@@ -1,5 +1,9 @@
 import { parseBrief } from '@shared/parseBrief.js'
 import { useExerciseName } from '../hooks/useExerciseName'
+import {
+  normalizeCategoryScores,
+  pickDrivingCategory,
+} from '../utils/categoryScores'
 
 function SectionHeader({ children }) {
   return (
@@ -88,6 +92,43 @@ function ArmAssessmentBlock({ assessment }) {
   )
 }
 
+/**
+ * C7: 3-stat row showing Phase 1 trajectory-aware triage category scores.
+ * Lowest score is marked as "driving" (the category limiting today's readiness).
+ * Renders nothing if no usable scores — pitchers without a baseline silently
+ * fall through.
+ */
+function CategoryScoresRow({ rawScores }) {
+  const scores = normalizeCategoryScores(rawScores)
+  if (!scores) return null
+  const driving = pickDrivingCategory(scores)
+  return (
+    <div
+      data-testid="category-scores"
+      className="grid grid-cols-3 gap-2 bg-parchment border border-cream-dark rounded-[3px] p-3"
+    >
+      {scores.map((s) => {
+        const isDriving = driving && s.key === driving.key
+        return (
+          <div key={s.key}>
+            <div className="font-ui font-semibold uppercase text-[9px] tracking-[0.16em] text-muted">
+              {s.label}
+            </div>
+            <div className="font-serif font-bold text-h2 text-charcoal tabular leading-tight">
+              {s.value.toFixed(1)}
+            </div>
+            {isDriving && (
+              <div className="font-ui uppercase text-[9px] tracking-[0.16em] text-maroon mt-0.5">
+                driving
+              </div>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 function flattenLifting(lifting) {
   if (!lifting) return []
   const top = Array.isArray(lifting.exercises) ? lifting.exercises : []
@@ -111,6 +152,7 @@ export default function PlayerToday({ data, onAdjust, onRestrict }) {
   const throwing = todayEntry?.throwing || todayEntry?.plan_generated?.throwing_plan
   const liftingItems = flattenLifting(lifting)
   const armAssessment = todayEntry?.pre_training?.arm_assessment
+  const categoryScores = todayEntry?.pre_training?.category_scores
 
   // F4: rationale layer — read from daily_entries.rationale JSONB on today's entry.
   const rationaleObj = todayEntry?.rationale || data.rationale
@@ -126,6 +168,8 @@ export default function PlayerToday({ data, onAdjust, onRestrict }) {
       )}
 
       <ArmAssessmentBlock assessment={armAssessment} />
+
+      <CategoryScoresRow rawScores={categoryScores} />
 
       {daySummary && (
         <p className="font-serif italic text-body-sm text-graphite">{daySummary}</p>

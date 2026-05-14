@@ -21,8 +21,10 @@ vi.mock('../../App', () => ({
 }));
 
 const apiResponses = {};
+const useApiCalls = []; // paths passed to useApi each render (null = skipped)
 vi.mock('../../hooks/useApi', () => ({
   useApi: (path) => {
+    useApiCalls.push(path);
     if (!path) return { data: null, loading: false, error: null, refetch: vi.fn() };
     // Strip cache-bust suffix for keying
     const key = path.replace(/\?_r=\d+$/, '');
@@ -47,11 +49,12 @@ vi.mock('../../hooks/usePitcher', () => ({
 }));
 
 const builderSpy = vi.fn();
-vi.mock('../../components/BuilderSlideOver', () => ({
+vi.mock('@shared/builder/BuilderSlideOver.jsx', () => ({
   default: (props) => {
     builderSpy(props);
     return <div data-testid="builder-slideover-mounted">
       <span data-testid="builder-initial-domain">{props.initialDomain}</span>
+      <span data-testid="builder-initial-goal">{props.initialGoal ?? ''}</span>
       <button data-testid="builder-close" onClick={props.onClose}>close</button>
       <button data-testid="builder-activated" onClick={() => props.onProgramActivated?.({})}>
         activated
@@ -68,6 +71,7 @@ function setApi(path, data, loading = false) {
 
 beforeEach(() => {
   for (const k of Object.keys(apiResponses)) delete apiResponses[k];
+  useApiCalls.length = 0;
   vi.clearAllMocks();
   mockProfile.mockReturnValue({ name: 'Landon Brice' });
   mockLog.mockReturnValue({ entries: [] });
@@ -335,6 +339,139 @@ describe('Programs: History section', () => {
     expect(screen.getByText('Program History')).toBeInTheDocument();
     expect(screen.getByTestId('history-h1')).toBeInTheDocument();
     expect(screen.getByText('superseded')).toBeInTheDocument();
+  });
+});
+
+// ---------- Browse Templates (Plan 7 / B13) ----------
+
+describe('Programs: Browse Templates section', () => {
+  const TEMPLATES = [
+    {
+      block_template_id: 'tpl_velocity_12wk_v1',
+      name: 'Velocity 12wk',
+      description: '12-week velocity development block',
+      domain: 'throwing',
+      goal_tags: ['velocity', 'longtoss'],
+      compatible_phases: ['off_season'],
+      duration_range_weeks: '[10,14]',
+    },
+    {
+      block_template_id: 'tpl_hypertrophy_8wk_v1',
+      name: 'Hypertrophy 8wk',
+      description: 'Off-season size phase',
+      domain: 'lifting',
+      goal_tags: ['hypertrophy'],
+      compatible_phases: ['off_season'],
+      duration_range_weeks: '[6,10)',
+    },
+  ];
+
+  it('starts collapsed and does not fetch /api/programs/templates until expanded', () => {
+    render(<Programs />);
+    // The toggle is rendered…
+    expect(screen.getByTestId('browse-templates-toggle')).toBeInTheDocument();
+    // …but the body is not present and useApi was never called with the
+    // templates URL (the section passes `null` while collapsed).
+    expect(screen.queryByTestId('browse-templates-body')).not.toBeInTheDocument();
+    const templatesCalls = useApiCalls.filter(p => p && p.startsWith('/api/programs/templates'));
+    expect(templatesCalls).toHaveLength(0);
+  });
+
+  it('renders template rows on expand and opens Builder with the template domain + first goal_tag', async () => {
+    const user = userEvent.setup();
+    setApi('/api/programs/templates', { templates: TEMPLATES });
+    render(<Programs />);
+
+    // Expand the section.
+    await user.click(screen.getByTestId('browse-templates-toggle'));
+    expect(screen.getByTestId('browse-templates-body')).toBeInTheDocument();
+
+    // Both template rows render.
+    expect(screen.getByTestId('template-row-tpl_velocity_12wk_v1')).toBeInTheDocument();
+    expect(screen.getByTestId('template-row-tpl_hypertrophy_8wk_v1')).toBeInTheDocument();
+    expect(screen.getByText('Velocity 12wk')).toBeInTheDocument();
+    expect(screen.getByText('Hypertrophy 8wk')).toBeInTheDocument();
+
+    // useApi was called with the templates URL once the section opened.
+    const templatesCalls = useApiCalls.filter(p => p && p.startsWith('/api/programs/templates'));
+    expect(templatesCalls.length).toBeGreaterThan(0);
+
+    // Tap "Build with this template" on the lifting row → Builder opens
+    // with the template's domain and first goal_tag pre-selected.
+    await user.click(screen.getByTestId('template-build-tpl_hypertrophy_8wk_v1'));
+    expect(screen.getByTestId('builder-slideover-mounted')).toBeInTheDocument();
+    expect(screen.getByTestId('builder-initial-domain')).toHaveTextContent('lifting');
+    expect(screen.getByTestId('builder-initial-goal')).toHaveTextContent('hypertrophy');
+  });
+});
+
+// ---------- Scheduled-throw anchors (Plan 7 / B14) ----------
+
+describe('Programs: Active program scheduled-throw anchors', () => {
+  // Compute Chicago today + a future + past ISO date around it. The component
+  // uses string comparison on YYYY-MM-DD, so the absolute date doesn't matter —
+  // we just need one strictly before todayStr and one >= todayStr.
+  const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+  const addDays = (iso, n) => {
+    const d = new Date(iso + 'T12:00:00Z');
+    d.setUTCDate(d.getUTCDate() + n);
+    return d.toISOString().slice(0, 10);
+  };
+  const futureDate = addDays(todayStr, 2);
+  const pastDate   = addDays(todayStr, -3);
+
+  it('shows next future throw on the throwing program card; past throws are not rendered', () => {
+    setApi('/api/programs/active', {
+      throwing: {
+        program_id: 'p1', domain: 'throwing',
+        current_day_index: 5, held_days_count: 0,
+        start_date: '2026-05-01', nominal_end_date: '2026-07-01',
+      },
+      lifting: {
+        program_id: 'p2', domain: 'lifting',
+        current_day_index: 5, held_days_count: 0,
+        start_date: '2026-05-01', nominal_end_date: '2026-06-15',
+      },
+    });
+    // API is pre-sorted ASC; past first, then future — filter must drop the past.
+    setApi(`/api/pitcher/landon_brice/scheduled-throws`, {
+      scheduled_throws: [
+        { date: pastDate,   kind: 'longtoss' },
+        { date: futureDate, kind: 'bullpen' },
+      ],
+    });
+    render(<Programs />);
+
+    // Throwing card carries the next-throw banner with future date + kind.
+    const throwingCard = screen.getByTestId('active-card-throwing');
+    const banner = within(throwingCard).getByTestId('active-card-throwing-next-throw');
+    expect(banner).toHaveTextContent(/Next bullpen/i);
+    expect(banner).toHaveTextContent(futureDate);
+    // Past date is not rendered anywhere on the throwing card.
+    expect(within(throwingCard).queryByText(pastDate)).not.toBeInTheDocument();
+
+    // Lifting card stays clean — no next-throw banner.
+    const liftingCard = screen.getByTestId('active-card-lifting');
+    expect(within(liftingCard).queryByTestId('active-card-lifting-next-throw'))
+      .not.toBeInTheDocument();
+  });
+
+  it('renders no next-throw banner when scheduled_throws is empty', () => {
+    setApi('/api/programs/active', {
+      throwing: {
+        program_id: 'p1', domain: 'throwing',
+        current_day_index: 0, held_days_count: 0,
+        start_date: '2026-05-12', nominal_end_date: '2026-05-19',
+      },
+      lifting: null,
+    });
+    setApi(`/api/pitcher/landon_brice/scheduled-throws`, { scheduled_throws: [] });
+    render(<Programs />);
+    expect(screen.getByTestId('active-card-throwing')).toBeInTheDocument();
+    expect(screen.queryByTestId('active-card-throwing-next-throw'))
+      .not.toBeInTheDocument();
+    // No stray "Next:" text leaks into the DOM.
+    expect(screen.queryByText(/^Next[: ]/)).not.toBeInTheDocument();
   });
 });
 

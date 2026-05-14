@@ -6,6 +6,7 @@ and any other module that needs persistent data access.
 
 import logging
 import os
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from supabase import create_client, Client
@@ -291,7 +292,17 @@ def get_saved_plans(pitcher_id: str) -> list:
 
 
 def insert_saved_plan(pitcher_id: str, plan: dict) -> dict:
-    """Insert a new saved plan. Returns the inserted row."""
+    """Insert a new saved plan. Returns the inserted row.
+
+    DEPRECATED (Plan 7 / A15): saved_plans is being retired in favor of
+    `favorited_blocks`. New writes are logged for monitoring. Plan 8 will
+    hard-drop the table once a quarter of zero-writes is confirmed.
+    """
+    logger.warning(
+        "saved_plans_deprecated_write | pitcher_id=%s | plan_name=%s | "
+        "future Plan 8 retirement",
+        pitcher_id, plan.get("plan_name") or plan.get("name")
+    )
     plan["pitcher_id"] = pitcher_id
     resp = get_client().table("saved_plans").insert(plan).execute()
     return resp.data[0] if resp.data else plan
@@ -668,6 +679,121 @@ def upsert_suggestion(suggestion: dict) -> dict:
     return resp.data[0] if resp.data else {}
 
 
+def suggestion_exists_for_today(
+    pitcher_id: str | None,
+    category: str,
+    *,
+    context_program_id: str | None = None,
+    context_block_id: str | None = None,
+) -> bool:
+    """Plan 7 / A4 — idempotency check for the daily insight generators.
+
+    Returns True if a coach_suggestions row with the given category exists for
+    the pitcher (or team-scoped for team_program_lagging when pitcher_id is None
+    and context_block_id is provided) with `created_at >= today's Chicago-tz
+    midnight`. Used by health_monitor._generate_coach_insights_for_team to avoid
+    re-inserting the same insight across re-runs of the 9am digest.
+
+    Optional context_program_id / context_block_id further scope the match by
+    proposed_action JSONB so multiple programs/blocks for the same pitcher
+    don't dedup against each other.
+    """
+    from bot.config import CHICAGO_TZ
+    from datetime import datetime as _dt
+    now_chicago = _dt.now(CHICAGO_TZ)
+    start_of_day_chicago = now_chicago.replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
+    cutoff_iso = start_of_day_chicago.isoformat()
+
+    q = (
+        get_client().table("coach_suggestions")
+        .select("suggestion_id, proposed_action")
+        .eq("category", category)
+        .gte("created_at", cutoff_iso)
+    )
+    if pitcher_id is not None:
+        q = q.eq("pitcher_id", pitcher_id)
+    resp = q.execute()
+    rows = resp.data or []
+    if not rows:
+        return False
+
+    if context_program_id is None and context_block_id is None:
+        return True
+
+    for row in rows:
+        action = row.get("proposed_action") or {}
+        if context_program_id is not None and action.get("program_id") == context_program_id:
+            return True
+        if context_block_id is not None and action.get("block_id") == context_block_id:
+            return True
+        if context_block_id is not None and action.get("block_template_id") == context_block_id:
+            return True
+    return False
+
+
+def insert_coach_suggestion(row: dict) -> dict:
+    """Plan 7 / A4 — insert a new coach_suggestions row. Returns the inserted
+    row (Supabase echoes the row + generated suggestion_id).
+
+    Plain insert (not upsert) because the A4 generators are dedup-gated by
+    suggestion_exists_for_today before they reach this helper. Distinct from
+    upsert_suggestion, which the pre_start_nudge path uses with an explicit
+    suggestion_id for re-runs.
+    """
+    resp = get_client().table("coach_suggestions").insert(row).execute()
+    return resp.data[0] if resp.data else {}
+
+
+def list_team_assigned_blocks(team_id: str, status: str | None = None) -> list[dict]:
+    """Plan 7 / A4 — list team_assigned_blocks for a team, optionally
+    filtered by status. Mirrors get_active_team_blocks but exposes the status
+    knob so the insight generator can scan any subset (active / archived).
+    """
+    q = get_client().table("team_assigned_blocks").select("*").eq("team_id", team_id)
+    if status:
+        q = q.eq("status", status)
+    resp = q.execute()
+    return resp.data or []
+
+
+def list_member_programs_for_team_block(team_assigned_block: dict) -> list[dict]:
+    """Plan 7 / A4 — return active programs across the team whose
+    parent_template_id matches the team-assigned block's block_template_id.
+
+    Programs are not formally FK'd to team_assigned_blocks; the link is by
+    template ID convention. Selects the summary projection
+    (no generated_schedule_json) — the team completion generator falls back to
+    a typical-program-length default when the days array isn't present.
+    """
+    template_id = team_assigned_block.get("block_template_id")
+    team_id = team_assigned_block.get("team_id")
+    if not template_id or not team_id:
+        return []
+
+    client = get_client()
+    pitchers_resp = (
+        client.table("pitchers")
+        .select("pitcher_id")
+        .eq("team_id", team_id)
+        .execute()
+    )
+    pitcher_ids = [r["pitcher_id"] for r in (pitchers_resp.data or []) if r.get("pitcher_id")]
+    if not pitcher_ids:
+        return []
+
+    prog_resp = (
+        client.table("programs")
+        .select(_PROGRAM_SUMMARY_COLUMNS)
+        .eq("parent_template_id", template_id)
+        .eq("status", "active")
+        .in_("pitcher_id", pitcher_ids)
+        .execute()
+    )
+    return prog_resp.data or []
+
+
 # --- training_phase_blocks ---
 
 def get_phase_blocks(team_id: str) -> list:
@@ -750,6 +876,43 @@ def get_block_library_row(template_id: str) -> dict | None:
         .execute()
     )
     return (resp.data or [None])[0]
+
+
+# Summary columns for the canonical /api/programs/templates list endpoint
+# (Plan 7 / A12). Skips heavy template_body JSON — clients use this list for
+# filterable browse cards; full body is fetched on selection elsewhere.
+_TEMPLATE_SUMMARY_COLUMNS = (
+    "block_template_id,name,description,domain,goal_tags,compatible_phases,"
+    "duration_range_weeks,implied_phase,research_doc_ids"
+)
+
+
+def list_block_library_templates(
+    domain: Optional[str] = None,
+    phase: Optional[str] = None,
+) -> list[dict]:
+    """Return block_library rows with Plan-1 schema fields populated.
+
+    Skips legacy stub rows (`domain IS NULL`). Optional filters:
+    - `domain` ('throwing' | 'lifting') applied at the DB layer.
+    - `phase` (e.g. 'off_season') applied in Python because PostgREST
+      doesn't expose a clean array-contains-text filter for text[] columns.
+
+    Returns `[]` when no rows match.
+    """
+    q = (
+        get_client()
+        .table("block_library")
+        .select(_TEMPLATE_SUMMARY_COLUMNS)
+        .not_.is_("domain", "null")
+    )
+    if domain:
+        q = q.eq("domain", domain)
+    resp = q.order("name").execute()
+    rows = resp.data or []
+    if phase:
+        rows = [r for r in rows if phase in (r.get("compatible_phases") or [])]
+    return rows
 
 
 # ---------------- Programs (spec v1) ----------------
@@ -857,6 +1020,41 @@ def list_programs_for_pitcher_summary(
     return resp.data or []
 
 
+def list_completed_session_drafts_for_pitcher(pitcher_id: str) -> list[dict]:
+    """Return draft programs whose generating builder_session.status='completed'.
+
+    Per Plan 6 D14: the coach sees finalized drafts only; in-flight Socratic
+    sessions are private to the pitcher until they hit Save/Activate. Used by
+    GET /api/coach/pitcher/{id}/drafts (Plan 7 / A3-coach).
+    """
+    client = get_client()
+    # Two-step: pull completed session IDs first, then filter programs by them.
+    sess_resp = (
+        client.table("program_builder_sessions")
+        .select("generated_program_id")
+        .eq("pitcher_id", pitcher_id)
+        .eq("status", "completed")
+        .execute()
+    )
+    program_ids = [
+        r["generated_program_id"]
+        for r in (sess_resp.data or [])
+        if r.get("generated_program_id")
+    ]
+    if not program_ids:
+        return []
+    prog_resp = (
+        client.table("programs")
+        .select(_PROGRAM_SUMMARY_COLUMNS)
+        .eq("pitcher_id", pitcher_id)
+        .eq("status", "draft")
+        .in_("program_id", program_ids)
+        .order("created_at", desc=True)
+        .execute()
+    )
+    return prog_resp.data or []
+
+
 # ---------------- Program Hold Events (Plan 6 / B2 read-side) ----------------
 
 def list_program_holds_for_date(pitcher_id: str, event_date_iso: str) -> list[str]:
@@ -891,6 +1089,165 @@ def list_program_holds_for_date(pitcher_id: str, event_date_iso: str) -> list[st
     )
     rows = holds_resp.data or []
     return [r.get("program_id") for r in rows if r.get("program_id")]
+
+
+def list_program_holds_for_pitcher(pitcher_id: str, days: int = 30) -> list[dict]:
+    """Return program_hold_events rows for the pitcher in the last `days` days.
+
+    program_hold_events has no pitcher_id column — joins through programs.
+    Used by GET /api/coach/pitcher/{id}/program-holds (Plan 7 / C2).
+
+    Each row: {hold_event_id, program_id, hold_date, triage_result, reason_code,
+    created_at}. Ordered by hold_date DESC.
+    """
+    if days < 0:
+        days = 30
+    client = get_client()
+    # Two-step: programs for the pitcher → hold events for those programs.
+    prog_resp = (
+        client.table("programs")
+        .select("program_id")
+        .eq("pitcher_id", pitcher_id)
+        .execute()
+    )
+    program_ids = [r["program_id"] for r in (prog_resp.data or []) if r.get("program_id")]
+    if not program_ids:
+        return []
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).date().isoformat()
+    resp = (
+        client.table("program_hold_events")
+        .select("hold_event_id,program_id,hold_date,triage_result,reason_code,created_at")
+        .in_("program_id", program_ids)
+        .gte("hold_date", cutoff)
+        .order("hold_date", desc=True)
+        .execute()
+    )
+    return resp.data or []
+
+
+# ---------------- Recent player-built programs (Plan 7 / C3) ----------------
+
+# Summary columns + the pitcher's display name for the team-wide
+# `/api/coach/programs/recent-player-built` strip. The pitchers join is done
+# in a second hop because PostgREST embeds add a `pitchers` object key that
+# inflates the payload; a name-only lookup keeps the row shape flat.
+_RECENT_PLAYER_BUILT_COLUMNS = (
+    "program_id,pitcher_id,parent_template_id,domain,status,"
+    "current_day_index,held_days_count,created_by,created_by_role,"
+    "created_at,activated_at,archived_at"
+)
+
+
+def list_recent_player_built_programs(
+    team_id: str,
+    limit: int = 20,
+) -> list[dict]:
+    """Return the most recent N programs across a team, newest-first.
+
+    Used by the coach Team Programs page (Plan 7 / C3) to render the
+    "Recent player-built programs" roster strip. Each row carries the
+    pitcher's display name (`pitcher_name`) joined from `pitchers` so the
+    UI can render `{pitcher_name} · {domain} · {template_id} · {status}`
+    without a second round-trip.
+
+    Implementation: two-step join. (1) Pull team pitcher_ids from
+    `pitchers`. (2) Select recent programs WHERE pitcher_id IN (those ids)
+    ordered by created_at DESC limit N. (3) Backfill pitcher_name from the
+    map built in step 1. Returns `[]` when the team has no pitchers.
+
+    v1 does NOT filter on a `coach_built` flag — every program for the
+    team surfaces here. The strip is a roster overview, not a feed.
+    """
+    if limit <= 0:
+        return []
+    client = get_client()
+    pitchers_resp = (
+        client.table("pitchers")
+        .select("pitcher_id,name")
+        .eq("team_id", team_id)
+        .execute()
+    )
+    pitcher_rows = pitchers_resp.data or []
+    if not pitcher_rows:
+        return []
+    name_by_id = {
+        r.get("pitcher_id"): r.get("name") or r.get("pitcher_id")
+        for r in pitcher_rows
+        if r.get("pitcher_id")
+    }
+    pitcher_ids = list(name_by_id.keys())
+
+    prog_resp = (
+        client.table("programs")
+        .select(_RECENT_PLAYER_BUILT_COLUMNS)
+        .in_("pitcher_id", pitcher_ids)
+        .order("created_at", desc=True)
+        .limit(limit)
+        .execute()
+    )
+    rows = prog_resp.data or []
+    for row in rows:
+        pid = row.get("pitcher_id")
+        row["pitcher_name"] = name_by_id.get(pid) or pid
+    return rows
+
+
+# ---------------- Coach Phase Overrides (Plan 7 / C2 write-side) ----------------
+
+# Free-text phase strings. Validated only via this pattern at the API layer;
+# the DB columns are unconstrained TEXT (migration 023). v1 doesn't pin to a
+# closed vocabulary because the codebase already uses free-text phase names
+# (`team_scope.get_team_phase`, training_phase_blocks rows, etc.).
+_PHASE_PATTERN = r"^[a-zA-Z0-9_\- ]{1,60}$"
+
+
+def update_coach_phase_overrides(
+    pitcher_id: str,
+    *,
+    throwing_phase: str | None = None,
+    lifting_phase: str | None = None,
+) -> dict:
+    """Patch coach_{throwing,lifting}_phase_override on pitcher_training_model.
+
+    Only writes the keys that were explicitly provided (i.e. `None` means
+    "don't touch this column"). To CLEAR an override, callers pass the
+    empty string; this method maps "" → SQL NULL.
+
+    Returns the canonical envelope used by the API:
+      {"throwing_phase": str|None, "lifting_phase": str|None}
+    representing the post-write state of both columns.
+    """
+    updates: dict = {}
+    if throwing_phase is not None:
+        updates["coach_throwing_phase_override"] = throwing_phase or None
+    if lifting_phase is not None:
+        updates["coach_lifting_phase_override"] = lifting_phase or None
+
+    if updates:
+        # update_training_model_partial inserts a row if none exists.
+        update_training_model_partial(pitcher_id, updates)
+
+    # Re-read so we always return the canonical envelope (including unchanged side).
+    model = get_pitcher_training_model(pitcher_id) or {}
+    return {
+        "throwing_phase": model.get("coach_throwing_phase_override"),
+        "lifting_phase": model.get("coach_lifting_phase_override"),
+    }
+
+
+def insert_coach_action(row: dict) -> dict:
+    """Insert a coach_actions audit row. Returns the inserted row.
+
+    Schema (migration 007_coach_actions.sql):
+      id (bigserial), coach_id (uuid FK), pitcher_id (text FK),
+      action_type (text NOT NULL), message_text, telegram_message_id,
+      metadata (jsonb), created_at.
+
+    Note: no team_id column exists on coach_actions. Callers that want to
+    persist team scope should fold it into `metadata`.
+    """
+    resp = get_client().table("coach_actions").insert(row).execute()
+    return (resp.data or [{}])[0]
 
 
 # ---------------- Coach-visible Override Events (Plan 6 / A5) ----------------

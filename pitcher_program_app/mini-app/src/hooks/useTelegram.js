@@ -67,3 +67,35 @@ export function useTelegram() {
 
   return { ...authState, viewportHeight };
 }
+
+/**
+ * Wire the Telegram hardware BackButton to a handler while a surface is open.
+ *
+ * Calls WebApp.BackButton.show() + onClick(onPress) on mount, hide() +
+ * offClick(onPress) on unmount. Safe outside Telegram (vitest jsdom, browser
+ * preview, PWA) — guards `window` and `Telegram.WebApp.BackButton`.
+ *
+ * Note on dep stability: the effect re-runs whenever `onPress` changes
+ * identity. Parents passing a non-memoized handler (the common case for
+ * `onClose` props) will re-register on every render. That's a small perf
+ * cost, not a correctness issue. Wrap with `useCallback` at the call site
+ * if you want to eliminate the churn.
+ */
+export function useBackButton(onPress) {
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.Telegram?.WebApp) return;
+    const wa = window.Telegram.WebApp;
+    if (!wa.BackButton) return;
+    wa.BackButton.show();
+    wa.BackButton.onClick(onPress);
+    return () => {
+      try {
+        wa.BackButton.offClick(onPress);
+      } catch (_) {
+        // Telegram SDK may throw if the handler reference isn't the original
+        // (e.g. after hot-reload). Hide still needs to run.
+      }
+      wa.BackButton.hide();
+    };
+  }, [onPress]);
+}

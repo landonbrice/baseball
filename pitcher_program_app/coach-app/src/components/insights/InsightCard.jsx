@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom'
 import InsightActions from './InsightActions'
 
 const BORDER_COLOR = {
@@ -6,6 +7,10 @@ const BORDER_COLOR = {
   suggestion: 'var(--color-maroon)',
   fatigue_flag: 'var(--color-amber)',
   recovery_concern: 'var(--color-maroon)',
+  // A4 — Plan 7 program-builder insight types
+  program_drift: 'var(--color-amber)',
+  program_flag_mismatch: 'var(--color-crimson)',
+  team_program_lagging: 'var(--color-amber)',
 }
 
 const STATUS_BORDER = {
@@ -19,10 +24,89 @@ const TYPE_LABEL = {
   recovery_concern: 'Recovery',
   trend_warning: 'Trend Warning',
   suggestion: 'General',
+  // A4 — Plan 7 program-builder insight types
+  program_drift: 'Program Drift',
+  program_flag_mismatch: 'Program Mismatch',
+  team_program_lagging: 'Team Lag',
+}
+
+// Categories that show standard Accept/Dismiss/Defer actions. Program-builder
+// insight types (A4) instead surface navigation CTAs — Accept/Dismiss wiring
+// for those is Plan 8 work.
+const STANDARD_ACTION_CATEGORIES = new Set([
+  'pre_start_nudge',
+  'fatigue_flag',
+  'recovery_concern',
+  'trend_warning',
+  'suggestion',
+])
+
+function ProgramInsightActions({ category, suggestion }) {
+  const navigate = useNavigate()
+  const ctx = suggestion.proposed_action || {}
+
+  if (category === 'program_drift') {
+    // v1: no-op buttons so the visual lands; archive/accept wiring lives in Plan 8.
+    return (
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => {
+            // TODO(plan-8): wire archive-program action for drift insight
+          }}
+          className="px-3 py-1.5 bg-maroon text-bone font-ui font-semibold text-body-sm rounded-[3px] hover:opacity-90"
+        >
+          Archive program
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            // TODO(plan-8): wire accept-new-pace action for drift insight
+          }}
+          className="font-ui text-body-sm text-subtle hover:text-charcoal"
+        >
+          Accept new pace
+        </button>
+      </div>
+    )
+  }
+
+  if (category === 'program_flag_mismatch') {
+    return (
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() =>
+            navigate('/', { state: { openPitcherId: suggestion.pitcher_id || ctx.pitcher_id } })
+          }
+          className="px-3 py-1.5 bg-maroon text-bone font-ui font-semibold text-body-sm rounded-[3px] hover:opacity-90"
+        >
+          Open Programs
+        </button>
+      </div>
+    )
+  }
+
+  if (category === 'team_program_lagging') {
+    return (
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => navigate('/programs')}
+          className="px-3 py-1.5 bg-maroon text-bone font-ui font-semibold text-body-sm rounded-[3px] hover:opacity-90"
+        >
+          Open Team Programs
+        </button>
+      </div>
+    )
+  }
+
+  return null
 }
 
 export default function InsightCard({ suggestion, variant = 'hero', onAccept, onDismiss, onDefer }) {
   const typeLabel = TYPE_LABEL[suggestion.category] || suggestion.category
+  const isProgramInsight = !STANDARD_ACTION_CATEGORIES.has(suggestion.category)
 
   if (variant === 'compact') {
     const ts = suggestion.created_at
@@ -65,7 +149,11 @@ export default function InsightCard({ suggestion, variant = 'hero', onAccept, on
           {suggestion.proposed_action.description}
         </p>
       )}
-      <InsightActions onAccept={onAccept} onDismiss={onDismiss} onDefer={onDefer} />
+      {isProgramInsight ? (
+        <ProgramInsightActions category={suggestion.category} suggestion={suggestion} />
+      ) : (
+        <InsightActions onAccept={onAccept} onDismiss={onDismiss} onDefer={onDefer} />
+      )}
     </div>
   )
 }

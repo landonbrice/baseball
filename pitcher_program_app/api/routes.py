@@ -6,7 +6,7 @@ import logging
 import os
 import re
 from datetime import date, timedelta, datetime
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, HTTPException, Query, Request, Response
 
 from bot.config import KNOWLEDGE_DIR, CONTEXT_WINDOW_CHARS, DISABLE_AUTH, CHICAGO_TZ
 from bot.services.context_manager import (
@@ -975,12 +975,26 @@ async def get_plans(pitcher_id: str, request: Request):
 
 
 @router.post("/pitcher/{pitcher_id}/plans")
-async def post_plan(pitcher_id: str, request: Request):
-    """Save a new plan."""
+async def post_plan(pitcher_id: str, request: Request, response: Response):
+    """Save a new plan.
+
+    DEPRECATED (Plan 7 / A15): saved_plans is being retired in favor of
+    `favorited_blocks`. The write still succeeds, but a Deprecation/Sunset
+    header is returned and `bot.services.db.insert_saved_plan` logs a
+    WARN-level event. Plan 8 will hard-drop the table once a quarter of
+    zero-writes is confirmed.
+    """
     _require_pitcher_auth(request, pitcher_id)
     body = await request.json()
     if not body.get("title"):
         raise HTTPException(status_code=400, detail="title required")
+    logger.warning(
+        "saved_plans_deprecated_endpoint | pitcher_id=%s | title=%s | "
+        "future Plan 8 retirement",
+        pitcher_id, body.get("title"),
+    )
+    response.headers["Deprecation"] = "true"
+    response.headers["Sunset"] = "Plan 8 (Q3 2026)"
     plan = save_plan(pitcher_id, body)
     return {"status": "ok", "plan": plan}
 
@@ -2555,6 +2569,20 @@ async def delete_scheduled_throw(pitcher_id: str, throw_id: str, request: Reques
     return {"removed": True}
 
 
+@router.get("/pitcher/{pitcher_id}/scheduled-throws")
+async def get_scheduled_throws(pitcher_id: str, request: Request):
+    """Plan 7 / A14: read-only view of scheduled_throws for UI anchor display.
+
+    Pitcher's mini-app reads this when rendering the Programs tab Active card
+    to show "Next bullpen: Wed May 14" inline.
+    """
+    _require_pitcher_auth(request, pitcher_id)
+    throws = _db.get_pitcher_scheduled_throws(pitcher_id) or []
+    # Sort by date ASC so "next" is index 0; entries missing date sort to the end.
+    throws.sort(key=lambda t: t.get("date") or "9999")
+    return {"scheduled_throws": throws}
+
+
 async def _send_admin_dm(text: str) -> None:
     """Fire an admin Telegram DM. Best-effort — never raises."""
     try:
@@ -2646,6 +2674,11 @@ class BuilderFinalizeRequest(BaseModel):
     session_id: str
     chosen_template_id: str
     tuned_spec: dict
+
+
+class InterpretGoalRequest(BaseModel):
+    text: str = Field(..., min_length=1, max_length=500)
+    domain: str = Field(..., pattern="^(throwing|lifting)$")
 
 
 class ProgramArchiveRequest(BaseModel):
@@ -2798,6 +2831,21 @@ async def post_builder_finalize(req: BuilderFinalizeRequest, request: Request):
     return {"program": program, "citations": citations}
 
 
+@router.post("/programs/builder/interpret-goal")
+async def post_builder_interpret_goal(req: InterpretGoalRequest, request: Request):
+    """Plan 7 / A11: free-text goal description → canonical goal_tag.
+
+    Returns {"tag": "...", "confidence": "matched|unknown"}. UI uses the
+    returned tag in the next /candidates call. "unknown" means the LLM
+    couldn't map the text to any existing tag — caller should show inline
+    error and let the pitcher pick a chip instead.
+    """
+    _resolve_pitcher_id_from_request(request)  # auth gate
+    from bot.services.goal_interpreter import interpret_goal
+    tag = await interpret_goal(req.text, req.domain)
+    return {"tag": tag, "confidence": "matched" if tag != "unknown" else "unknown"}
+
+
 @router.get("/programs/drafts")
 async def get_program_drafts(request: Request):
     """List the pitcher's draft programs (status='draft'), newest first.
@@ -2856,6 +2904,27 @@ async def get_active_programs(request: Request):
         if domain in bucketed:
             bucketed[domain] = row
     return bucketed
+
+
+@router.get("/programs/templates")
+async def get_program_templates(
+    request: Request,
+    domain: Optional[str] = Query(default=None, pattern="^(throwing|lifting)$"),
+    phase: Optional[str] = Query(default=None),
+):
+    """List canonical block_library templates (Plan 7 / A12).
+
+    Returns block_library rows with Plan-1 schema fields populated. Skips
+    legacy stub rows (`domain IS NULL`). Optional filters: `domain`
+    ('throwing'|'lifting'), `phase` (matched against `compatible_phases`).
+
+    Used by the mini-app Browse Templates section (B13) and coach-app
+    template library views (C3, C5). Lifting filter returns `[]` until
+    lifting templates are seeded (A13).
+    """
+    _resolve_pitcher_id_from_request(request)  # auth gate
+    rows = _db.list_block_library_templates(domain=domain, phase=phase)
+    return {"templates": rows}
 
 
 @router.post("/programs/{program_id}/activate")
