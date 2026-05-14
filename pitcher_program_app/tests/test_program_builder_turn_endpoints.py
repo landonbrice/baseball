@@ -144,6 +144,7 @@ def test_post_builder_turn_valueerror_maps_to_400(client):
 def test_post_builder_finalize_calls_generate_and_completes(client):
     from bot.services import program_generator
     from bot.services import db as _db
+    from bot.services import research_resolver
 
     session_row = {
         "session_id": "sess-1",
@@ -155,6 +156,8 @@ def test_post_builder_finalize_calls_generate_and_completes(client):
 
     with patch.object(_db, "get_builder_session", return_value=session_row), \
          patch.object(_db, "update_builder_session") as update_mock, \
+         patch.object(_db, "get_block_library_row", return_value={"research_doc_ids": []}), \
+         patch.object(research_resolver, "get_citations_for_ids", return_value=[]), \
          patch.object(program_generator, "generate_program", return_value=program_row) as gen_mock:
         resp = client.post(
             "/api/programs/builder/finalize",
@@ -168,6 +171,7 @@ def test_post_builder_finalize_calls_generate_and_completes(client):
     assert resp.status_code == 200, resp.text
     body = resp.json()
     assert body["program"]["program_id"] == "prog-1"
+    assert body["citations"] == []  # empty template → empty citations
     kwargs = gen_mock.call_args.kwargs
     assert kwargs["pitcher_id"] == "landon_brice"
     assert kwargs["template_id"] == "tpl_a"
@@ -179,6 +183,45 @@ def test_post_builder_finalize_calls_generate_and_completes(client):
     assert patch_arg["status"] == "completed"
     assert patch_arg["generated_program_id"] == "prog-1"
     assert patch_arg["tuned_spec_json"] == {"weeks": 12}
+
+
+def test_post_builder_finalize_returns_resolved_citations(client):
+    """Template's research_doc_ids are resolved to {id, title, summary} cards."""
+    from bot.services import program_generator
+    from bot.services import db as _db
+    from bot.services import research_resolver
+
+    session_row = {
+        "session_id": "sess-1",
+        "pitcher_id": "landon_brice",
+        "candidate_template_ids": ["tpl_a"],
+        "constraint_envelope_json": {"domain": "throwing"},
+    }
+    program_row = {"program_id": "prog-1", "status": "draft"}
+    template_row = {"research_doc_ids": ["velocity_arc_v2", "rotator_cuff_loading"]}
+    citations = [
+        {"id": "velocity_arc_v2", "title": "Velocity Programming",
+         "summary": "Periodized intent ramp over 12 weeks."},
+        {"id": "rotator_cuff_loading", "title": "Cuff Loading Patterns",
+         "summary": "Slow eccentric loading reduces tendinopathy risk."},
+    ]
+
+    with patch.object(_db, "get_builder_session", return_value=session_row), \
+         patch.object(_db, "update_builder_session"), \
+         patch.object(_db, "get_block_library_row", return_value=template_row), \
+         patch.object(research_resolver, "get_citations_for_ids",
+                      return_value=citations) as cite_mock, \
+         patch.object(program_generator, "generate_program", return_value=program_row):
+        resp = client.post(
+            "/api/programs/builder/finalize",
+            json={"session_id": "sess-1", "chosen_template_id": "tpl_a",
+                  "tuned_spec": {"weeks": 12}},
+            headers={"X-Test-Pitcher-Id": "landon_brice"},
+        )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["citations"] == citations
+    cite_mock.assert_called_once_with(["velocity_arc_v2", "rotator_cuff_loading"])
 
 
 def test_post_builder_finalize_session_off_pitcher_404(client):

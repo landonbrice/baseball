@@ -2764,6 +2764,11 @@ async def post_builder_finalize(req: BuilderFinalizeRequest, request: Request):
     """Layer 3: finalize the interview with an explicit chosen template + tuned_spec
     and generate the draft program. Companion to /turn — clients call this once
     /turn returns `{"kind": "ready", ...}`.
+
+    Returns `{program, citations}`. `citations` is the chosen template's
+    `research_doc_ids` resolved to `[{id, title, summary}]` for the preview
+    "why this program" surface (B3 State C). Missing/renamed docs are silently
+    dropped — template seeds may reference docs that have moved.
     """
     pitcher_id = _resolve_pitcher_id_from_request(request)
     session = _db.get_builder_session(req.session_id)
@@ -2785,7 +2790,12 @@ async def post_builder_finalize(req: BuilderFinalizeRequest, request: Request):
         "generated_program_id": program["program_id"],
     })
 
-    return {"program": program}
+    template = _db.get_block_library_row(req.chosen_template_id) or {}
+    doc_ids = template.get("research_doc_ids") or []
+    from bot.services.research_resolver import get_citations_for_ids
+    citations = get_citations_for_ids(doc_ids)
+
+    return {"program": program, "citations": citations}
 
 
 @router.get("/programs/drafts")

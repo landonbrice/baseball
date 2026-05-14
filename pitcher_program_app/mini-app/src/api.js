@@ -284,6 +284,55 @@ export async function deleteScheduledThrow(pitcherId, throwId, initData = null) 
   return res.json();
 }
 
+// ---------------- Program Builder (Plan 6 / B3) ----------------
+
+/**
+ * Layer 1: match candidate templates from the inputs envelope.
+ * envelope: {domain, goal, duration_weeks, effective_phase, hard_constraints}
+ * Returns {session_id, candidates: [...]}. 0-length candidates is a 200 — caller
+ * should surface "no matches" inline.
+ */
+export async function fetchBuilderCandidates(envelope, initData = null) {
+  return postApi('/api/programs/builder/candidates', envelope, initData);
+}
+
+/**
+ * Layer 2: advance the Socratic conversation. First turn passes user_message=""
+ * to elicit the opening question. Returns:
+ *   - {kind: "question", text: "..."}
+ *   - {kind: "ready", chosen_template_id, tuned_spec}
+ */
+export async function sendBuilderTurn(sessionId, userMessage, initData = null) {
+  return postApi('/api/programs/builder/turn',
+    { session_id: sessionId, user_message: userMessage }, initData);
+}
+
+/**
+ * Layer 3: finalize the interview → generate a draft program.
+ * Returns {program, citations: [{id, title, summary}]}.
+ */
+export async function finalizeBuilder(sessionId, chosenTemplateId, tunedSpec, initData = null) {
+  return postApi('/api/programs/builder/finalize', {
+    session_id: sessionId,
+    chosen_template_id: chosenTemplateId,
+    tuned_spec: tunedSpec,
+  }, initData);
+}
+
+/**
+ * Layer 4: activate a draft program (archives any active in the same domain).
+ */
+export async function activateProgram(programId, initData = null) {
+  return postApi(`/api/programs/${programId}/activate`, {}, initData);
+}
+
+/**
+ * Layer 4: archive a program with a reason ("abandoned_in_builder", etc.).
+ */
+export async function archiveProgram(programId, reason, initData = null) {
+  return postApi(`/api/programs/${programId}/archive`, { reason }, initData);
+}
+
 /**
  * Fire-and-forget telemetry when an exercise name falls back to ID/Unknown (D9).
  * Never throws; best-effort.

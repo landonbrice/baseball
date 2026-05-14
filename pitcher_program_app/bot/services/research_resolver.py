@@ -115,6 +115,31 @@ def clear_cache():
     _index_cache = {}
 
 
+def get_citations_for_ids(doc_ids: list[str]) -> list[dict]:
+    """Resolve a list of research doc IDs to citation cards.
+
+    Returns [{id, title, summary}] for each id that exists in the index.
+    Unknown ids are silently dropped (template seeds may reference docs that
+    have been renamed or removed). Used by the Program Builder /finalize
+    endpoint to surface "why this program" references in the preview state.
+    """
+    if not doc_ids:
+        return []
+    index = _load_index()
+    out = []
+    for doc_id in doc_ids:
+        entry = index.get(doc_id)
+        if not entry:
+            continue
+        fm, _ = entry
+        out.append({
+            "id": doc_id,
+            "title": fm.get("title", ""),
+            "summary": fm.get("summary", ""),
+        })
+    return out
+
+
 def should_fire_research(
     pitcher_profile: dict,
     triage_result: dict | None = None,
