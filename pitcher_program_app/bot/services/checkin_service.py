@@ -11,6 +11,9 @@ from bot.services.triage import triage
 from bot.services.triage_llm import llm_triage_refinement
 from bot.services.plan_generator import generate_plan
 from bot.services.progression import analyze_progression
+from bot.services import db as _db
+from bot.services import program_runtime as _program_runtime
+from bot.services import program_aware_planner as _program_aware_planner
 from bot.services.context_manager import (
     load_profile,
     load_training_model,
@@ -142,10 +145,140 @@ def _build_recent_history_context(pitcher_id, n=5):
         lines.append(". ".join(parts))
 
     return "Recent history (last {} days):\n{}".format(len(lines), "\n".join(lines))
+def _is_program_aware_enabled(pitcher_id: str) -> bool:
+    """Check if the program-aware plan-gen feature flag is on for this pitcher.
+
+    Wrapper around db.get_feature_flag — exposed at module level so tests can
+    patch this single seam rather than the underlying db helper.
+    """
+    try:
+        return bool(_db.get_feature_flag(pitcher_id, "program_aware_plan_gen"))
+    except Exception:
+        logger.warning("get_feature_flag failed for %s", pitcher_id, exc_info=True)
+        return False
+
+
+def _has_any_active_program(pitcher_id: str) -> bool:
+    """True if the pitcher has any active program (throwing or lifting domain)."""
+    try:
+        if _db.get_active_program(pitcher_id, "throwing"):
+            return True
+        if _db.get_active_program(pitcher_id, "lifting"):
+            return True
+    except Exception:
+        logger.warning("get_active_program failed for %s", pitcher_id, exc_info=True)
+        return False
+    return False
+
+
+def _log_program_path_failure(pitcher_id: str, exc: Exception) -> None:
+    """Structured log of a program-path failure that auto-fell-through to legacy."""
+    logger.warning(
+        "program_aware_plan_path_failed pitcher=%s error=%s",
+        pitcher_id, exc, exc_info=True,
+    )
+
+
+async def _select_plan_path(
+    pitcher_id: str,
+    triage_result: dict,
+    profile: dict,
+    target_date,
+    *,
+    checkin_inputs: dict | None = None,
+    triage_rationale_detail: dict | None = None,
+) -> tuple[dict | None, str | None, dict | None]:
+    """Plan 6 / A1: choose between program-aware composition and legacy generate_plan.
+
+    Returns ``(plan_result, program_id, hold_event)``. ``program_id`` and
+    ``hold_event`` are non-None only when the program path produced the plan
+    (used by the caller to route persistence through
+    ``db.write_daily_entry_with_counter_advance`` for the atomic counter advance
+    or hold). ``plan_result`` may be None if both paths fail.
+
+    Fork decision:
+    - ``program_aware_plan_gen`` flag on AND any active program → program path
+    - flag off OR no active program → legacy ``generate_plan``
+    - program-path exception → log + fall through to legacy
+    """
+    if _is_program_aware_enabled(pitcher_id) and _has_any_active_program(pitcher_id):
+        try:
+            composer = await _compose_program_plan(
+                pitcher_id=pitcher_id,
+                triage_result=triage_result,
+                profile=profile,
+                target_date=target_date,
+            )
+            return composer["plan"], composer["program_id"], composer["hold_event"]
+        except Exception as exc:
+            _log_program_path_failure(pitcher_id, exc)
+            # fall through to legacy
+
+    try:
+        plan = await generate_plan(
+            pitcher_id, triage_result,
+            checkin_inputs=checkin_inputs,
+            triage_rationale_detail=triage_rationale_detail,
+        )
+    except Exception as e:
+        logger.error(f"Plan generation failed for {pitcher_id}: {e}", exc_info=True)
+        plan = None
+    return plan, None, None
+
+
+async def _compose_program_plan(
+    pitcher_id: str,
+    triage_result: dict,
+    profile: dict,
+    target_date,
+) -> dict:
+    """Compose a program-prescribed plan for today's check-in. Pure composer; persists nothing.
+
+    Plan 6 / A1: replaces the v0 `_program_aware_plan_path` which both composed
+    AND persisted. Persistence is now centralized in `process_checkin` so the
+    program path goes through the same rich entry-build and weekly-state flow
+    as the legacy path.
+
+    Returns ``{plan, program_id, hold_event}`` where:
+    - ``plan`` is a dict shaped like ``generate_plan``'s return, tagged ``source='program_prescribed'``
+    - ``program_id`` is the program whose counter advances on success (throwing wins on tie)
+    - ``hold_event`` is the dict to log when triage paused the counter, else None
+
+    Raises if both throwing and lifting rx are None (caller should fall through to legacy).
+    """
+    throwing_program = _db.get_active_program(pitcher_id, "throwing")
+    lifting_program = _db.get_active_program(pitcher_id, "lifting")
+
+    throwing_rx = _program_runtime.get_active_program_day(
+        pitcher_id, "throwing", target_date,
+    ) if throwing_program else None
+    lifting_rx = _program_runtime.get_active_program_day(
+        pitcher_id, "lifting", target_date,
+    ) if lifting_program else None
+
+    prescribed = _program_aware_planner.compose_prescribed_plan(
+        throwing_rx, lifting_rx, profile, target_date=target_date,
+    )
+    if prescribed is None:
+        raise RuntimeError("compose_prescribed_plan returned None")
+
+    final_plan, hold_event = _program_aware_planner.apply_triage_to_program_plan(
+        prescribed, triage_result,
+    )
+
+    # Throwing program wins on tie for the counter-advance program_id.
+    program_for_counter = throwing_program or lifting_program
+    program_id = (program_for_counter or {}).get("program_id")
+
+    return {
+        "plan": final_plan,
+        "program_id": program_id,
+        "hold_event": hold_event,
+    }
 
 
 async def process_checkin(
-    pitcher_id: str, arm_feel: int, sleep_hours: float, energy: int = 3,
+    pitcher_id: str, arm_feel: int = None, sleep_hours: float = None, energy: int = 3,
     arm_report: str = "", lift_preference: str = "",
     throw_intent: str = "", next_pitch_days=None,
     arm_detail_tags: list[str] | None = None,
@@ -153,11 +286,19 @@ async def process_checkin(
 ) -> dict:
     """Run triage, generate plan, log entry, and return structured results.
 
-    Does NOT increment days_since_outing — callers handle that separately.
+    **Program-aware fork (Plan 6 / A1):** After triage runs, this function
+    checks `pitcher_training_model.feature_flags.program_aware_plan_gen` AND
+    the presence of any active program. If both are true, the prescribed plan
+    is composed from the active program(s) and tagged
+    `source='program_prescribed'`; the daily entry is written atomically with
+    a program counter advance (or hold on Red/Critical Red triage). Otherwise
+    the legacy `plan_generator.generate_plan` path runs — preserved
+    byte-identical by the goldens. Program-path failure logs + auto-falls
+    through to legacy.
 
-    Returns dict with: flag_level, triage_reasoning, alerts, observations,
-    weekly_summary, plan_narrative, exercise_blocks, throwing_plan,
-    estimated_duration_min, modifications_applied, template_day, rotation_day.
+    Live callers (Telegram bot, /api/chat) use the positional shape — no
+    caller needs to opt in. The flag is the rollout mechanism (currently
+    enabled only for `landon_brice`).
     """
     # Load profile (no longer clamping days_since_outing — plan_generator
     # handles extended time off by using lift preference for template selection)
@@ -396,15 +537,17 @@ async def process_checkin(
             "strain": whoop_data.get("yesterday_strain"),
         }
 
-    try:
-        plan_result = await generate_plan(
-            pitcher_id, triage_result,
-            checkin_inputs=checkin_inputs,
-            triage_rationale_detail=(triage_rationale or {}).get("detail"),
-        )
-    except Exception as e:
-        logger.error(f"Plan generation failed for {pitcher_id}: {e}", exc_info=True)
-        plan_result = None
+    # Plan 6 / A1: program-aware fork via helper.
+    from datetime import date as _date_cls
+    target_date = _date_cls.fromisoformat(today_str)
+    plan_result, program_id_for_advance, hold_event_for_advance = await _select_plan_path(
+        pitcher_id=pitcher_id,
+        triage_result=triage_result,
+        profile=profile,
+        target_date=target_date,
+        checkin_inputs=checkin_inputs,
+        triage_rationale_detail=(triage_rationale or {}).get("detail"),
+    )
 
     # Fire emergency alert if plan_result carries one. This MUST run before
     # the entry-build block below so the _emergency_alert key is stripped
@@ -494,6 +637,10 @@ async def process_checkin(
             "estimated_duration_min": plan_result.get("estimated_duration_min") if plan_result else None,
             "source": plan_result.get("source") if plan_result else None,
             "source_reason": plan_result.get("source_reason") if plan_result else None,
+            # Plan 6 / A1.5: persist day_focus at write time. team_daily_status
+            # falls back to derive_day_focus when this is missing (legacy rows
+            # + the cold-start partial entry path).
+            "day_focus": plan_result.get("day_focus") if plan_result else None,
             # F4: per-day summary rationale (None when rationale disabled or generation failed)
             "day_summary_rationale": day_summary_rationale,
         },
@@ -509,7 +656,19 @@ async def process_checkin(
             if triage_rationale else None
         ),
     }
-    append_log_entry(pitcher_id, entry)
+    if program_id_for_advance:
+        # Program path: atomic counter advance (or hold) + entry upsert via RPC.
+        # entry must include pitcher_id for the RPC; append_log_entry's loader
+        # adds it implicitly, but the RPC takes a full row.
+        program_entry = {"pitcher_id": pitcher_id, **entry}
+        _db.write_daily_entry_with_counter_advance(
+            entry=program_entry,
+            program_id=program_id_for_advance,
+            hold_event=hold_event_for_advance,
+            event_date=target_date,
+        )
+    else:
+        append_log_entry(pitcher_id, entry)
 
     # Update weekly training state in pitcher model
     try:

@@ -101,7 +101,12 @@ async def team_overview(request: Request):
         "team": {
             "id": team_id,
             "name": team.get("name", ""),
+            # Per-domain phases (migration 011). `training_phase` retained for
+            # one cycle as a deprecated fallback; new readers should consume
+            # throwing_phase / lifting_phase via team_scope.get_team_phase.
             "training_phase": team.get("training_phase", ""),
+            "throwing_phase": team.get("throwing_phase") or team.get("training_phase", ""),
+            "lifting_phase": team.get("lifting_phase") or team.get("training_phase", ""),
             "today_schedule_summary": schedule_summary,
         },
         "compliance": compliance,
@@ -847,6 +852,218 @@ async def block_compliance(block_id: str, request: Request):
             "details": compliance,
         },
     }
+
+
+# ---- Program Builder v1 (coach mirrors of /api/programs/builder/*) ----
+# Same handlers as the pitcher-facing routes (see api/routes.py Plan 2 Task 5)
+# with require_coach_auth + a team_id ownership check on the underlying pitcher.
+# v1 is `interview_mode='personalize'`; team_personalize / authoring land in Plan 6.
+
+from typing import Optional as _Optional
+from pydantic import BaseModel as _BaseModel, Field as _Field
+from bot.services import (
+    program_builder as _program_builder,
+    program_builder_socratic as _program_builder_socratic,
+    program_generator as _program_generator,
+    program_lifecycle as _program_lifecycle,
+)
+
+
+class CoachBuilderCandidatesRequest(_BaseModel):
+    pitcher_id: str
+    domain: str = _Field(..., pattern="^(throwing|lifting)$")
+    goal: str
+    duration_weeks: int = _Field(..., gt=0, le=52)
+    effective_phase: str
+    hard_constraints: list[str] = []
+
+
+class CoachBuilderGenerateRequest(_BaseModel):
+    session_id: str
+    tuned_spec: dict
+    chosen_template_id: _Optional[str] = None
+
+
+class CoachProgramArchiveRequest(_BaseModel):
+    reason: str
+
+
+class CoachBuilderTurnRequest(_BaseModel):
+    session_id: str
+    user_message: str
+
+
+class CoachBuilderFinalizeRequest(_BaseModel):
+    session_id: str
+    chosen_template_id: str
+    tuned_spec: dict
+
+
+def _require_team_pitcher(pitcher_id: str, team_id: str) -> dict:
+    """Load pitcher and verify team ownership. 404 (not 403) on mismatch to keep
+    ownership opaque."""
+    pitcher = _db.get_pitcher(pitcher_id)
+    if not pitcher or pitcher.get("team_id") != team_id:
+        raise HTTPException(status_code=404, detail="pitcher not found")
+    return pitcher
+
+
+@coach_router.post("/programs/builder/candidates")
+async def coach_post_builder_candidates(req: CoachBuilderCandidatesRequest, request: Request):
+    """Layer 1 (coach): match candidate block templates from a constraint envelope."""
+    await require_coach_auth(request)
+    team_id = request.state.team_id
+    coach_id = request.state.coach_id
+
+    _require_team_pitcher(req.pitcher_id, team_id)
+
+    envelope = req.model_dump()
+    envelope.pop("pitcher_id", None)  # envelope mirrors the pitcher-facing shape
+    candidates = _program_builder.match_candidates(envelope)
+    session_id = _db.create_builder_session({
+        "pitcher_id": req.pitcher_id,
+        "initiator_id": coach_id,
+        "initiator_role": "coach",
+        "interview_mode": "personalize",
+        "constraint_envelope_json": envelope,
+        "candidate_template_ids": [c["block_template_id"] for c in candidates],
+        "status": "in_progress",
+    })
+    return {"session_id": session_id, "candidates": candidates}
+
+
+@coach_router.post("/programs/builder/generate")
+async def coach_post_builder_generate(req: CoachBuilderGenerateRequest, request: Request):
+    """Layer 3 + Layer 2 stub (coach)."""
+    await require_coach_auth(request)
+    team_id = request.state.team_id
+    coach_id = request.state.coach_id
+
+    session = _db.get_builder_session(req.session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="session not found")
+    pitcher_id = session.get("pitcher_id")
+    if not pitcher_id:
+        raise HTTPException(status_code=404, detail="session not found")
+    _require_team_pitcher(pitcher_id, team_id)
+
+    template_id = req.chosen_template_id
+    if not template_id:
+        candidate_ids = session.get("candidate_template_ids") or []
+        if not candidate_ids:
+            raise HTTPException(status_code=400, detail="no candidates and no chosen_template_id")
+        template_id = candidate_ids[0]
+
+    # Stamp coach authorship into the constraint envelope (honored by generate_program).
+    envelope = dict(session.get("constraint_envelope_json") or {})
+    envelope["created_by"] = coach_id
+    envelope["created_by_role"] = "coach"
+
+    program = _program_generator.generate_program(
+        pitcher_id=pitcher_id,
+        template_id=template_id,
+        tuned_spec=req.tuned_spec,
+        constraint_envelope=envelope,
+        session_id=req.session_id,
+    )
+
+    _db.update_builder_session(req.session_id, {
+        "chosen_template_id": template_id,
+        "tuned_spec_json": req.tuned_spec,
+        "status": "completed",
+        "generated_program_id": program["program_id"],
+    })
+
+    return {"program": program}
+
+
+@coach_router.post("/programs/builder/turn")
+async def coach_post_builder_turn(req: CoachBuilderTurnRequest, request: Request):
+    """Layer 2 (coach): advance the Socratic conversation by one turn."""
+    await require_coach_auth(request)
+    team_id = request.state.team_id
+
+    session = _db.get_builder_session(req.session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="session not found")
+    pitcher_id = session.get("pitcher_id")
+    if not pitcher_id:
+        raise HTTPException(status_code=404, detail="session not found")
+    _require_team_pitcher(pitcher_id, team_id)
+
+    try:
+        return await _program_builder_socratic.advance(req.session_id, req.user_message)
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@coach_router.post("/programs/builder/finalize")
+async def coach_post_builder_finalize(req: CoachBuilderFinalizeRequest, request: Request):
+    """Layer 3 (coach): finalize the interview and generate the draft program.
+
+    Stamps coach authorship into the constraint envelope (honored by
+    generate_program) so the program records `created_by` / `created_by_role`.
+    """
+    await require_coach_auth(request)
+    team_id = request.state.team_id
+    coach_id = request.state.coach_id
+
+    session = _db.get_builder_session(req.session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="session not found")
+    pitcher_id = session.get("pitcher_id")
+    if not pitcher_id:
+        raise HTTPException(status_code=404, detail="session not found")
+    _require_team_pitcher(pitcher_id, team_id)
+
+    envelope = dict(session.get("constraint_envelope_json") or {})
+    envelope["created_by"] = coach_id
+    envelope["created_by_role"] = "coach"
+
+    program = _program_generator.generate_program(
+        pitcher_id=pitcher_id,
+        template_id=req.chosen_template_id,
+        tuned_spec=req.tuned_spec,
+        constraint_envelope=envelope,
+        session_id=req.session_id,
+    )
+
+    _db.update_builder_session(req.session_id, {
+        "chosen_template_id": req.chosen_template_id,
+        "tuned_spec_json": req.tuned_spec,
+        "status": "completed",
+        "generated_program_id": program["program_id"],
+    })
+
+    return {"program": program}
+
+
+@coach_router.post("/programs/{program_id}/activate")
+async def coach_post_program_activate(program_id: str, request: Request):
+    """Layer 4 (coach): activate a draft program."""
+    await require_coach_auth(request)
+    team_id = request.state.team_id
+
+    program = _db.get_program(program_id)
+    if not program:
+        raise HTTPException(status_code=404, detail="program not found")
+    _require_team_pitcher(program.get("pitcher_id") or "", team_id)
+    return _program_lifecycle.activate(program_id)
+
+
+@coach_router.post("/programs/{program_id}/archive")
+async def coach_post_program_archive(program_id: str, req: CoachProgramArchiveRequest, request: Request):
+    """Layer 4 (coach): archive a draft or active program with a reason."""
+    await require_coach_auth(request)
+    team_id = request.state.team_id
+
+    program = _db.get_program(program_id)
+    if not program:
+        raise HTTPException(status_code=404, detail="program not found")
+    _require_team_pitcher(program.get("pitcher_id") or "", team_id)
+    return _program_lifecycle.archive(program_id, reason=req.reason)
 
 
 # ---- Internal ----

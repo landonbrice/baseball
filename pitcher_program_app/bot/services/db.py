@@ -12,6 +12,15 @@ from supabase import create_client, Client
 
 logger = logging.getLogger(__name__)
 
+# Canonical set of valid `plan_generated.source` discriminator values.
+# `plan_generated` is JSONB so there's no DB-level enum; this constant is the
+# single source of truth. Future sources must be added here explicitly.
+VALID_PLAN_SOURCES: frozenset = frozenset({
+    "python_fallback",
+    "llm_enriched",
+    "program_prescribed",  # written by Plan 4 daily composition pipeline
+})
+
 _client: Client = None
 
 
@@ -80,6 +89,30 @@ def get_training_model(pitcher_id: str) -> dict:
     """Return pitcher_training_model row. Returns empty dict if none."""
     resp = get_client().table("pitcher_training_model").select("*").eq("pitcher_id", pitcher_id).execute()
     return resp.data[0] if resp.data else {}
+
+
+def get_pitcher_training_model(pitcher_id: str) -> dict | None:
+    """Return pitcher_training_model row, or None if missing.
+
+    Thin wrapper around get_training_model() that returns None (not {})
+    on miss — matches the contract used by feature-flag/override readers
+    that need to distinguish "no row" from "row with empty fields".
+    """
+    row = get_training_model(pitcher_id)
+    return row or None
+
+
+def get_feature_flag(pitcher_id: str, key: str) -> bool:
+    """Read a per-pitcher feature flag from pitcher_training_model.feature_flags.
+
+    Returns False on missing model row, missing/None feature_flags, missing key,
+    or non-truthy value. Boolean coerced via bool() — explicit False stays False.
+    """
+    model = get_pitcher_training_model(pitcher_id)
+    if not model:
+        return False
+    flags = model.get("feature_flags") or {}
+    return bool(flags.get(key))
 
 
 def upsert_training_model(pitcher_id: str, data: dict) -> None:
@@ -192,6 +225,26 @@ def upsert_daily_entry(pitcher_id: str, entry: dict) -> None:
         if team_id:
             row["team_id"] = team_id
     get_client().table("daily_entries").upsert(row, on_conflict="pitcher_id,date").execute()
+
+
+def write_daily_entry_with_counter_advance(entry, program_id, hold_event, event_date):
+    """Upsert daily_entries + atomically advance/hold the program counter via RPC.
+
+    NOT cross-step atomic (Supabase REST limitation): if the RPC fails after the
+    upsert succeeds, manual reconciliation may be needed. v2 follow-up could push
+    the entry payload into the Postgres function. program_id=None skips the RPC
+    entirely (cold-start parity for pitchers without an active program).
+    """
+    client = get_client()
+    safe = {k: v for k, v in entry.items() if k in _DAILY_ENTRY_COLUMNS}
+    client.table("daily_entries").upsert(safe, on_conflict="pitcher_id,date").execute()
+    if program_id is None:
+        return
+    client.rpc("advance_program_counter", {
+        "p_program_id": program_id,
+        "p_hold_event": hold_event,
+        "p_event_date": event_date.isoformat(),
+    }).execute()
 
 
 # ---------------------------------------------------------------------------
@@ -662,6 +715,278 @@ def get_team(team_id: str) -> dict | None:
         .execute()
     )
     return resp.data[0] if resp.data else None
+
+
+# --- programs (new spec-defined `programs` table; coexists with legacy training_programs) ---
+
+def get_active_program(pitcher_id: str, domain: str) -> dict | None:
+    """Return the single row from `programs` where status='active' for (pitcher_id, domain), or None.
+
+    The partial unique index idx_programs_one_active_per_domain guarantees at most one such row.
+    """
+    if domain not in ("throwing", "lifting"):
+        raise ValueError(f"domain must be 'throwing' or 'lifting', got {domain!r}")
+    resp = (
+        get_client()
+        .table("programs")
+        .select("*")
+        .eq("pitcher_id", pitcher_id)
+        .eq("domain", domain)
+        .eq("status", "active")
+        .limit(1)
+        .execute()
+    )
+    return (resp.data or [None])[0]
+
+
+def get_block_library_row(template_id: str) -> dict | None:
+    """Fetch a single block_library row by its block_template_id (TEXT PK)."""
+    resp = (
+        get_client()
+        .table("block_library")
+        .select("*")
+        .eq("block_template_id", template_id)
+        .limit(1)
+        .execute()
+    )
+    return (resp.data or [None])[0]
+
+
+# ---------------- Programs (spec v1) ----------------
+
+def create_program(row: dict) -> str:
+    """Insert a programs row, return the new program_id."""
+    resp = get_client().table("programs").insert(row).execute()
+    return (resp.data or [{}])[0].get("program_id")
+
+
+def get_program(program_id: str) -> dict | None:
+    resp = (
+        get_client()
+        .table("programs")
+        .select("*")
+        .eq("program_id", program_id)
+        .limit(1)
+        .execute()
+    )
+    return (resp.data or [None])[0]
+
+
+def update_program_status(program_id: str, status: str, **extras) -> None:
+    """Patch a programs row's status (and optional extra fields like activated_at, archived_at, archive_reason)."""
+    valid = {"draft", "active", "archived", "error"}
+    if status not in valid:
+        raise ValueError(f"status must be one of {valid}, got {status!r}")
+    payload = {"status": status, **extras}
+    get_client().table("programs").update(payload).eq("program_id", program_id).execute()
+
+
+def update_program_schedule(program_id: str, new_schedule: dict,
+                             trigger_type: str = "anchor_recompute") -> None:
+    """Persist a recomputed schedule and audit it.
+
+    Two writes (not cross-step atomic; v2 will move to a single RPC):
+    1. UPDATE programs SET generated_schedule_json = new_schedule
+    2. INSERT INTO program_schedule_revisions (program_id, trigger_type,
+       old_schedule, new_schedule)
+
+    Reads the current row first to capture `old_schedule` for the revision.
+    """
+    client = get_client()
+    existing = (
+        client.table("programs")
+        .select("generated_schedule_json")
+        .eq("program_id", program_id)
+        .limit(1)
+        .execute()
+    )
+    old_schedule = ((existing.data or [{}])[0] or {}).get("generated_schedule_json") or {}
+
+    client.table("programs").update(
+        {"generated_schedule_json": new_schedule}
+    ).eq("program_id", program_id).execute()
+
+    client.table("program_schedule_revisions").insert({
+        "program_id": program_id,
+        "trigger_type": trigger_type,
+        "old_schedule": old_schedule,
+        "new_schedule": new_schedule,
+    }).execute()
+
+
+def list_programs_for_pitcher(pitcher_id: str, status: str | None = None) -> list[dict]:
+    q = get_client().table("programs").select("*").eq("pitcher_id", pitcher_id)
+    if status:
+        q = q.eq("status", status)
+    resp = q.order("created_at", desc=True).execute()
+    return resp.data or []
+
+
+# All columns except `generated_schedule_json` (the big JSONB body, ~10-50KB/row).
+# tuned_spec_json is kept — it holds the Socratic answers, ~1-3KB, useful for cards.
+_PROGRAM_SUMMARY_COLUMNS = (
+    "program_id,pitcher_id,parent_template_id,domain,tuned_spec_json,"
+    "start_date,nominal_end_date,current_day_index,held_days_count,status,"
+    "created_by,created_by_role,approval_required,"
+    "created_at,activated_at,archived_at,archive_reason"
+)
+
+
+def list_programs_for_pitcher_summary(
+    pitcher_id: str,
+    status: str | None = None,
+    *,
+    order_by: str = "created_at",
+) -> list[dict]:
+    """List programs without the heavy `generated_schedule_json` column.
+
+    For Plan 6 / A3 list endpoints — cards only need scalars + tuned_spec.
+    `order_by` accepts 'created_at' or 'archived_at' (history uses the latter).
+    """
+    if order_by not in ("created_at", "archived_at"):
+        raise ValueError(f"order_by must be 'created_at' or 'archived_at', got {order_by!r}")
+    q = (
+        get_client()
+        .table("programs")
+        .select(_PROGRAM_SUMMARY_COLUMNS)
+        .eq("pitcher_id", pitcher_id)
+    )
+    if status:
+        q = q.eq("status", status)
+    resp = q.order(order_by, desc=True).execute()
+    return resp.data or []
+
+
+# ---------------- Program Hold Events (Plan 6 / B2 read-side) ----------------
+
+def list_program_holds_for_date(pitcher_id: str, event_date_iso: str) -> list[str]:
+    """Return program_ids that were held for the pitcher on the given date.
+
+    Used by GET /api/programs/holds-today to surface the "Program paused today"
+    inline note on Home (B2). Empty list if no holds exist.
+    """
+    resp = (
+        get_client()
+        .table("program_hold_events")
+        .select("program_id")
+        .eq("pitcher_id", pitcher_id)
+        .eq("event_date", event_date_iso)
+        .execute()
+    )
+    rows = resp.data or []
+    return [r.get("program_id") for r in rows if r.get("program_id")]
+
+
+# ---------------- Coach-visible Override Events (Plan 6 / A5) ----------------
+
+def insert_override_event(
+    pitcher_id: str,
+    program_id: str | None,
+    event_kind: str,
+    event_date: str,
+    details: dict | None = None,
+) -> dict:
+    """Insert a row into coach_visible_override_events. Returns the inserted row.
+
+    `event_date` is an ISO date string (YYYY-MM-DD). `details` is opaque JSON for
+    surfacing context to coaches later.
+    """
+    row = {
+        "pitcher_id": pitcher_id,
+        "program_id": program_id,
+        "event_kind": event_kind,
+        "event_date": event_date,
+        "details": details or {},
+    }
+    resp = get_client().table("coach_visible_override_events").insert(row).execute()
+    return (resp.data or [{}])[0]
+
+
+def get_pitcher_scheduled_throws(pitcher_id: str) -> list[dict]:
+    """Read `current_week_state.scheduled_throws` for a pitcher; returns [] if absent."""
+    resp = (
+        get_client()
+        .table("pitcher_training_model")
+        .select("current_week_state")
+        .eq("pitcher_id", pitcher_id)
+        .limit(1)
+        .execute()
+    )
+    rows = resp.data or []
+    if not rows:
+        return []
+    state = rows[0].get("current_week_state") or {}
+    return state.get("scheduled_throws") or []
+
+
+# ---------------- Favorited Blocks (Plan 6 / A2) ----------------
+
+def insert_favorited_block(row: dict) -> dict:
+    """Insert a new favorited_blocks row. Returns the inserted row (with favorite_id)."""
+    resp = get_client().table("favorited_blocks").insert(row).execute()
+    return (resp.data or [{}])[0]
+
+
+def list_favorited_blocks(pitcher_id: str, block_type: str | None = None) -> list[dict]:
+    """List favorited blocks for a pitcher, newest first. Optional block_type filter."""
+    q = get_client().table("favorited_blocks").select("*").eq("pitcher_id", pitcher_id)
+    if block_type:
+        q = q.eq("block_type", block_type)
+    resp = q.order("favorited_at", desc=True).execute()
+    return resp.data or []
+
+
+def get_favorited_block(favorite_id: str) -> dict | None:
+    """Fetch a single favorite row by id (ownership check is the caller's job)."""
+    resp = (
+        get_client()
+        .table("favorited_blocks")
+        .select("*")
+        .eq("favorite_id", favorite_id)
+        .limit(1)
+        .execute()
+    )
+    return (resp.data or [None])[0]
+
+
+def delete_favorited_block(favorite_id: str) -> None:
+    """Delete by favorite_id. Caller is responsible for ownership check."""
+    get_client().table("favorited_blocks").delete().eq("favorite_id", favorite_id).execute()
+
+
+# ---------------- Builder Sessions (spec v1) ----------------
+
+def create_builder_session(row: dict) -> str:
+    resp = get_client().table("program_builder_sessions").insert(row).execute()
+    return (resp.data or [{}])[0].get("session_id")
+
+
+def update_builder_session(session_id: str, patch: dict) -> None:
+    get_client().table("program_builder_sessions").update(patch).eq("session_id", session_id).execute()
+
+
+def get_builder_session(session_id: str) -> dict | None:
+    resp = (
+        get_client()
+        .table("program_builder_sessions")
+        .select("*")
+        .eq("session_id", session_id)
+        .limit(1)
+        .execute()
+    )
+    return (resp.data or [None])[0]
+
+
+# ---------------- Generation Failures ----------------
+
+def record_generation_failure(session_id: str | None, attempt_number: int,
+                               validation_failure_kind: str, llm_response: dict | None = None) -> None:
+    get_client().table("program_generation_failures").insert({
+        "session_id": session_id,
+        "attempt_number": attempt_number,
+        "validation_failure_kind": validation_failure_kind,
+        "llm_response": llm_response,
+    }).execute()
 
 
 # --- coaches ---

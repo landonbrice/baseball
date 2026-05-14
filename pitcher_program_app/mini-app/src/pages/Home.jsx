@@ -6,6 +6,7 @@ import { usePitcher } from '../hooks/usePitcher';
 import { useApi } from '../hooks/useApi';
 import WeekStrip from '../components/WeekStrip';
 import DailyCard from '../components/DailyCard';
+import ProgramRibbon from '../components/ProgramRibbon';
 import UpcomingDays from '../components/UpcomingDays';
 import ThrowingWeekPreview from '../components/ThrowingWeekPreview';
 import InsightsCard from '../components/InsightsCard';
@@ -148,6 +149,9 @@ export default function Home() {
   const narrativeData = useApi(pitcherId ? `/api/pitcher/${pitcherId}/weekly-narrative${suffix}` : null, initData);
   const staffPulse = useApi(staffPulsePath, initData);
   const whoopData = useApi(pitcherId ? `/api/pitcher/${pitcherId}/whoop-today${suffix}` : null, initData);
+  // Plan 6 / B2 — active programs + today's hold flags
+  const activePrograms = useApi(pitcherId ? `/api/programs/active${suffix}` : null, initData);
+  const holdsToday     = useApi(pitcherId ? `/api/programs/holds-today${suffix}` : null, initData);
 
   const exerciseMap = useMemo(() => {
     if (!exercises.data?.exercises) return {};
@@ -323,6 +327,18 @@ export default function Home() {
               </div>
             )}
             <div style={{ marginTop: 12 }}>
+              {!isViewingPast && activePrograms.data?.throwing && (
+                <ProgramRibbon
+                  program={activePrograms.data.throwing}
+                  heldToday={!!holdsToday.data?.throwing}
+                />
+              )}
+              {!isViewingPast && activePrograms.data?.lifting && (
+                <ProgramRibbon
+                  program={activePrograms.data.lifting}
+                  heldToday={!!holdsToday.data?.lifting}
+                />
+              )}
               <DailyCard entry={displayEntry || todayEntry} exerciseMap={exerciseMap} slugMap={slugMap} pitcherId={pitcherId} initData={initData} readOnly={!!isViewingPast} />
             </div>
           </div>

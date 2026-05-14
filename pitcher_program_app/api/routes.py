@@ -2609,3 +2609,385 @@ async def ui_fallback_telemetry(request: Request):
         await _send_admin_dm(msg)
 
     return {"ok": True, "dmed": count_24h == 1}
+
+
+# ============================================================
+# Program Builder v1 — Layers 1, 3, 4 (Plan 2)
+# ============================================================
+
+from typing import Optional
+from pydantic import BaseModel, Field
+
+from bot.services import program_builder, program_builder_socratic, program_generator, program_lifecycle
+from bot.services import program_anchoring
+from bot.services import favorites as favorites_svc
+
+
+class BuilderCandidatesRequest(BaseModel):
+    domain: str = Field(..., pattern="^(throwing|lifting)$")
+    goal: str
+    duration_weeks: int = Field(..., gt=0, le=52)
+    effective_phase: str
+    hard_constraints: list[str] = []
+
+
+class BuilderGenerateRequest(BaseModel):
+    session_id: str
+    tuned_spec: dict
+    chosen_template_id: Optional[str] = None  # explicit choice; v1 stub falls back to candidates[0]
+
+
+class BuilderTurnRequest(BaseModel):
+    session_id: str
+    user_message: str
+
+
+class BuilderFinalizeRequest(BaseModel):
+    session_id: str
+    chosen_template_id: str
+    tuned_spec: dict
+
+
+class ProgramArchiveRequest(BaseModel):
+    reason: str
+
+
+def _resolve_pitcher_id_from_request(request: Request) -> str:
+    """Resolve the authenticated pitcher_id for endpoints with no pitcher_id in URL.
+
+    Mirrors the auth pattern in `_require_pitcher_auth` / `auth_resolve`:
+    - In DISABLE_AUTH mode (dev/tests), honors `X-Test-Pitcher-Id` header.
+    - Otherwise, validates Telegram initData HMAC and resolves pitcher_id.
+    """
+    if DISABLE_AUTH:
+        test_pid = request.headers.get("X-Test-Pitcher-Id", "")
+        if not test_pid:
+            raise HTTPException(status_code=401, detail="Missing X-Test-Pitcher-Id (DISABLE_AUTH)")
+        return test_pid
+
+    init_data = request.headers.get("X-Telegram-Init-Data", "")
+    if not init_data:
+        raise HTTPException(status_code=401, detail="Missing authentication")
+    user = validate_init_data(init_data)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid authentication")
+    pitcher_id = resolve_pitcher(user["id"], user.get("username"))
+    if not pitcher_id:
+        raise HTTPException(status_code=404, detail="No pitcher profile linked")
+    return pitcher_id
+
+
+@router.post("/programs/builder/candidates")
+async def post_builder_candidates(req: BuilderCandidatesRequest, request: Request):
+    """Layer 1: match candidate block templates from a constraint envelope.
+
+    Returns `{session_id, candidates}`. The session captures the envelope and
+    candidate ids so Layer 3 can resolve a chosen template against it.
+    """
+    pitcher_id = _resolve_pitcher_id_from_request(request)
+    envelope = req.model_dump()
+    candidates = program_builder.match_candidates(envelope)
+    session_id = _db.create_builder_session({
+        "pitcher_id": pitcher_id,
+        "initiator_id": pitcher_id,
+        "initiator_role": "pitcher",
+        "interview_mode": "personalize",
+        "constraint_envelope_json": envelope,
+        "candidate_template_ids": [c["block_template_id"] for c in candidates],
+        "status": "in_progress",
+    })
+    return {"session_id": session_id, "candidates": candidates}
+
+
+@router.post("/programs/builder/generate")
+async def post_builder_generate(req: BuilderGenerateRequest, request: Request):
+    """Layer 3 + Layer 2 stub: generate a draft program from the chosen template.
+
+    Layer 2 (Socratic loop) is stubbed in v1 — when `chosen_template_id` is
+    omitted, the first candidate from the session is used. Plan 3 replaces
+    this with the real interview flow.
+    """
+    pitcher_id = _resolve_pitcher_id_from_request(request)
+    session = _db.get_builder_session(req.session_id)
+    if not session or session.get("pitcher_id") != pitcher_id:
+        # Keep ownership leakage opaque — 404 not 403.
+        raise HTTPException(status_code=404, detail="session not found")
+
+    template_id = req.chosen_template_id
+    if not template_id:
+        candidate_ids = session.get("candidate_template_ids") or []
+        if not candidate_ids:
+            raise HTTPException(status_code=400, detail="no candidates and no chosen_template_id")
+        template_id = candidate_ids[0]
+
+    program = program_generator.generate_program(
+        pitcher_id=pitcher_id,
+        template_id=template_id,
+        tuned_spec=req.tuned_spec,
+        constraint_envelope=session.get("constraint_envelope_json") or {},
+        session_id=req.session_id,
+    )
+
+    _db.update_builder_session(req.session_id, {
+        "chosen_template_id": template_id,
+        "tuned_spec_json": req.tuned_spec,
+        "status": "completed",
+        "generated_program_id": program["program_id"],
+    })
+
+    return {"program": program}
+
+
+@router.post("/programs/builder/turn")
+async def post_builder_turn(req: BuilderTurnRequest, request: Request):
+    """Layer 2: advance the Socratic conversation by one turn.
+
+    Returns the dict from `program_builder_socratic.advance` directly:
+      - `{"kind": "question", "text": ...}` — relay to user, await reply
+      - `{"kind": "ready", "chosen_template_id": ..., "tuned_spec": ...}` — client calls /finalize
+    """
+    pitcher_id = _resolve_pitcher_id_from_request(request)
+    session = _db.get_builder_session(req.session_id)
+    if not session or session.get("pitcher_id") != pitcher_id:
+        raise HTTPException(status_code=404, detail="session not found")
+
+    try:
+        return await program_builder_socratic.advance(req.session_id, req.user_message)
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/programs/builder/finalize")
+async def post_builder_finalize(req: BuilderFinalizeRequest, request: Request):
+    """Layer 3: finalize the interview with an explicit chosen template + tuned_spec
+    and generate the draft program. Companion to /turn — clients call this once
+    /turn returns `{"kind": "ready", ...}`.
+
+    Returns `{program, citations}`. `citations` is the chosen template's
+    `research_doc_ids` resolved to `[{id, title, summary}]` for the preview
+    "why this program" surface (B3 State C). Missing/renamed docs are silently
+    dropped — template seeds may reference docs that have moved.
+    """
+    pitcher_id = _resolve_pitcher_id_from_request(request)
+    session = _db.get_builder_session(req.session_id)
+    if not session or session.get("pitcher_id") != pitcher_id:
+        raise HTTPException(status_code=404, detail="session not found")
+
+    program = program_generator.generate_program(
+        pitcher_id=pitcher_id,
+        template_id=req.chosen_template_id,
+        tuned_spec=req.tuned_spec,
+        constraint_envelope=session.get("constraint_envelope_json") or {},
+        session_id=req.session_id,
+    )
+
+    _db.update_builder_session(req.session_id, {
+        "chosen_template_id": req.chosen_template_id,
+        "tuned_spec_json": req.tuned_spec,
+        "status": "completed",
+        "generated_program_id": program["program_id"],
+    })
+
+    template = _db.get_block_library_row(req.chosen_template_id) or {}
+    doc_ids = template.get("research_doc_ids") or []
+    from bot.services.research_resolver import get_citations_for_ids
+    citations = get_citations_for_ids(doc_ids)
+
+    return {"program": program, "citations": citations}
+
+
+@router.get("/programs/drafts")
+async def get_program_drafts(request: Request):
+    """List the pitcher's draft programs (status='draft'), newest first.
+
+    Excludes `generated_schedule_json` to keep the payload small — cards only
+    render scalar fields. Fetch a single draft endpoint (not yet defined) if
+    you need the full schedule body.
+    """
+    pitcher_id = _resolve_pitcher_id_from_request(request)
+    rows = _db.list_programs_for_pitcher_summary(pitcher_id, status="draft")
+    return {"drafts": rows}
+
+
+@router.get("/programs/history")
+async def get_program_history(request: Request):
+    """List the pitcher's archived programs ordered by `archived_at` (newest first)."""
+    pitcher_id = _resolve_pitcher_id_from_request(request)
+    rows = _db.list_programs_for_pitcher_summary(
+        pitcher_id, status="archived", order_by="archived_at"
+    )
+    return {"history": rows}
+
+
+@router.get("/programs/holds-today")
+async def get_program_holds_today(request: Request):
+    """Return today's program-hold flags keyed by domain.
+
+    Used by Home (Plan 6 / B2) to render the "Program paused today" inline
+    affordance. Shape: `{throwing: bool, lifting: bool}`. False when no
+    active program exists for that domain or no hold was recorded today.
+    """
+    pitcher_id = _resolve_pitcher_id_from_request(request)
+    today_str = datetime.now(CHICAGO_TZ).strftime("%Y-%m-%d")
+    active_rows = _db.list_programs_for_pitcher_summary(pitcher_id, status="active")
+    held_ids = set(_db.list_program_holds_for_date(pitcher_id, today_str))
+    out = {"throwing": False, "lifting": False}
+    for row in active_rows:
+        domain = row.get("domain")
+        if domain in out and row.get("program_id") in held_ids:
+            out[domain] = True
+    return out
+
+
+@router.get("/programs/active")
+async def get_active_programs(request: Request):
+    """Return the pitcher's currently-active programs keyed by domain.
+
+    The partial unique index guarantees ≤1 active per (pitcher, domain),
+    so the shape is `{throwing: <program>|null, lifting: <program>|null}`.
+    """
+    pitcher_id = _resolve_pitcher_id_from_request(request)
+    rows = _db.list_programs_for_pitcher_summary(pitcher_id, status="active")
+    bucketed = {"throwing": None, "lifting": None}
+    for row in rows:
+        domain = row.get("domain")
+        if domain in bucketed:
+            bucketed[domain] = row
+    return bucketed
+
+
+@router.post("/programs/{program_id}/activate")
+async def post_program_activate(program_id: str, request: Request):
+    """Layer 4: activate a draft program (archives any existing active in same domain)."""
+    pitcher_id = _resolve_pitcher_id_from_request(request)
+    program = _db.get_program(program_id)
+    if not program or program.get("pitcher_id") != pitcher_id:
+        raise HTTPException(status_code=404, detail="program not found")
+    return program_lifecycle.activate(program_id)
+
+
+@router.post("/programs/{program_id}/archive")
+async def post_program_archive(program_id: str, req: ProgramArchiveRequest, request: Request):
+    """Layer 4: archive a draft or active program with a reason."""
+    pitcher_id = _resolve_pitcher_id_from_request(request)
+    program = _db.get_program(program_id)
+    if not program or program.get("pitcher_id") != pitcher_id:
+        raise HTTPException(status_code=404, detail="program not found")
+    return program_lifecycle.archive(program_id, reason=req.reason)
+
+
+def _count_shifted_days(old_days: list, new_days: list) -> int:
+    """Count days whose `date` field changed. Both lists assumed aligned by index."""
+    if len(old_days) != len(new_days):
+        return max(len(old_days), len(new_days))
+    return sum(
+        1 for o, n in zip(old_days, new_days)
+        if (o or {}).get("date") != (n or {}).get("date")
+    )
+
+
+@router.post("/programs/{program_id}/recompute")
+async def post_program_recompute(program_id: str, request: Request):
+    """Re-anchor a program's schedule around the pitcher's current scheduled throws.
+
+    Reads scheduled_throws server-side from pitcher_training_model — the caller
+    (mini-app WeekArc) has already persisted the throw via add_scheduled_throw
+    before invoking this endpoint.
+
+    Always returns 200. Players can build/move throws whenever — v1 has no
+    "prohibited day" conflict check. Calendar-relative templates no-op.
+
+    Returns: {updated: bool, days_shifted: int, schedule: dict|None}.
+    When `updated=true`, also writes a coach_visible_override_event so coaches
+    can see player-driven schedule shifts.
+    """
+    pitcher_id = _resolve_pitcher_id_from_request(request)
+    program = _db.get_program(program_id)
+    if not program or program.get("pitcher_id") != pitcher_id:
+        raise HTTPException(status_code=404, detail="program not found")
+
+    raw_throws = _db.get_pitcher_scheduled_throws(pitcher_id)
+    # weekly_model stores `type`; program_anchoring reads `kind`. Shim here.
+    throws = [
+        {"date": t.get("date"), "kind": t.get("type")}
+        for t in raw_throws
+        if t.get("date") and t.get("type")
+    ]
+
+    old_schedule = program.get("generated_schedule_json") or {}
+    new_schedule = program_anchoring.recompute_program_schedule(program, throws)
+
+    old_days = (old_schedule or {}).get("days") or []
+    new_days = (new_schedule or {}).get("days") or []
+    days_shifted = _count_shifted_days(old_days, new_days)
+
+    if days_shifted == 0:
+        return {"updated": False, "days_shifted": 0, "schedule": None}
+
+    _db.update_program_schedule(program_id, new_schedule, trigger_type="anchor_recompute")
+    _db.insert_override_event(
+        pitcher_id=pitcher_id,
+        program_id=program_id,
+        event_kind="schedule_recompute",
+        event_date=datetime.now(CHICAGO_TZ).strftime("%Y-%m-%d"),
+        details={
+            "trigger": "scheduled_throw_change",
+            "days_shifted": days_shifted,
+        },
+    )
+    return {"updated": True, "days_shifted": days_shifted, "schedule": new_schedule}
+
+
+# ---------------- Favorites (Plan 6 / A2) ----------------
+
+class FavoriteCreateRequest(BaseModel):
+    block_type: str = Field(..., pattern="^(lifting|arm_care|throwing|warmup)$")
+    source_entry_date: str = Field(..., pattern=r"^\d{4}-\d{2}-\d{2}$")
+    block_snapshot: dict
+    note: Optional[str] = None
+
+
+@router.post("/favorites")
+async def post_favorite(req: FavoriteCreateRequest, request: Request):
+    """Save an immutable snapshot of a block the pitcher just did.
+
+    `source_pitcher_id` is forced to the authenticated pitcher in v1 — the
+    block must come from this pitcher's own daily entry. Returns the inserted
+    row including `favorite_id`.
+    """
+    pitcher_id = _resolve_pitcher_id_from_request(request)
+    try:
+        row = favorites_svc.create_favorite(
+            pitcher_id=pitcher_id,
+            block_type=req.block_type,
+            source_entry_date=req.source_entry_date,
+            block_snapshot=req.block_snapshot,
+            note=req.note,
+        )
+    except favorites_svc.FavoritesError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return row
+
+
+@router.get("/favorites")
+async def get_favorites(request: Request, type: Optional[str] = Query(default=None)):
+    """List this pitcher's favorited blocks, newest first. Optional `?type=` filter."""
+    pitcher_id = _resolve_pitcher_id_from_request(request)
+    try:
+        rows = favorites_svc.list_favorites(pitcher_id, block_type=type)
+    except favorites_svc.FavoritesError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"favorites": rows}
+
+
+@router.delete("/favorites/{favorite_id}")
+async def delete_favorite(favorite_id: str, request: Request):
+    """Delete a favorite owned by the authenticated pitcher."""
+    pitcher_id = _resolve_pitcher_id_from_request(request)
+    try:
+        favorites_svc.delete_favorite(pitcher_id, favorite_id)
+    except favorites_svc.FavoriteNotFound:
+        raise HTTPException(status_code=404, detail="favorite not found")
+    return {"ok": True}

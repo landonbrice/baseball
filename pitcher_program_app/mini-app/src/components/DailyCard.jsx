@@ -7,6 +7,7 @@ import WhyCard from './WhyCard';
 import PostThrowFeel from './PostThrowFeel';
 import MobilityCard from './MobilityCard';
 import ExerciseSwap from './ExerciseSwap';
+import FavoriteHeart from './FavoriteHeart';
 import { submitThrowFeel } from '../api';
 
 function resolveExercise(exerciseId, exerciseMap, slugMap) {
@@ -468,6 +469,8 @@ export default function DailyCard({ entry, exerciseMap = {}, slugMap = {}, pitch
             wrapperStyle={wrapperStyle}
             researchSources={key === 'lifting' ? researchSources : []}
             onShowWhySheet={key === 'lifting' && !readOnly ? () => setShowWhySheet(true) : null}
+            favoritable={['lifting', 'arm_care', 'throwing', 'warmup'].includes(key)}
+            favoriteSnapshot={data}
           />
         );
 
@@ -712,7 +715,7 @@ function MarkPhaseDoneButton({ phaseLabel, onClick }) {
 
 // ── Exercise Block (arm_care, lifting) ──
 
-function ExerciseBlock({ blockKey, emoji, label, data, fallbackBlocks, hasStructured, exerciseMap, slugMap, completed, onToggle, expandedWhy, onToggleWhy, swappingExerciseId, swappedExercises, swapOverrides, onStartSwap, onSwapComplete, onCancelSwap, pitcherId, date, initData, readOnly, wrapperStyle, researchSources = [], onShowWhySheet }) {
+function ExerciseBlock({ blockKey, emoji, label, data, fallbackBlocks, hasStructured, exerciseMap, slugMap, completed, onToggle, expandedWhy, onToggleWhy, swappingExerciseId, swappedExercises, swapOverrides, onStartSwap, onSwapComplete, onCancelSwap, pitcherId, date, initData, readOnly, wrapperStyle, researchSources = [], onShowWhySheet, favoritable = false, favoriteSnapshot = null }) {
   const [warmupExpanded, setWarmupExpanded] = useState(false);
   const exercises = data?.exercises || [];
   const hasDirect = hasStructured && exercises.length > 0;
@@ -770,9 +773,19 @@ function ExerciseBlock({ blockKey, emoji, label, data, fallbackBlocks, hasStruct
               {duration && <span style={{ fontSize: 10, color: 'var(--color-ink-faint)' }}>{duration} min</span>}
               <span style={{ fontSize: 10, color: 'var(--color-ink-muted)' }}>{warmupExpanded ? '\u25BC' : '\u25B6'}</span>
             </div>
-            <span style={{ fontSize: 11, color: doneCount === allEx.length && allEx.length > 0 ? 'var(--color-flag-green)' : 'var(--color-ink-muted)', fontWeight: 600 }}>
-              {doneCount}/{allEx.length}
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              {favoritable && favoriteSnapshot && !readOnly && (
+                <FavoriteHeart
+                  blockType={blockKey}
+                  sourceEntryDate={date}
+                  blockSnapshot={favoriteSnapshot}
+                  initData={initData}
+                />
+              )}
+              <span style={{ fontSize: 11, color: doneCount === allEx.length && allEx.length > 0 ? 'var(--color-flag-green)' : 'var(--color-ink-muted)', fontWeight: 600 }}>
+                {doneCount}/{allEx.length}
+              </span>
+            </div>
           </div>
         </div>
         {warmupExpanded && (
@@ -828,9 +841,19 @@ function ExerciseBlock({ blockKey, emoji, label, data, fallbackBlocks, hasStruct
               </button>
             )}
           </div>
-          <span style={{ fontSize: 12, color: doneCount === allEx.length && allEx.length > 0 ? 'var(--color-flag-green)' : 'var(--color-ink-muted)', fontWeight: 600 }}>
-            {doneCount}/{allEx.length}
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            {favoritable && favoriteSnapshot && !readOnly && (
+              <FavoriteHeart
+                blockType={blockKey}
+                sourceEntryDate={date}
+                blockSnapshot={favoriteSnapshot}
+                initData={initData}
+              />
+            )}
+            <span style={{ fontSize: 12, color: doneCount === allEx.length && allEx.length > 0 ? 'var(--color-flag-green)' : 'var(--color-ink-muted)', fontWeight: 600 }}>
+              {doneCount}/{allEx.length}
+            </span>
+          </div>
         </div>
         {reasoning && typeof reasoning === 'string' && (
           <p style={{ fontSize: 11, color: 'var(--color-ink-muted)', fontStyle: 'italic', lineHeight: 1.5, margin: '4px 0 0' }}>

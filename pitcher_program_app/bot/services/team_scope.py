@@ -93,3 +93,27 @@ def get_pitcher_next_start(pitcher_id: str, team_id: str, from_date: str) -> dic
             .limit(1)
             .execute())
     return resp.data[0] if resp.data else None
+
+
+# --- team phase (per-domain) ---
+
+def _load_team(team_id: str) -> dict | None:
+    from bot.services import db
+    return db.get_team(team_id)
+
+
+def get_team_phase(team_id: str, domain: str) -> str | None:
+    """Return the team-wide phase for the given domain.
+
+    Per spec answer (2026-04-30): teams.training_phase is split into
+    throwing_phase / lifting_phase. Old column kept as fallback for one cycle.
+    """
+    if domain not in ("throwing", "lifting"):
+        raise ValueError(f"domain must be 'throwing' or 'lifting', got {domain!r}")
+    team = _load_team(team_id)
+    if not team:
+        return None
+    per_domain = team.get(f"{domain}_phase")
+    if per_domain:
+        return per_domain
+    return team.get("training_phase")

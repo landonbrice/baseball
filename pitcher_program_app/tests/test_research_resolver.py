@@ -108,3 +108,42 @@ def test_resolve_research_context_filter():
     payload = resolve_research(profile, "daily_plan_why")
     for doc in payload.loaded_docs:
         assert "daily_plan_why" in doc.contexts or doc.priority == "critical"
+
+
+def test_get_citations_for_ids_returns_resolved_docs():
+    from unittest.mock import patch
+    from bot.services import research_resolver
+    fake_index = {
+        "velocity_arc_v2": (
+            {"id": "velocity_arc_v2", "title": "Velocity Programming",
+             "summary": "12-week intent ramp."}, "body"),
+        "cuff_load": (
+            {"id": "cuff_load", "title": "Cuff Loading",
+             "summary": "Slow eccentric loading."}, "body"),
+    }
+    with patch.object(research_resolver, "_load_index", return_value=fake_index):
+        out = research_resolver.get_citations_for_ids(["velocity_arc_v2", "cuff_load"])
+    assert out == [
+        {"id": "velocity_arc_v2", "title": "Velocity Programming",
+         "summary": "12-week intent ramp."},
+        {"id": "cuff_load", "title": "Cuff Loading",
+         "summary": "Slow eccentric loading."},
+    ]
+
+
+def test_get_citations_for_ids_drops_unknown_ids():
+    from unittest.mock import patch
+    from bot.services import research_resolver
+    fake_index = {
+        "known": ({"id": "known", "title": "Known doc", "summary": ""}, "body"),
+    }
+    with patch.object(research_resolver, "_load_index", return_value=fake_index):
+        out = research_resolver.get_citations_for_ids(["known", "missing", "also_missing"])
+    assert len(out) == 1
+    assert out[0]["id"] == "known"
+
+
+def test_get_citations_for_ids_empty_input_returns_empty():
+    from bot.services import research_resolver
+    assert research_resolver.get_citations_for_ids([]) == []
+    assert research_resolver.get_citations_for_ids(None) == []

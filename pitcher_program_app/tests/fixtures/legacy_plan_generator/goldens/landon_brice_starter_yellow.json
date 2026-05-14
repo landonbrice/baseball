@@ -1,0 +1,919 @@
+{
+  "arm_care": {
+    "block_name": "Arm Care (Arm Care Heavy)",
+    "exercises": [
+      {
+        "exercise_id": "ex_081",
+        "name": "Modified Side Plank ER with Pressout + Ball Drop",
+        "prescribed": "2x10 ER / 15 ball drops"
+      },
+      {
+        "exercise_id": "ex_028",
+        "name": "Push-Up Plus",
+        "prescribed": "3x8"
+      },
+      {
+        "exercise_id": "ex_051",
+        "name": "Wall Sit Serratus Scoop",
+        "prescribed": "3x10"
+      },
+      {
+        "exercise_id": "ex_080",
+        "name": "Tall Kneeling Scapular Series",
+        "prescribed": "2x10"
+      },
+      {
+        "exercise_id": "ex_082",
+        "name": "Tricep Kickback to Wrist Curl",
+        "prescribed": "3x12"
+      },
+      {
+        "exercise_id": "ex_080",
+        "name": "Tall Kneeling Scapular Series",
+        "prescribed": "2x10"
+      },
+      {
+        "exercise_id": "ex_083",
+        "name": "Bicep Curl Pronator Pressout",
+        "prescribed": "3x12"
+      },
+      {
+        "exercise_id": "ex_080",
+        "name": "Tall Kneeling Scapular Series",
+        "prescribed": "2x10"
+      },
+      {
+        "exercise_id": "ex_041",
+        "name": "Pronator Teres Isolation",
+        "prescribed": "3x15"
+      },
+      {
+        "exercise_id": "ex_041",
+        "name": "Pronator Teres Isolation",
+        "prescribed": "3x15"
+      },
+      {
+        "exercise_id": "ex_044",
+        "name": "Shaker Ball Series",
+        "prescribed": "3 sets your choice"
+      },
+      {
+        "exercise_id": "ex_069",
+        "name": "Fingertip Ball Drops",
+        "prescribed": "2x10 drops each finger"
+      }
+    ]
+  },
+  "day_focus": "throw",
+  "estimated_duration_min": 45,
+  "exercise_blocks": [
+    {
+      "block_name": "Arm Care (Arm Care Heavy)",
+      "exercises": [
+        {
+          "exercise_id": "ex_081",
+          "name": "Modified Side Plank ER with Pressout + Ball Drop",
+          "prescribed": "2x10 ER / 15 ball drops"
+        },
+        {
+          "exercise_id": "ex_028",
+          "name": "Push-Up Plus",
+          "prescribed": "3x8"
+        },
+        {
+          "exercise_id": "ex_051",
+          "name": "Wall Sit Serratus Scoop",
+          "prescribed": "3x10"
+        },
+        {
+          "exercise_id": "ex_080",
+          "name": "Tall Kneeling Scapular Series",
+          "prescribed": "2x10"
+        },
+        {
+          "exercise_id": "ex_082",
+          "name": "Tricep Kickback to Wrist Curl",
+          "prescribed": "3x12"
+        },
+        {
+          "exercise_id": "ex_080",
+          "name": "Tall Kneeling Scapular Series",
+          "prescribed": "2x10"
+        },
+        {
+          "exercise_id": "ex_083",
+          "name": "Bicep Curl Pronator Pressout",
+          "prescribed": "3x12"
+        },
+        {
+          "exercise_id": "ex_080",
+          "name": "Tall Kneeling Scapular Series",
+          "prescribed": "2x10"
+        },
+        {
+          "exercise_id": "ex_041",
+          "name": "Pronator Teres Isolation",
+          "prescribed": "3x15"
+        },
+        {
+          "exercise_id": "ex_041",
+          "name": "Pronator Teres Isolation",
+          "prescribed": "3x15"
+        },
+        {
+          "exercise_id": "ex_044",
+          "name": "Shaker Ball Series",
+          "prescribed": "3 sets your choice"
+        },
+        {
+          "exercise_id": "ex_069",
+          "name": "Fingertip Ball Drops",
+          "prescribed": "2x10 drops each finger"
+        }
+      ]
+    },
+    {
+      "block_name": "Strength",
+      "exercises": [
+        {
+          "exercise_id": "ex_018",
+          "name": "Broad Jump",
+          "prescribed": "3-4x3 @ MAX INTENT, full reset between reps"
+        },
+        {
+          "exercise_id": "ex_128",
+          "name": "Pull-Up",
+          "note": "monitor medial elbow stress",
+          "prescribed": "2-3xmax @ bodyweight"
+        },
+        {
+          "exercise_id": "ex_127",
+          "name": "Incline Barbell Press",
+          "prescribed": "3x5-6 @ 75-80% 1RM"
+        }
+      ]
+    },
+    {
+      "block_name": "Accessories",
+      "exercises": [
+        {
+          "exercise_id": "ex_144",
+          "name": "Kneeling Landmine Press",
+          "prescribed": "3x6-8/side @ RPE 7"
+        },
+        {
+          "exercise_id": "ex_139",
+          "name": "Straight Arm Pulldown",
+          "note": "preferred low elbow stress lat exercise",
+          "prescribed": "2-3x15-20 @ light"
+        }
+      ]
+    },
+    {
+      "block_name": "Core + Stability",
+      "exercises": [
+        {
+          "exercise_id": "ex_046",
+          "name": "Dead Bug",
+          "prescribed": "3x6-8/side @ slow controlled, bodyweight"
+        },
+        {
+          "exercise_id": "ex_048",
+          "name": "Side Plank",
+          "prescribed": "2-3x20-30 seconds/side @ bodyweight"
+        }
+      ]
+    }
+  ],
+  "lifting": {
+    "estimated_duration_min": 45,
+    "exercises": [
+      {
+        "exercise_id": "ex_018",
+        "name": "Broad Jump",
+        "prescribed": "3-4x3 @ MAX INTENT, full reset between reps"
+      },
+      {
+        "exercise_id": "ex_128",
+        "name": "Pull-Up",
+        "note": "monitor medial elbow stress",
+        "prescribed": "2-3xmax @ bodyweight"
+      },
+      {
+        "exercise_id": "ex_127",
+        "name": "Incline Barbell Press",
+        "prescribed": "3x5-6 @ 75-80% 1RM"
+      },
+      {
+        "exercise_id": "ex_144",
+        "name": "Kneeling Landmine Press",
+        "prescribed": "3x6-8/side @ RPE 7"
+      },
+      {
+        "exercise_id": "ex_139",
+        "name": "Straight Arm Pulldown",
+        "note": "preferred low elbow stress lat exercise",
+        "prescribed": "2-3x15-20 @ light"
+      },
+      {
+        "exercise_id": "ex_046",
+        "name": "Dead Bug",
+        "prescribed": "3x6-8/side @ slow controlled, bodyweight"
+      },
+      {
+        "exercise_id": "ex_048",
+        "name": "Side Plank",
+        "prescribed": "2-3x20-30 seconds/side @ bodyweight"
+      }
+    ],
+    "intent": "endurance"
+  },
+  "mobility": {
+    "day": "monday",
+    "videos": [],
+    "week": 1
+  },
+  "modifications_applied": [
+    "fatigue_general",
+    "elevated_fpm_volume"
+  ],
+  "morning_brief": "Day 3 \u2014 YELLOW flag \u2014 Mods: fatigue general, elevated fpm volume.",
+  "narrative": "Day 3 plan ready.",
+  "notes": [
+    "Flagged YELLOW \u2014 intensity capped per triage.",
+    "fatigue general",
+    "elevated fpm volume",
+    "Arm report noted: \"Forearm a little tight today\""
+  ],
+  "research_sources": [],
+  "soreness_response": null,
+  "source": "python_fallback",
+  "source_reason": "llm_timeout:TimeoutError: mocked timeout for golden snapshot",
+  "template_day": "day_3",
+  "throwing": {
+    "day_type_label": "Hybrid A \u2014 Extension + Compression",
+    "estimated_duration_min": 40,
+    "intensity_range": "80-90%",
+    "intent": "compete",
+    "original_day_type": null,
+    "phases": [
+      {
+        "description": "Light band resistance \u2014 10 reps each exercise. Focus on smooth, controlled movement.",
+        "exercises": [
+          {
+            "exercise_id": "ex_096",
+            "name": "J-Band Forward Fly",
+            "order": 1,
+            "rx": "1x10"
+          },
+          {
+            "exercise_id": "ex_097",
+            "name": "J-Band Reverse Fly",
+            "order": 2,
+            "rx": "1x10"
+          },
+          {
+            "exercise_id": "ex_098",
+            "name": "J-Band Internal Rotation",
+            "order": 3,
+            "rx": "1x10"
+          },
+          {
+            "exercise_id": "ex_099",
+            "name": "J-Band External Rotation",
+            "order": 4,
+            "rx": "1x10"
+          },
+          {
+            "exercise_id": "ex_100",
+            "name": "J-Band Bicep Curl",
+            "order": 5,
+            "rx": "1x10"
+          },
+          {
+            "exercise_id": "ex_101",
+            "name": "J-Band Tricep Extension",
+            "order": 6,
+            "rx": "1x10"
+          }
+        ],
+        "phase_name": "J-Band Routine"
+      },
+      {
+        "description": "1-2 lb wrist weights \u2014 10 reps each. Less than 10 OK when starting out, prioritize technique.",
+        "exercises": [
+          {
+            "exercise_id": "ex_102",
+            "name": "Wrist Weight Pronation Swings",
+            "order": 1,
+            "rx": "1x10"
+          },
+          {
+            "exercise_id": "ex_103",
+            "name": "Wrist Weight Two-Arm Throws",
+            "order": 2,
+            "rx": "1x10"
+          },
+          {
+            "exercise_id": "ex_104",
+            "name": "Wrist Weight Pivot Pickoffs",
+            "order": 3,
+            "rx": "1x10"
+          },
+          {
+            "exercise_id": "ex_105",
+            "name": "Wrist Weight Cuban Press",
+            "order": 4,
+            "rx": "1x10"
+          }
+        ],
+        "phase_name": "Wrist Weight Routine"
+      },
+      {
+        "description": "5-6 drills at 80-90% effort.",
+        "exercises": [
+          {
+            "ball_weight": "green/blue",
+            "exercise_id": "ex_106",
+            "name": "Plyo Reverse Throws",
+            "order": 1,
+            "rx": "1x8-10 each, 80-90%"
+          },
+          {
+            "ball_weight": "blue/red",
+            "exercise_id": "ex_107",
+            "name": "Plyo Pivot Picks",
+            "order": 2,
+            "rx": "1x8-10 each, 80-90%"
+          },
+          {
+            "ball_weight": "blue/red",
+            "exercise_id": "ex_108",
+            "name": "Plyo Roll-Ins",
+            "order": 3,
+            "rx": "1x3-5 each, 80-90%"
+          },
+          {
+            "ball_weight": "blue/red",
+            "exercise_id": "ex_110",
+            "name": "Plyo Drop Steps",
+            "order": 4,
+            "rx": "1x3-5 each, 80-90%"
+          },
+          {
+            "ball_weight": "blue/red",
+            "exercise_id": "ex_112",
+            "name": "Plyo Rockers",
+            "order": 5,
+            "rx": "1x3-5 each, 80-90%"
+          },
+          {
+            "ball_weight": "blue/red",
+            "exercise_id": "ex_113",
+            "name": "Plyo Walking Windups",
+            "order": 6,
+            "rx": "1x3-5 each, 80-90%"
+          }
+        ],
+        "phase_name": "Plyo Drills \u2014 Compete"
+      },
+      {
+        "description": "Work out to max distance with high arc throws.",
+        "exercises": [
+          {
+            "exercise_id": "ex_114",
+            "name": "Long Toss \u2014 Extension Throws",
+            "order": 1,
+            "rx": "Work out to max distance, high arc"
+          }
+        ],
+        "phase_name": "Long Toss \u2014 Extension"
+      },
+      {
+        "description": "Hard, on-a-line throws at 90-120ft. Shuffle approach, head height. Highest arm stress.",
+        "exercises": [
+          {
+            "exercise_id": "ex_115",
+            "name": "Compression Throws",
+            "order": 1,
+            "rx": "8-12 throws, 80-90%, on-a-line at 90-120ft"
+          }
+        ],
+        "phase_name": "Long Toss \u2014 Compression"
+      },
+      {
+        "description": "Complete post-throw recovery after high-intent throwing. Full J-Band cooldown, forearm flush, posterior shoulder, thoracic mobility.",
+        "exercises": [
+          {
+            "exercise_id": "ex_096",
+            "name": "J-Band Forward Fly",
+            "order": 1,
+            "rx": "1x10 (light, slow)"
+          },
+          {
+            "exercise_id": "ex_097",
+            "name": "J-Band Reverse Fly",
+            "order": 2,
+            "rx": "1x10 (light, slow)"
+          },
+          {
+            "exercise_id": "ex_098",
+            "name": "J-Band Internal Rotation",
+            "order": 3,
+            "rx": "1x10 (light, slow)"
+          },
+          {
+            "exercise_id": "ex_099",
+            "name": "J-Band External Rotation",
+            "order": 4,
+            "rx": "1x10 (light, slow)"
+          },
+          {
+            "exercise_id": "ex_100",
+            "name": "J-Band Bicep Curl",
+            "order": 5,
+            "rx": "1x10 (light, slow)"
+          },
+          {
+            "exercise_id": "ex_101",
+            "name": "J-Band Tricep Extension",
+            "order": 6,
+            "rx": "1x10 (light, slow)"
+          },
+          {
+            "exercise_id": "ex_120",
+            "name": "Post-Throw Upward Tosses",
+            "order": 7,
+            "rx": "2x15 (2kg black or 1kg green)"
+          },
+          {
+            "exercise_id": "ex_064",
+            "name": "Band Pullaparts",
+            "order": 8,
+            "rx": "2x20"
+          },
+          {
+            "exercise_id": "ex_039",
+            "name": "DB Wrist Flexion Curl",
+            "order": 9,
+            "rx": "2x15 (light)"
+          },
+          {
+            "exercise_id": "ex_040",
+            "name": "DB Wrist Extension Curl",
+            "order": 10,
+            "rx": "2x15 (light)"
+          },
+          {
+            "exercise_id": "ex_041",
+            "name": "Full Pronation",
+            "order": 11,
+            "rx": "1x15 (light band)"
+          },
+          {
+            "exercise_id": null,
+            "name": "Sleeper Stretch",
+            "order": 12,
+            "rx": "2x30 sec each side"
+          },
+          {
+            "exercise_id": "ex_157",
+            "name": "Cross-Body Posterior Shoulder Stretch",
+            "order": 13,
+            "rx": "2x30 sec each side"
+          },
+          {
+            "exercise_id": "ex_158",
+            "name": "Thoracic Rotation on Wall",
+            "order": 14,
+            "rx": "1x10 each side"
+          },
+          {
+            "exercise_id": "ex_159",
+            "name": "Standing Lat Stretch",
+            "order": 15,
+            "rx": "2x20 sec each side"
+          }
+        ],
+        "phase_name": "Post-Throw Recovery \u2014 Full Recovery Flush"
+      }
+    ],
+    "reasoning": "Full plyo at 80-90%, extension + compression throws. Or bullpen day.",
+    "triage_modified": false,
+    "type": "hybrid_a",
+    "volume_summary": {
+      "max_distance_ft": 200,
+      "max_intent_pct": 90,
+      "total_throws_estimate": 80
+    }
+  },
+  "throwing_plan": {
+    "day_type_label": "Hybrid A \u2014 Extension + Compression",
+    "estimated_duration_min": 40,
+    "intensity_range": "80-90%",
+    "intent": "compete",
+    "original_day_type": null,
+    "phases": [
+      {
+        "description": "Light band resistance \u2014 10 reps each exercise. Focus on smooth, controlled movement.",
+        "exercises": [
+          {
+            "exercise_id": "ex_096",
+            "name": "J-Band Forward Fly",
+            "order": 1,
+            "rx": "1x10"
+          },
+          {
+            "exercise_id": "ex_097",
+            "name": "J-Band Reverse Fly",
+            "order": 2,
+            "rx": "1x10"
+          },
+          {
+            "exercise_id": "ex_098",
+            "name": "J-Band Internal Rotation",
+            "order": 3,
+            "rx": "1x10"
+          },
+          {
+            "exercise_id": "ex_099",
+            "name": "J-Band External Rotation",
+            "order": 4,
+            "rx": "1x10"
+          },
+          {
+            "exercise_id": "ex_100",
+            "name": "J-Band Bicep Curl",
+            "order": 5,
+            "rx": "1x10"
+          },
+          {
+            "exercise_id": "ex_101",
+            "name": "J-Band Tricep Extension",
+            "order": 6,
+            "rx": "1x10"
+          }
+        ],
+        "phase_name": "J-Band Routine"
+      },
+      {
+        "description": "1-2 lb wrist weights \u2014 10 reps each. Less than 10 OK when starting out, prioritize technique.",
+        "exercises": [
+          {
+            "exercise_id": "ex_102",
+            "name": "Wrist Weight Pronation Swings",
+            "order": 1,
+            "rx": "1x10"
+          },
+          {
+            "exercise_id": "ex_103",
+            "name": "Wrist Weight Two-Arm Throws",
+            "order": 2,
+            "rx": "1x10"
+          },
+          {
+            "exercise_id": "ex_104",
+            "name": "Wrist Weight Pivot Pickoffs",
+            "order": 3,
+            "rx": "1x10"
+          },
+          {
+            "exercise_id": "ex_105",
+            "name": "Wrist Weight Cuban Press",
+            "order": 4,
+            "rx": "1x10"
+          }
+        ],
+        "phase_name": "Wrist Weight Routine"
+      },
+      {
+        "description": "5-6 drills at 80-90% effort.",
+        "exercises": [
+          {
+            "ball_weight": "green/blue",
+            "exercise_id": "ex_106",
+            "name": "Plyo Reverse Throws",
+            "order": 1,
+            "rx": "1x8-10 each, 80-90%"
+          },
+          {
+            "ball_weight": "blue/red",
+            "exercise_id": "ex_107",
+            "name": "Plyo Pivot Picks",
+            "order": 2,
+            "rx": "1x8-10 each, 80-90%"
+          },
+          {
+            "ball_weight": "blue/red",
+            "exercise_id": "ex_108",
+            "name": "Plyo Roll-Ins",
+            "order": 3,
+            "rx": "1x3-5 each, 80-90%"
+          },
+          {
+            "ball_weight": "blue/red",
+            "exercise_id": "ex_110",
+            "name": "Plyo Drop Steps",
+            "order": 4,
+            "rx": "1x3-5 each, 80-90%"
+          },
+          {
+            "ball_weight": "blue/red",
+            "exercise_id": "ex_112",
+            "name": "Plyo Rockers",
+            "order": 5,
+            "rx": "1x3-5 each, 80-90%"
+          },
+          {
+            "ball_weight": "blue/red",
+            "exercise_id": "ex_113",
+            "name": "Plyo Walking Windups",
+            "order": 6,
+            "rx": "1x3-5 each, 80-90%"
+          }
+        ],
+        "phase_name": "Plyo Drills \u2014 Compete"
+      },
+      {
+        "description": "Work out to max distance with high arc throws.",
+        "exercises": [
+          {
+            "exercise_id": "ex_114",
+            "name": "Long Toss \u2014 Extension Throws",
+            "order": 1,
+            "rx": "Work out to max distance, high arc"
+          }
+        ],
+        "phase_name": "Long Toss \u2014 Extension"
+      },
+      {
+        "description": "Hard, on-a-line throws at 90-120ft. Shuffle approach, head height. Highest arm stress.",
+        "exercises": [
+          {
+            "exercise_id": "ex_115",
+            "name": "Compression Throws",
+            "order": 1,
+            "rx": "8-12 throws, 80-90%, on-a-line at 90-120ft"
+          }
+        ],
+        "phase_name": "Long Toss \u2014 Compression"
+      },
+      {
+        "description": "Complete post-throw recovery after high-intent throwing. Full J-Band cooldown, forearm flush, posterior shoulder, thoracic mobility.",
+        "exercises": [
+          {
+            "exercise_id": "ex_096",
+            "name": "J-Band Forward Fly",
+            "order": 1,
+            "rx": "1x10 (light, slow)"
+          },
+          {
+            "exercise_id": "ex_097",
+            "name": "J-Band Reverse Fly",
+            "order": 2,
+            "rx": "1x10 (light, slow)"
+          },
+          {
+            "exercise_id": "ex_098",
+            "name": "J-Band Internal Rotation",
+            "order": 3,
+            "rx": "1x10 (light, slow)"
+          },
+          {
+            "exercise_id": "ex_099",
+            "name": "J-Band External Rotation",
+            "order": 4,
+            "rx": "1x10 (light, slow)"
+          },
+          {
+            "exercise_id": "ex_100",
+            "name": "J-Band Bicep Curl",
+            "order": 5,
+            "rx": "1x10 (light, slow)"
+          },
+          {
+            "exercise_id": "ex_101",
+            "name": "J-Band Tricep Extension",
+            "order": 6,
+            "rx": "1x10 (light, slow)"
+          },
+          {
+            "exercise_id": "ex_120",
+            "name": "Post-Throw Upward Tosses",
+            "order": 7,
+            "rx": "2x15 (2kg black or 1kg green)"
+          },
+          {
+            "exercise_id": "ex_064",
+            "name": "Band Pullaparts",
+            "order": 8,
+            "rx": "2x20"
+          },
+          {
+            "exercise_id": "ex_039",
+            "name": "DB Wrist Flexion Curl",
+            "order": 9,
+            "rx": "2x15 (light)"
+          },
+          {
+            "exercise_id": "ex_040",
+            "name": "DB Wrist Extension Curl",
+            "order": 10,
+            "rx": "2x15 (light)"
+          },
+          {
+            "exercise_id": "ex_041",
+            "name": "Full Pronation",
+            "order": 11,
+            "rx": "1x15 (light band)"
+          },
+          {
+            "exercise_id": null,
+            "name": "Sleeper Stretch",
+            "order": 12,
+            "rx": "2x30 sec each side"
+          },
+          {
+            "exercise_id": "ex_157",
+            "name": "Cross-Body Posterior Shoulder Stretch",
+            "order": 13,
+            "rx": "2x30 sec each side"
+          },
+          {
+            "exercise_id": "ex_158",
+            "name": "Thoracic Rotation on Wall",
+            "order": 14,
+            "rx": "1x10 each side"
+          },
+          {
+            "exercise_id": "ex_159",
+            "name": "Standing Lat Stretch",
+            "order": 15,
+            "rx": "2x20 sec each side"
+          }
+        ],
+        "phase_name": "Post-Throw Recovery \u2014 Full Recovery Flush"
+      }
+    ],
+    "reasoning": "Full plyo at 80-90%, extension + compression throws. Or bullpen day.",
+    "triage_modified": false,
+    "type": "hybrid_a",
+    "volume_summary": {
+      "max_distance_ft": 200,
+      "max_intent_pct": 90,
+      "total_throws_estimate": 80
+    }
+  },
+  "warmup": {
+    "activation_type": "scap",
+    "estimated_duration_min": 12,
+    "exercises": [
+      {
+        "block": "Get Moving",
+        "exercise_id": null,
+        "name": "Break a sweat",
+        "rx": "10 yards light jog/skip"
+      },
+      {
+        "block": "Get Moving",
+        "exercise_id": null,
+        "name": "Mini A's forward",
+        "rx": "down and back"
+      },
+      {
+        "block": "Get Moving",
+        "exercise_id": null,
+        "name": "Mini A's lateral",
+        "rx": "down and back"
+      },
+      {
+        "block": "Get Moving",
+        "exercise_id": null,
+        "name": "Heel/toe arm circle small",
+        "rx": "down and back"
+      },
+      {
+        "block": "Get Moving",
+        "exercise_id": null,
+        "name": "Heel/toe arm circle big",
+        "rx": "down and back"
+      },
+      {
+        "block": "Lunge Complex",
+        "exercise_id": null,
+        "name": "Lunge to adductor \u2014 T-spine rotation \u2014 hammy \u2014 hip flexor",
+        "rx": "down"
+      },
+      {
+        "block": "Lunge Complex",
+        "exercise_id": null,
+        "name": "Lunge to RDL",
+        "rx": "down"
+      },
+      {
+        "block": "Lunge Complex",
+        "exercise_id": null,
+        "name": "Inch worm step through",
+        "rx": "back"
+      },
+      {
+        "block": "Dynamic Movement",
+        "exercise_id": null,
+        "name": "Focus bear crawl",
+        "rx": "down and back"
+      },
+      {
+        "block": "Dynamic Movement",
+        "exercise_id": null,
+        "name": "A skip (forward then backward)",
+        "rx": "down and back"
+      },
+      {
+        "block": "Dynamic Movement",
+        "exercise_id": null,
+        "name": "A skip side to side",
+        "rx": "down and back"
+      },
+      {
+        "block": "Dynamic Movement",
+        "exercise_id": null,
+        "name": "Swing over gate (walk forward, plyo backward)",
+        "rx": "down and back"
+      },
+      {
+        "block": "Ground-Based Mobility",
+        "exercise_id": null,
+        "name": "Frogger cat camel",
+        "rx": "1x10"
+      },
+      {
+        "block": "Ground-Based Mobility",
+        "exercise_id": null,
+        "name": "Frogger thread needle",
+        "rx": "1x10"
+      },
+      {
+        "block": "Ground-Based Mobility",
+        "exercise_id": null,
+        "name": "Bridge reach across",
+        "rx": "1x10"
+      },
+      {
+        "block": "Activation \u2014 Option 2 (Scap Focus)",
+        "exercise_id": "ex_080",
+        "name": "Scap Retraction",
+        "rx": "1x10"
+      },
+      {
+        "block": "Activation \u2014 Option 2 (Scap Focus)",
+        "exercise_id": "ex_080",
+        "name": "Scap T",
+        "rx": "1x10"
+      },
+      {
+        "block": "Activation \u2014 Option 2 (Scap Focus)",
+        "exercise_id": "ex_080",
+        "name": "Scap 9090",
+        "rx": "1x10"
+      },
+      {
+        "block": "Activation \u2014 Option 2 (Scap Focus)",
+        "exercise_id": null,
+        "name": "PNF Pec Fly",
+        "rx": "1x10"
+      },
+      {
+        "block": "Activation \u2014 Option 2 (Scap Focus)",
+        "exercise_id": "ex_071",
+        "name": "Pronator Pressout",
+        "rx": "1x10"
+      },
+      {
+        "block": "Activation \u2014 Option 2 (Scap Focus)",
+        "exercise_id": null,
+        "name": "Tricep Kickback",
+        "rx": "1x10"
+      },
+      {
+        "block": "Additional Band Addons \u2014 Flexor Prime (optional)",
+        "exercise_id": "ex_071",
+        "name": "Pronator Pressout",
+        "rx": "1x10"
+      },
+      {
+        "block": "Additional Band Addons \u2014 Flexor Prime (optional)",
+        "exercise_id": "ex_041",
+        "name": "Full Pronation",
+        "rx": "1x10"
+      },
+      {
+        "block": "Additional Band Addons \u2014 Flexor Prime (optional)",
+        "exercise_id": "ex_070",
+        "name": "Flexor Pressout",
+        "rx": "1x10"
+      }
+    ],
+    "includes_fpm": true,
+    "label": "Dynamic Warmup"
+  }
+}

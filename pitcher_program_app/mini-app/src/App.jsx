@@ -10,7 +10,7 @@ import Coach from './pages/Coach';
 import ExerciseLibrary from './pages/ExerciseLibrary';
 import LogHistory from './pages/LogHistory';
 import Profile from './pages/Profile';
-import Plans from './pages/Plans';
+import Programs from './pages/Programs';
 import PlanDetail from './pages/PlanDetail';
 import ProgramDetail from './pages/ProgramDetail';
 
@@ -101,7 +101,7 @@ export default function App() {
                 <Route element={<Layout />}>
                   <Route index element={<Home />} />
                   <Route path="coach" element={<Coach />} />
-                  <Route path="plans" element={<Plans />} />
+                  <Route path="plans" element={<Programs />} />
                   <Route path="plans/:planId" element={<PlanDetail />} />
                   <Route path="programs/:programId" element={<ProgramDetail />} />
                   <Route path="log" element={<LogHistory />} />
