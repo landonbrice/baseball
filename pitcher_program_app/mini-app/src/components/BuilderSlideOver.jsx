@@ -105,13 +105,15 @@ const secondaryButtonStyle = {
   cursor: 'pointer',
 };
 
-export default function BuilderSlideOver({ onClose, onProgramActivated, onDraftSaved }) {
+export default function BuilderSlideOver({ onClose, onProgramActivated, onDraftSaved, initialDomain = 'throwing' }) {
   const { pitcherId, initData } = useAuth();
   const [state, setState] = useState(BUILDER_STATES.INPUTS);
   const [error, setError] = useState(null);
 
   // INPUTS state
-  const [domain, setDomain]                       = useState('throwing');
+  const [domain, setDomain]                       = useState(
+    initialDomain === 'lifting' || initialDomain === 'throwing' ? initialDomain : 'throwing'
+  );
   const [goal, setGoal]                           = useState('');
   const [durationWeeks, setDurationWeeks]         = useState(12);
   const [effectivePhase, setEffectivePhase]       = useState('in_season');
