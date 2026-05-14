@@ -291,7 +291,17 @@ def get_saved_plans(pitcher_id: str) -> list:
 
 
 def insert_saved_plan(pitcher_id: str, plan: dict) -> dict:
-    """Insert a new saved plan. Returns the inserted row."""
+    """Insert a new saved plan. Returns the inserted row.
+
+    DEPRECATED (Plan 7 / A15): saved_plans is being retired in favor of
+    `favorited_blocks`. New writes are logged for monitoring. Plan 8 will
+    hard-drop the table once a quarter of zero-writes is confirmed.
+    """
+    logger.warning(
+        "saved_plans_deprecated_write | pitcher_id=%s | plan_name=%s | "
+        "future Plan 8 retirement",
+        pitcher_id, plan.get("plan_name") or plan.get("name")
+    )
     plan["pitcher_id"] = pitcher_id
     resp = get_client().table("saved_plans").insert(plan).execute()
     return resp.data[0] if resp.data else plan

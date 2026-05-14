@@ -6,7 +6,7 @@ import logging
 import os
 import re
 from datetime import date, timedelta, datetime
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, HTTPException, Query, Request, Response
 
 from bot.config import KNOWLEDGE_DIR, CONTEXT_WINDOW_CHARS, DISABLE_AUTH, CHICAGO_TZ
 from bot.services.context_manager import (
@@ -975,12 +975,26 @@ async def get_plans(pitcher_id: str, request: Request):
 
 
 @router.post("/pitcher/{pitcher_id}/plans")
-async def post_plan(pitcher_id: str, request: Request):
-    """Save a new plan."""
+async def post_plan(pitcher_id: str, request: Request, response: Response):
+    """Save a new plan.
+
+    DEPRECATED (Plan 7 / A15): saved_plans is being retired in favor of
+    `favorited_blocks`. The write still succeeds, but a Deprecation/Sunset
+    header is returned and `bot.services.db.insert_saved_plan` logs a
+    WARN-level event. Plan 8 will hard-drop the table once a quarter of
+    zero-writes is confirmed.
+    """
     _require_pitcher_auth(request, pitcher_id)
     body = await request.json()
     if not body.get("title"):
         raise HTTPException(status_code=400, detail="title required")
+    logger.warning(
+        "saved_plans_deprecated_endpoint | pitcher_id=%s | title=%s | "
+        "future Plan 8 retirement",
+        pitcher_id, body.get("title"),
+    )
+    response.headers["Deprecation"] = "true"
+    response.headers["Sunset"] = "Plan 8 (Q3 2026)"
     plan = save_plan(pitcher_id, body)
     return {"status": "ok", "plan": plan}
 
