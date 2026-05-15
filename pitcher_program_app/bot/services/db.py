@@ -731,13 +731,49 @@ def suggestion_exists_for_today(
         q = q.eq("pitcher_id", pitcher_id)
     resp = q.execute()
     rows = resp.data or []
-    if not rows:
+    # Today-window check: short-circuit True when a contextless caller has
+    # any row, or when context_program_id/context_block_id matches one of
+    # today's rows. Otherwise fall through to the Plan 8 / C1 accepted-14d
+    # suppression check so a recently-accepted "new pace" still suppresses
+    # the daily re-fire.
+    if rows:
+        if context_program_id is None and context_block_id is None:
+            return True
+        for row in rows:
+            action = row.get("proposed_action") or {}
+            if context_program_id is not None and action.get("program_id") == context_program_id:
+                return True
+            if context_block_id is not None and action.get("block_id") == context_block_id:
+                return True
+            if context_block_id is not None and action.get("block_template_id") == context_block_id:
+                return True
+
+    # Plan 8 / C1: also suppress when a matching insight was recently accepted.
+    # If a coach hit "Accept new pace" on a drift insight, we don't want the
+    # same insight to re-fire the next morning — gate by accepted_at >=
+    # today - 14d (calendar-bounded). Same (category, pitcher_id) context
+    # rules as the today-check; optional program_id / block_id narrow it
+    # further when the caller specified a context.
+    from datetime import timedelta as _td
+    accepted_cutoff = (now_chicago - _td(days=14)).date().isoformat()
+    accepted_q = (
+        get_client().table("coach_suggestions")
+        .select("suggestion_id, proposed_action")
+        .eq("category", category)
+        .eq("status", "accepted")
+        .gte("accepted_at", accepted_cutoff)
+    )
+    if pitcher_id is not None:
+        accepted_q = accepted_q.eq("pitcher_id", pitcher_id)
+    accepted_resp = accepted_q.execute()
+    candidates = accepted_resp.data or []
+    if not candidates:
         return False
 
     if context_program_id is None and context_block_id is None:
         return True
 
-    for row in rows:
+    for row in candidates:
         action = row.get("proposed_action") or {}
         if context_program_id is not None and action.get("program_id") == context_program_id:
             return True
@@ -759,6 +795,40 @@ def insert_coach_suggestion(row: dict) -> dict:
     """
     resp = get_client().table("coach_suggestions").insert(row).execute()
     return resp.data[0] if resp.data else {}
+
+
+def get_coach_suggestion(suggestion_id: str) -> dict | None:
+    """Plan 8 / C1 — return a single coach_suggestions row by suggestion_id,
+    or None if missing. Used by the insight action endpoint to verify
+    team_id ownership before updating status.
+    """
+    resp = (get_client().table("coach_suggestions")
+            .select("*")
+            .eq("suggestion_id", suggestion_id)
+            .execute())
+    return resp.data[0] if resp.data else None
+
+
+def update_coach_suggestion_status(
+    suggestion_id: str,
+    *,
+    status: str,
+    accepted_at: str | None = None,
+) -> dict:
+    """Plan 8 / C1 — update status (and optionally accepted_at) for a
+    coach_suggestions row. Returns the updated row. Raises KeyError if not
+    found.
+    """
+    payload: dict = {"status": status}
+    if accepted_at is not None:
+        payload["accepted_at"] = accepted_at
+    resp = (get_client().table("coach_suggestions")
+            .update(payload)
+            .eq("suggestion_id", suggestion_id)
+            .execute())
+    if not resp.data:
+        raise KeyError(f"coach_suggestion not found: {suggestion_id}")
+    return resp.data[0]
 
 
 def list_team_assigned_blocks(team_id: str, status: str | None = None) -> list[dict]:

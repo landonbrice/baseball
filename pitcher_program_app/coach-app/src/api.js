@@ -142,6 +142,29 @@ export async function coachInterpretGoal(text, domain, accessToken) {
   )
 }
 
+// -- Plan 8 / C1: insight Archive / Accept CTAs --
+
+export async function actOnInsight(insightId, action, accessToken) {
+  return postCoachApi(
+    `/api/coach/insights/${insightId}/action`,
+    { action },
+    accessToken,
+  )
+}
+
+// Composite helper — the Archive button on a drift insight conceptually
+// does one action but issues two backend calls: archive the program, then
+// dismiss the insight. Kept as a separate helper so each step is testable
+// independently and so a failure between steps is recoverable (next 9am
+// digest will dedup-suppress the stale insight).
+export async function archiveProgramByInsight(programId, reason, accessToken) {
+  return postCoachApi(
+    `/api/coach/programs/${programId}/archive`,
+    { reason },
+    accessToken,
+  )
+}
+
 // -- Nudge --
 
 export async function nudgePitcher(pitcherId, accessToken) {

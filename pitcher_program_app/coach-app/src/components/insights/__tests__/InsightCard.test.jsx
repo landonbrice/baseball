@@ -1,7 +1,33 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import InsightCard from '../InsightCard'
+
+// Plan 8 / C1: drift insight CTAs call into api.js. Hoist-mock both fns
+// + the useCoachAuth hook + the Toast hook so we can assert call order
+// and error toasts without booting AuthProvider/ToastProvider in tests.
+const actOnInsightMock = vi.fn()
+const archiveProgramByInsightMock = vi.fn()
+vi.mock('../../../api', () => ({
+  actOnInsight: (...args) => actOnInsightMock(...args),
+  archiveProgramByInsight: (...args) => archiveProgramByInsightMock(...args),
+}))
+
+const getAccessTokenMock = vi.fn(() => 'tok-xyz')
+vi.mock('../../../hooks/useCoachAuth', () => ({
+  useCoachAuth: () => ({ getAccessToken: getAccessTokenMock }),
+}))
+
+const toastSuccessMock = vi.fn()
+const toastErrorMock = vi.fn()
+vi.mock('../../shell/Toast', () => ({
+  useToast: () => ({
+    success: toastSuccessMock,
+    error: toastErrorMock,
+    warn: vi.fn(),
+    info: vi.fn(),
+  }),
+}))
 
 const NUDGE = {
   suggestion_id: 's1',
@@ -140,6 +166,95 @@ describe('<InsightCard /> — A4 program-builder categories', () => {
     expect(navigateMock).toHaveBeenCalledWith('/', {
       state: { openPitcherId: 'pitcher_kamat_001' },
     })
+  })
+
+  it('archive button calls archive endpoint then dismiss endpoint and runs onActionDone', async () => {
+    actOnInsightMock.mockReset().mockResolvedValue({ insight: {} })
+    archiveProgramByInsightMock.mockReset().mockResolvedValue({})
+    toastSuccessMock.mockReset()
+    toastErrorMock.mockReset()
+    const drift = {
+      suggestion_id: 'd1',
+      pitcher_id: 'p1',
+      pitcher_name: 'Landon Brice',
+      category: 'program_drift',
+      title: 'Program drifted',
+      reasoning: 'drift',
+      proposed_action: { program_id: 'prog_abc' },
+      status: 'pending',
+    }
+    const onActionDone = vi.fn()
+    render(
+      <MemoryRouter>
+        <InsightCard suggestion={drift} variant="hero" onActionDone={onActionDone} />
+      </MemoryRouter>
+    )
+    fireEvent.click(screen.getByRole('button', { name: /archive program/i }))
+    await waitFor(() => expect(onActionDone).toHaveBeenCalledOnce())
+    expect(archiveProgramByInsightMock).toHaveBeenCalledWith(
+      'prog_abc', 'drift_acknowledged', 'tok-xyz',
+    )
+    expect(actOnInsightMock).toHaveBeenCalledWith('d1', 'dismiss', 'tok-xyz')
+    // Archive call must precede dismiss call.
+    const archiveOrder = archiveProgramByInsightMock.mock.invocationCallOrder[0]
+    const dismissOrder = actOnInsightMock.mock.invocationCallOrder[0]
+    expect(archiveOrder).toBeLessThan(dismissOrder)
+    expect(toastSuccessMock).toHaveBeenCalled()
+  })
+
+  it('accept button calls action endpoint with accept and runs onActionDone', async () => {
+    actOnInsightMock.mockReset().mockResolvedValue({ insight: {} })
+    archiveProgramByInsightMock.mockReset()
+    toastSuccessMock.mockReset()
+    toastErrorMock.mockReset()
+    const drift = {
+      suggestion_id: 'd2',
+      pitcher_id: 'p1',
+      pitcher_name: 'Landon Brice',
+      category: 'program_drift',
+      title: 'Program drifted',
+      reasoning: 'drift',
+      proposed_action: { program_id: 'prog_abc' },
+      status: 'pending',
+    }
+    const onActionDone = vi.fn()
+    render(
+      <MemoryRouter>
+        <InsightCard suggestion={drift} variant="hero" onActionDone={onActionDone} />
+      </MemoryRouter>
+    )
+    fireEvent.click(screen.getByRole('button', { name: /accept new pace/i }))
+    await waitFor(() => expect(onActionDone).toHaveBeenCalledOnce())
+    expect(actOnInsightMock).toHaveBeenCalledWith('d2', 'accept', 'tok-xyz')
+    expect(archiveProgramByInsightMock).not.toHaveBeenCalled()
+    expect(toastSuccessMock).toHaveBeenCalled()
+  })
+
+  it('shows error toast when archive fails and does not call onActionDone', async () => {
+    actOnInsightMock.mockReset()
+    archiveProgramByInsightMock.mockReset().mockRejectedValue(new Error('boom'))
+    toastSuccessMock.mockReset()
+    toastErrorMock.mockReset()
+    const drift = {
+      suggestion_id: 'd3',
+      pitcher_id: 'p1',
+      pitcher_name: 'Landon Brice',
+      category: 'program_drift',
+      title: 'Program drifted',
+      reasoning: 'drift',
+      proposed_action: { program_id: 'prog_abc' },
+      status: 'pending',
+    }
+    const onActionDone = vi.fn()
+    render(
+      <MemoryRouter>
+        <InsightCard suggestion={drift} variant="hero" onActionDone={onActionDone} />
+      </MemoryRouter>
+    )
+    fireEvent.click(screen.getByRole('button', { name: /archive program/i }))
+    await waitFor(() => expect(toastErrorMock).toHaveBeenCalled())
+    expect(onActionDone).not.toHaveBeenCalled()
+    expect(toastSuccessMock).not.toHaveBeenCalled()
   })
 
   it('renders team_program_lagging with Open Team Programs CTA that navigates to /programs', () => {
