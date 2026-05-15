@@ -1395,6 +1395,87 @@ async def coach_patch_phase_override(
     return {"coach_phase_overrides": overrides}
 
 
+# ---- Plan 8 / C3: coach-authored research doc workflow (attach-existing) ----
+
+
+class TemplateResearchDocsRequest(_BaseModel):
+    """Plan 8 / C3 request body for setting a template's research_doc_ids.
+
+    v1 is attach-existing only — coach picks from the on-disk research docs
+    enumerated by `GET /api/coach/research-docs`. Authoring new docs +
+    frontmatter validation + storage choice defer to Plan 9 (L6).
+    """
+    research_doc_ids: list[str]
+
+
+@coach_router.get("/research-docs")
+async def coach_get_research_docs(request: Request):
+    """Plan 8 / C3 — list all research docs the coach can attach to templates.
+
+    Reads from `data/knowledge/research/*.md` via the shared resolver loader
+    (see `db.list_research_docs`). Returns:
+      {"docs": [{id, title, summary, applies_to, priority}, ...]}
+    """
+    await require_coach_auth(request)
+    return {"docs": _db.list_research_docs()}
+
+
+@coach_router.patch("/block-library/{template_id}/research-docs")
+async def coach_patch_template_research_docs(
+    template_id: str,
+    req: TemplateResearchDocsRequest,
+    request: Request,
+):
+    """Plan 8 / C3 — set `block_library.research_doc_ids` for a template.
+
+    v1 decision: templates are global — coaches are NOT team-scoped on
+    template edits. Any authed coach may edit any template's research doc
+    attachments. Plan 9 may add team-ownership; until then any cross-team
+    safeguard is intentionally absent.
+
+    Validates each submitted id against the live on-disk research doc list.
+    422 on unknown ids; 404 on unknown template. Writes an audit row to
+    `coach_actions` with action_type='template_research_docs_edit'.
+    """
+    await require_coach_auth(request)
+    coach_id = request.state.coach_id
+
+    valid_ids = {d["id"] for d in _db.list_research_docs()}
+    bad = [i for i in req.research_doc_ids if i not in valid_ids]
+    if bad:
+        raise HTTPException(
+            status_code=422,
+            detail=f"unknown research doc ids: {bad}",
+        )
+
+    try:
+        updated = _db.update_template_research_doc_ids(
+            template_id, req.research_doc_ids
+        )
+    except KeyError:
+        raise HTTPException(status_code=404, detail="template not found")
+
+    # Audit. coach_actions has no team_id / context_json columns — fold any
+    # extra context into `metadata` per 007_coach_actions.sql.
+    try:
+        _db.insert_coach_action({
+            "coach_id": coach_id,
+            "action_type": "template_research_docs_edit",
+            "metadata": {
+                "template_id": template_id,
+                "doc_ids": req.research_doc_ids,
+            },
+        })
+    except Exception as audit_err:
+        # The template write is canonical; an audit failure is recoverable.
+        logger.error(
+            "template_research_docs_edit audit insert failed: coach=%s template=%s err=%s",
+            coach_id, template_id, audit_err,
+        )
+
+    return {"template": updated}
+
+
 # ---- Internal ----
 
 @coach_router.post("/internal/insights/run")

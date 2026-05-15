@@ -142,6 +142,29 @@ export async function coachInterpretGoal(text, domain, accessToken) {
   )
 }
 
+// -- Plan 8 / C3: coach-authored research doc attach workflow --
+//
+// fetchResearchDocs hits the new `/api/coach/research-docs` listing endpoint
+// (returns {docs: [{id, title, summary, applies_to, priority}, ...]} read
+// from `data/knowledge/research/*.md` on the backend).
+//
+// patchTemplateResearchDocs sets the picked doc ids on a block_library row:
+//   PATCH /api/coach/block-library/{template_id}/research-docs
+//   body: { research_doc_ids: [...] }
+//   returns: { template: <updated row> }
+
+export async function fetchResearchDocs(accessToken) {
+  return fetchCoachApi('/api/coach/research-docs', accessToken)
+}
+
+export async function patchTemplateResearchDocs(templateId, docIds, accessToken) {
+  return patchCoachApi(
+    `/api/coach/block-library/${templateId}/research-docs`,
+    { research_doc_ids: docIds },
+    accessToken,
+  )
+}
+
 // -- Plan 8 / C1: insight Archive / Accept CTAs --
 
 export async function actOnInsight(insightId, action, accessToken) {

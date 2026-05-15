@@ -963,6 +963,67 @@ def get_block_library_row(template_id: str) -> dict | None:
     return (resp.data or [None])[0]
 
 
+# ---------------- Research docs (Plan 8 / C3) ----------------
+
+
+def list_research_docs() -> list[dict]:
+    """Return all research docs metadata read from disk.
+
+    Research docs are git-checked-in markdown files in
+    `data/knowledge/research/` with YAML frontmatter — NOT Supabase rows.
+    Reuses the resolver's existing on-disk loader (`_load_index`) so there
+    is one definition of "what is a doc" across the codebase.
+
+    Used by Plan 8 / C3 to power the coach-app "Edit research" modal —
+    coaches pick from this list to populate `block_library.research_doc_ids`.
+
+    Returns a list of:
+      {id, title, summary, applies_to, priority}
+    Docs missing an `id` are dropped (warning is already logged inside
+    `_load_index`).
+    """
+    from bot.services.research_resolver import _load_index
+
+    index = _load_index()
+    out: list[dict] = []
+    for doc_id, (fm, _body) in index.items():
+        if not doc_id:
+            continue
+        out.append({
+            "id": doc_id,
+            "title": fm.get("title") or doc_id,
+            "summary": fm.get("summary") or "",
+            "applies_to": fm.get("applies_to") or [],
+            "priority": fm.get("priority") or "standard",
+        })
+    # Stable order by title for deterministic UI rendering.
+    out.sort(key=lambda d: (d.get("title") or "").lower())
+    return out
+
+
+def update_template_research_doc_ids(template_id: str, doc_ids: list[str]) -> dict:
+    """Set `block_library.research_doc_ids` for a template.
+
+    Used by Plan 8 / C3 — coach-authored attach-existing flow.
+    Returns the updated row. Raises `KeyError` if no row matches the
+    given `block_template_id` so the caller can translate to a 404.
+
+    Note: Supabase's REST `update` returns an empty `data` array when no
+    rows match (it does NOT raise) — `block_template_id` is the TEXT PK
+    on `block_library`, so an empty array unambiguously means "not found".
+    """
+    resp = (
+        get_client()
+        .table("block_library")
+        .update({"research_doc_ids": doc_ids})
+        .eq("block_template_id", template_id)
+        .execute()
+    )
+    if not resp.data:
+        raise KeyError(f"template not found: {template_id}")
+    return resp.data[0]
+
+
 # Summary columns for the canonical /api/programs/templates list endpoint
 # (Plan 7 / A12). Skips heavy template_body JSON — clients use this list for
 # filterable browse cards; full body is fetched on selection elsewhere.
