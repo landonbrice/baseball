@@ -116,6 +116,21 @@ def get_feature_flag(pitcher_id: str, key: str) -> bool:
     return bool(flags.get(key))
 
 
+def set_feature_flag(pitcher_id: str, key: str, value: bool) -> None:
+    """Set a single key inside pitcher_training_model.feature_flags.
+
+    Read-modify-write because feature_flags is JSONB — we never overwrite
+    other flags by accident. Raises KeyError if the pitcher row doesn't
+    exist (no auto-create — caller should bootstrap explicitly).
+    """
+    model = get_training_model(pitcher_id)
+    if not model:
+        raise KeyError(f"no pitcher_training_model row for {pitcher_id}")
+    flags = dict(model.get("feature_flags") or {})
+    flags[key] = bool(value)
+    update_training_model_partial(pitcher_id, {"feature_flags": flags})
+
+
 def upsert_training_model(pitcher_id: str, data: dict) -> None:
     """Insert or update pitcher_training_model row."""
     data["pitcher_id"] = pitcher_id

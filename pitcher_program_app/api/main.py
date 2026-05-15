@@ -26,6 +26,12 @@ try:
 except ImportError:
     _has_guardian_admin = False
 
+try:
+    from api.admin_program_flag import router as admin_program_flag_router
+    _has_admin_program_flag = True
+except ImportError:
+    _has_admin_program_flag = False
+
 app = FastAPI(title="Pitcher Dashboard API", version="0.1.0")
 
 # CORS — allow mini-app and coach-app origins
@@ -64,6 +70,12 @@ if _has_guardian_admin:
     # shared-secret header (env var GUARDIAN_ADMIN_TOKEN). Routes return 503
     # when the env var is unset.
     app.include_router(guardian_admin_router)
+
+if _has_admin_program_flag:
+    # Plan 8 / A2: /admin/program-flag/* — per-pitcher kill-switch for the
+    # program-aware fork. Shares GUARDIAN_ADMIN_TOKEN with /admin/guardian/*
+    # (same operator audience, same threat model).
+    app.include_router(admin_program_flag_router)
 
 from bot.config import TELEGRAM_BOT_TOKEN, DEEPSEEK_API_KEY, MINI_APP_URL, DISABLE_AUTH
 

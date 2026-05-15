@@ -201,6 +201,11 @@ async def _select_plan_path(
     - flag off OR no active program → legacy ``generate_plan``
     - program-path exception → log + fall through to legacy
     """
+    # Plan 8 / A2: structured-log reason for picking the legacy path. Set on the
+    # non-program branches; ``None`` means the program path was taken (compose
+    # emits its own structured event with full schema).
+    legacy_reason: str | None = None
+
     if _is_program_aware_enabled(pitcher_id) and _has_any_active_program(pitcher_id):
         try:
             composer = await _compose_program_plan(
@@ -214,7 +219,33 @@ async def _select_plan_path(
             return composer["plan"], composer["program_id"], composer["hold_event"]
         except Exception as exc:
             _log_program_path_failure(pitcher_id, exc)
+            legacy_reason = "program_path_failed"
             # fall through to legacy
+    elif not _is_program_aware_enabled(pitcher_id):
+        legacy_reason = "flag_off"
+    else:
+        legacy_reason = "no_active_program"
+
+    # Plan 8 / A2: emit the same `program_aware_compose` event shape on the
+    # legacy fall-through with sentinel ``plan_source='legacy_path_selected'``
+    # so D2's canary metric can count fall-throughs without a second log name.
+    logger.info(
+        "program_aware_compose",
+        extra={
+            "event": "program_aware_compose",
+            "pitcher_id": pitcher_id,
+            "program_id": None,
+            "current_day_index": None,
+            "rotation_day_resolved": None,
+            "domain": None,
+            "template_key": None,
+            "hold_event_kind": None,
+            "plan_source": "legacy_path_selected",
+            "plan_source_reason": legacy_reason,
+            "narrative_present": False,
+            "lifting_exercises_count": 0,
+        },
+    )
 
     try:
         plan = await generate_plan(
@@ -263,6 +294,10 @@ async def _compose_program_plan(
         pitcher_id, "lifting", target_date,
     ) if lifting_program else None
 
+    # Throwing program wins on tie for the counter-advance program_id.
+    program_for_counter = throwing_program or lifting_program
+    program_id = (program_for_counter or {}).get("program_id")
+
     final_plan = await _program_aware_planner.compose_program_aware_plan(
         pitcher_id=pitcher_id,
         triage_result=triage_result,
@@ -272,15 +307,12 @@ async def _compose_program_plan(
         target_date=target_date,
         checkin_inputs=checkin_inputs,
         triage_rationale_detail=triage_rationale_detail,
+        program_id=program_id,
     )
     if final_plan is None:
         raise RuntimeError("compose_program_aware_plan returned None")
 
     hold_event = _program_aware_planner.derive_hold_event(triage_result)
-
-    # Throwing program wins on tie for the counter-advance program_id.
-    program_for_counter = throwing_program or lifting_program
-    program_id = (program_for_counter or {}).get("program_id")
 
     return {
         "plan": final_plan,
