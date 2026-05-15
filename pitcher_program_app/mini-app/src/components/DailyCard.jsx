@@ -9,6 +9,7 @@ import MobilityCard from './MobilityCard';
 import ExerciseSwap from './ExerciseSwap';
 import FavoriteHeart from './FavoriteHeart';
 import { submitThrowFeel } from '../api';
+import { groupExercisesByCategory } from '../utils/exerciseTagSynthesis';
 
 function resolveExercise(exerciseId, exerciseMap, slugMap) {
   if (exerciseMap[exerciseId]) return exerciseMap[exerciseId];
@@ -23,6 +24,10 @@ const BLOCKS = [
   { key: 'lifting', emoji: '\uD83C\uDFCB\uFE0F', label: 'Lifting' },
   { key: 'throwing', emoji: '\u26BE', label: 'Throwing' },
 ];
+
+// Stable empty-array sentinel \u2014 prevents `something || []` from minting a
+// fresh array on every render and destabilizing useMemo downstream.
+const EMPTY_ARR = Object.freeze([]);
 
 // ---------------------------------------------------------------------------
 // Guided day flow — phase model
@@ -162,6 +167,134 @@ function isPhaseComplete(phaseId, entry, completed, manuallyDone) {
   if (items.length === 0) return true;
   const completedMap = completed || {};
   return items.every(itemKey => completedMap[itemKey] === true);
+}
+
+// ---------------------------------------------------------------------------
+// Active-only collapse — sub-phase derivation
+// ---------------------------------------------------------------------------
+//
+// Shared between the parent (active-phase derivation + auto-advance) and the
+// children (ThrowingBlock / ExerciseBlock) so both produce the same buckets
+// from the same inputs.
+//
+// Returns `[{ name, exercises, isPostThrow? }]` in display order, or `null`
+// when the domain shouldn't render with sub-phase collapse (e.g. lifting
+// without enough buckets to synthesize).
+
+function _liftingFallbackGroupsFromBlocks(fallbackBlocks) {
+  return (fallbackBlocks || [])
+    .filter(b => {
+      const name = (b.block_name || '').toLowerCase();
+      return !name.includes('arm') && (b.exercises || []).length > 0;
+    })
+    .map(b => ({ name: b.block_name || null, exercises: b.exercises || [] }));
+}
+
+function _liftingFallbackGroupsFromExercises(allEx) {
+  const groups = [];
+  let curBlock = null;
+  for (const ex of allEx) {
+    const bk = ex.block_name || ex.block;
+    if (bk && bk !== curBlock) {
+      curBlock = bk;
+      groups.push({ name: bk, exercises: [ex] });
+    } else if (bk && groups.length > 0) {
+      groups[groups.length - 1].exercises.push(ex);
+    } else {
+      if (groups.length === 0) groups.push({ name: null, exercises: [] });
+      groups[groups.length - 1].exercises.push(ex);
+    }
+  }
+  return groups;
+}
+
+/**
+ * Build sub-phase groups for the active-only collapse pattern.
+ *
+ * @param {string} blockKey — 'throwing' | 'lifting' | 'arm_care'
+ * @param {object} options
+ * @param {object} options.data — entry.{throwing|lifting|arm_care} or plan_generated equivalent
+ * @param {Array} options.fallbackBlocks — plan_generated.exercise_blocks
+ * @param {object} options.exerciseMap — for tag/category fallback in synthesis
+ * @returns {Array<{name: string, exercises: Array, isPostThrow?: boolean}>|null}
+ */
+function buildSubPhases(blockKey, { data, fallbackBlocks = [], exerciseMap = {} } = {}) {
+  if (blockKey === 'throwing') {
+    const phases = Array.isArray(data?.phases) ? data.phases : [];
+    const populated = phases.filter(p => (p.exercises || []).length > 0);
+    if (populated.length === 0) return null;
+    return populated.map((p, i) => ({
+      name: p.phase_name || `Phase ${i + 1}`,
+      exercises: p.exercises || [],
+      isPostThrow: (p.phase_name || '').toLowerCase().includes('post-throw'),
+    }));
+  }
+
+  if (blockKey === 'lifting') {
+    const exercises = data?.exercises || [];
+    const hasDirect = exercises.length > 0;
+    // 1. block_name groups from exercise_blocks
+    let groups = _liftingFallbackGroupsFromBlocks(fallbackBlocks);
+    // 2. or block fields on individual exercises (LLM path)
+    if (groups.length === 0 && hasDirect) {
+      groups = _liftingFallbackGroupsFromExercises(exercises);
+    }
+    // Drop empties / single-no-label (caller renders flat)
+    const labeled = groups.filter(g => (g.exercises || []).length > 0);
+    const hasMultipleBlocks = labeled.length > 1 || (labeled.length === 1 && labeled[0].name);
+    if (hasMultipleBlocks) {
+      return labeled.map(g => ({ name: g.name || 'Lifting', exercises: g.exercises }));
+    }
+    // 3. fall back to tag synthesis on the flat list (LLM path with no block_name)
+    const flatList = hasDirect
+      ? exercises
+      : (fallbackBlocks || [])
+          .filter(b => {
+            const name = (b.block_name || '').toLowerCase();
+            return !name.includes('arm') && !name.includes('plyo');
+          })
+          .flatMap(b => b.exercises || []);
+    const synthesized = groupExercisesByCategory(flatList, 'lifting', { exerciseMap });
+    return synthesized; // either grouped or null (caller renders flat)
+  }
+
+  if (blockKey === 'arm_care') {
+    const exercises = data?.exercises || [];
+    const hasDirect = exercises.length > 0;
+    const flatList = hasDirect
+      ? exercises
+      : (fallbackBlocks || [])
+          .filter(b => (b.block_name || '').toLowerCase().includes('arm'))
+          .flatMap(b => b.exercises || []);
+    return groupExercisesByCategory(flatList, 'arm_care', { exerciseMap });
+  }
+
+  return null;
+}
+
+/**
+ * Compute { done, total } counts for each sub-phase given the completion map.
+ */
+function subPhaseCounts(subPhases, completed) {
+  if (!Array.isArray(subPhases)) return [];
+  const c = completed || {};
+  return subPhases.map(p => {
+    const total = (p.exercises || []).length;
+    const done = (p.exercises || []).filter(ex => c[ex.exercise_id] === true).length;
+    return { done, total };
+  });
+}
+
+/**
+ * First sub-phase index where doneCount < totalCount.
+ * Returns null when every phase is complete or list is empty.
+ */
+function firstIncompletePhaseIndex(subPhases, completed) {
+  const counts = subPhaseCounts(subPhases, completed);
+  for (let i = 0; i < counts.length; i++) {
+    if (counts[i].total > 0 && counts[i].done < counts[i].total) return i;
+  }
+  return null;
 }
 
 function ResearchWhySheet({ researchSources, onClose }) {
@@ -351,7 +484,9 @@ export default function DailyCard({ entry, exerciseMap = {}, slugMap = {}, pitch
   const rawNotes = entry.notes || plan_generated?.notes;
   const notes = Array.isArray(rawNotes) ? rawNotes : [];
   const hasStructured = !!(blockData.arm_care?.exercises?.length || blockData.lifting?.exercises?.length);
-  const fallbackBlocks = plan_generated?.exercise_blocks || [];
+  // Stabilize the fallback default — `[] || []` creates a fresh array every
+  // render, which destabilizes downstream memoization (subPhasesByDomain).
+  const fallbackBlocks = plan_generated?.exercise_blocks || EMPTY_ARR;
 
   // Guided flow: compute phase order + active phase from entry state
   const phaseOrder = useMemo(
@@ -385,6 +520,100 @@ export default function DailyCard({ entry, exerciseMap = {}, slugMap = {}, pitch
     const done = items.filter(k => completed[k] === true).length;
     return { done, total };
   };
+
+  // ── Active-only sub-phase collapse ──
+  //
+  // Per-domain "which sub-phase is active" state. Default re-derives from
+  // completion whenever entry changes (re-mount, server data refresh) — but
+  // once the pitcher manually taps a non-active header in a given domain,
+  // we stop auto-re-deriving for that domain until page reload.
+  //
+  // Auto-advance: when the active sub-phase becomes fully complete, advance
+  // to the next incomplete one. This fires from the toggle handler chain
+  // via useEffect on `completed`.
+  const ACTIVE_COLLAPSE_DOMAINS = ['throwing', 'lifting', 'arm_care'];
+
+  const subPhasesByDomain = useMemo(() => {
+    const out = {};
+    for (const key of ACTIVE_COLLAPSE_DOMAINS) {
+      const data = key === 'throwing' ? blockData.throwing : blockData[key];
+      out[key] = buildSubPhases(key, { data, fallbackBlocks, exerciseMap });
+    }
+    return out;
+  }, [blockData.throwing, blockData.lifting, blockData.arm_care, fallbackBlocks, exerciseMap]);
+
+  const [activePhases, setActivePhases] = useState({});
+  const [userOverriddenDomains, setUserOverriddenDomains] = useState(() => new Set());
+
+  // Re-derive default active per domain on mount / when entry changes — but
+  // only for domains the user hasn't manually touched this session.
+  // NOTE: We compare-then-set so React's referential equality short-circuits
+  // when nothing actually changed — `subPhasesByDomain` recomputes every
+  // render (the block data objects are recreated upstream), but its semantic
+  // content is stable across renders within the same `entry`.
+  useEffect(() => {
+    setActivePhases(prev => {
+      let mutated = false;
+      const next = { ...prev };
+      for (const domain of ACTIVE_COLLAPSE_DOMAINS) {
+        if (userOverriddenDomains.has(domain)) continue;
+        const sp = subPhasesByDomain[domain];
+        const want = Array.isArray(sp) ? firstIncompletePhaseIndex(sp, completed) : null;
+        if (prev[domain] !== want) {
+          next[domain] = want;
+          mutated = true;
+        }
+      }
+      return mutated ? next : prev;
+    });
+    // We deliberately omit `completed` from the dep list — the auto-advance
+    // effect below handles count-driven changes. This effect only fires on
+    // entry/data shape changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entry?.date]);
+
+  // Auto-advance: when the active sub-phase completes, jump to the next
+  // incomplete one. This honors manual override — once the user has chosen
+  // a sub-phase, auto-advance still fires within that selection because the
+  // pitcher is checking exercises off in that order.
+  useEffect(() => {
+    setActivePhases(prev => {
+      let mutated = false;
+      const next = { ...prev };
+      for (const domain of ACTIVE_COLLAPSE_DOMAINS) {
+        const sp = subPhasesByDomain[domain];
+        if (!Array.isArray(sp)) continue;
+        const curIdx = next[domain];
+        if (curIdx == null) continue;
+        const cur = sp[curIdx];
+        if (!cur) continue;
+        const total = (cur.exercises || []).length;
+        const done = (cur.exercises || []).filter(ex => completed[ex.exercise_id] === true).length;
+        if (total > 0 && done === total) {
+          // Active is fully done. Look for the next incomplete from curIdx+1
+          // onward — fall back to firstIncompletePhaseIndex on the full list
+          // so we never skip an earlier still-incomplete phase the pitcher
+          // jumped past manually.
+          const fullNext = firstIncompletePhaseIndex(sp, completed);
+          if (fullNext !== curIdx) {
+            next[domain] = fullNext;
+            mutated = true;
+          }
+        }
+      }
+      return mutated ? next : prev;
+    });
+  }, [completed, subPhasesByDomain]);
+
+  const handleActivatePhase = useCallback((domain, phaseIndex) => {
+    setActivePhases(prev => ({ ...prev, [domain]: phaseIndex }));
+    setUserOverriddenDomains(prev => {
+      if (prev.has(domain)) return prev;
+      const next = new Set(prev);
+      next.add(domain);
+      return next;
+    });
+  }, []);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -420,6 +649,14 @@ export default function DailyCard({ entry, exerciseMap = {}, slugMap = {}, pitch
             }
           : undefined;
 
+        const activePhaseIndex = ACTIVE_COLLAPSE_DOMAINS.includes(key)
+          ? activePhases[key] ?? null
+          : null;
+        const onActivatePhase = ACTIVE_COLLAPSE_DOMAINS.includes(key)
+          ? (idx) => handleActivatePhase(key, idx)
+          : null;
+        const subPhasesForDomain = subPhasesByDomain[key] || null;
+
         const blockElement = key === 'throwing' ? (
           <ThrowingBlock
             key={key}
@@ -435,6 +672,8 @@ export default function DailyCard({ entry, exerciseMap = {}, slugMap = {}, pitch
             onToggleWhy={toggleWhy}
             collapsedPhases={collapsedPhases}
             onTogglePhase={(phaseKey) => setCollapsedPhases(prev => ({ ...prev, [phaseKey]: !prev[phaseKey] }))}
+            activePhaseIndex={activePhaseIndex}
+            onActivatePhase={onActivatePhase}
             entry={entry}
             pitcherId={pitcherId}
             initData={initData}
@@ -462,6 +701,9 @@ export default function DailyCard({ entry, exerciseMap = {}, slugMap = {}, pitch
             onStartSwap={key === 'lifting' && !readOnly ? setSwappingExerciseId : null}
             onSwapComplete={key === 'lifting' && !readOnly ? handleSwapComplete : null}
             onCancelSwap={key === 'lifting' ? () => setSwappingExerciseId(null) : null}
+            activePhaseIndex={activePhaseIndex}
+            onActivatePhase={onActivatePhase}
+            subPhases={subPhasesForDomain}
             pitcherId={pitcherId}
             date={entry?.date}
             initData={initData}
@@ -715,14 +957,19 @@ function MarkPhaseDoneButton({ phaseLabel, onClick }) {
 
 // ── Exercise Block (arm_care, lifting) ──
 
-function ExerciseBlock({ blockKey, emoji, label, data, fallbackBlocks, hasStructured, exerciseMap, slugMap, completed, onToggle, expandedWhy, onToggleWhy, swappingExerciseId, swappedExercises, swapOverrides, onStartSwap, onSwapComplete, onCancelSwap, pitcherId, date, initData, readOnly, wrapperStyle, researchSources = [], onShowWhySheet, favoritable = false, favoriteSnapshot = null }) {
+function ExerciseBlock({ blockKey, emoji, label, data, fallbackBlocks, hasStructured, exerciseMap, slugMap, completed, onToggle, expandedWhy, onToggleWhy, swappingExerciseId, swappedExercises, swapOverrides, onStartSwap, onSwapComplete, onCancelSwap, activePhaseIndex = null, onActivatePhase = null, subPhases = null, pitcherId, date, initData, readOnly, wrapperStyle, researchSources = [], onShowWhySheet, favoritable = false, favoriteSnapshot = null }) {
   const [warmupExpanded, setWarmupExpanded] = useState(false);
+  // Local manual-collapse override for the active sub-phase (mirrors the
+  // ThrowingBlock contract — tapping the active header toggles its
+  // collapse, tapping a non-active header switches active).
+  const [activePhaseCollapsed, setActivePhaseCollapsed] = useState(false);
   const exercises = data?.exercises || [];
   const hasDirect = hasStructured && exercises.length > 0;
 
-  // Resolve fallback exercises for this block
+  // Resolve fallback exercises for this block. Lifting block_name grouping
+  // now lives in `buildSubPhases` upstream (parent computes once, both for
+  // active-derivation and child rendering).
   let fallbackExercises = [];
-  let fallbackBlockGroups = []; // Preserve block_name structure for lifting
   if (!hasDirect) {
     const isArm = blockKey === 'arm_care';
     const filtered = fallbackBlocks.filter(b => {
@@ -730,13 +977,6 @@ function ExerciseBlock({ blockKey, emoji, label, data, fallbackBlocks, hasStruct
       return isArm ? name.includes('arm') : (!name.includes('arm') && !name.includes('plyo'));
     });
     fallbackExercises = filtered.flatMap(b => b.exercises || []);
-    // For lifting, keep the block groups for stratification
-    if (blockKey === 'lifting') {
-      fallbackBlockGroups = filtered.map(b => ({
-        label: b.block_name || null,
-        exercises: b.exercises || [],
-      })).filter(g => g.exercises.length > 0);
-    }
   }
 
   const allEx = hasDirect ? exercises : fallbackExercises;
@@ -862,84 +1102,96 @@ function ExerciseBlock({ blockKey, emoji, label, data, fallbackBlocks, hasStruct
         )}
       </div>
 
-      {/* Exercise list — with sub-block grouping for lifting */}
-      <div style={{ padding: '6px 14px 10px' }}>
-        {blockKey === 'lifting' && (() => {
-          // Build block groups from exercise_blocks (which always has block_name structure)
-          // Filter to lifting-related blocks (skip arm care blocks)
-          const liftingBlocks = fallbackBlocks
-            .filter(b => {
-              const name = (b.block_name || '').toLowerCase();
-              return !name.includes('arm') && (b.exercises || []).length > 0;
-            })
-            .map(b => ({ label: b.block_name || null, exercises: b.exercises || [] }));
+      {/* Exercise list — with sub-block grouping (active-only collapse) for lifting + arm_care */}
+      <div style={{ padding: (blockKey === 'lifting' || blockKey === 'arm_care') && Array.isArray(subPhases) ? '4px 0' : '6px 14px 10px' }}>
+        {(blockKey === 'lifting' || blockKey === 'arm_care') && Array.isArray(subPhases) && subPhases.length > 0 ? (
+          // Active-only collapse renderer (matches ThrowingBlock visual contract)
+          subPhases.map((sp, pi) => {
+            const phaseExercises = sp.exercises || [];
+            if (phaseExercises.length === 0) return null;
+            const phaseDone = phaseExercises.filter(ex => completed[ex.exercise_id] === true).length;
 
-          // If exercise_blocks don't have structure, try individual exercise block fields
-          let blockGroups = liftingBlocks.length > 0 ? liftingBlocks : [];
+            const isActivePhase = activePhaseIndex === pi;
+            const isCollapsed = isActivePhase ? activePhaseCollapsed : true;
 
-          if (blockGroups.length === 0 && allEx.length > 0) {
-            let curBlock = null;
-            for (const ex of allEx) {
-              const bk = ex.block_name || ex.block;
-              if (bk && bk !== curBlock) {
-                curBlock = bk;
-                blockGroups.push({ label: bk, exercises: [ex] });
-              } else if (bk && blockGroups.length > 0) {
-                blockGroups[blockGroups.length - 1].exercises.push(ex);
-              } else {
-                if (blockGroups.length === 0) blockGroups.push({ label: null, exercises: [] });
-                blockGroups[blockGroups.length - 1].exercises.push(ex);
+            const headerBg = isActivePhase
+              ? 'rgba(92, 16, 32, 0.05)'
+              : 'var(--color-cream-bg)';
+            const activeBoxShadow = isActivePhase
+              ? 'inset 3px 0 0 rgba(92, 16, 32, 0.22)'
+              : 'none';
+            const nameColor = isActivePhase ? 'var(--color-maroon)' : 'var(--color-ink-secondary)';
+            const countColor = isActivePhase
+              ? 'var(--color-maroon-mid)'
+              : (phaseDone === phaseExercises.length && phaseExercises.length > 0
+                  ? 'var(--color-flag-green)'
+                  : 'var(--color-ink-faint)');
+            const countWeight = isActivePhase ? 600 : 400;
+            const chevron = isActivePhase ? '▼ ' : '▶ ';
+            const phaseDisplayName = `${sp.name || `Phase ${pi + 1}`}${isActivePhase ? ' · NOW' : ''}`;
+
+            const handleHeaderClick = () => {
+              if (isActivePhase) {
+                setActivePhaseCollapsed(v => !v);
+              } else if (onActivatePhase) {
+                onActivatePhase(pi);
+                setActivePhaseCollapsed(false);
               }
-            }
-          }
+            };
 
-          // If only one group with no label, render flat
-          const hasMultipleBlocks = blockGroups.length > 1 || (blockGroups.length === 1 && blockGroups[0].label);
-          if (!hasMultipleBlocks) {
             return (
-              <SupersetList
-                exercises={allEx} exerciseMap={exerciseMap} slugMap={slugMap}
-                completed={completed} onToggle={onToggle}
-                expandedWhy={expandedWhy} onToggleWhy={onToggleWhy}
-                swappingExerciseId={swappingExerciseId} swappedExercises={swappedExercises}
-                swapOverrides={swapOverrides} onStartSwap={onStartSwap} onSwapComplete={onSwapComplete} onCancelSwap={onCancelSwap}
-                pitcherId={pitcherId} date={date} initData={initData} readOnly={readOnly}
-              />
-            );
-          }
-          return blockGroups.map((bg, bgi) => (
-            <div key={bgi}>
-              {bg.label && (
-                <div style={{
-                  padding: '8px 0 4px',
-                  background: bgi === 0 ? 'rgba(92,16,32,0.024)' : 'transparent',
-                  borderTop: bgi > 0 ? '1px solid var(--color-cream-border)' : 'none',
-                  margin: bgi > 0 ? '4px 0 0' : '0',
-                }}>
-                  <span style={{
-                    fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1,
-                    color: bgi === 0 ? 'var(--color-maroon)' : 'var(--color-ink-muted)',
-                  }}>
-                    {bg.label}
+              <div key={pi} style={{ borderBottom: pi < subPhases.length - 1 ? '0.5px solid var(--color-cream-border)' : 'none' }}>
+                <div
+                  onClick={handleHeaderClick}
+                  aria-current={isActivePhase ? 'true' : undefined}
+                  data-active={isActivePhase ? 'true' : 'false'}
+                  style={{
+                    padding: '6px 14px', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    background: headerBg,
+                    boxShadow: activeBoxShadow,
+                    transition: 'background 150ms ease',
+                  }}
+                >
+                  <span style={{ fontSize: 11, fontWeight: 600, color: nameColor, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                    {chevron}{phaseDisplayName}
+                  </span>
+                  <span style={{ fontSize: 10, color: countColor, fontWeight: countWeight }}>
+                    {phaseDone}/{phaseExercises.length}
                   </span>
                 </div>
-              )}
-              <SupersetList
-                exercises={bg.exercises} exerciseMap={exerciseMap} slugMap={slugMap}
-                completed={completed} onToggle={onToggle}
-                expandedWhy={expandedWhy} onToggleWhy={onToggleWhy}
-                swappingExerciseId={swappingExerciseId} swappedExercises={swappedExercises}
-                swapOverrides={swapOverrides} onStartSwap={onStartSwap} onSwapComplete={onSwapComplete} onCancelSwap={onCancelSwap}
-                pitcherId={pitcherId} date={date} initData={initData} readOnly={readOnly}
-              />
-            </div>
-          ));
-        })()}
-        {blockKey !== 'lifting' && (
+                {!isCollapsed && (
+                  <div style={{ padding: '4px 14px 8px' }}>
+                    <SupersetList
+                      exercises={phaseExercises} exerciseMap={exerciseMap} slugMap={slugMap}
+                      completed={completed} onToggle={onToggle}
+                      expandedWhy={expandedWhy} onToggleWhy={onToggleWhy}
+                      swappingExerciseId={blockKey === 'lifting' ? swappingExerciseId : null}
+                      swappedExercises={blockKey === 'lifting' ? swappedExercises : {}}
+                      swapOverrides={blockKey === 'lifting' ? swapOverrides : {}}
+                      onStartSwap={blockKey === 'lifting' ? onStartSwap : null}
+                      onSwapComplete={blockKey === 'lifting' ? onSwapComplete : null}
+                      onCancelSwap={blockKey === 'lifting' ? onCancelSwap : null}
+                      pitcherId={pitcherId} date={date} initData={initData} readOnly={readOnly}
+                    />
+                  </div>
+                )}
+              </div>
+            );
+          })
+        ) : (
+          // No sub-phase grouping — render flat (e.g. single bucket synthesis)
           <SupersetList
             exercises={allEx} exerciseMap={exerciseMap} slugMap={slugMap}
             completed={completed} onToggle={onToggle}
             expandedWhy={expandedWhy} onToggleWhy={onToggleWhy}
+            swappingExerciseId={blockKey === 'lifting' ? swappingExerciseId : null}
+            swappedExercises={blockKey === 'lifting' ? swappedExercises : {}}
+            swapOverrides={blockKey === 'lifting' ? swapOverrides : {}}
+            onStartSwap={blockKey === 'lifting' ? onStartSwap : null}
+            onSwapComplete={blockKey === 'lifting' ? onSwapComplete : null}
+            onCancelSwap={blockKey === 'lifting' ? onCancelSwap : null}
+            pitcherId={pitcherId} date={date} initData={initData} readOnly={readOnly}
           />
         )}
       </div>
@@ -949,7 +1201,7 @@ function ExerciseBlock({ blockKey, emoji, label, data, fallbackBlocks, hasStruct
 
 // ── Throwing Block ──
 
-function ThrowingBlock({ emoji, label, throwing, fallbackPlan, exerciseMap, slugMap, completed, onToggle, expandedWhy, onToggleWhy, collapsedPhases, onTogglePhase, entry, pitcherId, initData, readOnly, wrapperStyle }) {
+function ThrowingBlock({ emoji, label, throwing, fallbackPlan, exerciseMap, slugMap, completed, onToggle, expandedWhy, onToggleWhy, collapsedPhases, onTogglePhase, activePhaseIndex = null, onActivatePhase = null, entry, pitcherId, initData, readOnly, wrapperStyle }) {
   const data = throwing || fallbackPlan;
   if (!data) return null;
 
@@ -1012,25 +1264,65 @@ function ThrowingBlock({ emoji, label, throwing, fallbackPlan, exerciseMap, slug
             const phaseExercises = phase.exercises || [];
             if (phaseExercises.length === 0) return null;
             const phaseKey = `throwing_phase_${pi}`;
-            const isCollapsed = !!collapsedPhases[phaseKey];
             const phaseDone = phaseExercises.filter(ex => completed[ex.exercise_id] === true).length;
 
             const isPostThrow = (phase.phase_name || '').toLowerCase().includes('post-throw');
+
+            // Active-only collapse: only the active phase is expanded;
+            // others render as 1-row clickable headers. Tapping a non-active
+            // header switches active to it. Tapping the active header
+            // toggles its manual collapse like before (via collapsedPhases).
+            const isActivePhase = activePhaseIndex === pi;
+            const manuallyCollapsed = !!collapsedPhases[phaseKey];
+            const isCollapsed = isActivePhase ? manuallyCollapsed : true;
+
+            const headerBg = isActivePhase
+              ? 'rgba(92, 16, 32, 0.05)'
+              : isPostThrow
+                ? 'rgba(29, 158, 117, 0.06)'
+                : 'var(--color-cream-bg)';
+            const activeBoxShadow = isActivePhase
+              ? 'inset 3px 0 0 rgba(92, 16, 32, 0.22)'
+              : 'none';
+            const nameColor = isActivePhase ? 'var(--color-maroon)' : 'var(--color-ink-secondary)';
+            const countColor = isActivePhase
+              ? 'var(--color-maroon-mid)'
+              : (phaseDone === phaseExercises.length && phaseExercises.length > 0
+                  ? 'var(--color-flag-green)'
+                  : 'var(--color-ink-faint)');
+            const countWeight = isActivePhase ? 600 : 400;
+            const chevron = isActivePhase ? '\u25BC ' : '\u25B6 ';
+            const phaseDisplayName = `${phase.phase_name || `Phase ${pi + 1}`}${isActivePhase ? ' \u00B7 NOW' : ''}`;
+
+            const handleHeaderClick = () => {
+              if (isActivePhase) {
+                onTogglePhase(phaseKey);
+              } else if (onActivatePhase) {
+                onActivatePhase(pi);
+              } else {
+                onTogglePhase(phaseKey);
+              }
+            };
+
             return (
               <div key={pi} style={{ borderBottom: pi < phases.length - 1 ? '0.5px solid var(--color-cream-border)' : 'none' }}>
                 {/* Phase header */}
                 <div
-                  onClick={() => onTogglePhase(phaseKey)}
+                  onClick={handleHeaderClick}
+                  aria-current={isActivePhase ? 'true' : undefined}
+                  data-active={isActivePhase ? 'true' : 'false'}
                   style={{
                     padding: '6px 14px', cursor: 'pointer',
                     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    background: isPostThrow ? 'rgba(29, 158, 117, 0.06)' : 'var(--color-cream-bg)',
+                    background: headerBg,
+                    boxShadow: activeBoxShadow,
+                    transition: 'background 150ms ease',
                   }}
                 >
-                  <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-ink-secondary)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                    {isCollapsed ? '\u25B6 ' : '\u25BC '}{phase.phase_name || `Phase ${pi + 1}`}
+                  <span style={{ fontSize: 11, fontWeight: 600, color: nameColor, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                    {chevron}{phaseDisplayName}
                   </span>
-                  <span style={{ fontSize: 10, color: phaseDone === phaseExercises.length && phaseExercises.length > 0 ? 'var(--color-flag-green)' : 'var(--color-ink-faint)' }}>
+                  <span style={{ fontSize: 10, color: countColor, fontWeight: countWeight }}>
                     {phaseDone}/{phaseExercises.length}
                   </span>
                 </div>
