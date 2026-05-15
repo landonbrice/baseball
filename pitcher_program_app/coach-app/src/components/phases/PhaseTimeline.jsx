@@ -7,39 +7,20 @@ const EMPHASIS_BORDER = {
 }
 
 /**
- * Plan 7 / C5 — map a `training_phase_blocks` row to one or more
- * `block_library.compatible_phases` strings used by program templates.
+ * Plan 8 / B2 — `training_phase_blocks.template_phase_keys` (text[]) is the
+ * canonical bridge from a phase row to `block_library.compatible_phases`
+ * tokens. The previous client-side `phaseToTemplatePhaseIds()` regex helper
+ * was retired when migration 031 added the column + backfilled all rows.
  *
- * Live `training_phase_blocks` rows use vocabulary like:
- *   phase_name: "Fall GPP" | "Strength Block" | "Power Block" | "Preseason Ramp" | "In-Season"
- *   emphasis:   "hypertrophy" | "strength" | "power" | "maintenance" | "gpp"
- *
- * `block_library.compatible_phases` uses vocabulary like:
- *   "off_season" | "preseason" | "in_season" | "in_season_active"
- *
- * The phase_name string wins when it matches a known token; otherwise we
- * fall back to emphasis. A phase can map to multiple template phases (e.g.
- * "In-Season" maps to both in_season and in_season_active).
+ * `template_phase_keys` values are from the fixed 4-value compatible_phases
+ * set: "off_season" | "preseason" | "in_season" | "in_season_active". A
+ * single phase may map to multiple keys (e.g. "In-Season" -> both
+ * "in_season" and "in_season_active").
  */
-export function phaseToTemplatePhaseIds(phase) {
-  if (!phase) return []
-  const name = String(phase.phase_name || '').toLowerCase()
-  const emphasis = String(phase.emphasis || '').toLowerCase()
-
-  if (/in[-\s]?season/.test(name)) return ['in_season', 'in_season_active']
-  if (/preseason/.test(name)) return ['preseason']
-  if (/postseason|off[-\s]?season/.test(name)) return ['off_season']
-
-  if (emphasis === 'maintenance') return ['in_season', 'in_season_active']
-  if (emphasis === 'power') return ['preseason']
-  if (emphasis === 'hypertrophy' || emphasis === 'strength' || emphasis === 'gpp') {
-    return ['off_season']
-  }
-  return []
-}
-
 function templatesForPhase(phase, templates) {
-  const phaseIds = phaseToTemplatePhaseIds(phase)
+  const phaseIds = Array.isArray(phase?.template_phase_keys)
+    ? phase.template_phase_keys
+    : []
   if (phaseIds.length === 0) return []
   return (templates || []).filter(t => {
     const compatible = t.compatible_phases || []

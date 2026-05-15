@@ -1,12 +1,13 @@
 import { describe, it, expect } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
-import PhaseTimeline, { phaseToTemplatePhaseIds } from '../PhaseTimeline'
+import PhaseTimeline from '../PhaseTimeline'
 
 const PHASES = [
   {
     phase_block_id: 'ph_off',
     phase_name: 'Fall GPP',
     emphasis: 'hypertrophy',
+    template_phase_keys: ['off_season'],
     start_date: '2025-10-01',
     end_date: '2025-10-28',
   },
@@ -14,6 +15,7 @@ const PHASES = [
     phase_block_id: 'ph_pre',
     phase_name: 'Preseason Ramp',
     emphasis: 'maintenance',
+    template_phase_keys: ['preseason'],
     start_date: '2026-02-08',
     end_date: '2026-02-28',
   },
@@ -21,6 +23,7 @@ const PHASES = [
     phase_block_id: 'ph_in',
     phase_name: 'In-Season',
     emphasis: 'maintenance',
+    template_phase_keys: ['in_season', 'in_season_active'],
     start_date: '2026-03-01',
     end_date: '2026-05-31',
   },
@@ -44,37 +47,8 @@ const TEMPLATES = [
   },
 ]
 
-describe('phaseToTemplatePhaseIds()', () => {
-  it('maps phase_name "In-Season" to both in_season variants', () => {
-    expect(phaseToTemplatePhaseIds({ phase_name: 'In-Season' })).toEqual([
-      'in_season',
-      'in_season_active',
-    ])
-  })
-
-  it('maps phase_name "Preseason Ramp" to preseason', () => {
-    expect(phaseToTemplatePhaseIds({ phase_name: 'Preseason Ramp', emphasis: 'maintenance' })).toEqual([
-      'preseason',
-    ])
-  })
-
-  it('falls back to emphasis when name has no match', () => {
-    expect(phaseToTemplatePhaseIds({ phase_name: 'Block A', emphasis: 'strength' })).toEqual([
-      'off_season',
-    ])
-    expect(phaseToTemplatePhaseIds({ phase_name: 'Block B', emphasis: 'power' })).toEqual([
-      'preseason',
-    ])
-  })
-
-  it('returns empty array when neither name nor emphasis match', () => {
-    expect(phaseToTemplatePhaseIds({ phase_name: 'X', emphasis: 'unknown' })).toEqual([])
-    expect(phaseToTemplatePhaseIds(null)).toEqual([])
-  })
-})
-
 describe('<PhaseTimeline> Templates column', () => {
-  it('renders templates compatible with each phase row', () => {
+  it('renders templates compatible with each phase row (driven by template_phase_keys)', () => {
     render(<PhaseTimeline phases={PHASES} templates={TEMPLATES} />)
 
     // off_season phase ("Fall GPP") gets the off_season-only template AND the
@@ -98,6 +72,19 @@ describe('<PhaseTimeline> Templates column', () => {
   it('renders no chips when no templates are compatible with a phase', () => {
     render(<PhaseTimeline phases={PHASES} templates={[]} />)
     // No "Templates" eyebrow should appear when the matched list is empty.
+    expect(screen.queryByText('Templates')).not.toBeInTheDocument()
+  })
+
+  it('renders no chips when phase has empty or missing template_phase_keys', () => {
+    const orphanPhase = [{
+      phase_block_id: 'ph_x',
+      phase_name: 'Unknown Phase',
+      emphasis: 'unknown',
+      template_phase_keys: [],
+      start_date: '2026-06-01',
+      end_date: '2026-06-30',
+    }]
+    render(<PhaseTimeline phases={orphanPhase} templates={TEMPLATES} />)
     expect(screen.queryByText('Templates')).not.toBeInTheDocument()
   })
 })
