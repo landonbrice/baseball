@@ -182,7 +182,7 @@ def test_team_completion_falls_back_to_84_when_days_missing():
 # Idempotency — wired through the health_monitor pipeline
 # ---------------------------------------------------------------------------
 
-def test_team_completion_dedup_skips_insert_when_today_row_exists():
+async def test_team_completion_dedup_skips_insert_when_today_row_exists():
     """Even though the team block + members would otherwise fire, the dedup
     gate must prevent a duplicate insert when a matching insight already
     exists for today.
@@ -216,7 +216,7 @@ def test_team_completion_dedup_skips_insert_when_today_row_exists():
          patch.object(_db, "suggestion_exists_for_today", side_effect=dedup), \
          patch.object(_db, "insert_coach_suggestion",
                       side_effect=lambda row: inserted.append(row) or row):
-        new_count = health_monitor._generate_coach_insights_for_team(
+        new_count = await health_monitor._generate_coach_insights_for_team(
             "uchicago_baseball"
         )
 

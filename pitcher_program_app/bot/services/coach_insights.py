@@ -6,8 +6,11 @@ Plan 7 / A4 adds three more rule-based generators:
   - program_flag_mismatch  (high-intent program while flag is yellow/red)
   - team_program_lagging   (team-assigned block <50% average completion)
 
-All A4 generators are RULE-BASED (L5/L6). LLM polish lives in Plan 8 — the
-prompt files in bot/prompts/insight_*.md are placeholders for that pass.
+Plan 8 / C2 adds :func:`polish_insight_body` — a deterministic LLM rewrite of
+the rule-based ``reasoning`` body using prompt templates in
+``bot/prompts/insight_*.md``. Rule-based gates (thresholds, generation rules,
+idempotency) are unchanged (L5 lock). Polish failure falls back to the
+rule-based body so the digest still ships.
 
 Runs on a schedule after morning check-ins complete.
 """
@@ -24,6 +27,15 @@ from bot.services.db import (
 from bot.services.team_scope import list_team_pitchers, get_pitcher_next_start
 
 logger = logging.getLogger(__name__)
+
+
+# Plan 8 / C2 — prompt file per A4 insight category. Categories not in this
+# map (e.g. ``pre_start_nudge``) are passed through unchanged.
+_POLISH_PROMPT_BY_CATEGORY = {
+    "program_drift": "insight_drift.md",
+    "program_flag_mismatch": "insight_mismatch.md",
+    "team_program_lagging": "insight_completion.md",
+}
 
 
 # Templates considered "high intent" for the mismatch generator — running these
@@ -339,3 +351,88 @@ def generate_team_completion_insight(
         },
         "status": "pending",
     }
+
+
+# ---------------------------------------------------------------------------
+# Plan 8 / C2 — LLM polish of A4 rule-based insight bodies
+#
+# Locked decision L5: LLM only rewrites the ``reasoning`` body. Rule-based
+# gates (thresholds, generation rules, idempotency) are unchanged. Failure
+# falls back to the rule-based body so the digest still ships.
+# ---------------------------------------------------------------------------
+
+
+async def polish_insight_body(suggestion: dict, *, timeout: int = 30) -> dict:
+    """Polish the rule-based ``reasoning`` body via the configured LLM.
+
+    Same facts, more natural prose. Single deterministic LLM call per
+    insight. On unknown category, prompt-load failure, LLM timeout / error,
+    or empty response, returns the suggestion unchanged so the digest still
+    ships.
+
+    Stamps ``proposed_action.polished = True`` on success only. Tests assert
+    both branches.
+
+    Args:
+        suggestion: A coach_suggestions row dict (the output of one of the
+            ``generate_*`` functions). Must have ``category``, ``title``,
+            ``reasoning``, ``proposed_action``.
+        timeout: LLM timeout in seconds. Default 30 — matches the synchronous
+            digest pipeline tolerance.
+
+    Returns:
+        Either ``suggestion`` (unchanged on any failure / unknown category)
+        or a NEW dict with ``reasoning`` rewritten and
+        ``proposed_action.polished`` set. The input dict is never mutated.
+    """
+    from bot.services.llm import call_llm, load_prompt
+
+    category = suggestion.get("category")
+    prompt_file = _POLISH_PROMPT_BY_CATEGORY.get(category)
+    if not prompt_file:
+        # Unknown category — pre_start_nudge or future categories.
+        return suggestion
+
+    try:
+        system = load_prompt(prompt_file)
+    except Exception:
+        logger.warning(
+            "insight polish: prompt load failed; keeping rule-based body",
+            extra={"category": category},
+            exc_info=True,
+        )
+        return suggestion
+
+    user = (
+        f"Title: {suggestion.get('title')}\n"
+        f"Current body: {suggestion.get('reasoning')}\n"
+        f"Facts (JSON): {suggestion.get('proposed_action')}\n\n"
+        "Rewrite the body in 2-3 sentences. Same facts. More natural. "
+        "Output ONLY the rewritten body — no quotes, no preamble, no markdown."
+    )
+
+    try:
+        polished = await call_llm(
+            system_prompt=system,
+            user_message=user,
+            history=[],
+            timeout=timeout,
+        )
+    except Exception:
+        logger.warning(
+            "insight polish LLM failed; keeping rule-based body",
+            extra={"category": category, "title": suggestion.get("title")},
+            exc_info=True,
+        )
+        return suggestion
+
+    polished = (polished or "").strip() if isinstance(polished, str) else ""
+    if not polished:
+        return suggestion
+
+    out = dict(suggestion)
+    out["reasoning"] = polished
+    pa = dict(out.get("proposed_action") or {})
+    pa["polished"] = True
+    out["proposed_action"] = pa
+    return out

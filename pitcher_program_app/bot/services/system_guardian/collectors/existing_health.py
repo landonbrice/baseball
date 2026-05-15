@@ -558,7 +558,17 @@ def _derive_observations_from_digest(digest: dict, rolling: dict) -> list[dict]:
 def _run_sync_digest() -> tuple[dict, dict]:
     """Sync entrypoint that runs both source computations under one threadpool
     handoff. Kept private so the timeout wrap stays in one place.
+
+    Plan 8 / C2: ``compute_daily_digest`` is now async (its insight-generation
+    side effect awaits LLM polish calls). We resolve the coroutine here via
+    ``asyncio.run`` — safe because this function runs INSIDE ``asyncio.to_thread``
+    (worker thread, no live event loop). Existing tests that monkey-patch
+    ``compute_daily_digest`` with sync callables (returning a dict or raising)
+    continue to work via the ``inspect.iscoroutine`` branch below — if the
+    monkey-patch returns a plain dict, we use it as-is.
     """
+    import asyncio as _asyncio
+    import inspect as _inspect
     # Local import to dodge import-time circulars and to make tests trivial
     # to monkeypatch.
     from bot.services.health_monitor import (
@@ -566,7 +576,11 @@ def _run_sync_digest() -> tuple[dict, dict]:
         compute_plan_health_rolling,
     )
 
-    digest = compute_daily_digest()
+    result = compute_daily_digest()
+    if _inspect.iscoroutine(result):
+        digest = _asyncio.run(result)
+    else:
+        digest = result
     rolling = compute_plan_health_rolling(days=7)
     return digest, rolling
 

@@ -226,7 +226,7 @@ def compute_weekly_narrative_health() -> dict | None:
     }
 
 
-def compute_daily_digest(date: str = None) -> dict:
+async def compute_daily_digest(date: str = None) -> dict:
     """Compose the full daily health snapshot.
 
     Plan 7 / A4 side-effect: after computing the snapshot we trigger the
@@ -235,6 +235,13 @@ def compute_daily_digest(date: str = None) -> dict:
     so multiple digest runs within the same Chicago day are idempotent.
     Failures inside the generator are caught + logged so the digest pipeline
     never breaks.
+
+    Plan 8 / C2: insight generation is now ``async`` because each NEW
+    insertion (post-dedup) is sent through ``polish_insight_body`` for an
+    LLM body rewrite before insert. ``compute_daily_digest`` therefore became
+    async — the four call sites (bot/main.py x2, api/routes.py admin_health,
+    Guardian existing_health collector) all run in async contexts and were
+    updated to ``await``.
     """
     digest = {
         "plan_health": compute_plan_health(date),
@@ -249,7 +256,7 @@ def compute_daily_digest(date: str = None) -> dict:
     # extends naturally. Try/except scoped tight so insight failures never
     # surface to the digest message.
     try:
-        new_count = _generate_coach_insights_for_team("uchicago_baseball")
+        new_count = await _generate_coach_insights_for_team("uchicago_baseball")
         if new_count:
             logger.info("Plan 7 / A4: generated %d coach insights for uchicago_baseball", new_count)
     except Exception as e:
@@ -258,7 +265,7 @@ def compute_daily_digest(date: str = None) -> dict:
     return digest
 
 
-def _generate_coach_insights_for_team(team_id: str) -> int:
+async def _generate_coach_insights_for_team(team_id: str) -> int:
     """Plan 7 / A4: generate drift / mismatch / completion insights for every
     active program / pitcher / team_assigned_block in the team.
 
@@ -266,8 +273,11 @@ def _generate_coach_insights_for_team(team_id: str) -> int:
     a Chicago day via category + pitcher_id (or block_id) + created_at
     dedup at insert time.
 
-    Synchronous — all v1 generators are rule-based. Plan 8 (LLM polish) will
-    introduce its own async entry point at that time, not before.
+    Plan 8 / C2: now async — each insight that survives the dedup gate is
+    sent through :func:`bot.services.coach_insights.polish_insight_body` for
+    an LLM body rewrite BEFORE insert. Polish failure falls back to the
+    rule-based body (no exception). Dedup-skipped insights NEVER reach
+    polish (cost-bounded).
     """
     from datetime import date as _date
     from bot.services import coach_insights, team_scope
@@ -312,6 +322,10 @@ def _generate_coach_insights_for_team(team_id: str) -> int:
             ):
                 continue
             sug["team_id"] = team_id
+            # Plan 8 / C2: polish AFTER dedup, BEFORE insert. Cost-bounded —
+            # never polish an insight we won't insert. Polish failure is a
+            # passthrough; never raises out of this call.
+            sug = await coach_insights.polish_insight_body(sug)
             try:
                 _db.insert_coach_suggestion(sug)
                 new_count += 1
@@ -340,6 +354,8 @@ def _generate_coach_insights_for_team(team_id: str) -> int:
             mis = None
         if mis and not _db.suggestion_exists_for_today(pitcher_id, "program_flag_mismatch"):
             mis["team_id"] = team_id
+            # Plan 8 / C2: polish AFTER dedup, BEFORE insert.
+            mis = await coach_insights.polish_insight_body(mis)
             try:
                 _db.insert_coach_suggestion(mis)
                 new_count += 1
@@ -379,6 +395,8 @@ def _generate_coach_insights_for_team(team_id: str) -> int:
             continue
         # team_id was already set by the generator from the row; make sure.
         comp["team_id"] = comp.get("team_id") or team_id
+        # Plan 8 / C2: polish AFTER dedup, BEFORE insert.
+        comp = await coach_insights.polish_insight_body(comp)
         try:
             _db.insert_coach_suggestion(comp)
             new_count += 1
