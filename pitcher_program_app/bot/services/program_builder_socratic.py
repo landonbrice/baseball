@@ -12,6 +12,7 @@ program_generation_failures.
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
@@ -19,6 +20,9 @@ from typing import Optional
 DEFAULT_TUNING = {"weeks": 12}
 MAX_SCHEMA_RETRIES = 2
 SESSION_TTL_HOURS = 24
+
+_READY_GEN_PATTERN = re.compile(r"READY_TO_GENERATE")
+_READY_AUTHOR_PATTERN = re.compile(r"READY_TO_AUTHOR")
 
 
 # ---- Seams for tests ----
@@ -77,26 +81,48 @@ def _record_failure(session_id: str | None, attempt_number: int, kind: str,
 
 # ---- Public functions ----
 
+def _extract_json_after(marker: str, body: str) -> dict:
+    """Parse the JSON object that follows a READY_TO_* marker.
+
+    Tries body verbatim first; if the LLM appended trailing prose ("all set!"),
+    falls back to a greedy `{...}` extract. Raises ValueError on truly bad JSON
+    so callers (route handlers) surface a 400 instead of silently relaying the
+    raw token to the user.
+    """
+    body = body.strip()
+    try:
+        return json.loads(body)
+    except json.JSONDecodeError:
+        pass
+    m = re.search(r"\{.*\}", body, re.DOTALL)
+    if m is None:
+        raise ValueError(f"no json object found after {marker}")
+    try:
+        return json.loads(m.group(0))
+    except json.JSONDecodeError as e:
+        raise ValueError(f"could not parse json after {marker}: {e}")
+
+
 def parse_llm_output(text: str) -> dict:
-    """Parse an LLM turn into either a question or a READY_TO_GENERATE payload."""
+    """Parse an LLM turn into either a question or a READY_TO_* payload.
+
+    Tolerates preamble before the marker. The prompt contract says "Nothing
+    else", but DeepSeek occasionally emits a recap line ("Got it. Starting
+    immediately, dropping the old maintenance phase.\n\nREADY_TO_GENERATE
+    {...}"). A strict `startswith` check would treat the whole blob as a chat
+    question and leak the raw token into the UI — the conversation would
+    never advance to Preview.
+    """
     s = text.strip()
-    if s.startswith("READY_TO_GENERATE"):
-        body = s[len("READY_TO_GENERATE"):].strip()
-        try:
-            payload = json.loads(body)
-        except json.JSONDecodeError as e:
-            raise ValueError(f"could not parse json after READY_TO_GENERATE: {e}")
+    if m := _READY_GEN_PATTERN.search(s):
+        payload = _extract_json_after("READY_TO_GENERATE", s[m.end():])
         return {
             "kind": "ready",
             "chosen_template_id": payload.get("chosen_template_id"),
             "tuned_spec": payload.get("tuned_spec") or {},
         }
-    if s.startswith("READY_TO_AUTHOR"):
-        body = s[len("READY_TO_AUTHOR"):].strip()
-        try:
-            payload = json.loads(body)
-        except json.JSONDecodeError as e:
-            raise ValueError(f"could not parse json after READY_TO_AUTHOR: {e}")
+    if m := _READY_AUTHOR_PATTERN.search(s):
+        payload = _extract_json_after("READY_TO_AUTHOR", s[m.end():])
         return {"kind": "ready_to_author", "template": payload}
     return {"kind": "question", "text": s}
 
