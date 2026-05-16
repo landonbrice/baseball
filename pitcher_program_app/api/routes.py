@@ -95,7 +95,7 @@ async def admin_health(request: Request):
         if user.get("id") != ADMIN_TELEGRAM_CHAT_ID:
             raise HTTPException(status_code=403, detail="Admin only")
 
-    return compute_daily_digest()
+    return await compute_daily_digest()
 
 
 @router.get("/pitcher/{pitcher_id}/profile")

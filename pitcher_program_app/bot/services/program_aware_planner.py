@@ -25,6 +25,7 @@ Three responsibilities, layered:
 """
 from __future__ import annotations
 
+import logging
 from datetime import date
 from typing import Optional
 
@@ -34,6 +35,55 @@ from typing import Optional
 # ``patch.object(program_aware_planner, "generate_plan", ...)``, mirroring the
 # pattern used in checkin_service tests.
 from bot.services.plan_generator import generate_plan
+
+logger = logging.getLogger(__name__)
+
+
+def _program_aware_compose_log_fields(
+    *,
+    pitcher_id: str,
+    program_id: Optional[str],
+    throwing_rx: Optional[dict],
+    lifting_rx: Optional[dict],
+    rotation_day_resolved: Optional[int],
+    plan: Optional[dict],
+) -> dict:
+    """Build the canonical Plan 8 / A2 ``program_aware_compose`` event payload.
+
+    Single source of truth for the structured log shape so the dispatcher fork
+    in ``checkin_service._select_plan_path`` can emit the same schema on the
+    legacy fall-through path (with sentinel ``plan_source='legacy_path_selected'``).
+    Aggregation in the 9am digest (D2 canary metric) keys off this contract.
+    """
+    rx = throwing_rx or lifting_rx
+    template_key = (rx or {}).get("template_key")
+    current_day_index = (rx or {}).get("day_index")
+
+    if throwing_rx and lifting_rx:
+        domain = "both"
+    elif throwing_rx:
+        domain = "throwing"
+    elif lifting_rx:
+        domain = "lifting"
+    else:
+        domain = None
+
+    plan = plan or {}
+    lifting_block = plan.get("lifting") or {}
+    return {
+        "event": "program_aware_compose",
+        "pitcher_id": pitcher_id,
+        "program_id": program_id,
+        "current_day_index": current_day_index,
+        "rotation_day_resolved": rotation_day_resolved,
+        "domain": domain,
+        "template_key": template_key,
+        "hold_event_kind": None,  # populated by caller when known
+        "plan_source": plan.get("source"),
+        "plan_source_reason": plan.get("source_reason"),
+        "narrative_present": bool(plan.get("narrative")),
+        "lifting_exercises_count": len(lifting_block.get("exercises") or []),
+    }
 
 
 def compose_prescribed_plan(
@@ -173,6 +223,7 @@ async def compose_program_aware_plan(
     *,
     checkin_inputs: Optional[dict] = None,
     triage_rationale_detail: Optional[dict] = None,
+    program_id: Optional[str] = None,
 ) -> Optional[dict]:
     """Compose a fully-enriched daily plan anchored on the active program.
 
@@ -213,4 +264,18 @@ async def compose_program_aware_plan(
         "throwing": throwing_rx,
         "lifting": lifting_rx,
     }
+
+    # Plan 8 / A2: ONE structured event per program-aware compose so the
+    # 9am digest's D2 canary metric can aggregate "% on program path vs
+    # legacy". Matching shape emitted by the dispatcher's legacy fall-through.
+    log_fields = _program_aware_compose_log_fields(
+        pitcher_id=pitcher_id,
+        program_id=program_id,
+        throwing_rx=throwing_rx,
+        lifting_rx=lifting_rx,
+        rotation_day_resolved=rotation_day_override,
+        plan=plan,
+    )
+    logger.info("program_aware_compose", extra=log_fields)
+
     return plan

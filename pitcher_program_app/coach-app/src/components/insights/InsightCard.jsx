@@ -1,5 +1,9 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import InsightActions from './InsightActions'
+import { actOnInsight, archiveProgramByInsight } from '../../api'
+import { useCoachAuth } from '../../hooks/useCoachAuth'
+import { useToast } from '../shell/Toast'
 
 const BORDER_COLOR = {
   pre_start_nudge: 'var(--color-amber)',
@@ -41,29 +45,84 @@ const STANDARD_ACTION_CATEGORIES = new Set([
   'suggestion',
 ])
 
-function ProgramInsightActions({ category, suggestion }) {
+function ProgramInsightActions({ category, suggestion, onActionDone }) {
   const navigate = useNavigate()
   const ctx = suggestion.proposed_action || {}
+  // Plan 8 / C1 — drift insight CTAs are live. Archive does two backend
+  // calls (archive program, then dismiss insight); Accept marks the
+  // insight accepted with accepted_at=now so it won't re-fire for 14d.
+  const { getAccessToken } = useCoachAuth()
+  const toast = useToast()
+  const [busy, setBusy] = useState(false)
+  const insightId = suggestion.suggestion_id || suggestion.id
 
   if (category === 'program_drift') {
-    // v1: no-op buttons so the visual lands; archive/accept wiring lives in Plan 8.
+    const programId = ctx.program_id
+
+    async function handleArchive() {
+      if (!programId) {
+        toast.error('Drift insight missing program id — refresh and retry.')
+        return
+      }
+      setBusy(true)
+      try {
+        const token = getAccessToken()
+        // Step 1: archive the underlying program.
+        await archiveProgramByInsight(programId, 'drift_acknowledged', token)
+        // Step 2: dismiss the now-stale insight. If this fails the program
+        // is still archived; the next 9am digest will re-evaluate and the
+        // 14d dedup window on accepted insights won't apply (status =
+        // dismissed). That's acceptable — coach can dismiss manually.
+        if (insightId) {
+          try {
+            await actOnInsight(insightId, 'dismiss', token)
+          } catch {
+            // Swallow step-2 failure; archive succeeded which is the
+            // user-visible action.
+          }
+        }
+        toast.success('Program archived')
+        onActionDone?.()
+      } catch (e) {
+        toast.error('Could not archive program — try again.')
+      } finally {
+        setBusy(false)
+      }
+    }
+
+    async function handleAccept() {
+      if (!insightId) {
+        toast.error('Insight missing id — refresh and retry.')
+        return
+      }
+      setBusy(true)
+      try {
+        const token = getAccessToken()
+        await actOnInsight(insightId, 'accept', token)
+        toast.success('Accepted new pace')
+        onActionDone?.()
+      } catch (e) {
+        toast.error('Could not accept insight — try again.')
+      } finally {
+        setBusy(false)
+      }
+    }
+
     return (
       <div className="flex items-center gap-3">
         <button
           type="button"
-          onClick={() => {
-            // TODO(plan-8): wire archive-program action for drift insight
-          }}
-          className="px-3 py-1.5 bg-maroon text-bone font-ui font-semibold text-body-sm rounded-[3px] hover:opacity-90"
+          onClick={handleArchive}
+          disabled={busy}
+          className="px-3 py-1.5 bg-maroon text-bone font-ui font-semibold text-body-sm rounded-[3px] hover:opacity-90 disabled:opacity-60"
         >
           Archive program
         </button>
         <button
           type="button"
-          onClick={() => {
-            // TODO(plan-8): wire accept-new-pace action for drift insight
-          }}
-          className="font-ui text-body-sm text-subtle hover:text-charcoal"
+          onClick={handleAccept}
+          disabled={busy}
+          className="font-ui text-body-sm text-subtle hover:text-charcoal disabled:opacity-60"
         >
           Accept new pace
         </button>
@@ -104,7 +163,14 @@ function ProgramInsightActions({ category, suggestion }) {
   return null
 }
 
-export default function InsightCard({ suggestion, variant = 'hero', onAccept, onDismiss, onDefer }) {
+export default function InsightCard({
+  suggestion,
+  variant = 'hero',
+  onAccept,
+  onDismiss,
+  onDefer,
+  onActionDone,
+}) {
   const typeLabel = TYPE_LABEL[suggestion.category] || suggestion.category
   const isProgramInsight = !STANDARD_ACTION_CATEGORIES.has(suggestion.category)
 
@@ -150,7 +216,11 @@ export default function InsightCard({ suggestion, variant = 'hero', onAccept, on
         </p>
       )}
       {isProgramInsight ? (
-        <ProgramInsightActions category={suggestion.category} suggestion={suggestion} />
+        <ProgramInsightActions
+          category={suggestion.category}
+          suggestion={suggestion}
+          onActionDone={onActionDone}
+        />
       ) : (
         <InsightActions onAccept={onAccept} onDismiss={onDismiss} onDefer={onDefer} />
       )}

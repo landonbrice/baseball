@@ -116,6 +116,21 @@ def get_feature_flag(pitcher_id: str, key: str) -> bool:
     return bool(flags.get(key))
 
 
+def set_feature_flag(pitcher_id: str, key: str, value: bool) -> None:
+    """Set a single key inside pitcher_training_model.feature_flags.
+
+    Read-modify-write because feature_flags is JSONB — we never overwrite
+    other flags by accident. Raises KeyError if the pitcher row doesn't
+    exist (no auto-create — caller should bootstrap explicitly).
+    """
+    model = get_training_model(pitcher_id)
+    if not model:
+        raise KeyError(f"no pitcher_training_model row for {pitcher_id}")
+    flags = dict(model.get("feature_flags") or {})
+    flags[key] = bool(value)
+    update_training_model_partial(pitcher_id, {"feature_flags": flags})
+
+
 def upsert_training_model(pitcher_id: str, data: dict) -> None:
     """Insert or update pitcher_training_model row."""
     data["pitcher_id"] = pitcher_id
@@ -716,13 +731,49 @@ def suggestion_exists_for_today(
         q = q.eq("pitcher_id", pitcher_id)
     resp = q.execute()
     rows = resp.data or []
-    if not rows:
+    # Today-window check: short-circuit True when a contextless caller has
+    # any row, or when context_program_id/context_block_id matches one of
+    # today's rows. Otherwise fall through to the Plan 8 / C1 accepted-14d
+    # suppression check so a recently-accepted "new pace" still suppresses
+    # the daily re-fire.
+    if rows:
+        if context_program_id is None and context_block_id is None:
+            return True
+        for row in rows:
+            action = row.get("proposed_action") or {}
+            if context_program_id is not None and action.get("program_id") == context_program_id:
+                return True
+            if context_block_id is not None and action.get("block_id") == context_block_id:
+                return True
+            if context_block_id is not None and action.get("block_template_id") == context_block_id:
+                return True
+
+    # Plan 8 / C1: also suppress when a matching insight was recently accepted.
+    # If a coach hit "Accept new pace" on a drift insight, we don't want the
+    # same insight to re-fire the next morning — gate by accepted_at >=
+    # today - 14d (calendar-bounded). Same (category, pitcher_id) context
+    # rules as the today-check; optional program_id / block_id narrow it
+    # further when the caller specified a context.
+    from datetime import timedelta as _td
+    accepted_cutoff = (now_chicago - _td(days=14)).date().isoformat()
+    accepted_q = (
+        get_client().table("coach_suggestions")
+        .select("suggestion_id, proposed_action")
+        .eq("category", category)
+        .eq("status", "accepted")
+        .gte("accepted_at", accepted_cutoff)
+    )
+    if pitcher_id is not None:
+        accepted_q = accepted_q.eq("pitcher_id", pitcher_id)
+    accepted_resp = accepted_q.execute()
+    candidates = accepted_resp.data or []
+    if not candidates:
         return False
 
     if context_program_id is None and context_block_id is None:
         return True
 
-    for row in rows:
+    for row in candidates:
         action = row.get("proposed_action") or {}
         if context_program_id is not None and action.get("program_id") == context_program_id:
             return True
@@ -744,6 +795,40 @@ def insert_coach_suggestion(row: dict) -> dict:
     """
     resp = get_client().table("coach_suggestions").insert(row).execute()
     return resp.data[0] if resp.data else {}
+
+
+def get_coach_suggestion(suggestion_id: str) -> dict | None:
+    """Plan 8 / C1 — return a single coach_suggestions row by suggestion_id,
+    or None if missing. Used by the insight action endpoint to verify
+    team_id ownership before updating status.
+    """
+    resp = (get_client().table("coach_suggestions")
+            .select("*")
+            .eq("suggestion_id", suggestion_id)
+            .execute())
+    return resp.data[0] if resp.data else None
+
+
+def update_coach_suggestion_status(
+    suggestion_id: str,
+    *,
+    status: str,
+    accepted_at: str | None = None,
+) -> dict:
+    """Plan 8 / C1 — update status (and optionally accepted_at) for a
+    coach_suggestions row. Returns the updated row. Raises KeyError if not
+    found.
+    """
+    payload: dict = {"status": status}
+    if accepted_at is not None:
+        payload["accepted_at"] = accepted_at
+    resp = (get_client().table("coach_suggestions")
+            .update(payload)
+            .eq("suggestion_id", suggestion_id)
+            .execute())
+    if not resp.data:
+        raise KeyError(f"coach_suggestion not found: {suggestion_id}")
+    return resp.data[0]
 
 
 def list_team_assigned_blocks(team_id: str, status: str | None = None) -> list[dict]:
@@ -876,6 +961,67 @@ def get_block_library_row(template_id: str) -> dict | None:
         .execute()
     )
     return (resp.data or [None])[0]
+
+
+# ---------------- Research docs (Plan 8 / C3) ----------------
+
+
+def list_research_docs() -> list[dict]:
+    """Return all research docs metadata read from disk.
+
+    Research docs are git-checked-in markdown files in
+    `data/knowledge/research/` with YAML frontmatter — NOT Supabase rows.
+    Reuses the resolver's existing on-disk loader (`_load_index`) so there
+    is one definition of "what is a doc" across the codebase.
+
+    Used by Plan 8 / C3 to power the coach-app "Edit research" modal —
+    coaches pick from this list to populate `block_library.research_doc_ids`.
+
+    Returns a list of:
+      {id, title, summary, applies_to, priority}
+    Docs missing an `id` are dropped (warning is already logged inside
+    `_load_index`).
+    """
+    from bot.services.research_resolver import _load_index
+
+    index = _load_index()
+    out: list[dict] = []
+    for doc_id, (fm, _body) in index.items():
+        if not doc_id:
+            continue
+        out.append({
+            "id": doc_id,
+            "title": fm.get("title") or doc_id,
+            "summary": fm.get("summary") or "",
+            "applies_to": fm.get("applies_to") or [],
+            "priority": fm.get("priority") or "standard",
+        })
+    # Stable order by title for deterministic UI rendering.
+    out.sort(key=lambda d: (d.get("title") or "").lower())
+    return out
+
+
+def update_template_research_doc_ids(template_id: str, doc_ids: list[str]) -> dict:
+    """Set `block_library.research_doc_ids` for a template.
+
+    Used by Plan 8 / C3 — coach-authored attach-existing flow.
+    Returns the updated row. Raises `KeyError` if no row matches the
+    given `block_template_id` so the caller can translate to a 404.
+
+    Note: Supabase's REST `update` returns an empty `data` array when no
+    rows match (it does NOT raise) — `block_template_id` is the TEXT PK
+    on `block_library`, so an empty array unambiguously means "not found".
+    """
+    resp = (
+        get_client()
+        .table("block_library")
+        .update({"research_doc_ids": doc_ids})
+        .eq("block_template_id", template_id)
+        .execute()
+    )
+    if not resp.data:
+        raise KeyError(f"template not found: {template_id}")
+    return resp.data[0]
 
 
 # Summary columns for the canonical /api/programs/templates list endpoint

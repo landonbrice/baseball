@@ -106,7 +106,7 @@ def test_mismatch_does_not_fire_with_no_active_programs():
 # Idempotency — exact same pitcher won't double-insert in the same day
 # ---------------------------------------------------------------------------
 
-def test_mismatch_dedup_skips_insert_when_today_row_exists():
+async def test_mismatch_dedup_skips_insert_when_today_row_exists():
     """When suggestion_exists_for_today returns True for the pitcher /
     category combo, the digest pipeline must NOT call insert_coach_suggestion
     for that pitcher's mismatch even though a fresh insight is generated."""
@@ -136,7 +136,7 @@ def test_mismatch_dedup_skips_insert_when_today_row_exists():
          patch.object(_db, "suggestion_exists_for_today", side_effect=dedup), \
          patch.object(_db, "insert_coach_suggestion",
                       side_effect=lambda row: inserted.append(row) or row):
-        new_count = health_monitor._generate_coach_insights_for_team(
+        new_count = await health_monitor._generate_coach_insights_for_team(
             "uchicago_baseball"
         )
 
@@ -146,7 +146,7 @@ def test_mismatch_dedup_skips_insert_when_today_row_exists():
     assert new_count == 0
 
 
-def test_mismatch_inserts_when_dedup_clean_and_flag_yellow():
+async def test_mismatch_inserts_when_dedup_clean_and_flag_yellow():
     """Smoke that the pipeline does fire a mismatch insert when dedup is clean."""
     program = {
         "program_id": "v1",
@@ -170,7 +170,7 @@ def test_mismatch_inserts_when_dedup_clean_and_flag_yellow():
          patch.object(_db, "suggestion_exists_for_today", return_value=False), \
          patch.object(_db, "insert_coach_suggestion",
                       side_effect=lambda row: inserted.append(row) or row):
-        new_count = health_monitor._generate_coach_insights_for_team(
+        new_count = await health_monitor._generate_coach_insights_for_team(
             "uchicago_baseball"
         )
 

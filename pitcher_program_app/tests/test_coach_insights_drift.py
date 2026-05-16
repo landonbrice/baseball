@@ -89,7 +89,7 @@ def test_drift_insight_no_start_date_returns_none():
 # Idempotency — suggestion_exists_for_today causes caller to skip insert
 # ---------------------------------------------------------------------------
 
-def test_drift_insight_dedup_skips_insert_when_today_row_exists():
+async def test_drift_insight_dedup_skips_insert_when_today_row_exists():
     """When suggestion_exists_for_today returns True the digest pipeline must
     NOT call insert_coach_suggestion for the same (pitcher, category, program)."""
     program = {
@@ -123,7 +123,7 @@ def test_drift_insight_dedup_skips_insert_when_today_row_exists():
                           "proposed_action": {"program_id": "p1"},
                           "status": "pending",
                       }):
-        new_count = health_monitor._generate_coach_insights_for_team(
+        new_count = await health_monitor._generate_coach_insights_for_team(
             "uchicago_baseball"
         )
 
@@ -136,7 +136,7 @@ def test_drift_insight_dedup_skips_insert_when_today_row_exists():
 # generator pipeline once, with dedup checks fired per type.
 # ---------------------------------------------------------------------------
 
-def test_generate_coach_insights_for_team_drives_all_three_generators():
+async def test_generate_coach_insights_for_team_drives_all_three_generators():
     """End-to-end smoke for the digest wiring with mocked DB.
 
     Verifies that:
@@ -185,7 +185,7 @@ def test_generate_coach_insights_for_team_drives_all_three_generators():
          patch("bot.services.coach_insights.date") as mock_date:
         mock_date.today.return_value = date(2026, 5, 1)
         mock_date.fromisoformat.side_effect = date.fromisoformat
-        new_count = health_monitor._generate_coach_insights_for_team(
+        new_count = await health_monitor._generate_coach_insights_for_team(
             "uchicago_baseball"
         )
 

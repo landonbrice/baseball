@@ -140,6 +140,75 @@ def compute_plan_health_rolling(days: int = 7) -> dict:
     }
 
 
+def compute_program_aware_canary(days: int = 7) -> dict:
+    """Plan 8 / D2 — canary metric for the program-aware rollout.
+
+    Reads daily_entries.plan_generated.source over the last N days for
+    pitchers whose feature_flags.program_aware_plan_gen=True. Returns
+    {total, program_prescribed, rate}:
+      - total: number of daily_entries rows (over `days` days) for flag-enabled pitchers
+      - program_prescribed: subset where plan_generated.source == 'program_prescribed'
+      - rate: program_prescribed / total (or None when total == 0)
+
+    `rate < 0.8` is the digest's regression threshold — when the path
+    works the rate should be ~1.0 (every check-in routes through and
+    enriches successfully). A lower rate means structural debt is
+    surfacing (PR #29 caught one such gap).
+
+    Sourced from daily_entries because every successful program-aware
+    compose writes source='program_prescribed' (PR #29's fix promotes
+    source explicitly). Legacy fallbacks write source='python_fallback'
+    or 'llm_enriched' — those count as ATTEMPTS that fell through.
+    """
+    # Identify pitchers with the flag ON. Read once; tolerate failures
+    # per-pitcher so a single bad row doesn't crash the digest.
+    flag_on_ids: list[str] = []
+    try:
+        all_pitchers = _db.list_pitchers()
+    except Exception:
+        logger.warning("compute_program_aware_canary: list_pitchers failed", exc_info=True)
+        return {"total": 0, "program_prescribed": 0, "rate": None}
+
+    for pitcher in all_pitchers or []:
+        pid = pitcher.get("pitcher_id")
+        if not pid:
+            continue
+        try:
+            if _db.get_feature_flag(pid, "program_aware_plan_gen"):
+                flag_on_ids.append(pid)
+        except Exception:
+            continue  # per-pitcher failure — skip without crashing
+
+    if not flag_on_ids:
+        return {"total": 0, "program_prescribed": 0, "rate": None}
+
+    cutoff_date = (datetime.now(CHICAGO_TZ).date() - timedelta(days=days)).isoformat()
+
+    try:
+        resp = (_db.get_client().table("daily_entries")
+                .select("plan_generated")
+                .in_("pitcher_id", flag_on_ids)
+                .gte("date", cutoff_date)
+                .execute())
+    except Exception:
+        logger.warning("compute_program_aware_canary: daily_entries query failed",
+                       exc_info=True)
+        return {"total": 0, "program_prescribed": 0, "rate": None}
+
+    rows = resp.data or []
+    total = len(rows)
+    program_prescribed = sum(
+        1 for r in rows
+        if (r.get("plan_generated") or {}).get("source") == "program_prescribed"
+    )
+    rate = program_prescribed / total if total else None
+    return {
+        "total": total,
+        "program_prescribed": program_prescribed,
+        "rate": rate,
+    }
+
+
 def compute_whoop_health(date: str = None) -> dict:
     """Check which linked pitchers have a whoop_daily row for today.
 
@@ -226,7 +295,7 @@ def compute_weekly_narrative_health() -> dict | None:
     }
 
 
-def compute_daily_digest(date: str = None) -> dict:
+async def compute_daily_digest(date: str = None) -> dict:
     """Compose the full daily health snapshot.
 
     Plan 7 / A4 side-effect: after computing the snapshot we trigger the
@@ -235,6 +304,13 @@ def compute_daily_digest(date: str = None) -> dict:
     so multiple digest runs within the same Chicago day are idempotent.
     Failures inside the generator are caught + logged so the digest pipeline
     never breaks.
+
+    Plan 8 / C2: insight generation is now ``async`` because each NEW
+    insertion (post-dedup) is sent through ``polish_insight_body`` for an
+    LLM body rewrite before insert. ``compute_daily_digest`` therefore became
+    async — the four call sites (bot/main.py x2, api/routes.py admin_health,
+    Guardian existing_health collector) all run in async contexts and were
+    updated to ``await``.
     """
     digest = {
         "plan_health": compute_plan_health(date),
@@ -249,7 +325,7 @@ def compute_daily_digest(date: str = None) -> dict:
     # extends naturally. Try/except scoped tight so insight failures never
     # surface to the digest message.
     try:
-        new_count = _generate_coach_insights_for_team("uchicago_baseball")
+        new_count = await _generate_coach_insights_for_team("uchicago_baseball")
         if new_count:
             logger.info("Plan 7 / A4: generated %d coach insights for uchicago_baseball", new_count)
     except Exception as e:
@@ -258,7 +334,7 @@ def compute_daily_digest(date: str = None) -> dict:
     return digest
 
 
-def _generate_coach_insights_for_team(team_id: str) -> int:
+async def _generate_coach_insights_for_team(team_id: str) -> int:
     """Plan 7 / A4: generate drift / mismatch / completion insights for every
     active program / pitcher / team_assigned_block in the team.
 
@@ -266,8 +342,11 @@ def _generate_coach_insights_for_team(team_id: str) -> int:
     a Chicago day via category + pitcher_id (or block_id) + created_at
     dedup at insert time.
 
-    Synchronous — all v1 generators are rule-based. Plan 8 (LLM polish) will
-    introduce its own async entry point at that time, not before.
+    Plan 8 / C2: now async — each insight that survives the dedup gate is
+    sent through :func:`bot.services.coach_insights.polish_insight_body` for
+    an LLM body rewrite BEFORE insert. Polish failure falls back to the
+    rule-based body (no exception). Dedup-skipped insights NEVER reach
+    polish (cost-bounded).
     """
     from datetime import date as _date
     from bot.services import coach_insights, team_scope
@@ -312,6 +391,10 @@ def _generate_coach_insights_for_team(team_id: str) -> int:
             ):
                 continue
             sug["team_id"] = team_id
+            # Plan 8 / C2: polish AFTER dedup, BEFORE insert. Cost-bounded —
+            # never polish an insight we won't insert. Polish failure is a
+            # passthrough; never raises out of this call.
+            sug = await coach_insights.polish_insight_body(sug)
             try:
                 _db.insert_coach_suggestion(sug)
                 new_count += 1
@@ -340,6 +423,8 @@ def _generate_coach_insights_for_team(team_id: str) -> int:
             mis = None
         if mis and not _db.suggestion_exists_for_today(pitcher_id, "program_flag_mismatch"):
             mis["team_id"] = team_id
+            # Plan 8 / C2: polish AFTER dedup, BEFORE insert.
+            mis = await coach_insights.polish_insight_body(mis)
             try:
                 _db.insert_coach_suggestion(mis)
                 new_count += 1
@@ -379,6 +464,8 @@ def _generate_coach_insights_for_team(team_id: str) -> int:
             continue
         # team_id was already set by the generator from the row; make sure.
         comp["team_id"] = comp.get("team_id") or team_id
+        # Plan 8 / C2: polish AFTER dedup, BEFORE insert.
+        comp = await coach_insights.polish_insight_body(comp)
         try:
             _db.insert_coach_suggestion(comp)
             new_count += 1
@@ -494,6 +581,28 @@ def format_digest_message(digest: dict, guardian_observations: list[dict] | None
             if narrative.get("missing_pitchers"):
                 ids = ", ".join(narrative["missing_pitchers"][:5])
                 lines.append(f"     Missing: {ids}")
+
+    # Plan 8 / D2: program-aware canary. Hidden when no flag-enabled pitchers
+    # have any check-ins in the window (keeps the digest quiet before rollout
+    # and during off-days). Threshold matches the rollout's expected steady
+    # state of ~1.0: <0.8 warns, <0.6 escalates to critical.
+    try:
+        canary = compute_program_aware_canary(days=7)
+    except Exception as e:  # never let the canary crash the digest
+        logger.error("compute_program_aware_canary failed in digest: %s", e, exc_info=True)
+        canary = {"total": 0, "program_prescribed": 0, "rate": None}
+    if canary.get("total", 0) > 0:
+        rate = canary.get("rate")
+        rate_pct = round(rate * 100) if rate is not None else 0
+        line = (
+            f"📊 Program-path canary (7d): "
+            f"{canary['program_prescribed']}/{canary['total']} → {rate_pct}%"
+        )
+        if rate is not None and rate < 0.6:
+            line += " 🚨 CRITICAL"  # <60% — something is structurally broken
+        elif rate is not None and rate < 0.8:
+            line += " ⚠️ regressing"
+        lines.append(line)
 
     # System Guardian summary section (V1 acceptance #7). Only appended when
     # the caller passed normalized observations — preserves the pre-Guardian

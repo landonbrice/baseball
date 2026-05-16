@@ -101,6 +101,7 @@ export default function Insights() {
                       onAccept={() => handleAccept(s.suggestion_id)}
                       onDismiss={() => handleDismiss(s.suggestion_id)}
                       onDefer={handleDefer}
+                      onActionDone={refetch}
                     />
                   ))}
                 </div>

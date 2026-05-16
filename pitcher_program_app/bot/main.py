@@ -734,7 +734,7 @@ async def _send_health_digest(context) -> None:
         from bot.services.health_monitor import compute_daily_digest, format_digest_message
         from bot.config import ADMIN_TELEGRAM_CHAT_ID
 
-        digest = compute_daily_digest()
+        digest = await compute_daily_digest()
 
         # Guardian: run the existing_health collector, persist each observation,
         # and pass the in-memory list to the digest formatter for the
@@ -810,7 +810,7 @@ async def healthcheck_command(update, context):
         return
     try:
         from bot.services.health_monitor import compute_daily_digest, format_digest_message
-        digest = compute_daily_digest()
+        digest = await compute_daily_digest()
         message = format_digest_message(digest)
         await update.message.reply_text(message)
     except Exception as e:

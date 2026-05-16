@@ -9,6 +9,7 @@ import EditorialState from '../components/shell/EditorialState'
 import BlockCard from '../components/programs/BlockCard'
 import CreateProgramSlideOver from '../components/programs/CreateProgramSlideOver'
 import PlayerBuiltProgramsStrip from '../components/team-programs/PlayerBuiltProgramsStrip'
+import TemplateResearchEditor from '../components/team-programs/TemplateResearchEditor'
 import { TODAY } from '../utils/formatToday'
 
 /**
@@ -27,12 +28,18 @@ export default function TeamPrograms() {
   const toast = useToast()
   const { data: activeData, loading: activeLoading, error: activeError, refetch: refetchActive } =
     useCoachApi('/api/coach/team-programs/active')
-  const { data: templatesData, loading: templatesLoading, error: templatesError } =
-    useCoachApi('/api/coach/programs/templates')
+  const {
+    data: templatesData,
+    loading: templatesLoading,
+    error: templatesError,
+    refetch: refetchTemplates,
+  } = useCoachApi('/api/coach/programs/templates')
   const { data: recentData, loading: recentLoading, error: recentError } =
     useCoachApi('/api/coach/programs/recent-player-built?limit=20')
 
   const [showCreate, setShowCreate] = useState(false)
+  // Plan 8 / C3 — null when closed; the template row when the editor is open.
+  const [researchEditor, setResearchEditor] = useState(null)
 
   const active = activeData?.blocks || []
   const templates = templatesData?.templates || []
@@ -186,6 +193,14 @@ export default function TeamPrograms() {
                         </div>
                         <button
                           type="button"
+                          onClick={() => setResearchEditor(t)}
+                          data-testid={`edit-research-${t.block_template_id}`}
+                          className="font-ui text-meta font-semibold text-maroon hover:text-maroon-ink underline flex-shrink-0"
+                        >
+                          Edit research
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => setShowCreate(true)}
                           className="font-ui text-meta font-semibold text-bone bg-maroon px-2.5 py-1.5 rounded-[3px] hover:bg-maroon-ink flex-shrink-0"
                         >
@@ -221,6 +236,23 @@ export default function TeamPrograms() {
           <CreateProgramSlideOver
             library={slideOverLibrary}
             onClose={() => setShowCreate(false)}
+          />
+        </>
+      )}
+
+      {researchEditor && (
+        <>
+          <div className="fixed inset-0 bg-black/20 z-40" onClick={() => setResearchEditor(null)} />
+          <TemplateResearchEditor
+            template={researchEditor}
+            onClose={() => setResearchEditor(null)}
+            onSaved={() => {
+              // Refetch so subsequent saves see fresh attached ids; the row
+              // currently doesn't render a count but a future enhancement
+              // (research_doc_ids.length pill) will read this list.
+              refetchTemplates?.()
+              setResearchEditor(null)
+            }}
           />
         </>
       )}
