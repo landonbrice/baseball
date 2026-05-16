@@ -165,3 +165,50 @@ def test_parse_llm_output_malformed_json_in_ready():
     payload = "READY_TO_GENERATE\n{not json"
     with pytest.raises(ValueError, match="json"):
         sock.parse_llm_output(payload)
+
+
+def test_parse_llm_output_ready_tolerates_preamble():
+    """Regression: DeepSeek sometimes prefixes the marker with a recap line
+    ('Got it. Starting immediately...\\n\\nREADY_TO_GENERATE {...}'). A strict
+    startswith check would leak the raw token into the chat UI and the
+    conversation would never advance to Preview — observed live 2026-05-16."""
+    from bot.services import program_builder_socratic as sock
+    payload = (
+        "Got it. Starting immediately, dropping the old maintenance phase.\n\n"
+        'READY_TO_GENERATE {"chosen_template_id": "longtoss_ramp_6wk_v1", "tuned_spec": {}}'
+    )
+    parsed = sock.parse_llm_output(payload)
+    assert parsed["kind"] == "ready"
+    assert parsed["chosen_template_id"] == "longtoss_ramp_6wk_v1"
+    assert parsed["tuned_spec"] == {}
+
+
+def test_parse_llm_output_ready_tolerates_trailing_text():
+    from bot.services import program_builder_socratic as sock
+    payload = (
+        'READY_TO_GENERATE {"chosen_template_id": "tpl_a", "tuned_spec": {"weeks": 10}}'
+        " — all set!"
+    )
+    parsed = sock.parse_llm_output(payload)
+    assert parsed["kind"] == "ready"
+    assert parsed["chosen_template_id"] == "tpl_a"
+    assert parsed["tuned_spec"] == {"weeks": 10}
+
+
+def test_parse_llm_output_ready_to_author_tolerates_preamble():
+    from bot.services import program_builder_socratic as sock
+    payload = (
+        "Drafted the template you asked for.\n\n"
+        'READY_TO_AUTHOR {"block_template_id": "custom_v1", "name": "Custom"}'
+    )
+    parsed = sock.parse_llm_output(payload)
+    assert parsed["kind"] == "ready_to_author"
+    assert parsed["template"]["block_template_id"] == "custom_v1"
+
+
+def test_parse_llm_output_marker_without_json_raises():
+    """If the LLM emits the marker word but no JSON object, raise ValueError so
+    the route surfaces a 400 instead of relaying the token to the user."""
+    from bot.services import program_builder_socratic as sock
+    with pytest.raises(ValueError):
+        sock.parse_llm_output("I'll output READY_TO_GENERATE when ready...")
