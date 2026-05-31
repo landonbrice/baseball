@@ -1,0 +1,292 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Button stories > renders <AllVariants> without crashing and matches snapshot 1`] = `
+<div>
+  <div
+    class="flex flex-wrap items-center gap-3"
+  >
+    <button
+      class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium font-sans transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary-ink h-9 px-4"
+      type="button"
+    >
+      Default
+    </button>
+    <button
+      class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium font-sans transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-secondary text-secondary-foreground hover:bg-muted h-9 px-4"
+      type="button"
+    >
+      Secondary
+    </button>
+    <button
+      class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium font-sans transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-card text-foreground hover:bg-muted h-9 px-4"
+      type="button"
+    >
+      Outline
+    </button>
+    <button
+      class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium font-sans transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 text-foreground hover:bg-muted h-9 px-4"
+      type="button"
+    >
+      Ghost
+    </button>
+    <button
+      class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium font-sans transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-destructive text-destructive-foreground hover:opacity-90 h-9 px-4"
+      type="button"
+    >
+      Destructive
+    </button>
+    <button
+      class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium font-sans transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 text-primary underline-offset-4 hover:underline h-9 px-4"
+      type="button"
+    >
+      Link
+    </button>
+  </div>
+</div>
+`;
+
+exports[`Button stories > renders <Default> without crashing and matches snapshot 1`] = `
+<div>
+  <button
+    class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium font-sans transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary-ink h-9 px-4"
+    type="button"
+  >
+    Generate plan
+  </button>
+</div>
+`;
+
+exports[`Button stories > renders <Destructive> without crashing and matches snapshot 1`] = `
+<div>
+  <button
+    class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium font-sans transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-destructive text-destructive-foreground hover:opacity-90 h-9 px-4"
+    type="button"
+  >
+    Archive program
+  </button>
+</div>
+`;
+
+exports[`Button stories > renders <Ghost> without crashing and matches snapshot 1`] = `
+<div>
+  <button
+    class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium font-sans transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 text-foreground hover:bg-muted h-9 px-4"
+    type="button"
+  >
+    Skip
+  </button>
+</div>
+`;
+
+exports[`Button stories > renders <Link> without crashing and matches snapshot 1`] = `
+<div>
+  <button
+    class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium font-sans transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 text-primary underline-offset-4 hover:underline h-9 px-4"
+    type="button"
+  >
+    Why this plan?
+  </button>
+</div>
+`;
+
+exports[`Button stories > renders <Outline> without crashing and matches snapshot 1`] = `
+<div>
+  <button
+    class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium font-sans transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-card text-foreground hover:bg-muted h-9 px-4"
+    type="button"
+  >
+    View program
+  </button>
+</div>
+`;
+
+exports[`Button stories > renders <Secondary> without crashing and matches snapshot 1`] = `
+<div>
+  <button
+    class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium font-sans transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-secondary text-secondary-foreground hover:bg-muted h-9 px-4"
+    type="button"
+  >
+    Save draft
+  </button>
+</div>
+`;
+
+exports[`Button stories > renders <Sizes> without crashing and matches snapshot 1`] = `
+<div>
+  <div
+    class="flex items-center gap-3"
+  >
+    <button
+      class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md font-medium font-sans transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary-ink h-8 px-3 text-xs"
+      type="button"
+    >
+      Small
+    </button>
+    <button
+      class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium font-sans transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary-ink h-9 px-4"
+      type="button"
+    >
+      Medium
+    </button>
+    <button
+      class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium font-sans transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary-ink h-10 px-6"
+      type="button"
+    >
+      Large
+    </button>
+  </div>
+</div>
+`;
+
+exports[`Card stories > renders <Basic> without crashing and matches snapshot 1`] = `
+<div>
+  <div
+    class="bg-card text-card-foreground rounded-lg border border-border shadow-sm w-80"
+  >
+    <div
+      class="flex flex-col gap-1 p-4"
+    >
+      <h3
+        class="font-serif font-bold text-foreground text-lg"
+      >
+        Today · Bullpen
+      </h3>
+      <p
+        class="text-sm text-muted-foreground"
+      >
+        15 pitches · 70% intent · FB/CH mix
+      </p>
+    </div>
+    <div
+      class="p-4 pt-0"
+    >
+      <p
+        class="text-sm text-foreground"
+      >
+        Light catch play, then a controlled pen. Stop if anything sharpens.
+      </p>
+    </div>
+    <div
+      class="flex items-center p-4 pt-0 gap-2"
+    >
+      <button
+        class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md font-medium font-sans transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary-ink h-8 px-3 text-xs"
+        type="button"
+      >
+        Start
+      </button>
+      <button
+        class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md font-medium font-sans transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 text-foreground hover:bg-muted h-8 px-3 text-xs"
+        type="button"
+      >
+        Adjust
+      </button>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`Card stories > renders <WithFlag> without crashing and matches snapshot 1`] = `
+<div>
+  <div
+    class="bg-card text-card-foreground rounded-lg border border-border shadow-sm w-80"
+  >
+    <div
+      class="flex flex-col gap-1 p-4"
+    >
+      <div
+        class="flex items-center justify-between gap-2"
+      >
+        <h3
+          class="font-serif font-bold text-foreground text-lg"
+        >
+          Lucien Reed
+        </h3>
+        <span
+          class="inline-flex items-center rounded-sm px-2 py-0.5 font-sans text-[10px] font-semibold uppercase tracking-[0.12em] bg-warning/15 text-warning"
+        >
+          Yellow
+        </span>
+      </div>
+      <p
+        class="text-sm text-muted-foreground"
+      >
+        Reliever (short) · ulnar nerve watch
+      </p>
+    </div>
+    <div
+      class="p-4 pt-0"
+    >
+      <p
+        class="text-sm text-muted-foreground"
+      >
+        AF 7d · 6.2 · trending flat
+      </p>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`FlagPill stories > renders <AllLevels> without crashing and matches snapshot 1`] = `
+<div>
+  <div
+    class="flex items-center gap-3"
+  >
+    <span
+      class="inline-flex items-center rounded-sm px-2 py-0.5 font-sans text-[10px] font-semibold uppercase tracking-[0.12em] bg-success/12 text-success"
+    >
+      Green
+    </span>
+    <span
+      class="inline-flex items-center rounded-sm px-2 py-0.5 font-sans text-[10px] font-semibold uppercase tracking-[0.12em] bg-warning/15 text-warning"
+    >
+      Yellow
+    </span>
+    <span
+      class="inline-flex items-center rounded-sm px-2 py-0.5 font-sans text-[10px] font-semibold uppercase tracking-[0.12em] bg-danger/12 text-danger"
+    >
+      Red
+    </span>
+  </div>
+</div>
+`;
+
+exports[`FlagPill stories > renders <Green> without crashing and matches snapshot 1`] = `
+<div>
+  <span
+    class="inline-flex items-center rounded-sm px-2 py-0.5 font-sans text-[10px] font-semibold uppercase tracking-[0.12em] bg-success/12 text-success"
+  >
+    Green
+  </span>
+</div>
+`;
+
+exports[`FlagPill stories > renders <Red> without crashing and matches snapshot 1`] = `
+<div>
+  <span
+    class="inline-flex items-center rounded-sm px-2 py-0.5 font-sans text-[10px] font-semibold uppercase tracking-[0.12em] bg-danger/12 text-danger"
+  >
+    Red
+  </span>
+</div>
+`;
+
+exports[`FlagPill stories > renders <WithSuffix> without crashing and matches snapshot 1`] = `
+<div>
+  <span
+    class="inline-flex items-center rounded-sm px-2 py-0.5 font-sans text-[10px] font-semibold uppercase tracking-[0.12em] bg-warning/15 text-warning"
+  >
+    Yellow · tissue 2.3
+  </span>
+</div>
+`;
+
+exports[`FlagPill stories > renders <Yellow> without crashing and matches snapshot 1`] = `
+<div>
+  <span
+    class="inline-flex items-center rounded-sm px-2 py-0.5 font-sans text-[10px] font-semibold uppercase tracking-[0.12em] bg-warning/15 text-warning"
+  >
+    Yellow
+  </span>
+</div>
+`;

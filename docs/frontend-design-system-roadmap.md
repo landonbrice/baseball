@@ -49,8 +49,8 @@ pitcher_program_app/
 
 | Phase | Name | Risk | Depends on | Status |
 |------|------|------|-----------|--------|
-| 0.1 | `packages/ui` foundation — shadcn tokens + theming + seed primitives + contract test | none (additive) | — | **in progress** |
-| 0.2 | Storybook + brand-switcher toolbar + visual-regression snapshots | none (additive) | 0.1 | todo |
+| 0.1 | `packages/ui` foundation — shadcn tokens + theming + seed primitives + contract test | none (additive) | — | **done** (PR #33, 64 tests) |
+| 0.2 | Storybook 10 + brand-switcher toolbar + story-driven DOM snapshot regression guard | none (additive) | 0.1 | **in progress** |
 | 0.3 | Fill Cue brand tokens from `brand-guidelines.md` | none | Track A, 0.1 | todo (needs owner) |
 | 1.0 | Convergence: pnpm workspace; mini-app → React 19 + Tailwind 4 + Vite/Vitest/Router bumps; `shared/` → package | **high** (touches live mini-app) | 0.1 | todo |
 | 1.1 | Tokenize mini-app: eliminate ~295 hex; both apps consume `packages/ui` tokens | med | 1.0 | todo |
@@ -88,5 +88,5 @@ Canonical = **coach-app editorial palette** (the intentional redesign brand). mi
 ## Open questions / parked
 
 - shadcn semantic-token naming vs the editorial vocabulary (`charcoal`/`graphite`/`cream`) — bridged: semantic tokens are canonical in `packages/ui`; editorial names kept as aliases during migration.
-- Storybook visual-regression host (Chromatic vs Playwright snapshots) — decide at 0.2.
+- **Visual-regression host — DECIDED (0.2):** this sandbox has no browser (no Chrome/Playwright), so pixel-diff (Chromatic/Playwright) can't run here and Chromatic would need an owner-supplied token. 0.2 ships **story-driven DOM snapshots** via `composeStories` + Vitest — the headless regression guard that runs in CI today. Pixel-diff layers on top of the *same stories* later with zero rework (decide host when a browser/CI runner + token are available).
 - Deployment topology (4.2) — decide once Cue is real.
