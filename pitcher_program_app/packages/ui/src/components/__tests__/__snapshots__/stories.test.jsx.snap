@@ -200,7 +200,7 @@ exports[`Card stories > renders <WithFlag> without crashing and matches snapshot
         <h3
           class="font-serif font-bold text-foreground text-lg"
         >
-          Lucien Reed
+          Sample Pitcher
         </h3>
         <span
           class="inline-flex items-center rounded-sm px-2 py-0.5 font-sans text-[10px] font-semibold uppercase tracking-[0.12em] bg-warning/15 text-warning"
@@ -211,7 +211,7 @@ exports[`Card stories > renders <WithFlag> without crashing and matches snapshot
       <p
         class="text-sm text-muted-foreground"
       >
-        Reliever (short) · ulnar nerve watch
+        Reliever (short) · sample readiness note
       </p>
     </div>
     <div

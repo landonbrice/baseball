@@ -42,10 +42,10 @@ export const WithFlag = {
     <Card className="w-80">
       <CardHeader>
         <div className="flex items-center justify-between gap-2">
-          <CardTitle className="text-lg">Lucien Reed</CardTitle>
+          <CardTitle className="text-lg">Sample Pitcher</CardTitle>
           <FlagPill level="yellow" />
         </div>
-        <CardDescription>Reliever (short) · ulnar nerve watch</CardDescription>
+        <CardDescription>Reliever (short) · sample readiness note</CardDescription>
       </CardHeader>
       <CardContent>
         <p className="text-sm text-muted-foreground">AF 7d · 6.2 · trending flat</p>
