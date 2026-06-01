@@ -56,7 +56,7 @@ Old style doc.
     assert fm["applies_to"] == []
     assert fm["triggers"] == []
     assert fm["priority"] == "standard"
-    assert fm["contexts"] == ["plan_gen", "coach_chat", "morning", "daily_plan_why"]
+    assert fm["contexts"] == ["plan_gen", "coach_chat", "morning", "daily_plan_why", "program_gen"]
 
 
 def test_should_fire_research_non_green():

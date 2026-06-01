@@ -670,4 +670,61 @@ Ships:
 - [x] Audit run committed; Phase 1 has a triage list
 - [x] Golden ACWR fixture pinned (recon-sourced; extraction script ready for richer source)
 - [x] Full suite green
-- [ ] **Operator decision needed** before Phase 1.2: walk the 324 unresolved-name list (see audit report) and decide per row: alias-to-add | new-exercise | noise. Default behavior if not done: Phase 1's `velocity_progression_model.md` may reference names that fail `resolve_alias` at generation time, surfaced as `UnknownExerciseAlias` from Phase 2.3 guardrail #7.
+- [x] **Operator chose lazy alias surfacing** — proceed with Phase 1, let guardrail #7 fail hard at generation time on unknown exercise names per the plan's risk mitigation.
+
+---
+
+## Phase 1 status (2026-06-01) — DONE
+
+### Phase 1.1 (PitcherProgram schema) — done
+
+- `bot/services/program_engine/__init__.py` — package created.
+- `bot/services/program_engine/schemas.py` — Pydantic v2 models: `ThrowingFiveTuple`, `LiftingExercise`, `LiftingBlock`, `Day`, `Phase`, `Citation`, `Rationale`, `ProgressionState`, `PitcherProgram`. `extra="forbid"` everywhere. Day shape is additive over migration-020 legacy contract (`day_index`/`template_key`/`date`/`anchor_kind?`) so existing readers keep working.
+- `docs/program_engine_content_schema.md` — human-facing schema reference with worked examples, hierarchy diagram, additive-contract explanation.
+- `tests/test_program_engine_schemas.py` — 27 tests: atom-level bounds, legacy-shape acceptance, extra-key rejection, freeform reps notation, superset-group regex, lower-snake phase_id validator, unique day indices, JSON round-trip, enum constraints, ProgressionState defaults.
+
+### Phase 1.4 (frontmatter on "backwards" docs) — done
+
+Five generative docs that were `coach_chat`-only now opt into `program_gen`:
+- `FINAL_research_base.md` — priority bumped `reference → critical` (~"80% of a compilable engine" per recon Front 3)
+- `Gemeni Researching Lifting.md` — `reference → standard`
+- `driveline_lifting_programs.md` — `reference → standard`
+- `driveline_throwing_program.md` — `reference → critical` (16-week phase arc + day-type taxonomy)
+- `research_gap_analysis.md` — `reference → standard` (GAP 3 progression rules)
+
+Pure-physiology docs (`recovery_physiology.md`, etc.) left as-is per plan §1.4.
+
+### Phase 1.3 (research_resolver program_gen context) — done
+
+- `ALL_CONTEXTS` extended with `"program_gen"`.
+- `resolve_for_program_gen(pitcher_profile, pitcher_context, goal_spec, max_chars)` ships per plan signature: returns `{docs, templates, exemplars, knowledge_version, combined, loaded_doc_ids}`.
+- Selection rule: doc must opt into `program_gen` context, then keep if (triggers ∩ goal_tags) OR (priority=critical) OR (applies_to ∩ injury areas) OR (applies_to includes "any" + caller has tags). Sorted by priority then doc_id.
+- Templates pulled from live `block_library` filtered by `goal_tags` overlap.
+- Exemplars pulled from `data/knowledge/golden/*.xlsx` via lazy openpyxl loader; missing dir → empty list, never raises.
+- `knowledge_version` = deterministic SHA-1 over normalized (docs + templates + exemplars). Stable across calls; changes when any included content changes (the "living-knowledge proof" the plan's Phase 5.3 demo criterion #3 lives on).
+- Observability: every call logs to `research_load_log` with `context='program_gen'`.
+- `tests/test_research_resolver_program_gen_context.py` — 11 tests including the living-knowledge-proof test (mutate a synthetic doc → kv changes), goal-tag filtering, critical-baseline surfacing, budget bound, coach-chat-only doc exclusion, observability spy.
+- `tests/test_research_resolver.py` updated (`ALL_CONTEXTS` default expectation) — no regression.
+
+### Phase 1.2 (velocity knowledge pack) — done
+
+- **New research doc** `data/knowledge/research/velocity_progression_model.md` — authoritative reference for the 12-week velocity arc. 9 sections: phase arc with intent/throws/distance per phase, the ACWR governor with the weekly G curve filled in, throwing day-type taxonomy, lifting-half unified-calendar mapping, flag modifications per Phase 1 trajectory triage, "the drive" candidate policies, tunable knobs (target velocity gain, deload preference, mound week, lifting domain, bullpen volume, weekly throws band), 9 citations, what's NOT specified. Tagged `priority: critical`, `contexts: [program_gen, coach_chat, daily_plan_why]`.
+- **Migration `033_seed_velocity_knowledge_pack.sql`** — checked in to `pitcher_program_app/scripts/migrations/`. Idempotent UPDATE keyed by `block_template_id` PK with a `DO $$ … RAISE EXCEPTION` verification block that fails loudly if the row vanished or the new keys didn't land. Applied via Supabase MCP `apply_migration`.
+- **Live `block_library.velocity_12wk_v1` enrichments:**
+  - `content` keeps its 4-phase arc + gains `phase_gates` (mound/pulldowns/live-ABs), `acwr_governor` (band 0.8-1.3, hard cap 1.5, the full 12-week G reference curve, verified daily anchor), `invariant_warmup_ladder` (3-rung 45→60→75ft @ 50/60/70%), `day_type_taxonomy` (10 day types), `lifting_integration` (per-phase pairing with rest_s + intensity bands, pull:push ≥ 2, FPM ≥ 4/7), `bullpen_progression_throws` ([15,20,25,30,40,45,50]), `engine_version='v1'`.
+  - `tunable_parameters_schema` populated with 7 operator-visible knobs.
+  - `modification_rules_json` populated with flag deltas (GREEN/YELLOW/RED/CRITICAL_RED), banked-vs-planned drift threshold (0.75 floor, 14d window), FPM gate.
+  - `research_doc_ids` populated with all 9 citations the doc enumerates.
+
+### Full test suite
+
+`pytest tests/ --ignore=tests/test_coach_chat.py` → **937 passed, 8 skipped, 0 failures** (+38 new Phase 1 tests: 27 schema + 11 resolver). No regressions.
+
+### Phase 2 entry conditions
+
+- [x] Schema for the program artifact pinned via Pydantic + tests.
+- [x] Living knowledge pack populated; resolver returns it for `goal=velocity`.
+- [x] Golden ACWR fixture available as Phase 2.1 calibration target.
+- [x] Alias resolver available for Phase 2.3 guardrail #7.
+
+Phase 2 (guardrail plane) can start immediately.

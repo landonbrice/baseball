@@ -11,9 +11,10 @@ triggers:
   - long_toss
   - velo
 phase: any
-priority: reference
+priority: critical
 contexts:
   - coach_chat
+  - program_gen
 summary: >
   Driveline throwing development protocol — plyocare progression, long toss structure,
   pulldown integration, and in-season maintenance approach.
