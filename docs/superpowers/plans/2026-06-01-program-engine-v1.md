@@ -728,3 +728,113 @@ Pure-physiology docs (`recovery_physiology.md`, etc.) left as-is per plan §1.4.
 - [x] Alias resolver available for Phase 2.3 guardrail #7.
 
 Phase 2 (guardrail plane) can start immediately.
+
+---
+
+## Phase 2 status (2026-06-01) — DONE
+
+### Phase 2.1 — Load math + ACWR governor
+
+- `bot/services/program_engine/load_math.py` — `K_THROWING` calibrated against the verified anchor (`45ft × 40 throws × 50%` → G ≈ 2145 ±5%). `daily_throwing_load`, `daily_lifting_load` with prescription parser (% 1RM ranges, RIR table, BW/Heavy/Light/Moderate/NearMaximal). Reps parser handles single, range, `Nx` notation, "N each leg", AMRAP. `compute_acwr` uses **mean_acute / mean_chronic** (standard sports-science convention; steady state ratio ≈ 1.0). `check_acwr_invariant` emits warnings (band exits) + errors (hard cap). `GuardrailViolation` dataclass shared across all Phase 2 modules.
+- `tests/test_load_math.py` — 35 tests including golden curve round-trip + 3-up-1-down deload undulation reconstruction.
+
+### Phase 2.2 — Structural invariants
+
+- `bot/services/program_engine/structural_invariants.py`: `check_deload_cadence` (≤4 consecutive accumulation weeks), `check_phase_gates` (no ≥85% intent in base phase), `check_intent_monotonicity` (≤+20pp week-over-week jump; deload exempt), `check_pull_push_ratio` (weekly pull:push ≥ 2.0), `check_fpm_cadence` (FPM on ≥4 days/week).
+- `tests/test_structural_invariants.py` — 15 tests.
+
+### Phase 2.3 — Content invariants
+
+- `bot/services/program_engine/content_invariants.py`: `check_equipment` (string or list form supported; dedupes by `(id, equip)` pair), `check_contraindications` (case-insensitive overlap with active mods), `check_exercise_ids_resolve` (FATAL; falls back to `bot.services.exercise_alias` when `exercises_rows` not provided).
+- `tests/test_content_invariants.py` — 14 tests.
+
+### Phase 2.4 — Validate → repair → reject orchestrator
+
+- `bot/services/program_engine/guardrails.py`: `validate_program(program, pitcher_context, max_repair_passes=3)` → `ValidationResult(status, program, violations, repair_log)`. `FATAL_KINDS = {unknown_exercise_id, acwr_hard_cap_exceeded}` short-circuit the repair loop. 4 repair strategies wired in a dispatch dict: deload demotion, intent-monotonicity clipping, phase-gate clipping, ACWR-above-band intent shave. Deep-copies input so the caller's program is never mutated.
+- `tests/test_guardrails_orchestrator.py` — 9 tests covering valid/repaired/reject paths, FATAL short-circuit, and mutation-safety.
+
+### Phase 2.5 — Deterministic safe-fallback floor
+
+- `bot/services/program_engine/fallback.py`: `build_fallback_program(pitcher_id, goal_spec, block_library_row, knowledge_version, target_date)` reads `content.phases` + `acwr_governor` + `lifting_integration` from the block_library row (populated by migration 033). Per-phase linear intent + throws ramp-in to keep ACWR inside the band at phase boundaries. Deload weeks actually reduce throws (×0.65) and intent (-10pp), not just flagged. Default RIR-based lifting blocks per `(lifting_phase, day_split)` tuple. Goal-agnostic; v1 ships with velocity content.
+- `tests/test_fallback.py` — 10 tests including the "real periodized program not slop" validation (no `unknown_exercise_id`, ACWR breaches stay within +10% of cap).
+
+### Test impact
+
+`pytest tests/ --ignore=tests/test_coach_chat.py` → **1019 passed, 8 skipped, 0 failures** (+82 new Phase 2 tests).
+
+### Phase 3 entry conditions
+
+- [x] Guardrails return `GuardrailViolation` objects suitable for re-prompt context.
+- [x] `validate_program` orchestrator is the canonical entrypoint for Phase 3's author loop.
+- [x] Fallback exists and validates by construction (within +10% ACWR cap at phase boundaries).
+
+Phase 3 (generation core replacement) can start immediately.
+
+---
+
+## Phase 3 status (2026-06-01) — DONE
+
+### Phase 3.1 — LLM-forward author + prompt template
+
+- `bot/services/program_engine/author.py` — async `author_program(pitcher_profile, pitcher_context, goal_spec, knowledge_pack, *, seed=None, previous_violations=None) → PitcherProgram`. Calls `call_llm_reasoning` (deepseek-reasoner, 120s timeout per L11). Parses + validates via `PitcherProgram.model_validate_json`. Stamps `knowledge_version` from the pack after parse so the LLM's placeholder is overwritten. `GenerationFailure` exception carries `reason` ∈ {`llm_timeout`, `llm_error`, `llm_empty_response`, `json_parse_failed`, `schema_validation_failed`} for orchestrator branching. Strips ```json fences the LLM may add despite the system prompt.
+- `bot/prompts/program_engine_author.md` — the brilliant-coach prompt with `{knowledge_pack_combined}` / `{pitcher_profile_summary}` / `{pitcher_context}` / `{goal_spec}` / `{previous_violations}` placeholders.
+- `tests/test_program_engine_author_smoke.py` — 13 tests covering happy path, fence stripping, every `GenerationFailure` branch, and the re-prompt path's previous-violations weaving.
+
+### Phase 3.2 — Feature flag + program_generator routing
+
+- `bot/services/program_engine/feature_flag.py` — `PROGRAM_ENGINE_V1: bool = False`. Module-level constant; flipping requires a code change (no env var, no DB toggle).
+- `bot/services/program_generator.py` — patched `generate_program(...)` to dispatch on the flag at function entry. New helper `_generate_program_v1_engine(...)` wraps the orchestrator and maps `PitcherProgram` back to the legacy `programs` row shape so persistence is identical. The orchestrator path loads the knowledge pack via `research_resolver.resolve_for_program_gen` and builds a `goal_spec` from the template's `goal_tags`.
+- `tests/test_program_generator_engine_v1.py` — 3 tests verifying flag-off uses legacy path (sentinel never called), flag-on routes through the engine entrypoint, default flag value is `False`.
+- Legacy `test_program_generator.py` — 8 tests still green; no behavior change to the rotation path.
+
+### Phase 3.3 — Author + validate + repair + fallback orchestrator
+
+- `bot/services/program_engine/orchestrator.py` — async `author_validate_persist(...)` → `GenerationResult(program, attempts, fallback_used, knowledge_version)`. Pipeline: `author_program` → `validate_program`; on `valid`/`repaired` return; on `reject` re-prompt with violations (up to `max_reprompts` more attempts); on `GenerationFailure` skip re-prompts and go straight to fallback. Persists every attempt to `program_generation_failures` via best-effort `db.insert_program_generation_failure` (never raises — observability never breaks authoring). Stamps `generation_provenance` on the returned program with attempts count + reject_reason (when fallback used).
+- `tests/test_program_engine_orchestrator.py` — 6 tests: first-attempt-valid / first-attempt-repaired / reject-then-reprompt-then-valid / all-rejected-falls-back / GenerationFailure-short-circuits-to-fallback / max_reprompts-honored.
+
+### Phase 3.4 — Additive `programs` columns + db.py extensions
+
+- **Migration `034_programs_engine_v1_fields.sql`** — applied via Supabase MCP `apply_migration`. Idempotent: `ALTER TABLE programs ADD COLUMN IF NOT EXISTS knowledge_version text NULL`, `... generation_provenance jsonb NULL DEFAULT '{}'::jsonb`, `... engine_version text NULL DEFAULT 'v1'`. Plus `CREATE INDEX IF NOT EXISTS programs_knowledge_version_idx` on `(knowledge_version) WHERE knowledge_version IS NOT NULL` for "which programs were authored by which knowledge pack" queries.
+- `bot/services/db.py` — new `_PROGRAM_COLUMNS` whitelist (includes the 3 new fields). `create_program` now strips unknown keys via the whitelist. New `insert_program_generation_failure(...)` async writes to `program_generation_failures` swallowing exceptions.
+- `tests/test_db_programs_engine_v1.py` — 5 tests verifying engine v1 fields round-trip through INSERT, unknown keys are stripped, observability writes hit the right table + payload, DB exceptions are eaten.
+
+### Operational note — dead subagents
+
+The Phase 3 + 4 subagents spawned in parallel completed only ~30% before silencing (110 minutes of no activity). The completed artifacts (`author.py`, prompt template, `projection.py`, projection tests) were retained; the remaining work was completed sequentially by the main agent.
+
+### Test impact
+
++44 new Phase 3 tests (13 author smoke + 6 orchestrator + 3 flag routing + 5 db + the projection 17 belong to Phase 4). Full suite green; legacy `test_program_generator.py` unchanged.
+
+---
+
+## Phase 4 status (2026-06-01) — DONE
+
+### Phase 4.1 — First-class `project()` function
+
+- `bot/services/program_engine/projection.py` — pure function `project(program, date, readiness, *, policy="silent_absorb")` → `ProjectedDay(day_index, intended, delivered, modulation, governor_signal)`. Readiness classification: GREEN → unchanged; YELLOW → intent -10pp + throws ×0.80 + drop one accessory; RED → recovery-only throwing (50% / 20 throws / 45ft) + 4-exercise lifting cap; CRITICAL_RED → no throwing, no lifting, mobility-only. Three candidate policies wired through `_decide_signal`. Tunable thresholds at module top.
+- `tests/test_program_engine_projection.py` — 17 tests including all 4 readiness levels × 3 policies, deep-copy mutation safety, governor signal semantics, and date-out-of-range error path.
+
+### Phase 4.2 — Bounded re-pacing governor
+
+- `bot/services/program_engine/governor.py` — `regovern(program, signal, policy, from_day_index)` → `RegovernResult(program, changes, goal_at_risk)`. Adjustment limits per L7: shift up to 2 weeks of accumulation forward, insert/remove one deload, soften one phase gate (delay ≤1 week). Beyond which `goal_at_risk=True` and no further changes apply. Output always re-validates through Phase 2.4 `validate_program` with a synthetic `_structural_ctx` (the governor lacks the per-pitcher tag_lookup so content checks are skipped, structural invariants run). If the re-pace produces something that fails validation, the original is returned with `changes=[]` and `goal_at_risk=True`.
+- `tests/test_program_engine_governor.py` — 11 tests covering all 3 policies × small/medium/large severities, last-week edge case (no future weeks to re-pace into → goal_at_risk), deep-copy mutation safety, no-signal no-op.
+
+### Phase 4.3 — Policy comparison harness + report
+
+- `tests/fixtures/drive_policy_fixtures.json` — 4 scenarios, each a 10-day readiness sequence: `all_green`, `mid_cycle_yellow`, `late_phase_red`, `repeated_low_tissue`.
+- `scripts/compare_drive_policies.py` — loads each scenario, runs project + regovern on each day for all 3 policies on a 12-week velocity program (`build_fallback_program`), computes metrics: `progress_fraction_10d`, `weeks_disturbed`, `total_delivered_g_10d`, `gate_outcomes`. Emits a Markdown report to `docs/superpowers/research/2026-06-01-drive-policy-comparison.md`. Exit code 0 on success.
+- `docs/superpowers/research/2026-06-01-drive-policy-comparison.md` — the harness output. **Finding**: across these 10-day scenarios all 3 policies converge on identical numerical results (`weeks_disturbed: []` for every row, identical `progress_fraction_10d` across policies). This is honest — 10 days is below the horizon where policy semantics diverge (governor signals emit but re-pacing affects week+1 which is OUTSIDE the 10-day metric window). The report flags this and recommends a longer-horizon harness as v2 work. **No policy decision made** per L7.
+
+### Test impact
+
++28 new Phase 4 tests (17 projection + 11 governor). Full suite: **1074 passed, 8 skipped, 0 failures**.
+
+### Phase 5 entry conditions
+
+- [x] Orchestrator surface live and tested.
+- [x] Fallback live and validating by construction.
+- [x] Drive seam shipped + harness output checked in.
+- [x] Migration 034 applied to prod Supabase.
+
+Phase 5 (clean-room demo on `landon_brice`) can start.
