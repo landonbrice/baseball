@@ -151,7 +151,7 @@ function ExerciseCard({ exercise, expanded, onToggle, pitcherId }) {
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={e => e.stopPropagation()}
-                className="text-[11px] text-accent-blue flex-shrink-0"
+                className="text-[11px] text-accent-blue shrink-0"
               >
                 ▶ vid
               </a>

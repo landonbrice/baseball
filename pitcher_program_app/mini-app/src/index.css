@@ -1,6 +1,26 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+/* Tailwind 4 auto-scans the Vite project root (mini-app/) but not the sibling
+   shared/ workspace. BuilderSlideOver lives there and uses utility classes, so
+   declare it as an explicit source (fixes a latent v3 purge gap where shared/
+   was never in the content globs). */
+@source "../../shared/**/*.{js,jsx,ts,tsx}";
+
+/* Custom palette ported from the former tailwind.config.js theme.extend.colors.
+   Each key maps 1:1 to its v3 name, so utilities (bg-bg-secondary, text-text-muted,
+   border-bg-tertiary, text-accent-blue, *-flag-green/yellow/red) stay identical. */
+@theme {
+  --color-bg-primary: #f5f1eb;
+  --color-bg-secondary: #ffffff;
+  --color-bg-tertiary: #e4dfd8;
+  --color-text-primary: #2a1a18;
+  --color-text-secondary: #6b5f58;
+  --color-text-muted: #b0a89e;
+  --color-accent-blue: #5c1020;
+  --color-flag-green: #1D9E75;
+  --color-flag-yellow: #BA7517;
+  --color-flag-red: #A32D2D;
+}
 
 :root {
   --color-maroon:        #5c1020;
