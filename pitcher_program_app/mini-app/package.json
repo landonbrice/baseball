@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:mock": "VITE_USE_MOCKS=true VITE_TEST_PITCHER_ID=mock_pitcher vite",
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest",
@@ -25,8 +26,14 @@
     "@testing-library/user-event": "^14.6.1",
     "@vitejs/plugin-react": "^6.0.1",
     "jsdom": "^25.0.1",
+    "msw": "^2.14.6",
     "tailwindcss": "^4.2.2",
     "vite": "^8.0.4",
     "vitest": "^4.1.5"
+  },
+  "msw": {
+    "workerDirectory": [
+      "public"
+    ]
   }
 }
