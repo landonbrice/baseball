@@ -616,4 +616,58 @@ Phase 5 is the v1 done-state. A standalone target that runs the engine end-to-en
 
 ---
 
-> **Status:** Drafted 2026-06-01. Awaiting acknowledgement / corrections before `executing-plans`.
+> **Status:** Drafted 2026-06-01. **Phase 0 complete 2026-06-01** (commit on `claude/confident-hopper-JolkY`); Phase 1 next.
+
+---
+
+## Phase 0 status (2026-06-01) — DONE
+
+### Phase 0.2 (golden files) — done with documented gap
+
+Three golden assets copied into `pitcher_program_app/data/knowledge/golden/`:
+- `the_program.xlsx` — 7-tab type-matrix (from repo `past_arm_programs/The Program  (1).xlsx`)
+- `maintenance_plan.xlsx` — 2-day arm-care plan (from pitcher upload `2026-05-26_program.xlsx`, identical to repo copy)
+- `periodized_lifting.xlsx` — 3-phase periodized lifting (newer 43KB pitcher upload, supersedes the 35KB repo `2026-05-26_lifting.xlsx`)
+- `pitching_program_final.pdf` — 36pp day-type + named macrocycles
+
+**Gap (documented in `data/knowledge/golden/README.md`):** `Ramp up with Bullpen 12wk.xlsx` and `Return to mound 9wk.xlsx` exist in `past_arm_programs/` only as 1-2KB macOS Drive aliases (`BadZipFile: File is not a zip file`). Recon dossier captured the weekly G curve and one verified daily 5-tuple verbatim — that's enough for Phase 2 invariant validation, but not for full daily calibration. Operator close-the-gap procedure documented in the README (Finder → "Show Original" → save outside Drive).
+
+### Phase 0.1 (exercise alias map) — done with deviation from spec
+
+**Deviation:** the plan called for a hand-curated `data/knowledge/exercise_alias_map.json`. A live Supabase query found that **`exercises.aliases` jsonb column is already populated for all 159 rows** with the specific cases the spec called out (ex_004 RFESS → "Bulgarian split squat"; ex_020 Chest-Supported Row → "seal row"). Maintaining a duplicate JSON would create a sync problem; the Supabase column is the canonical store.
+
+Ships:
+- `bot/services/exercise_alias.py` — `resolve_alias()`, `try_resolve_alias()`, `audit_names()`, `refresh_index()`, `load_from_snapshot()`. Lazy-builds index from Supabase via `get_exercises()`; falls back to a JSON snapshot for offline tooling. Latched logging (no spam on retry).
+- `tests/test_exercise_alias.py` — 15 tests covering normalization, lookup, error semantics, snapshot reload, collision handling, Supabase-failure resilience.
+- `tests/fixtures/exercises_snapshot.json` — 159-row JSON snapshot of `exercises.aliases` for offline use.
+- `scripts/dump_exercises_snapshot.py` — regenerates the snapshot when aliases get edited live.
+- `scripts/audit_golden_alias_coverage.py` — walks every name-shaped cell in `data/knowledge/golden/*.xlsx`, classifies against the alias index, and prints unresolved names sorted by frequency for triage. Supports `--csv` + `--snapshot <path>` + `--live`.
+
+**First audit run** (committed as `docs/superpowers/research/2026-06-01-golden-alias-audit.{csv,txt}`):
+- 904 name-shaped cells across the 3 xlsx
+- **Resolved:** 92 cell-references → 38 unique canonical exercises
+- **Unresolved:** 812 cell-references → 324 unique normalized names
+
+Top unresolved are genuine missing exercises/aliases — `Pec Dribble` (13×), `Posterior slide lunge` (11×), `Skater squat` (11×), `9090 Dribble` (8×), `Lateral step down heel tap` (7×), `Hip Thrusters` (7× — likely needs alias added to ex_003), `Sumo Landmine Squat`, `Banded bench press`, `TRX Eccentric Pec lower`, etc. These either get added as aliases to existing rows or as net-new `exercises` rows. **Phase 1 work, not Phase 0** — Phase 1 walks this list with the operator and decides per-row before authoring the velocity knowledge pack.
+
+### Phase 0.3 (golden ACWR curve fixture) — done as a recon-sourced fixture
+
+**Deviation:** the plan called for `scripts/extract_golden_acwr_curve.py` to read the raw xlsx. Since the source xlsx is Drive-aliased (Phase 0.2 gap), the fixture is seeded from the recon dossier's verbatim transcript instead.
+
+Ships:
+- `tests/fixtures/golden_acwr_curve.json` — 12-week weekly G curve `[6960, 9194, 10935, 10375, 12049, 13516, 12090, 12960, 13620, 14000, 14300, 14616]` (Wks 10-11 linearly interpolated, flagged in `_meta`); verified daily anchor `(45ft, 40 throws, 50% intent → G=2145)`; deload weeks [4, 7]; ACWR band [0.8, 1.3] / hard cap 1.5; `_meta.gaps` documents the missing daily grid.
+- `scripts/extract_golden_acwr_curve.py` — wired for the FUTURE re-extraction. Looks for `data/knowledge/golden/ramp_up_with_bullpen_12wk.xlsx`; exits with a clear message if still missing. Will OVERWRITE the fixture with the full daily 5-tuple grid once the xlsx is recovered.
+- `tests/test_golden_acwr_curve.py` — 9 tests pinning the curve shape, the 3-up-1-down deload, the verified daily anchor, the ACWR band, and a sanity computation against the curve itself.
+
+### Full test suite
+
+`pytest tests/ -x --ignore=tests/test_coach_chat.py` → **899 passed, 8 skipped, 0 failures** (24 new tests, no regressions). `tests/test_coach_chat.py`'s 5 known-failing tests stay broken per the CLAUDE.md "Known Issues" pre-existing version drift — unrelated to Phase 0.
+
+### Phase 1 entry conditions
+
+- [x] Goldens copied + README provenance documented
+- [x] Alias resolver + audit tooling shipped
+- [x] Audit run committed; Phase 1 has a triage list
+- [x] Golden ACWR fixture pinned (recon-sourced; extraction script ready for richer source)
+- [x] Full suite green
+- [ ] **Operator decision needed** before Phase 1.2: walk the 324 unresolved-name list (see audit report) and decide per row: alias-to-add | new-exercise | noise. Default behavior if not done: Phase 1's `velocity_progression_model.md` may reference names that fail `resolve_alias` at generation time, surfaced as `UnknownExerciseAlias` from Phase 2.3 guardrail #7.
