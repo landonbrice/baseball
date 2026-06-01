@@ -37,7 +37,7 @@ export default function UpcomingDays({ upcoming = [], exerciseMap = {} }) {
                     {day.exercise_preview || day.label}
                   </p>
                 </div>
-                <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                <div className="flex items-center gap-2 shrink-0 ml-2">
                   {day.duration_min && (
                     <span className="text-[11px] text-text-muted">
                       {day.duration_min} min
