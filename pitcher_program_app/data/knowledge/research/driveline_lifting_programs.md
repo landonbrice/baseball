@@ -10,9 +10,10 @@ triggers:
   - strength
   - programming
 phase: any
-priority: reference
+priority: standard
 contexts:
   - coach_chat
+  - program_gen
 summary: >
   Driveline's approach to in-season and off-season lifting — set/rep schemes,
   exercise selection philosophy, and periodization templates.

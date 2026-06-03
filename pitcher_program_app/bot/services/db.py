@@ -1063,10 +1063,49 @@ def list_block_library_templates(
 
 # ---------------- Programs (spec v1) ----------------
 
+_PROGRAM_COLUMNS = frozenset({
+    "pitcher_id", "parent_template_id", "domain", "tuned_spec_json",
+    "generated_schedule_json", "start_date", "nominal_end_date",
+    "current_day_index", "held_days_count", "status", "created_by",
+    "created_by_role", "activated_at", "archived_at", "archive_reason",
+    # Migration 034 — Program Engine v1 additions
+    "knowledge_version", "generation_provenance", "engine_version",
+})
+
+
 def create_program(row: dict) -> str:
-    """Insert a programs row, return the new program_id."""
-    resp = get_client().table("programs").insert(row).execute()
+    """Insert a programs row, return the new program_id.
+
+    Whitelists keys to `_PROGRAM_COLUMNS` so unknown fields (e.g. callers
+    accidentally passing `program_id`) don't break the insert.
+    """
+    payload = {k: v for k, v in row.items() if k in _PROGRAM_COLUMNS}
+    resp = get_client().table("programs").insert(payload).execute()
     return (resp.data or [{}])[0].get("program_id")
+
+
+def insert_program_generation_failure(
+    *,
+    pitcher_id: str,
+    attempt_n: int,
+    status: str,
+    violations: list | None = None,
+    reason: str | None = None,
+) -> None:
+    """Best-effort write to `program_generation_failures` for orchestrator
+    observability. Called by `program_engine.orchestrator.author_validate_persist`
+    on every attempt (valid/repaired/reject/generation_failure)."""
+    payload = {
+        "pitcher_id": pitcher_id,
+        "attempt_number": attempt_n,
+        "validation_failure_kind": status,
+        "llm_response": {"violations": violations, "reason": reason} if (violations or reason) else None,
+    }
+    try:
+        get_client().table("program_generation_failures").insert(payload).execute()
+    except Exception:
+        # observability write must never break authoring
+        pass
 
 
 def get_program(program_id: str) -> dict | None:

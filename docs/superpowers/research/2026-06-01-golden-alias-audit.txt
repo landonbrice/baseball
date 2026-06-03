@@ -1,0 +1,671 @@
+Loaded alias index from snapshot: /home/user/baseball/pitcher_program_app/tests/fixtures/exercises_snapshot.json
+Auditing alias coverage across /home/user/baseball/pitcher_program_app/data/knowledge/golden/
+  · the_program.xlsx: 264 name-shaped cells
+  · maintenance_plan.xlsx: 51 name-shaped cells
+  · periodized_lifting.xlsx: 589 name-shaped cells
+
+=== COVERAGE ===
+  resolved   : 92 cell-references → 38 unique exercises
+  unresolved : 812 cell-references → 324 unique normalized names
+
+=== UNRESOLVED NAMES (decide per row: alias-to-add | new-exercise | noise) ===
+  (13x) 'Pec Dribble'
+        in: ['periodized_lifting.xlsx', 'the_program.xlsx']
+  (11x) 'Posterior slide lunge'
+        in: ['periodized_lifting.xlsx']
+  (11x) 'Skater squat'
+        in: ['periodized_lifting.xlsx']
+  ( 8x) 'Arm Care light'
+        also seen as: ['Arm care light']
+        in: ['the_program.xlsx']
+  ( 8x) 'Workout'
+        in: ['the_program.xlsx']
+  ( 8x) 'Side to side'
+        in: ['periodized_lifting.xlsx']
+  ( 8x) 'Sidelying or prone eccentric decel'
+        in: ['periodized_lifting.xlsx']
+  ( 8x) '9090 Dribble'
+        in: ['periodized_lifting.xlsx']
+  ( 7x) 'Arm Care Heavy'
+        also seen as: ['Arm Care heavy', 'Arm care heavy']
+        in: ['the_program.xlsx']
+  ( 7x) 'Lateral step down heel tap'
+        in: ['periodized_lifting.xlsx']
+  ( 7x) 'Lateral lunge kettle bell hold'
+        in: ['periodized_lifting.xlsx']
+  ( 7x) 'Hip Thrusters'
+        in: ['periodized_lifting.xlsx']
+  ( 6x) 'Recovery Throws'
+        also seen as: ['Recovery throws']
+        in: ['the_program.xlsx']
+  ( 6x) 'Connection day'
+        in: ['the_program.xlsx']
+  ( 6x) 'smooth'
+        in: ['the_program.xlsx']
+  ( 6x) 'Chest Pass'
+        also seen as: ['Chest pass']
+        in: ['periodized_lifting.xlsx']
+  ( 6x) 'Eccentric Bicep'
+        also seen as: ['Eccentric bicep']
+        in: ['periodized_lifting.xlsx']
+  ( 6x) '5 rounds'
+        in: ['periodized_lifting.xlsx']
+  ( 6x) '20 sec on/10 sec off'
+        in: ['periodized_lifting.xlsx']
+  ( 6x) '1/4 Turkish press'
+        in: ['periodized_lifting.xlsx']
+  ( 6x) 'Narrow to wide fly pushup'
+        in: ['periodized_lifting.xlsx']
+  ( 6x) 'Copenhagen Plank with Hip Flexion'
+        in: ['periodized_lifting.xlsx']
+  ( 6x) 'ss w'
+        in: ['periodized_lifting.xlsx']
+  ( 6x) 'Landmine Windmill'
+        in: ['periodized_lifting.xlsx']
+  ( 6x) 'Heidon hop sticks'
+        in: ['periodized_lifting.xlsx']
+  ( 6x) 'Pogo to lateral bound'
+        in: ['periodized_lifting.xlsx']
+  ( 6x) 'sled sprint'
+        in: ['periodized_lifting.xlsx']
+  ( 6x) 'Burpee to frog hop (forward bound)'
+        in: ['periodized_lifting.xlsx']
+  ( 5x) 'Safety Bar Squat'
+        in: ['periodized_lifting.xlsx']
+  ( 5x) 'Bulgarian Iso Arnold press'
+        in: ['periodized_lifting.xlsx']
+  ( 5x) 'Rear foot elevated row with rotation'
+        in: ['periodized_lifting.xlsx']
+  ( 5x) 'Rotational lat pull down'
+        in: ['periodized_lifting.xlsx']
+  ( 5x) 'Lateral delt raise'
+        in: ['periodized_lifting.xlsx']
+  ( 5x) 'Scaption ER'
+        in: ['periodized_lifting.xlsx']
+  ( 5x) 'Farmer Arnold March'
+        in: ['periodized_lifting.xlsx']
+  ( 4x) 'Half Plyo'
+        also seen as: ['Half plyo']
+        in: ['the_program.xlsx']
+  ( 4x) 'Full plyo heavy 1X75%'
+        in: ['the_program.xlsx']
+  ( 4x) 'Ext long toss to comfort'
+        in: ['the_program.xlsx']
+  ( 4x) 'Get the blood flowing'
+        in: ['the_program.xlsx']
+  ( 4x) 'Level 1'
+        in: ['the_program.xlsx']
+  ( 4x) 'Level 2'
+        in: ['the_program.xlsx']
+  ( 4x) 'Level 3'
+        in: ['the_program.xlsx']
+  ( 4x) 'Level 4'
+        in: ['the_program.xlsx']
+  ( 4x) 'full range'
+        in: ['maintenance_plan.xlsx']
+  ( 4x) 'Seated Lat Pulldown'
+        in: ['periodized_lifting.xlsx']
+  ( 4x) 'SEE WEEK 1 COMMENTS'
+        in: ['periodized_lifting.xlsx']
+  ( 4x) 'Scap focus row'
+        in: ['periodized_lifting.xlsx']
+  ( 4x) 'Plank saw'
+        in: ['periodized_lifting.xlsx']
+  ( 4x) 'Sidelying Tricep Extension'
+        in: ['periodized_lifting.xlsx']
+  ( 4x) 'OH soccer'
+        in: ['periodized_lifting.xlsx']
+  ( 4x) 'Trx eccentric Ts'
+        in: ['periodized_lifting.xlsx']
+  ( 4x) 'OH soccer Kneeling'
+        in: ['periodized_lifting.xlsx']
+  ( 4x) 'Dart Dribble'
+        in: ['periodized_lifting.xlsx']
+  ( 4x) 'Jammer Arm posterior lunge'
+        in: ['periodized_lifting.xlsx']
+  ( 4x) 'Bulgarian split squat or offset deadlift'
+        in: ['periodized_lifting.xlsx']
+  ( 4x) 'Landmine Lateral Slider Lunge'
+        in: ['periodized_lifting.xlsx']
+  ( 4x) 'FCT - Scissor Jump'
+        in: ['periodized_lifting.xlsx']
+  ( 4x) 'FCT- bulgarian Squat Jumps'
+        in: ['periodized_lifting.xlsx']
+  ( 4x) 'FCT - Vert Jump'
+        in: ['periodized_lifting.xlsx']
+  ( 4x) 'Scap Focused Row'
+        in: ['periodized_lifting.xlsx']
+  ( 4x) 'Athetic stance hip extension row'
+        in: ['periodized_lifting.xlsx']
+  ( 4x) 'Jammer Rotational Press'
+        in: ['periodized_lifting.xlsx']
+  ( 4x) 'Landmine Drop Row'
+        in: ['periodized_lifting.xlsx']
+  ( 4x) '3x5 row to 5 drop rows'
+        in: ['periodized_lifting.xlsx']
+  ( 4x) '3x8-15 rapid'
+        in: ['periodized_lifting.xlsx']
+  ( 4x) 'Banded bench FCT'
+        in: ['periodized_lifting.xlsx']
+  ( 4x) '3x5 banded with wt'
+        in: ['periodized_lifting.xlsx']
+  ( 4x) 'Assisted Pushup (higher tempo)'
+        in: ['periodized_lifting.xlsx']
+  ( 4x) 'FCT - 2 leg pogo'
+        in: ['periodized_lifting.xlsx']
+  ( 4x) 'FCT - Heiden Hop'
+        in: ['periodized_lifting.xlsx']
+  ( 4x) 'Lateral lunge to adductor snap back'
+        in: ['periodized_lifting.xlsx']
+  ( 4x) 'Landmine'
+        in: ['periodized_lifting.xlsx']
+  ( 4x) 'High Row 9090 Plate Drop'
+        in: ['periodized_lifting.xlsx']
+  ( 4x) 'Staggered press'
+        in: ['periodized_lifting.xlsx']
+  ( 4x) 'FCT - 5 fwd bounds'
+        in: ['periodized_lifting.xlsx']
+  ( 4x) 'Single leg'
+        in: ['periodized_lifting.xlsx']
+  ( 4x) 'Lateral step down heel tap FCT'
+        in: ['periodized_lifting.xlsx']
+  ( 4x) 'Rotational lat pull'
+        in: ['periodized_lifting.xlsx']
+  ( 4x) 'FCT Explosive Step Down'
+        in: ['periodized_lifting.xlsx']
+  ( 4x) 'Landmine Decelerator'
+        in: ['periodized_lifting.xlsx']
+  ( 4x) 'Drop Pushup'
+        in: ['periodized_lifting.xlsx']
+  ( 4x) 'Ecc TRX Pec Lowering'
+        in: ['periodized_lifting.xlsx']
+  ( 4x) 'Cross hops'
+        in: ['periodized_lifting.xlsx']
+  ( 4x) 'FFL Chops (High to Low)'
+        in: ['periodized_lifting.xlsx']
+  ( 4x) 'Blcok 5'
+        in: ['periodized_lifting.xlsx']
+  ( 4x) 'SLS rotational taps'
+        in: ['periodized_lifting.xlsx']
+  ( 4x) 'Med ball power chest pass'
+        in: ['periodized_lifting.xlsx']
+  ( 4x) 'Staggered back slam to sagittal slam'
+        in: ['periodized_lifting.xlsx']
+  ( 4x) 'Recoil Slam to Scoop'
+        in: ['periodized_lifting.xlsx']
+  ( 4x) 'Rapid OH soccer'
+        in: ['periodized_lifting.xlsx']
+  ( 4x) 'Partner OH'
+        in: ['periodized_lifting.xlsx']
+  ( 4x) 'Bridge OH throws (self toss)'
+        in: ['periodized_lifting.xlsx']
+  ( 4x) 'Hip turn to'
+        in: ['periodized_lifting.xlsx']
+  ( 4x) 'Sprinter start position'
+        in: ['periodized_lifting.xlsx']
+  ( 4x) 'no pushup with burpee'
+        in: ['periodized_lifting.xlsx']
+  ( 3x) 'Tricep Kickback'
+        also seen as: ['tricep kickback']
+        in: ['periodized_lifting.xlsx', 'the_program.xlsx']
+  ( 3x) 'Activity'
+        in: ['the_program.xlsx']
+  ( 3x) 'Lay back (upper arm spiral feel)'
+        in: ['the_program.xlsx']
+  ( 3x) 'High 10'
+        in: ['the_program.xlsx']
+  ( 3x) 'Step stretch'
+        in: ['the_program.xlsx']
+  ( 3x) 'QB drop backs'
+        in: ['the_program.xlsx']
+  ( 3x) 'Level 5'
+        in: ['the_program.xlsx']
+  ( 3x) 'Level 6'
+        in: ['the_program.xlsx']
+  ( 3x) 'blue/red/yellow/gray'
+        in: ['the_program.xlsx']
+  ( 3x) '3X8 5 sec hold'
+        in: ['maintenance_plan.xlsx']
+  ( 3x) 'Hypertrophy A'
+        in: ['periodized_lifting.xlsx']
+  ( 3x) 'RDL airplane'
+        in: ['periodized_lifting.xlsx']
+  ( 3x) 'Back fly'
+        in: ['periodized_lifting.xlsx']
+  ( 3x) 'Split stance pallof press'
+        in: ['periodized_lifting.xlsx']
+  ( 3x) 'Bicep curl'
+        also seen as: ['Bicep curl+']
+        in: ['periodized_lifting.xlsx']
+  ( 3x) 'Posterior Sling Cable Chops'
+        in: ['periodized_lifting.xlsx']
+  ( 3x) 'Cross Body Tricep'
+        in: ['periodized_lifting.xlsx']
+  ( 3x) 'Squat Snow holds'
+        in: ['periodized_lifting.xlsx']
+  ( 3x) 'Sumo Goblet'
+        in: ['periodized_lifting.xlsx']
+  ( 3x) 'Modified Pullup'
+        in: ['periodized_lifting.xlsx']
+  ( 2x) 'Full Plyo Heavy 1-2 sets'
+        in: ['the_program.xlsx']
+  ( 2x) 'Long toss extension to comfort'
+        in: ['the_program.xlsx']
+  ( 2x) 'Command bullpen'
+        in: ['the_program.xlsx']
+  ( 2x) 'Light toss optional'
+        in: ['the_program.xlsx']
+  ( 2x) 'Dynamic warm up'
+        in: ['the_program.xlsx']
+  ( 2x) 'half plyos 1-2 sets'
+        in: ['the_program.xlsx']
+  ( 2x) 'Light toss 60-90'
+        in: ['the_program.xlsx']
+  ( 2x) 'Short box (optional)'
+        in: ['the_program.xlsx']
+  ( 2x) '60-90 feet'
+        in: ['the_program.xlsx']
+  ( 2x) 'Drill'
+        in: ['the_program.xlsx']
+  ( 2x) 'Break a sweat'
+        in: ['the_program.xlsx']
+  ( 2x) 'Heel/toe arm circle small'
+        in: ['the_program.xlsx']
+  ( 2x) 'Heel/toe arm circle big'
+        in: ['the_program.xlsx']
+  ( 2x) 'Lunge to adductor - th rotation - hammy - flexor'
+        in: ['the_program.xlsx']
+  ( 2x) 'Bicep Stretch'
+        in: ['the_program.xlsx']
+  ( 2x) 'Soft Tissue Work first (as needed)'
+        also seen as: ['Soft tissue work first (as needed)']
+        in: ['the_program.xlsx']
+  ( 2x) 'Full Supination'
+        also seen as: ['Full supination']
+        in: ['maintenance_plan.xlsx', 'the_program.xlsx']
+  ( 2x) 'red/yellow'
+        in: ['the_program.xlsx']
+  ( 2x) 'In the hole'
+        in: ['the_program.xlsx']
+  ( 2x) 'flow wind up'
+        in: ['the_program.xlsx']
+  ( 2x) '7/5/4oz'
+        in: ['the_program.xlsx']
+  ( 2x) '20 throws'
+        in: ['the_program.xlsx']
+  ( 2x) 'Wall or bar pushup'
+        in: ['periodized_lifting.xlsx']
+  ( 2x) 'Wall Pushups'
+        in: ['periodized_lifting.xlsx']
+  ( 2x) 'Wall sit serratus scoop or modified plank saw'
+        in: ['periodized_lifting.xlsx']
+  ( 2x) 'Hip Hike March'
+        in: ['periodized_lifting.xlsx']
+  ( 2x) 'Dying Bug'
+        in: ['periodized_lifting.xlsx']
+  ( 2x) 'Tall kneeling Eccentric Pec Fly'
+        in: ['periodized_lifting.xlsx']
+  ( 2x) 'Use Mobility bands crossed'
+        in: ['periodized_lifting.xlsx']
+  ( 2x) 'Front plank'
+        in: ['periodized_lifting.xlsx']
+  ( 2x) 'Proximal Attachment Pec Fly'
+        in: ['periodized_lifting.xlsx']
+  ( 2x) 'Shuttle Pass'
+        in: ['periodized_lifting.xlsx']
+  ( 2x) 'Scoops'
+        in: ['periodized_lifting.xlsx']
+  ( 2x) 'Strength A'
+        in: ['periodized_lifting.xlsx']
+  ( 2x) 'Floor Press'
+        in: ['periodized_lifting.xlsx']
+  ( 2x) 'Jacknife Plank'
+        in: ['periodized_lifting.xlsx']
+  ( 2x) 'Sliders or SB'
+        in: ['periodized_lifting.xlsx']
+  ( 2x) 'Rotational Chest press'
+        in: ['periodized_lifting.xlsx']
+  ( 2x) 'Take time standing'
+        in: ['periodized_lifting.xlsx']
+  ( 2x) 'Lateral Walk Band Forefoot'
+        in: ['periodized_lifting.xlsx']
+  ( 2x) 'Modified position Narrow to widefly on bar'
+        in: ['periodized_lifting.xlsx']
+  ( 2x) 'Facepull'
+        in: ['periodized_lifting.xlsx']
+  ( 2x) 'Pallof Posterior Lunge'
+        in: ['periodized_lifting.xlsx']
+  ( 2x) 'Tall Kneeling Ecc Pec Fly'
+        in: ['periodized_lifting.xlsx']
+  ( 2x) 'Dont forget scap cueing'
+        in: ['periodized_lifting.xlsx']
+  ( 2x) 'Keep wrist and elbow in line with shoulder'
+        in: ['periodized_lifting.xlsx']
+  ( 2x) 'TRX Ecc T'
+        in: ['periodized_lifting.xlsx']
+  ( 2x) 'Decelerator'
+        in: ['periodized_lifting.xlsx']
+  ( 2x) 'Sidelying or with barbell'
+        in: ['periodized_lifting.xlsx']
+  ( 2x) 'Heiden Hop'
+        in: ['periodized_lifting.xlsx']
+  ( 2x) 'Tabata KB Swings'
+        in: ['periodized_lifting.xlsx']
+  ( 2x) 'Scissor Jumps'
+        in: ['periodized_lifting.xlsx']
+  ( 2x) 'Strength B'
+        in: ['periodized_lifting.xlsx']
+  ( 2x) 'Bulgarian Arnold'
+        in: ['periodized_lifting.xlsx']
+  ( 2x) 'Rotational Rows'
+        in: ['periodized_lifting.xlsx']
+  ( 2x) 'Can opener Clamshell'
+        in: ['periodized_lifting.xlsx']
+  ( 2x) 'Tempo Pushup'
+        in: ['periodized_lifting.xlsx']
+  ( 2x) '3x16-20 (8-10ea)'
+        in: ['periodized_lifting.xlsx']
+  ( 2x) 'Split stance chest press'
+        in: ['periodized_lifting.xlsx']
+  ( 2x) 'Lateral Walk 3D Strap'
+        in: ['periodized_lifting.xlsx']
+  ( 2x) 'ab wheel'
+        in: ['periodized_lifting.xlsx']
+  ( 2x) 'Banded Heidon Hop'
+        in: ['periodized_lifting.xlsx']
+  ( 2x) 'Scaption Contralateral Hold'
+        in: ['periodized_lifting.xlsx']
+  ( 2x) 'TRX Ecc 9090'
+        in: ['periodized_lifting.xlsx']
+  ( 2x) 'Farmers carry with calf raise'
+        in: ['periodized_lifting.xlsx']
+  ( 2x) '2x20 steps ea hand'
+        in: ['periodized_lifting.xlsx']
+  ( 2x) 'Posterior slide med ball scoop'
+        in: ['periodized_lifting.xlsx']
+  ( 2x) 'Drop to rotation scoop'
+        in: ['periodized_lifting.xlsx']
+  ( 2x) 'Banded Drop Curls'
+        in: ['periodized_lifting.xlsx']
+  ( 1x) 'Inseason - Highschool Starter (7 Day Split) Option 1'
+        in: ['the_program.xlsx']
+  ( 1x) 'Inseason - Highschool Starter (7 Day Split) Option 2'
+        in: ['the_program.xlsx']
+  ( 1x) 'Light toss 60-90 (optional)'
+        in: ['the_program.xlsx']
+  ( 1x) 'Inseason - Highschool Reliever'
+        in: ['the_program.xlsx']
+  ( 1x) '60-90 ft throws'
+        in: ['the_program.xlsx']
+  ( 1x) 'Workout optional'
+        in: ['the_program.xlsx']
+  ( 1x) 'Distance/Reps'
+        in: ['the_program.xlsx']
+  ( 1x) "Mini A's fwd"
+        in: ['the_program.xlsx']
+  ( 1x) "mini A's lateral"
+        in: ['the_program.xlsx']
+  ( 1x) 'lunge to RDL'
+        in: ['the_program.xlsx']
+  ( 1x) 'Inch worm step through'
+        in: ['the_program.xlsx']
+  ( 1x) 'back'
+        in: ['the_program.xlsx']
+  ( 1x) 'A skip (fwd then backward)'
+        in: ['the_program.xlsx']
+  ( 1x) 'A skip side to side'
+        in: ['the_program.xlsx']
+  ( 1x) 'Swing over gate (walk it fwd then plyo backward)'
+        in: ['the_program.xlsx']
+  ( 1x) 'frogger cat camel'
+        in: ['the_program.xlsx']
+  ( 1x) 'Frogger thread needle'
+        in: ['the_program.xlsx']
+  ( 1x) 'Bridge reach across'
+        in: ['the_program.xlsx']
+  ( 1x) 'Option 1'
+        in: ['the_program.xlsx']
+  ( 1x) 'Option 2'
+        in: ['the_program.xlsx']
+  ( 1x) 'scap retraction'
+        in: ['the_program.xlsx']
+  ( 1x) 'flip up'
+        in: ['the_program.xlsx']
+  ( 1x) 'scap ts'
+        in: ['the_program.xlsx']
+  ( 1x) 'ball drop'
+        in: ['the_program.xlsx']
+  ( 1x) 'scap 9090'
+        in: ['the_program.xlsx']
+  ( 1x) 'finger tip drop'
+        in: ['the_program.xlsx']
+  ( 1x) 'pnf pec fly'
+        in: ['the_program.xlsx']
+  ( 1x) '2 cycles'
+        in: ['the_program.xlsx']
+  ( 1x) 'Post Throw Day of'
+        in: ['the_program.xlsx']
+  ( 1x) '10 each direction'
+        in: ['the_program.xlsx']
+  ( 1x) 'Open Book Pec stretch hold with lateral hamstring'
+        in: ['the_program.xlsx']
+  ( 1x) 'Pigeon with wrist flexor'
+        in: ['the_program.xlsx']
+  ( 1x) 'Couch with Lat'
+        in: ['the_program.xlsx']
+  ( 1x) 'Horizontal adduction'
+        in: ['the_program.xlsx']
+  ( 1x) '2X20 sec each'
+        in: ['the_program.xlsx']
+  ( 1x) '1X20-30 swings each direction'
+        in: ['the_program.xlsx']
+  ( 1x) '2X10 second hold into 5 active reps'
+        in: ['the_program.xlsx']
+  ( 1x) 'High plank to yoga push up'
+        in: ['the_program.xlsx']
+  ( 1x) 'Worlds greatest'
+        in: ['the_program.xlsx']
+  ( 1x) '3 reps each leg'
+        in: ['the_program.xlsx']
+  ( 1x) 'Posterior capsule hip rotation'
+        in: ['the_program.xlsx']
+  ( 1x) '10 sec hold to 10 rotations'
+        in: ['the_program.xlsx']
+  ( 1x) 'Scorpian'
+        in: ['the_program.xlsx']
+  ( 1x) 'Bridge reach'
+        in: ['the_program.xlsx']
+  ( 1x) '2X16 touches (8 each'
+        in: ['the_program.xlsx']
+  ( 1x) '2 rounds 3 bouts 10/5 contract/5 contract'
+        in: ['the_program.xlsx']
+  ( 1x) 'Elbow flexed pronation supination'
+        in: ['the_program.xlsx']
+  ( 1x) 'nerve glide'
+        in: ['the_program.xlsx']
+  ( 1x) 'Superset columb'
+        in: ['the_program.xlsx']
+  ( 1x) '2X10/15 ball drops'
+        in: ['the_program.xlsx']
+  ( 1x) 'Tall kneeling scapular retraction up'
+        in: ['the_program.xlsx']
+  ( 1x) 'Tall kneeling scapular T'
+        in: ['the_program.xlsx']
+  ( 1x) 'Bicep curl pronator press out'
+        in: ['the_program.xlsx']
+  ( 1x) 'Tall kneeling scapular 9090'
+        in: ['the_program.xlsx']
+  ( 1x) '3 sets your choice'
+        in: ['the_program.xlsx']
+  ( 1x) '2X10 drops each finger'
+        in: ['the_program.xlsx']
+  ( 1x) 'Plyocare Routines'
+        in: ['the_program.xlsx']
+  ( 1x) 'Routine'
+        in: ['the_program.xlsx']
+  ( 1x) '%Effort'
+        in: ['the_program.xlsx']
+  ( 1x) 'Full Plyo Heavy'
+        in: ['the_program.xlsx']
+  ( 1x) 'Velo plyo'
+        in: ['the_program.xlsx']
+  ( 1x) '9/7/5oz'
+        in: ['the_program.xlsx']
+  ( 1x) 'High intent baseball throws'
+        in: ['the_program.xlsx']
+  ( 1x) 'Ball holds'
+        in: ['the_program.xlsx']
+  ( 1x) 'Black'
+        in: ['the_program.xlsx']
+  ( 1x) 'sock throws'
+        in: ['the_program.xlsx']
+  ( 1x) 'Black or 2.5 kg cuffs'
+        in: ['the_program.xlsx']
+  ( 1x) 'Pec Load Throw'
+        in: ['the_program.xlsx']
+  ( 1x) 'Figure 8'
+        in: ['the_program.xlsx']
+  ( 1x) 'Pre Bullpen'
+        in: ['the_program.xlsx']
+  ( 1x) 'to tolerance'
+        in: ['the_program.xlsx']
+  ( 1x) 'Dugout Routine'
+        in: ['the_program.xlsx']
+  ( 1x) 'Rep/Time'
+        in: ['the_program.xlsx']
+  ( 1x) 'Pronation'
+        in: ['the_program.xlsx']
+  ( 1x) 'T to abduction'
+        in: ['the_program.xlsx']
+  ( 1x) 'ER flexion'
+        in: ['the_program.xlsx']
+  ( 1x) 'Tricep kickback UD'
+        in: ['the_program.xlsx']
+  ( 1x) 'ER 9090 to press'
+        in: ['the_program.xlsx']
+  ( 1x) 'Nerve tensioner'
+        in: ['the_program.xlsx']
+  ( 1x) 'Mod sleeper vs wall'
+        in: ['the_program.xlsx']
+  ( 1x) 'Soft Tissue'
+        in: ['maintenance_plan.xlsx']
+  ( 1x) 'ELDOA T7'
+        in: ['maintenance_plan.xlsx']
+  ( 1x) '3 each leg'
+        in: ['maintenance_plan.xlsx']
+  ( 1x) 'medial scap'
+        in: ['maintenance_plan.xlsx']
+  ( 1x) 'ELDOA T6'
+        in: ['maintenance_plan.xlsx']
+  ( 1x) '2X8 each direction'
+        in: ['maintenance_plan.xlsx']
+  ( 1x) 'RTC'
+        in: ['maintenance_plan.xlsx']
+  ( 1x) 'Cervical ELDOA'
+        in: ['maintenance_plan.xlsx']
+  ( 1x) 'Pec Smash'
+        in: ['maintenance_plan.xlsx']
+  ( 1x) 'Pronator Smash'
+        in: ['maintenance_plan.xlsx']
+  ( 1x) 'Elbow gapping with lacrosse ball'
+        in: ['maintenance_plan.xlsx']
+  ( 1x) 'Mobilize'
+        in: ['maintenance_plan.xlsx']
+  ( 1x) 'Open book Hands on head'
+        in: ['maintenance_plan.xlsx']
+  ( 1x) 'Thoracic rockback'
+        in: ['maintenance_plan.xlsx']
+  ( 1x) 'Childs pose breath'
+        in: ['maintenance_plan.xlsx']
+  ( 1x) '2X5 deep breaths'
+        in: ['maintenance_plan.xlsx']
+  ( 1x) 'Median Nerve Tension/Glide'
+        in: ['maintenance_plan.xlsx']
+  ( 1x) 'Cross body'
+        in: ['maintenance_plan.xlsx']
+  ( 1x) 'Ulnar Nerve Tension/Glide'
+        in: ['maintenance_plan.xlsx']
+  ( 1x) 'Pure neck stretch'
+        in: ['maintenance_plan.xlsx']
+  ( 1x) 'Activate'
+        in: ['maintenance_plan.xlsx']
+  ( 1x) 'Wall angel'
+        in: ['maintenance_plan.xlsx']
+  ( 1x) 'Prethrow / Prehitting'
+        in: ['maintenance_plan.xlsx']
+  ( 1x) 'Seated T roll'
+        in: ['maintenance_plan.xlsx']
+  ( 1x) 'FR nerve tension'
+        in: ['maintenance_plan.xlsx']
+  ( 1x) 'Seated 90 roll'
+        in: ['maintenance_plan.xlsx']
+  ( 1x) 'Ulnar nerve tension'
+        in: ['maintenance_plan.xlsx']
+  ( 1x) 'Elbow gapping'
+        in: ['maintenance_plan.xlsx']
+  ( 1x) 'Scaption abduction'
+        in: ['maintenance_plan.xlsx']
+  ( 1x) 'Individual finger nerve glide'
+        in: ['maintenance_plan.xlsx']
+  ( 1x) 'Individual finger isos'
+        in: ['maintenance_plan.xlsx']
+  ( 1x) 'Supine pec stretch'
+        in: ['maintenance_plan.xlsx']
+  ( 1x) 'Mod Sleeper'
+        in: ['maintenance_plan.xlsx']
+  ( 1x) 'Levator scap'
+        in: ['maintenance_plan.xlsx']
+  ( 1x) 'Banded lat'
+        in: ['maintenance_plan.xlsx']
+  ( 1x) 'Sumo Landmine Squat'
+        in: ['periodized_lifting.xlsx']
+  ( 1x) 'Bulgarian each side prior to rotation row'
+        in: ['periodized_lifting.xlsx']
+  ( 1x) 'Work over the ankle'
+        in: ['periodized_lifting.xlsx']
+  ( 1x) 'Prone Scap Focused Row by'
+        in: ['periodized_lifting.xlsx']
+  ( 1x) 'Light weight'
+        in: ['periodized_lifting.xlsx']
+  ( 1x) 'challenge balance'
+        in: ['periodized_lifting.xlsx']
+  ( 1x) 'Light weight controlled tempo'
+        in: ['periodized_lifting.xlsx']
+  ( 1x) 'pad under bar'
+        in: ['periodized_lifting.xlsx']
+  ( 1x) 'Concentric (lght)'
+        in: ['periodized_lifting.xlsx']
+  ( 1x) 'ER 9090'
+        in: ['periodized_lifting.xlsx']
+  ( 1x) 'Prone Scap Focused Row'
+        in: ['periodized_lifting.xlsx']
+  ( 1x) 'Adductor Plank (NOT ON ELBOW)'
+        in: ['periodized_lifting.xlsx']
+  ( 1x) 'Tall kneeling Press Ups'
+        in: ['periodized_lifting.xlsx']
+  ( 1x) 'Sumo Goblet/sumo landmine'
+        in: ['periodized_lifting.xlsx']
+  ( 1x) 'Modified or Bar Pushup'
+        in: ['periodized_lifting.xlsx']
+  ( 1x) 'Modified pushup/Assissted Pushup'
+        in: ['periodized_lifting.xlsx']
+  ( 1x) 'Front plank to down dog on elbows'
+        in: ['periodized_lifting.xlsx']
+  ( 1x) 'Star plank'
+        in: ['periodized_lifting.xlsx']
+  ( 1x) 'Loaded Pec Opener'
+        in: ['periodized_lifting.xlsx']
+  ( 1x) 'Eccentric Overhead Lowering'
+        in: ['periodized_lifting.xlsx']
+  ( 1x) 'Eccentric PNF'
+        in: ['periodized_lifting.xlsx']
+  ( 1x) 'Banded bench press'
+        in: ['periodized_lifting.xlsx']
+  ( 1x) 'TRX Eccentric Pec lower'
+        in: ['periodized_lifting.xlsx']
+  ( 1x) 'Banded Floor Press'
+        in: ['periodized_lifting.xlsx']
+  ( 1x) 'TRX Ecc Pushup'
+        in: ['periodized_lifting.xlsx']
+
+CSV written: /home/user/baseball/docs/superpowers/research/2026-06-01-golden-alias-audit.csv
