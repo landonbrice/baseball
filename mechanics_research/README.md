@@ -33,6 +33,23 @@ early-opening front side and a leaking back hip.
 | `cue_programs.md` | Agent 5 | Deliverable 2 — four 4–6 week cue progressions |
 | `velocity_framework.md` | Agent 5 | Deliverable 3 — conservative year-1 velocity framework |
 
+## The linear program (master deliverable)
+
+**`Mechanics_Rebuild_Worksheet_LandonBrice.xlsx`** is the assembled, runnable program — the
+synthesizer outputs structured into the worksheet's 8 sheets:
+
+| Sheet | State |
+|-------|-------|
+| README · Diagnostic Framework · Self-Filming · Velocity Layer | Pre-filled (Landon's real self-scores + the conservative-load protocol) — left intact |
+| **Drill Library** | Populated with all **119 deduped drills** (+ Density / Notes columns) |
+| **Cue Programs** | All bracketed placeholders replaced with **real drills** (Arm Path / Staying Closed Wk7–12, Hip Rotation Wk8–13, Release Wk9–14) |
+| **Video Catalog** | **107 unique source videos/articles**, deduped by URL, with cues-covered + density |
+| **Weekly Integration** | The **linear spine** — each week Wk7→Wk20 names the exact drills + sets, front-loading Staying Closed + Hip Rotation, layering Arm Path from Wk9, holding Release to Wk12, plus a Phase-5/6 bullpen **transfer ladder** and re-test/re-film checkpoints at Wk6/12/18 |
+
+The diagnostic self-scores in the workbook (glove-side-at-foot-strike = 1, pelvis-shoulder
+differential = 2, hip-explosion-sequence = 2) independently confirm Staying Closed + Hip
+Rotation as the worst cues, which is why the linear program sequences them first.
+
 ## How to run
 
 1. Run Agents 1–4 in parallel (each writes its own CSV to `outputs/`).
