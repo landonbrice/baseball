@@ -11,6 +11,22 @@ early-opening front side and a leaking back hip.
 > the app's Supabase schema, triage, or program-builder pipeline. It's a research
 > deliverable that a human (or a later, deliberate integration) consumes — not app code.
 
+## ★ The curated program (`curated/`) — start here
+
+The 119-drill library was the **data layer**. The `curated/` folder is the **curation pass**:
+the 2–3 highest-leverage drills per fault, the biggest coaching laws/cues, and a single
+turn-key artifact — built by a second 3-agent pass (curation + protocols, in parallel, then
+an HTML assembler).
+
+| File | What it is |
+|------|------------|
+| **`curated/program.html`** | **The deliverable.** One self-contained HTML page — 3 priority-ordered area cards (Staying Closed → Hip Rotation → Arm Path/Spiral), each with a keystone drill + 2 supports + 1 prereq, cue chips, the laws behind it, "don't overcorrect" callouts, a conservative-load guardrail banner, and a 4-phase week plan. Opens in any browser; print-friendly; zero external dependencies. |
+| `curated/agent1_curated_drills.md` | Curation layer — keystone + 2 support + 1 thin prereq per area (13 items), Cressey corrected to prereq-only; every money drill is Bauer/Tread/Driveline. |
+| `curated/agent3_protocols_cues.md` | Protocols/cues/guardrails layer — the biggest laws per area, external cue words, year-1 conservative-load guardrails, common mistakes. |
+
+Release was dropped this round; the three areas are ordered by Landon's worst diagnostic
+self-scores (glove-side = 1, separation = 2, hip-explosion = 2).
+
 ## Files
 
 | File | What it is |
