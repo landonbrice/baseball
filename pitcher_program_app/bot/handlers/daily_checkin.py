@@ -817,12 +817,15 @@ async def _generate_plan_and_respond(message, context) -> int:
         if proposal:
             changes = proposal.get("changes") or []
             lines = "\n".join(f"• {c}" for c in changes[:5])
+            why = proposal.get("why")
+            why_line = f"Why: {why}\n\n" if why else ""
             keyboard = InlineKeyboardMarkup([[
                 InlineKeyboardButton("✅ Looks good", callback_data="drive_confirm"),
                 InlineKeyboardButton("🔧 Adjust", callback_data="drive_adjust"),
             ]])
             await message.reply_text(
-                f"Today was adjusted for your {proposal.get('readiness_class', '').upper()} check-in:\n"
+                f"Today was adjusted for your {proposal.get('readiness_class', '').upper()} check-in.\n"
+                f"{why_line}"
                 f"{lines}\n\n"
                 "This version is already your plan — confirm, or tell me what to change.",
                 reply_markup=keyboard,

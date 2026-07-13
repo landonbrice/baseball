@@ -218,12 +218,28 @@ def _describe_changes(projected: ProjectedDay) -> list[str]:
     n_del = sum(len(b.exercises) for b in delivered.lifting_blocks)
     if n_del < n_int:
         changes.append(f"Lifting trimmed {n_int} → {n_del} exercises")
+    else:
+        # Volume-first modulation: exercises survive, sets shrink.
+        sets_int = sum(ex.sets for b in intended.lifting_blocks for ex in b.exercises)
+        sets_del = sum(ex.sets for b in delivered.lifting_blocks for ex in b.exercises)
+        if sets_del < sets_int:
+            changes.append(f"Lift volume {sets_int} → {sets_del} total sets (all exercises kept)")
     if delivered.is_rest and not intended.is_rest:
         changes.append("Full rest day (was a training day)")
     return changes
 
 
-def _morning_brief(day: Day, projected: ProjectedDay, program_row: dict) -> str:
+def _why(triage_result: dict) -> str:
+    """One-line reason for the modulation, straight from triage.
+
+    Ratified 2026-07-13: the proposal must lead with WHY (e.g. "WHOOP
+    recovery 19, HRV -51%") so the confirm/adjust call is informed.
+    """
+    reasoning = (triage_result or {}).get("reasoning") or ""
+    return reasoning.strip().rstrip(".")[:200]
+
+
+def _morning_brief(day: Day, projected: ProjectedDay, program_row: dict, triage_result: dict) -> str:
     cls = projected.modulation.get("reason", "green")
     week = day.day_index // 7 + 1
     base = f"Week {week}, day {day.day_index % 7 + 1} of your program"
@@ -236,7 +252,9 @@ def _morning_brief(day: Day, projected: ProjectedDay, program_row: dict) -> str:
         return base + " You're green — the day ships as written."
     changes = _describe_changes(projected)
     note = "; ".join(changes[:3]) if changes else "volume dialed back"
-    return base + f" Your check-in came back {cls.upper()}, so today is adjusted: {note}. Confirm or adjust below."
+    why = _why(triage_result)
+    why_part = f" ({why})" if why else ""
+    return base + f" Your check-in came back {cls.upper()}{why_part}, so today is adjusted: {note}. Confirm or adjust below."
 
 
 def compose_drive_plan(
@@ -277,7 +295,7 @@ def compose_drive_plan(
     except Exception:
         logger.warning("drive: warmup builder failed, shipping without warmup", exc_info=True)
 
-    brief = _morning_brief(delivered, projected, row)
+    brief = _morning_brief(delivered, projected, row, triage_result)
     changes = _describe_changes(projected) if modulated else []
 
     proposal = None
@@ -287,6 +305,7 @@ def compose_drive_plan(
             "auto_accept": True,
             "readiness_class": projected.modulation.get("reason"),
             "changes": changes,
+            "why": _why(triage_result),
         }
 
     if projected.governor_signal:

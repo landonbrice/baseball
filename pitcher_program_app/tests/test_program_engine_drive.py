@@ -115,8 +115,11 @@ def test_yellow_day_carries_auto_accept_proposal(patched_drive):
     assert prop["changes"]  # human-readable deltas present
     # YELLOW modulation: throws ×0.80 → 32
     assert plan["throwing"]["throw_count"] == 32
-    # one accessory dropped from the last block
-    assert len(plan["lifting"]["exercises"]) == 1
+    # Volume-first philosophy (2026-07-13): ALL exercises survive; working
+    # sets ≥3 lose one set (3 → 2 on both lifts here)
+    assert len(plan["lifting"]["exercises"]) == 2
+    assert all(ex["sets"] == 2 for ex in plan["lifting"]["exercises"])
+    assert any("total sets" in c for c in prop["changes"])
 
 
 def test_red_day_clamps_to_recovery(patched_drive):
