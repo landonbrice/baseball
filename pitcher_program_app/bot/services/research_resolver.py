@@ -408,7 +408,7 @@ def resolve_for_program_gen(
     pitcher_profile: dict,
     pitcher_context: str,
     goal_spec: dict,
-    max_chars: int = 16000,
+    max_chars: int = 40000,
 ) -> dict:
     """Assemble goal-relevant knowledge for Program Engine v1 authoring (Task 1.3).
 
@@ -447,6 +447,11 @@ def resolve_for_program_gen(
     Exemplars:
         All loadable xlsx in data/knowledge/golden/.
     """
+    # Living-knowledge contract: program generation is infrequent and MUST see
+    # current doc content (edit a doc → next generation changes, no restart).
+    # Without this, the module index cache serves stale text — same gotcha
+    # class as _load_exercise_library. Verified by the demo's kv proof.
+    clear_cache()
     tags = set(t.lower() for t in (goal_spec.get("tags") or []))
     pitcher_id = pitcher_profile.get("pitcher_id") or pitcher_profile.get("id") or ""
 
@@ -489,9 +494,23 @@ def resolve_for_program_gen(
         if keep:
             _maybe_add(doc_id, fm, body)
 
-    # Sort selected docs by priority (critical first), then by id for determinism.
+    # Sort selected docs: goal-trigger-matched docs FIRST (the goal's own
+    # progression model must never be budget-excluded — first live run loaded
+    # only driveline_throwing_program for return_to_play), then priority
+    # (critical first), then id for determinism.
     PRIORITY_ORDER = {"critical": 0, "standard": 1, "reference": 2}
-    selected.sort(key=lambda t: (PRIORITY_ORDER.get(t[1].get("priority", "standard"), 1), t[0]))
+
+    def _goal_matched(fm: dict) -> bool:
+        trig = set(str(t).lower() for t in (fm.get("triggers") or []))
+        return bool(trig & tags)
+
+    selected.sort(
+        key=lambda t: (
+            0 if _goal_matched(t[1]) else 1,
+            PRIORITY_ORDER.get(t[1].get("priority", "standard"), 1),
+            t[0],
+        )
+    )
 
     # Budget-bounded combined text.
     combined_chunks: list[str] = []

@@ -65,17 +65,19 @@ async def call_llm(
 async def call_llm_reasoning(
     system_prompt: str, user_message: str, max_tokens: int = 4000,
     history: list = None, return_metadata: bool = False,
+    timeout: int = None,
 ) -> str | tuple:
     """Call the reasoning model for complex multi-step protocol generation.
 
     Uses deepseek-reasoner which does chain-of-thought before answering.
-    Higher token budget (4000) for detailed output.
+    Higher token budget (4000) for detailed output. `timeout` overrides
+    REASONING_TIMEOUT for latency-tolerant one-shot callers (program authoring).
     """
     model = LLM_CONFIG.get("model_reasoning", "deepseek-reasoner")
     logger.info(f"Using reasoning model: {model}")
     return await call_llm(
         system_prompt, user_message, max_tokens=max_tokens,
-        history=history, model=model, timeout=REASONING_TIMEOUT,
+        history=history, model=model, timeout=timeout or REASONING_TIMEOUT,
         return_metadata=return_metadata,
     )
 

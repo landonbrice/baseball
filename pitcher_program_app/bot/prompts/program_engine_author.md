@@ -145,7 +145,12 @@ keys are a hard parse failure (the schema has `extra="forbid"`).
 - `intent_pct` is 0–100.
 - `throwing_5tuple.distance_ft` 0–400, `throw_count` 0–200, `intensity_pct` 0–100.
 - `lifting_blocks[*].exercises[*].exercise_id` matches `^ex_\d{3}$` exactly
-  (3-digit zero-padded). Use canonical IDs from the live `exercises` table.
+  (3-digit zero-padded). Use ONLY IDs from the exercise menu below — any other
+  ID is a fatal validation error.
+
+## Exercise menu (the complete canonical library — id → name)
+
+{exercise_menu}
 - `lifting_blocks[*].exercises[*].sets` 1–10.
 - `lifting_blocks[*].exercises[*].reps` is a freeform string (`"8"`, `"8-10"`,
   `"3 each leg"`, `"2RIR"`).

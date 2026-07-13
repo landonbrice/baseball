@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+from pathlib import Path
 from typing import Any, Optional
 
 from pydantic import ValidationError
@@ -133,6 +134,41 @@ def _strip_json_fences(text: str) -> str:
     return text
 
 
+_EXERCISE_MENU_CACHE: Optional[str] = None
+
+
+def _exercise_menu() -> str:
+    """Compact `ex_NNN  Name` lines for the full canonical exercise library.
+
+    The prompt forbids invented IDs, so the model MUST be shown the real ones
+    (first live run fabricated ex_002-style IDs — unknowable without this).
+    Live `exercises` table preferred; snapshot fixture fallback keeps the
+    author functional offline. Cached per process (library changes are rare
+    and already require a redeploy for the pool cache anyway).
+    """
+    global _EXERCISE_MENU_CACHE
+    if _EXERCISE_MENU_CACHE is not None:
+        return _EXERCISE_MENU_CACHE
+    rows: list[dict] = []
+    try:
+        from bot.services.db import get_client
+
+        resp = get_client().table("exercises").select("id, name").order("id").execute()
+        rows = resp.data or []
+    except Exception as e:  # offline / no creds — fall back to the snapshot
+        logger.warning("author: live exercise menu unavailable (%s); using snapshot", e)
+    if not rows:
+        snapshot = Path(__file__).resolve().parents[3] / "tests" / "fixtures" / "exercises_snapshot.json"
+        try:
+            rows = json.loads(snapshot.read_text())
+        except Exception:
+            rows = []
+    _EXERCISE_MENU_CACHE = "\n".join(
+        f"{r['id']}  {r.get('name', '')}" for r in rows if r.get("id")
+    ) or "(exercise menu unavailable)"
+    return _EXERCISE_MENU_CACHE
+
+
 def _build_user_prompt(
     *,
     pitcher_profile: dict,
@@ -152,6 +188,7 @@ def _build_user_prompt(
     user = user.replace("{pitcher_context}", pitcher_context or "(no per-pitcher context)")
     user = user.replace("{goal_spec}", goal_json)
     user = user.replace("{previous_violations}", violations_text)
+    user = user.replace("{exercise_menu}", _exercise_menu())
     return user
 
 
@@ -203,7 +240,11 @@ async def author_program(
         raw = await call_llm_reasoning(
             system_prompt=_SYSTEM_PROMPT,
             user_message=user_prompt,
-            max_tokens=8000,  # PitcherProgram with 12 weeks is large
+            # A full multi-week PitcherProgram (60-90 day objects) exceeds 8k
+            # output tokens — first live run truncated mid-JSON at 8000.
+            # deepseek-reasoner accepts 32k (probed 2026-07-13).
+            max_tokens=32000,
+            timeout=300,  # one-shot compile step; latency-tolerant by design
         )
     except TimeoutError as e:
         logger.warning("author_program: LLM timeout (%s)", e)
