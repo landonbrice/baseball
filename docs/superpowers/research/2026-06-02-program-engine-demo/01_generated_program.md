@@ -6,7 +6,7 @@
 **Goal**: return_to_play · **Domain**: unified
 **Span**: 9 weeks · target_date 2026-09-13
 **Status**: draft
-**Generation attempts**: 1
+**Generation attempts**: 3
 **Fallback used**: True
 
 ## Phases

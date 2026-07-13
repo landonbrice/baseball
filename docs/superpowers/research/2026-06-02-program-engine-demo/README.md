@@ -14,7 +14,7 @@ _Generated 2026-06-02 against `landon_brice`._
    - Pitcher: `landon_brice`
    - Goal: `return_to_play` · 9 weeks
    - knowledge_version: `9d185eb1dd6ea5aabc7508919c3ee936f7c81a21`
-   - Generation attempts: 1
+   - Generation attempts: 3
    - Fallback used: True
    - Total days: 63
 
