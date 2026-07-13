@@ -4,44 +4,68 @@
   "domain": "unified",
   "knowledge_version": "9d185eb1dd6ea5aabc7508919c3ee936f7c81a21",
   "engine_version": "v1",
-  "generated_at": "2026-07-13T02:40:05",
+  "generated_at": "2026-03-25T16:00:00",
   "target_date": "2026-09-13",
   "total_weeks": 9,
   "status": "draft",
   "phases": [
     {
-      "phase_id": "reintroduction",
-      "name": "Reintroduction",
+      "phase_id": "base_throwing",
+      "name": "Base Throwing",
       "week_count": 2,
       "phase_type": "base",
-      "intent_summary": "3 days/wk. Compression 'on a line' at 80% then 85-90%. No mound.",
+      "intent_summary": "Rebuild flat-ground throwing base with conservative volume. Focus on arm path confidence and forearm tolerance.",
       "intent_kpis": [
-        "max_distance_120ft",
-        "effort_85pct"
+        "weekly_throw_count",
+        "max_long_toss_distance"
       ],
       "default_training_intent": "lifting+throwing"
     },
     {
-      "phase_id": "intent_restoration",
-      "name": "Intent Restoration",
+      "phase_id": "mound_intro",
+      "name": "Mound Introduction",
+      "week_count": 1,
+      "phase_type": "transition",
+      "intent_summary": "First exposure to mound work at low volume. Monitor forearm response closely.",
+      "intent_kpis": [
+        "mound_throw_count",
+        "arm_feel"
+      ],
+      "default_training_intent": "lifting+throwing"
+    },
+    {
+      "phase_id": "deload",
+      "name": "Deload Week",
+      "week_count": 1,
+      "phase_type": "deload",
+      "intent_summary": "Reduced volume across all domains to allow supercompensation. Forearm work kept consistent.",
+      "intent_kpis": [
+        "weekly_throw_count",
+        "rating_of_perceived_exertion"
+      ],
+      "default_training_intent": "lifting+throwing"
+    },
+    {
+      "phase_id": "mound_volume",
+      "name": "Mound Volume",
       "week_count": 3,
       "phase_type": "accumulation",
-      "intent_summary": "4 days/wk. Flat-ground pulldowns reach 100%. Mound begins at 50ft ('on the bump, move plate in \u2014 groove fastball'). Wk4 is the deload dip.",
+      "intent_summary": "Systematic increase in mound throw count and flat-ground intensity. Maintain forearm conditioning.",
       "intent_kpis": [
-        "max_distance_120ft",
-        "effort_100pct"
+        "mound_throw_count",
+        "flat_ground_intensity_pct"
       ],
       "default_training_intent": "lifting+throwing"
     },
     {
-      "phase_id": "mound_build",
-      "name": "Mound Build",
-      "week_count": 4,
+      "phase_id": "pre_competition",
+      "name": "Pre-Competition",
+      "week_count": 2,
       "phase_type": "realization",
-      "intent_summary": "Bullpen ladder climbs 15\u219250 throws; pitch mix after FB command.",
+      "intent_summary": "Simulate in-season throwing/lifting schedule. Build toward full game readiness without actual game stress.",
       "intent_kpis": [
-        "max_distance_120ft",
-        "effort_100pct"
+        "bullpen_count",
+        "pull_push_ratio"
       ],
       "default_training_intent": "lifting+throwing"
     }
@@ -49,2566 +73,3961 @@
   "days": [
     {
       "day_index": 0,
-      "template_key": "wk1_d1_fallback",
-      "date": "2026-07-13",
+      "template_key": "wk1_d1_flat",
+      "date": "2026-03-26",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Reintroduction",
-      "intent_pct": 84,
-      "is_deload": false,
+      "phase_name": "Base Throwing",
+      "intent_pct": 60,
+      "is_deload": true,
       "is_rest": false,
       "throwing_5tuple": {
-        "distance_ft": 120,
-        "throw_count": 63,
-        "intensity_pct": 84,
-        "drill": "compression_on_a_line_80pct",
-        "note": null
+        "distance_ft": 60,
+        "throw_count": 60,
+        "intensity_pct": 60,
+        "drill": "Flat Ground Throws",
+        "note": "Focus on mechanics, not velo."
       },
       "lifting_blocks": [
         {
-          "block_name": "Posterior Chain",
+          "block_name": "Block 1: Lower Strength",
           "exercises": [
             {
-              "exercise_id": "ex_004",
+              "exercise_id": "ex_002",
               "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
-              "superset_group": null,
+              "reps": "5-7",
+              "intensity": "75% 1RM",
+              "rest_s": 120,
+              "superset_group": "A",
               "note": null
             },
             {
               "exercise_id": "ex_005",
               "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
-              "superset_group": null,
+              "reps": "8",
+              "intensity": "65% 1RM",
+              "rest_s": 90,
+              "superset_group": "A",
               "note": null
-            },
+            }
+          ]
+        },
+        {
+          "block_name": "Block 2: Pull Emphasis",
+          "exercises": [
             {
               "exercise_id": "ex_020",
-              "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
+              "sets": 4,
+              "reps": "10-12",
+              "intensity": "RPE 7",
+              "rest_s": 90,
               "superset_group": null,
               "note": null
             },
             {
-              "exercise_id": "ex_070",
-              "sets": 3,
-              "reps": "12",
-              "intensity": "BW",
-              "rest_s": null,
+              "exercise_id": "ex_023",
+              "sets": 2,
+              "reps": "15",
+              "intensity": "light",
+              "rest_s": 60,
               "superset_group": null,
               "note": null
             }
           ]
         },
         {
-          "block_name": "Push Pull",
+          "block_name": "Block 3: Arm Care",
           "exercises": [
             {
-              "exercise_id": "ex_025",
-              "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_128",
-              "sets": 3,
-              "reps": "6-8",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_029",
-              "sets": 3,
-              "reps": "10",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_041",
-              "sets": 3,
+              "exercise_id": "ex_039",
+              "sets": 2,
               "reps": "12",
-              "intensity": "BW",
-              "rest_s": null,
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_040",
+              "sets": 2,
+              "reps": "12",
+              "intensity": "light",
+              "rest_s": 60,
               "superset_group": null,
               "note": null
             }
           ]
         }
       ],
-      "day_focus": "Reintroduction: 84% throwing",
-      "cues": []
+      "day_focus": "Base flat-ground throwing with moderate lower-body lift.",
+      "cues": [
+        "Keep throws easy\u2014air it out gradually.",
+        "Stay light on legs."
+      ]
     },
     {
       "day_index": 1,
-      "template_key": "wk1_d2_fallback",
-      "date": "2026-07-14",
+      "template_key": "wk1_d2_arm_care",
+      "date": "2026-03-27",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Reintroduction",
-      "intent_pct": null,
-      "is_deload": false,
+      "phase_name": "Base Throwing",
+      "intent_pct": 40,
+      "is_deload": true,
       "is_rest": true,
       "throwing_5tuple": null,
-      "lifting_blocks": [],
-      "day_focus": null,
-      "cues": []
+      "lifting_blocks": [
+        {
+          "block_name": "Block 1: Mobility & Activation",
+          "exercises": [
+            {
+              "exercise_id": "ex_055",
+              "sets": 1,
+              "reps": "10 each",
+              "intensity": "light",
+              "rest_s": 30,
+              "superset_group": null,
+              "note": "Warm-up"
+            },
+            {
+              "exercise_id": "ex_035",
+              "sets": 2,
+              "reps": "30s hold",
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            }
+          ]
+        }
+      ],
+      "day_focus": "Active recovery day. No throwing, light mobility.",
+      "cues": [
+        "Prioritize sleep and hydration.",
+        "No forearm work\u2014let it rest."
+      ]
     },
     {
       "day_index": 2,
-      "template_key": "wk1_d3_fallback",
-      "date": "2026-07-15",
+      "template_key": "wk1_d3_flat",
+      "date": "2026-03-28",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Reintroduction",
-      "intent_pct": 84,
-      "is_deload": false,
+      "phase_name": "Base Throwing",
+      "intent_pct": 65,
+      "is_deload": true,
       "is_rest": false,
       "throwing_5tuple": {
-        "distance_ft": 120,
-        "throw_count": 63,
-        "intensity_pct": 84,
-        "drill": "compression_on_a_line_80pct",
-        "note": null
+        "distance_ft": 75,
+        "throw_count": 60,
+        "intensity_pct": 65,
+        "drill": "Flat Ground Throws",
+        "note": "Include some extension throws."
       },
-      "lifting_blocks": [],
-      "day_focus": "Reintroduction: 84% throwing",
-      "cues": []
+      "lifting_blocks": [
+        {
+          "block_name": "Block 1: Upper Pull",
+          "exercises": [
+            {
+              "exercise_id": "ex_019",
+              "sets": 3,
+              "reps": "6-8",
+              "intensity": "BW+10lb",
+              "rest_s": 120,
+              "superset_group": "A",
+              "note": null
+            },
+            {
+              "exercise_id": "ex_021",
+              "sets": 3,
+              "reps": "10/side",
+              "intensity": "RPE 7",
+              "rest_s": 90,
+              "superset_group": "A",
+              "note": null
+            }
+          ]
+        },
+        {
+          "block_name": "Block 2: Core",
+          "exercises": [
+            {
+              "exercise_id": "ex_045",
+              "sets": 3,
+              "reps": "8/side",
+              "intensity": "moderate",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_048",
+              "sets": 2,
+              "reps": "30s/side",
+              "intensity": "bodyweight",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            }
+          ]
+        },
+        {
+          "block_name": "Block 3: Forearm",
+          "exercises": [
+            {
+              "exercise_id": "ex_041",
+              "sets": 2,
+              "reps": "12",
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_042",
+              "sets": 2,
+              "reps": "12",
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            }
+          ]
+        }
+      ],
+      "day_focus": "Flat ground with extension throws, followed by upper pull and core.",
+      "cues": [
+        "Extension throws: high arc, increasing distance.",
+        "Pullups: full ROM."
+      ]
     },
     {
       "day_index": 3,
-      "template_key": "wk1_d4_fallback",
-      "date": "2026-07-16",
+      "template_key": "wk1_d4_rest",
+      "date": "2026-03-29",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Reintroduction",
-      "intent_pct": null,
-      "is_deload": false,
-      "is_rest": false,
+      "phase_name": "Base Throwing",
+      "intent_pct": 0,
+      "is_deload": true,
+      "is_rest": true,
       "throwing_5tuple": null,
-      "lifting_blocks": [
-        {
-          "block_name": "Posterior Chain",
-          "exercises": [
-            {
-              "exercise_id": "ex_004",
-              "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_005",
-              "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_020",
-              "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_070",
-              "sets": 3,
-              "reps": "12",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            }
-          ]
-        },
-        {
-          "block_name": "Push Pull",
-          "exercises": [
-            {
-              "exercise_id": "ex_025",
-              "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_128",
-              "sets": 3,
-              "reps": "6-8",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_029",
-              "sets": 3,
-              "reps": "10",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_041",
-              "sets": 3,
-              "reps": "12",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            }
-          ]
-        }
-      ],
-      "day_focus": "Reintroduction: hypertrophy lifting",
-      "cues": []
+      "lifting_blocks": [],
+      "day_focus": "Total rest day.",
+      "cues": [
+        "Hydrate and sleep >8h.",
+        "Light walk if desired."
+      ]
     },
     {
       "day_index": 4,
-      "template_key": "wk1_d5_fallback",
-      "date": "2026-07-17",
+      "template_key": "wk1_d5_flat",
+      "date": "2026-03-30",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Reintroduction",
-      "intent_pct": 84,
-      "is_deload": false,
+      "phase_name": "Base Throwing",
+      "intent_pct": 70,
+      "is_deload": true,
       "is_rest": false,
       "throwing_5tuple": {
-        "distance_ft": 120,
-        "throw_count": 63,
-        "intensity_pct": 84,
-        "drill": "compression_on_a_line_80pct",
-        "note": null
+        "distance_ft": 90,
+        "throw_count": 58,
+        "intensity_pct": 70,
+        "drill": "Flat Ground Throws + Long Toss",
+        "note": "Mix extension and compression throws."
       },
-      "lifting_blocks": [],
-      "day_focus": "Reintroduction: 84% throwing",
-      "cues": []
+      "lifting_blocks": [
+        {
+          "block_name": "Block 1: Lower Power",
+          "exercises": [
+            {
+              "exercise_id": "ex_004",
+              "sets": 3,
+              "reps": "6-8/side",
+              "intensity": "RPE 7",
+              "rest_s": 120,
+              "superset_group": "A",
+              "note": null
+            },
+            {
+              "exercise_id": "ex_017",
+              "sets": 3,
+              "reps": "5/side",
+              "intensity": "max intent",
+              "rest_s": 90,
+              "superset_group": "A",
+              "note": null
+            }
+          ]
+        },
+        {
+          "block_name": "Block 2: Push Accessory",
+          "exercises": [
+            {
+              "exercise_id": "ex_024",
+              "sets": 2,
+              "reps": "15",
+              "intensity": "bodyweight",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_028",
+              "sets": 2,
+              "reps": "12",
+              "intensity": "bodyweight",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            }
+          ]
+        },
+        {
+          "block_name": "Block 3: FPM",
+          "exercises": [
+            {
+              "exercise_id": "ex_039",
+              "sets": 2,
+              "reps": "12",
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_044",
+              "sets": 2,
+              "reps": "30s",
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            }
+          ]
+        }
+      ],
+      "day_focus": "Long toss introduction with lower power work.",
+      "cues": [
+        "Long toss: reach 120ft by end of phase.",
+        "Landings on bounds: stick and hold."
+      ]
     },
     {
       "day_index": 5,
-      "template_key": "wk1_d6_fallback",
-      "date": "2026-07-18",
+      "template_key": "wk1_d6_active_rec",
+      "date": "2026-03-31",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Reintroduction",
-      "intent_pct": null,
-      "is_deload": false,
-      "is_rest": true,
+      "phase_name": "Base Throwing",
+      "intent_pct": 30,
+      "is_deload": true,
+      "is_rest": false,
       "throwing_5tuple": null,
-      "lifting_blocks": [],
-      "day_focus": null,
-      "cues": []
+      "lifting_blocks": [
+        {
+          "block_name": "Block 1: Recovery",
+          "exercises": [
+            {
+              "exercise_id": "ex_035",
+              "sets": 2,
+              "reps": "30s hold",
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_046",
+              "sets": 2,
+              "reps": "8/side",
+              "intensity": "bodyweight",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_039",
+              "sets": 1,
+              "reps": "12",
+              "intensity": "light",
+              "rest_s": 30,
+              "superset_group": null,
+              "note": null
+            }
+          ]
+        }
+      ],
+      "day_focus": "Active recovery: light mobility and forearm maintenance.",
+      "cues": [
+        "No throwing. Keep moving.",
+        "Forearm work light\u2014quality over load."
+      ]
     },
     {
       "day_index": 6,
-      "template_key": "wk1_d7_fallback",
-      "date": "2026-07-19",
+      "template_key": "wk1_d7_rest",
+      "date": "2026-04-01",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Reintroduction",
-      "intent_pct": null,
-      "is_deload": false,
+      "phase_name": "Base Throwing",
+      "intent_pct": 0,
+      "is_deload": true,
       "is_rest": true,
       "throwing_5tuple": null,
       "lifting_blocks": [],
-      "day_focus": null,
-      "cues": []
+      "day_focus": "Rest.",
+      "cues": [
+        "Prepare for week 2."
+      ]
     },
     {
       "day_index": 7,
-      "template_key": "wk2_d1_fallback",
-      "date": "2026-07-20",
+      "template_key": "wk2_d1_flat",
+      "date": "2026-04-02",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Reintroduction",
-      "intent_pct": 84,
-      "is_deload": false,
+      "phase_name": "Base Throwing",
+      "intent_pct": 65,
+      "is_deload": true,
       "is_rest": false,
       "throwing_5tuple": {
-        "distance_ft": 120,
-        "throw_count": 63,
-        "intensity_pct": 84,
-        "drill": "compression_on_a_line_80pct",
-        "note": null
+        "distance_ft": 90,
+        "throw_count": 70,
+        "intensity_pct": 65,
+        "drill": "Flat Ground Throws",
+        "note": "Increase volume slightly."
       },
       "lifting_blocks": [
         {
-          "block_name": "Posterior Chain",
+          "block_name": "Block 1: Lower Strength",
           "exercises": [
             {
-              "exercise_id": "ex_004",
+              "exercise_id": "ex_002",
               "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
-              "superset_group": null,
+              "reps": "5-7",
+              "intensity": "77% 1RM",
+              "rest_s": 120,
+              "superset_group": "A",
               "note": null
             },
             {
-              "exercise_id": "ex_005",
+              "exercise_id": "ex_006",
               "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
-              "superset_group": null,
+              "reps": "8/side",
+              "intensity": "RPE 7",
+              "rest_s": 90,
+              "superset_group": "A",
               "note": null
-            },
+            }
+          ]
+        },
+        {
+          "block_name": "Block 2: Pull",
+          "exercises": [
             {
               "exercise_id": "ex_020",
-              "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
+              "sets": 4,
+              "reps": "10-12",
+              "intensity": "RPE 7",
+              "rest_s": 90,
               "superset_group": null,
               "note": null
             },
             {
-              "exercise_id": "ex_070",
-              "sets": 3,
-              "reps": "12",
-              "intensity": "BW",
-              "rest_s": null,
+              "exercise_id": "ex_023",
+              "sets": 2,
+              "reps": "15",
+              "intensity": "light",
+              "rest_s": 60,
               "superset_group": null,
               "note": null
             }
           ]
         },
         {
-          "block_name": "Push Pull",
+          "block_name": "Block 3: FPM",
           "exercises": [
             {
-              "exercise_id": "ex_025",
-              "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_128",
-              "sets": 3,
-              "reps": "6-8",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_029",
-              "sets": 3,
-              "reps": "10",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_041",
-              "sets": 3,
+              "exercise_id": "ex_039",
+              "sets": 2,
               "reps": "12",
-              "intensity": "BW",
-              "rest_s": null,
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_040",
+              "sets": 2,
+              "reps": "12",
+              "intensity": "light",
+              "rest_s": 60,
               "superset_group": null,
               "note": null
             }
           ]
         }
       ],
-      "day_focus": "Reintroduction: 84% throwing",
-      "cues": []
+      "day_focus": "Volume step up with strength.",
+      "cues": [
+        "Smooth reps.",
+        "Keep throws easy\u2014build base."
+      ]
     },
     {
       "day_index": 8,
-      "template_key": "wk2_d2_fallback",
-      "date": "2026-07-21",
+      "template_key": "wk2_d2_arm_care",
+      "date": "2026-04-03",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Reintroduction",
-      "intent_pct": null,
-      "is_deload": false,
+      "phase_name": "Base Throwing",
+      "intent_pct": 40,
+      "is_deload": true,
       "is_rest": true,
-      "throwing_5tuple": null,
-      "lifting_blocks": [],
-      "day_focus": null,
-      "cues": []
-    },
-    {
-      "day_index": 9,
-      "template_key": "wk2_d3_fallback",
-      "date": "2026-07-22",
-      "anchor_kind": "calendar_relative",
-      "phase_name": "Reintroduction",
-      "intent_pct": 84,
-      "is_deload": false,
-      "is_rest": false,
-      "throwing_5tuple": {
-        "distance_ft": 120,
-        "throw_count": 63,
-        "intensity_pct": 84,
-        "drill": "compression_on_a_line_80pct",
-        "note": null
-      },
-      "lifting_blocks": [],
-      "day_focus": "Reintroduction: 84% throwing",
-      "cues": []
-    },
-    {
-      "day_index": 10,
-      "template_key": "wk2_d4_fallback",
-      "date": "2026-07-23",
-      "anchor_kind": "calendar_relative",
-      "phase_name": "Reintroduction",
-      "intent_pct": null,
-      "is_deload": false,
-      "is_rest": false,
       "throwing_5tuple": null,
       "lifting_blocks": [
         {
-          "block_name": "Posterior Chain",
+          "block_name": "Block 1: Mobility & Activation",
           "exercises": [
             {
-              "exercise_id": "ex_004",
-              "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
+              "exercise_id": "ex_055",
+              "sets": 1,
+              "reps": "10 each",
+              "intensity": "light",
+              "rest_s": 30,
               "superset_group": null,
               "note": null
             },
             {
-              "exercise_id": "ex_005",
-              "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_020",
-              "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_070",
-              "sets": 3,
-              "reps": "12",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            }
-          ]
-        },
-        {
-          "block_name": "Push Pull",
-          "exercises": [
-            {
-              "exercise_id": "ex_025",
-              "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_128",
-              "sets": 3,
-              "reps": "6-8",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_029",
-              "sets": 3,
-              "reps": "10",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_041",
-              "sets": 3,
-              "reps": "12",
-              "intensity": "BW",
-              "rest_s": null,
+              "exercise_id": "ex_035",
+              "sets": 2,
+              "reps": "30s hold",
+              "intensity": "light",
+              "rest_s": 60,
               "superset_group": null,
               "note": null
             }
           ]
         }
       ],
-      "day_focus": "Reintroduction: hypertrophy lifting",
+      "day_focus": "Recovery.",
+      "cues": [
+        "Hydrate, sleep, light stretch."
+      ]
+    },
+    {
+      "day_index": 9,
+      "template_key": "wk2_d3_flat",
+      "date": "2026-04-04",
+      "anchor_kind": "calendar_relative",
+      "phase_name": "Base Throwing",
+      "intent_pct": 70,
+      "is_deload": true,
+      "is_rest": false,
+      "throwing_5tuple": {
+        "distance_ft": 105,
+        "throw_count": 70,
+        "intensity_pct": 70,
+        "drill": "Flat Ground Throws + Compression",
+        "note": "Include compression throws at 90-120ft."
+      },
+      "lifting_blocks": [
+        {
+          "block_name": "Block 1: Upper Pull",
+          "exercises": [
+            {
+              "exercise_id": "ex_019",
+              "sets": 3,
+              "reps": "6-8",
+              "intensity": "BW+10lb",
+              "rest_s": 120,
+              "superset_group": "A",
+              "note": null
+            },
+            {
+              "exercise_id": "ex_021",
+              "sets": 3,
+              "reps": "10/side",
+              "intensity": "RPE 7",
+              "rest_s": 90,
+              "superset_group": "A",
+              "note": null
+            }
+          ]
+        },
+        {
+          "block_name": "Block 2: Core",
+          "exercises": [
+            {
+              "exercise_id": "ex_045",
+              "sets": 3,
+              "reps": "8/side",
+              "intensity": "moderate",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_047",
+              "sets": 3,
+              "reps": "8",
+              "intensity": "bodyweight",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            }
+          ]
+        },
+        {
+          "block_name": "Block 3: FPM",
+          "exercises": [
+            {
+              "exercise_id": "ex_041",
+              "sets": 2,
+              "reps": "12",
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_042",
+              "sets": 2,
+              "reps": "12",
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            }
+          ]
+        }
+      ],
+      "day_focus": "Compression throws + upper body.",
+      "cues": [
+        "Compression: on-a-line, hard, head-high.",
+        "Chin-ups: full hang to chin over bar."
+      ]
+    },
+    {
+      "day_index": 10,
+      "template_key": "wk2_d4_rest",
+      "date": "2026-04-05",
+      "anchor_kind": "calendar_relative",
+      "phase_name": "Base Throwing",
+      "intent_pct": 0,
+      "is_deload": true,
+      "is_rest": true,
+      "throwing_5tuple": null,
+      "lifting_blocks": [],
+      "day_focus": "Rest.",
       "cues": []
     },
     {
       "day_index": 11,
-      "template_key": "wk2_d5_fallback",
-      "date": "2026-07-24",
+      "template_key": "wk2_d5_flat",
+      "date": "2026-04-06",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Reintroduction",
-      "intent_pct": 84,
-      "is_deload": false,
+      "phase_name": "Base Throwing",
+      "intent_pct": 75,
+      "is_deload": true,
       "is_rest": false,
       "throwing_5tuple": {
         "distance_ft": 120,
         "throw_count": 63,
-        "intensity_pct": 84,
-        "drill": "compression_on_a_line_80pct",
-        "note": null
+        "intensity_pct": 75,
+        "drill": "Long Toss (Extension + Compression)",
+        "note": "Reach max distance and work back in."
       },
-      "lifting_blocks": [],
-      "day_focus": "Reintroduction: 84% throwing",
-      "cues": []
+      "lifting_blocks": [
+        {
+          "block_name": "Block 1: Lower Power",
+          "exercises": [
+            {
+              "exercise_id": "ex_004",
+              "sets": 3,
+              "reps": "6-8/side",
+              "intensity": "RPE 7",
+              "rest_s": 120,
+              "superset_group": "A",
+              "note": null
+            },
+            {
+              "exercise_id": "ex_014",
+              "sets": 3,
+              "reps": "6/side",
+              "intensity": "max intent",
+              "rest_s": 90,
+              "superset_group": "A",
+              "note": null
+            }
+          ]
+        },
+        {
+          "block_name": "Block 2: Push Accessory",
+          "exercises": [
+            {
+              "exercise_id": "ex_026",
+              "sets": 3,
+              "reps": "8/side",
+              "intensity": "RPE 7",
+              "rest_s": 90,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_028",
+              "sets": 2,
+              "reps": "12",
+              "intensity": "bodyweight",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            }
+          ]
+        },
+        {
+          "block_name": "Block 3: FPM",
+          "exercises": [
+            {
+              "exercise_id": "ex_039",
+              "sets": 2,
+              "reps": "12",
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_044",
+              "sets": 2,
+              "reps": "30s",
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            }
+          ]
+        }
+      ],
+      "day_focus": "Long toss to max distance, lower power.",
+      "cues": [
+        "Extension: high arc; compression: on-a-line.",
+        "Rotational throws: drive off back hip."
+      ]
     },
     {
       "day_index": 12,
-      "template_key": "wk2_d6_fallback",
-      "date": "2026-07-25",
+      "template_key": "wk2_d6_active_rec",
+      "date": "2026-04-07",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Reintroduction",
-      "intent_pct": null,
-      "is_deload": false,
-      "is_rest": true,
+      "phase_name": "Base Throwing",
+      "intent_pct": 30,
+      "is_deload": true,
+      "is_rest": false,
       "throwing_5tuple": null,
-      "lifting_blocks": [],
-      "day_focus": null,
-      "cues": []
+      "lifting_blocks": [
+        {
+          "block_name": "Block 1: Recovery",
+          "exercises": [
+            {
+              "exercise_id": "ex_035",
+              "sets": 2,
+              "reps": "30s hold",
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_046",
+              "sets": 2,
+              "reps": "8/side",
+              "intensity": "bodyweight",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_039",
+              "sets": 1,
+              "reps": "12",
+              "intensity": "light",
+              "rest_s": 30,
+              "superset_group": null,
+              "note": null
+            }
+          ]
+        }
+      ],
+      "day_focus": "Active recovery.",
+      "cues": [
+        "Forearm maintenance.",
+        "Focus on mobility."
+      ]
     },
     {
       "day_index": 13,
-      "template_key": "wk2_d7_fallback",
-      "date": "2026-07-26",
+      "template_key": "wk2_d7_rest",
+      "date": "2026-04-08",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Reintroduction",
-      "intent_pct": null,
-      "is_deload": false,
+      "phase_name": "Base Throwing",
+      "intent_pct": 0,
+      "is_deload": true,
       "is_rest": true,
       "throwing_5tuple": null,
       "lifting_blocks": [],
-      "day_focus": null,
+      "day_focus": "Rest.",
       "cues": []
     },
     {
       "day_index": 14,
-      "template_key": "wk3_d1_fallback",
-      "date": "2026-07-27",
+      "template_key": "wk3_d1_mound_intro",
+      "date": "2026-04-09",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Intent Restoration",
-      "intent_pct": 88,
-      "is_deload": false,
+      "phase_name": "Mound Introduction",
+      "intent_pct": 75,
+      "is_deload": true,
       "is_rest": false,
       "throwing_5tuple": {
-        "distance_ft": 120,
-        "throw_count": 66,
-        "intensity_pct": 88,
-        "drill": "pulldowns_flat_ground",
-        "note": null
+        "distance_ft": 60,
+        "throw_count": 15,
+        "intensity_pct": 75,
+        "drill": "Short Box Bullpen",
+        "note": "First mound work. Move plate in to 50ft. Fastball only."
       },
       "lifting_blocks": [
         {
-          "block_name": "Posterior Chain",
+          "block_name": "Block 1: Lower Strength",
           "exercises": [
             {
-              "exercise_id": "ex_004",
+              "exercise_id": "ex_002",
               "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
-              "superset_group": null,
+              "reps": "5",
+              "intensity": "80% 1RM",
+              "rest_s": 120,
+              "superset_group": "A",
               "note": null
             },
             {
               "exercise_id": "ex_005",
               "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
-              "superset_group": null,
+              "reps": "8",
+              "intensity": "65% 1RM",
+              "rest_s": 90,
+              "superset_group": "A",
               "note": null
-            },
+            }
+          ]
+        },
+        {
+          "block_name": "Block 2: Pull",
+          "exercises": [
             {
               "exercise_id": "ex_020",
-              "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
+              "sets": 4,
+              "reps": "10-12",
+              "intensity": "RPE 7",
+              "rest_s": 90,
               "superset_group": null,
               "note": null
             },
             {
-              "exercise_id": "ex_070",
-              "sets": 3,
-              "reps": "12",
-              "intensity": "BW",
-              "rest_s": null,
+              "exercise_id": "ex_023",
+              "sets": 2,
+              "reps": "15",
+              "intensity": "light",
+              "rest_s": 60,
               "superset_group": null,
               "note": null
             }
           ]
         },
         {
-          "block_name": "Push Pull",
+          "block_name": "Block 3: FPM",
           "exercises": [
             {
-              "exercise_id": "ex_025",
-              "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_128",
-              "sets": 3,
-              "reps": "6-8",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_029",
-              "sets": 3,
-              "reps": "10",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_041",
-              "sets": 3,
+              "exercise_id": "ex_039",
+              "sets": 2,
               "reps": "12",
-              "intensity": "BW",
-              "rest_s": null,
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_040",
+              "sets": 2,
+              "reps": "12",
+              "intensity": "light",
+              "rest_s": 60,
               "superset_group": null,
               "note": null
             }
           ]
         }
       ],
-      "day_focus": "Intent Restoration: 88% throwing",
-      "cues": []
+      "day_focus": "First mound session \u2014 low volume, fastball command.",
+      "cues": [
+        "Stay relaxed on rubber.",
+        "Focus on repeating delivery."
+      ]
     },
     {
       "day_index": 15,
-      "template_key": "wk3_d2_fallback",
-      "date": "2026-07-28",
+      "template_key": "wk3_d2_flat",
+      "date": "2026-04-10",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Intent Restoration",
-      "intent_pct": null,
-      "is_deload": false,
-      "is_rest": true,
-      "throwing_5tuple": null,
-      "lifting_blocks": [],
-      "day_focus": null,
-      "cues": []
+      "phase_name": "Mound Introduction",
+      "intent_pct": 70,
+      "is_deload": true,
+      "is_rest": false,
+      "throwing_5tuple": {
+        "distance_ft": 90,
+        "throw_count": 60,
+        "intensity_pct": 70,
+        "drill": "Flat Ground Throws",
+        "note": "Continue building tolerance."
+      },
+      "lifting_blocks": [
+        {
+          "block_name": "Block 1: Upper Pull",
+          "exercises": [
+            {
+              "exercise_id": "ex_019",
+              "sets": 3,
+              "reps": "6",
+              "intensity": "BW+15lb",
+              "rest_s": 120,
+              "superset_group": "A",
+              "note": null
+            },
+            {
+              "exercise_id": "ex_021",
+              "sets": 3,
+              "reps": "10/side",
+              "intensity": "RPE 7",
+              "rest_s": 90,
+              "superset_group": "A",
+              "note": null
+            }
+          ]
+        },
+        {
+          "block_name": "Block 2: Core",
+          "exercises": [
+            {
+              "exercise_id": "ex_045",
+              "sets": 3,
+              "reps": "8/side",
+              "intensity": "moderate",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_048",
+              "sets": 2,
+              "reps": "30s/side",
+              "intensity": "bodyweight",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            }
+          ]
+        },
+        {
+          "block_name": "Block 3: FPM",
+          "exercises": [
+            {
+              "exercise_id": "ex_041",
+              "sets": 2,
+              "reps": "12",
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_042",
+              "sets": 2,
+              "reps": "12",
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            }
+          ]
+        }
+      ],
+      "day_focus": "Flat ground volume, upper pull and core.",
+      "cues": [
+        "Easy throws; focus on arm path.",
+        "Pull-ups: full ROM."
+      ]
     },
     {
       "day_index": 16,
-      "template_key": "wk3_d3_fallback",
-      "date": "2026-07-29",
+      "template_key": "wk3_d3_rest",
+      "date": "2026-04-11",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Intent Restoration",
-      "intent_pct": 88,
-      "is_deload": false,
-      "is_rest": false,
-      "throwing_5tuple": {
-        "distance_ft": 120,
-        "throw_count": 66,
-        "intensity_pct": 88,
-        "drill": "pulldowns_flat_ground",
-        "note": null
-      },
+      "phase_name": "Mound Introduction",
+      "intent_pct": 0,
+      "is_deload": true,
+      "is_rest": true,
+      "throwing_5tuple": null,
       "lifting_blocks": [],
-      "day_focus": "Intent Restoration: 88% throwing",
+      "day_focus": "Rest.",
       "cues": []
     },
     {
       "day_index": 17,
-      "template_key": "wk3_d4_fallback",
-      "date": "2026-07-30",
+      "template_key": "wk3_d4_mound",
+      "date": "2026-04-12",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Intent Restoration",
-      "intent_pct": null,
-      "is_deload": false,
+      "phase_name": "Mound Introduction",
+      "intent_pct": 80,
+      "is_deload": true,
       "is_rest": false,
-      "throwing_5tuple": null,
+      "throwing_5tuple": {
+        "distance_ft": 60,
+        "throw_count": 15,
+        "intensity_pct": 80,
+        "drill": "Short Box Bullpen",
+        "note": "Second mound session. Fastball only, increase intent slightly."
+      },
       "lifting_blocks": [
         {
-          "block_name": "Posterior Chain",
+          "block_name": "Block 1: Lower Power",
           "exercises": [
             {
               "exercise_id": "ex_004",
               "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
+              "reps": "6/side",
+              "intensity": "RPE 8",
+              "rest_s": 120,
+              "superset_group": "A",
+              "note": null
+            },
+            {
+              "exercise_id": "ex_017",
+              "sets": 3,
+              "reps": "5/side",
+              "intensity": "max intent",
+              "rest_s": 90,
+              "superset_group": "A",
+              "note": null
+            }
+          ]
+        },
+        {
+          "block_name": "Block 2: Push Accessory",
+          "exercises": [
+            {
+              "exercise_id": "ex_024",
+              "sets": 2,
+              "reps": "15",
+              "intensity": "bodyweight",
+              "rest_s": 60,
               "superset_group": null,
               "note": null
             },
             {
-              "exercise_id": "ex_005",
-              "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_020",
-              "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_070",
-              "sets": 3,
+              "exercise_id": "ex_028",
+              "sets": 2,
               "reps": "12",
-              "intensity": "BW",
-              "rest_s": null,
+              "intensity": "bodyweight",
+              "rest_s": 60,
               "superset_group": null,
               "note": null
             }
           ]
         },
         {
-          "block_name": "Push Pull",
+          "block_name": "Block 3: FPM",
           "exercises": [
             {
-              "exercise_id": "ex_025",
-              "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_128",
-              "sets": 3,
-              "reps": "6-8",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_029",
-              "sets": 3,
-              "reps": "10",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_041",
-              "sets": 3,
+              "exercise_id": "ex_039",
+              "sets": 2,
               "reps": "12",
-              "intensity": "BW",
-              "rest_s": null,
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_044",
+              "sets": 2,
+              "reps": "30s",
+              "intensity": "light",
+              "rest_s": 60,
               "superset_group": null,
               "note": null
             }
           ]
         }
       ],
-      "day_focus": "Intent Restoration: hypertrophy lifting",
-      "cues": []
+      "day_focus": "Second mound session, lower power.",
+      "cues": [
+        "Mound: stay behind the ball.",
+        "Bounds: explode and stick."
+      ]
     },
     {
       "day_index": 18,
-      "template_key": "wk3_d5_fallback",
-      "date": "2026-07-31",
+      "template_key": "wk3_d5_flat",
+      "date": "2026-04-13",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Intent Restoration",
-      "intent_pct": 88,
-      "is_deload": false,
+      "phase_name": "Mound Introduction",
+      "intent_pct": 75,
+      "is_deload": true,
       "is_rest": false,
       "throwing_5tuple": {
-        "distance_ft": 120,
-        "throw_count": 66,
-        "intensity_pct": 88,
-        "drill": "pulldowns_flat_ground",
-        "note": null
+        "distance_ft": 105,
+        "throw_count": 60,
+        "intensity_pct": 75,
+        "drill": "Flat Ground Throws + Compression",
+        "note": "Main volume day."
       },
-      "lifting_blocks": [],
-      "day_focus": "Intent Restoration: 88% throwing",
-      "cues": []
+      "lifting_blocks": [
+        {
+          "block_name": "Block 1: Lower Strength",
+          "exercises": [
+            {
+              "exercise_id": "ex_002",
+              "sets": 3,
+              "reps": "5",
+              "intensity": "80% 1RM",
+              "rest_s": 120,
+              "superset_group": "A",
+              "note": null
+            },
+            {
+              "exercise_id": "ex_005",
+              "sets": 3,
+              "reps": "8",
+              "intensity": "65% 1RM",
+              "rest_s": 90,
+              "superset_group": "A",
+              "note": null
+            }
+          ]
+        },
+        {
+          "block_name": "Block 2: Pull",
+          "exercises": [
+            {
+              "exercise_id": "ex_020",
+              "sets": 4,
+              "reps": "10-12",
+              "intensity": "RPE 7",
+              "rest_s": 90,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_023",
+              "sets": 2,
+              "reps": "15",
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            }
+          ]
+        },
+        {
+          "block_name": "Block 3: FPM",
+          "exercises": [
+            {
+              "exercise_id": "ex_039",
+              "sets": 2,
+              "reps": "12",
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_040",
+              "sets": 2,
+              "reps": "12",
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            }
+          ]
+        }
+      ],
+      "day_focus": "Volume flat ground + strength.",
+      "cues": [
+        "Compression throws: on-a-line, hard.",
+        "Front squats: upright chest."
+      ]
     },
     {
       "day_index": 19,
-      "template_key": "wk3_d6_fallback",
-      "date": "2026-08-01",
+      "template_key": "wk3_d6_active_rec",
+      "date": "2026-04-14",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Intent Restoration",
-      "intent_pct": null,
-      "is_deload": false,
-      "is_rest": true,
+      "phase_name": "Mound Introduction",
+      "intent_pct": 30,
+      "is_deload": true,
+      "is_rest": false,
       "throwing_5tuple": null,
-      "lifting_blocks": [],
-      "day_focus": null,
-      "cues": []
+      "lifting_blocks": [
+        {
+          "block_name": "Block 1: Recovery",
+          "exercises": [
+            {
+              "exercise_id": "ex_035",
+              "sets": 2,
+              "reps": "30s hold",
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_046",
+              "sets": 2,
+              "reps": "8/side",
+              "intensity": "bodyweight",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_039",
+              "sets": 1,
+              "reps": "12",
+              "intensity": "light",
+              "rest_s": 30,
+              "superset_group": null,
+              "note": null
+            }
+          ]
+        }
+      ],
+      "day_focus": "Recovery.",
+      "cues": [
+        "Light stretch, forearm maintenance."
+      ]
     },
     {
       "day_index": 20,
-      "template_key": "wk3_d7_fallback",
-      "date": "2026-08-02",
+      "template_key": "wk3_d7_rest",
+      "date": "2026-04-15",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Intent Restoration",
-      "intent_pct": null,
-      "is_deload": false,
+      "phase_name": "Mound Introduction",
+      "intent_pct": 0,
+      "is_deload": true,
       "is_rest": true,
       "throwing_5tuple": null,
       "lifting_blocks": [],
-      "day_focus": null,
+      "day_focus": "Rest.",
       "cues": []
     },
     {
       "day_index": 21,
-      "template_key": "wk4_d1_fallback",
-      "date": "2026-08-03",
+      "template_key": "wk4_d1_deload_mound",
+      "date": "2026-04-16",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Intent Restoration",
-      "intent_pct": 92,
-      "is_deload": false,
+      "phase_name": "Deload Week",
+      "intent_pct": 65,
+      "is_deload": true,
       "is_rest": false,
       "throwing_5tuple": {
-        "distance_ft": 120,
-        "throw_count": 70,
-        "intensity_pct": 92,
-        "drill": "pulldowns_flat_ground",
-        "note": null
+        "distance_ft": 60,
+        "throw_count": 12,
+        "intensity_pct": 65,
+        "drill": "Short Box Bullpen",
+        "note": "Reduced volume. Fastball only."
       },
       "lifting_blocks": [
         {
-          "block_name": "Posterior Chain",
+          "block_name": "Block 1: Lower Strength (Reduced)",
           "exercises": [
             {
-              "exercise_id": "ex_004",
-              "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
-              "superset_group": null,
+              "exercise_id": "ex_002",
+              "sets": 2,
+              "reps": "5",
+              "intensity": "70% 1RM",
+              "rest_s": 120,
+              "superset_group": "A",
               "note": null
             },
             {
               "exercise_id": "ex_005",
-              "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
-              "superset_group": null,
+              "sets": 2,
+              "reps": "8",
+              "intensity": "60% 1RM",
+              "rest_s": 90,
+              "superset_group": "A",
               "note": null
-            },
+            }
+          ]
+        },
+        {
+          "block_name": "Block 2: Pull (Reduced)",
+          "exercises": [
             {
               "exercise_id": "ex_020",
               "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
+              "reps": "10",
+              "intensity": "RPE 6",
+              "rest_s": 90,
               "superset_group": null,
               "note": null
             },
             {
-              "exercise_id": "ex_070",
-              "sets": 3,
-              "reps": "12",
-              "intensity": "BW",
-              "rest_s": null,
+              "exercise_id": "ex_023",
+              "sets": 1,
+              "reps": "15",
+              "intensity": "light",
+              "rest_s": 60,
               "superset_group": null,
               "note": null
             }
           ]
         },
         {
-          "block_name": "Push Pull",
+          "block_name": "Block 3: FPM (Maintained)",
           "exercises": [
             {
-              "exercise_id": "ex_025",
-              "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_128",
-              "sets": 3,
-              "reps": "6-8",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_029",
-              "sets": 3,
-              "reps": "10",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_041",
-              "sets": 3,
+              "exercise_id": "ex_039",
+              "sets": 2,
               "reps": "12",
-              "intensity": "BW",
-              "rest_s": null,
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_040",
+              "sets": 2,
+              "reps": "12",
+              "intensity": "light",
+              "rest_s": 60,
               "superset_group": null,
               "note": null
             }
           ]
         }
       ],
-      "day_focus": "Intent Restoration: 92% throwing",
-      "cues": []
+      "day_focus": "Deload mound session with reduced lifting volume.",
+      "cues": [
+        "Lower loads, maintain quality.",
+        "Focus on recovery."
+      ]
     },
     {
       "day_index": 22,
-      "template_key": "wk4_d2_fallback",
-      "date": "2026-08-04",
+      "template_key": "wk4_d2_flat_deload",
+      "date": "2026-04-17",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Intent Restoration",
-      "intent_pct": null,
-      "is_deload": false,
-      "is_rest": true,
-      "throwing_5tuple": null,
-      "lifting_blocks": [],
-      "day_focus": null,
-      "cues": []
+      "phase_name": "Deload Week",
+      "intent_pct": 60,
+      "is_deload": true,
+      "is_rest": false,
+      "throwing_5tuple": {
+        "distance_ft": 75,
+        "throw_count": 50,
+        "intensity_pct": 60,
+        "drill": "Flat Ground Throws",
+        "note": "Low intensity, focus on arm path."
+      },
+      "lifting_blocks": [
+        {
+          "block_name": "Block 1: Upper Pull (Reduced)",
+          "exercises": [
+            {
+              "exercise_id": "ex_019",
+              "sets": 2,
+              "reps": "6",
+              "intensity": "BW",
+              "rest_s": 120,
+              "superset_group": "A",
+              "note": null
+            },
+            {
+              "exercise_id": "ex_021",
+              "sets": 2,
+              "reps": "10/side",
+              "intensity": "RPE 6",
+              "rest_s": 90,
+              "superset_group": "A",
+              "note": null
+            }
+          ]
+        },
+        {
+          "block_name": "Block 2: Core (Reduced)",
+          "exercises": [
+            {
+              "exercise_id": "ex_045",
+              "sets": 2,
+              "reps": "8/side",
+              "intensity": "moderate",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_048",
+              "sets": 1,
+              "reps": "30s/side",
+              "intensity": "bodyweight",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            }
+          ]
+        },
+        {
+          "block_name": "Block 3: FPM (Maintained)",
+          "exercises": [
+            {
+              "exercise_id": "ex_041",
+              "sets": 2,
+              "reps": "12",
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_042",
+              "sets": 2,
+              "reps": "12",
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            }
+          ]
+        }
+      ],
+      "day_focus": "Deload flat ground with upper pull.",
+      "cues": [
+        "Keep throws easy.",
+        "Lower all weights."
+      ]
     },
     {
       "day_index": 23,
-      "template_key": "wk4_d3_fallback",
-      "date": "2026-08-05",
+      "template_key": "wk4_d3_rest",
+      "date": "2026-04-18",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Intent Restoration",
-      "intent_pct": 92,
-      "is_deload": false,
-      "is_rest": false,
-      "throwing_5tuple": {
-        "distance_ft": 120,
-        "throw_count": 70,
-        "intensity_pct": 92,
-        "drill": "pulldowns_flat_ground",
-        "note": null
-      },
+      "phase_name": "Deload Week",
+      "intent_pct": 0,
+      "is_deload": true,
+      "is_rest": true,
+      "throwing_5tuple": null,
       "lifting_blocks": [],
-      "day_focus": "Intent Restoration: 92% throwing",
+      "day_focus": "Rest.",
       "cues": []
     },
     {
       "day_index": 24,
-      "template_key": "wk4_d4_fallback",
-      "date": "2026-08-06",
+      "template_key": "wk4_d4_mound_deload",
+      "date": "2026-04-19",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Intent Restoration",
-      "intent_pct": null,
-      "is_deload": false,
+      "phase_name": "Deload Week",
+      "intent_pct": 65,
+      "is_deload": true,
       "is_rest": false,
-      "throwing_5tuple": null,
+      "throwing_5tuple": {
+        "distance_ft": 60,
+        "throw_count": 12,
+        "intensity_pct": 65,
+        "drill": "Short Box Bullpen",
+        "note": "Second deload mound session. Fastball only."
+      },
       "lifting_blocks": [
         {
-          "block_name": "Posterior Chain",
+          "block_name": "Block 1: Lower Power (Reduced)",
           "exercises": [
             {
               "exercise_id": "ex_004",
-              "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
-              "superset_group": null,
+              "sets": 2,
+              "reps": "6/side",
+              "intensity": "RPE 6",
+              "rest_s": 120,
+              "superset_group": "A",
               "note": null
             },
             {
-              "exercise_id": "ex_005",
-              "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
-              "superset_group": null,
+              "exercise_id": "ex_017",
+              "sets": 2,
+              "reps": "4/side",
+              "intensity": "submax",
+              "rest_s": 90,
+              "superset_group": "A",
               "note": null
-            },
+            }
+          ]
+        },
+        {
+          "block_name": "Block 2: Push Accessory (Reduced)",
+          "exercises": [
             {
-              "exercise_id": "ex_020",
-              "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_070",
-              "sets": 3,
+              "exercise_id": "ex_024",
+              "sets": 1,
               "reps": "12",
-              "intensity": "BW",
-              "rest_s": null,
+              "intensity": "bodyweight",
+              "rest_s": 60,
               "superset_group": null,
               "note": null
             }
           ]
         },
         {
-          "block_name": "Push Pull",
+          "block_name": "Block 3: FPM (Maintained)",
           "exercises": [
             {
-              "exercise_id": "ex_025",
-              "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_128",
-              "sets": 3,
-              "reps": "6-8",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_029",
-              "sets": 3,
-              "reps": "10",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_041",
-              "sets": 3,
+              "exercise_id": "ex_039",
+              "sets": 2,
               "reps": "12",
-              "intensity": "BW",
-              "rest_s": null,
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_044",
+              "sets": 2,
+              "reps": "30s",
+              "intensity": "light",
+              "rest_s": 60,
               "superset_group": null,
               "note": null
             }
           ]
         }
       ],
-      "day_focus": "Intent Restoration: hypertrophy lifting",
-      "cues": []
+      "day_focus": "Deload mound + lower power.",
+      "cues": [
+        "Light bounds, easy throws.",
+        "Rest builds adaptation."
+      ]
     },
     {
       "day_index": 25,
-      "template_key": "wk4_d5_fallback",
-      "date": "2026-08-07",
+      "template_key": "wk4_d5_flat_deload",
+      "date": "2026-04-20",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Intent Restoration",
-      "intent_pct": 92,
-      "is_deload": false,
+      "phase_name": "Deload Week",
+      "intent_pct": 60,
+      "is_deload": true,
       "is_rest": false,
       "throwing_5tuple": {
-        "distance_ft": 120,
-        "throw_count": 70,
-        "intensity_pct": 92,
-        "drill": "pulldowns_flat_ground",
-        "note": null
+        "distance_ft": 75,
+        "throw_count": 50,
+        "intensity_pct": 60,
+        "drill": "Flat Ground Throws",
+        "note": "Easy volume."
       },
-      "lifting_blocks": [],
-      "day_focus": "Intent Restoration: 92% throwing",
-      "cues": []
+      "lifting_blocks": [
+        {
+          "block_name": "Block 1: Lower Strength (Reduced)",
+          "exercises": [
+            {
+              "exercise_id": "ex_002",
+              "sets": 2,
+              "reps": "5",
+              "intensity": "70% 1RM",
+              "rest_s": 120,
+              "superset_group": "A",
+              "note": null
+            },
+            {
+              "exercise_id": "ex_005",
+              "sets": 2,
+              "reps": "8",
+              "intensity": "60% 1RM",
+              "rest_s": 90,
+              "superset_group": "A",
+              "note": null
+            }
+          ]
+        },
+        {
+          "block_name": "Block 2: Pull (Reduced)",
+          "exercises": [
+            {
+              "exercise_id": "ex_020",
+              "sets": 3,
+              "reps": "10",
+              "intensity": "RPE 6",
+              "rest_s": 90,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_023",
+              "sets": 1,
+              "reps": "15",
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            }
+          ]
+        },
+        {
+          "block_name": "Block 3: FPM (Maintained)",
+          "exercises": [
+            {
+              "exercise_id": "ex_039",
+              "sets": 2,
+              "reps": "12",
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_040",
+              "sets": 2,
+              "reps": "12",
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            }
+          ]
+        }
+      ],
+      "day_focus": "Deload flat ground + lower strength.",
+      "cues": [
+        "Light loads.",
+        "Focus on recovery."
+      ]
     },
     {
       "day_index": 26,
-      "template_key": "wk4_d6_fallback",
-      "date": "2026-08-08",
+      "template_key": "wk4_d6_active_rec",
+      "date": "2026-04-21",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Intent Restoration",
-      "intent_pct": null,
-      "is_deload": false,
-      "is_rest": true,
+      "phase_name": "Deload Week",
+      "intent_pct": 30,
+      "is_deload": true,
+      "is_rest": false,
       "throwing_5tuple": null,
-      "lifting_blocks": [],
-      "day_focus": null,
-      "cues": []
+      "lifting_blocks": [
+        {
+          "block_name": "Block 1: Recovery",
+          "exercises": [
+            {
+              "exercise_id": "ex_035",
+              "sets": 2,
+              "reps": "30s hold",
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_046",
+              "sets": 2,
+              "reps": "8/side",
+              "intensity": "bodyweight",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_039",
+              "sets": 1,
+              "reps": "12",
+              "intensity": "light",
+              "rest_s": 30,
+              "superset_group": null,
+              "note": null
+            }
+          ]
+        }
+      ],
+      "day_focus": "Recovery.",
+      "cues": [
+        "Light stretch, forearm maintenance."
+      ]
     },
     {
       "day_index": 27,
-      "template_key": "wk4_d7_fallback",
-      "date": "2026-08-09",
+      "template_key": "wk4_d7_rest",
+      "date": "2026-04-22",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Intent Restoration",
-      "intent_pct": null,
-      "is_deload": false,
+      "phase_name": "Deload Week",
+      "intent_pct": 0,
+      "is_deload": true,
       "is_rest": true,
       "throwing_5tuple": null,
       "lifting_blocks": [],
-      "day_focus": null,
+      "day_focus": "Rest.",
       "cues": []
     },
     {
       "day_index": 28,
-      "template_key": "wk5_d1_fallback",
-      "date": "2026-08-10",
+      "template_key": "wk5_d1_mound",
+      "date": "2026-04-23",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Intent Restoration",
-      "intent_pct": 96,
-      "is_deload": false,
+      "phase_name": "Mound Volume",
+      "intent_pct": 80,
+      "is_deload": true,
       "is_rest": false,
       "throwing_5tuple": {
-        "distance_ft": 120,
-        "throw_count": 73,
-        "intensity_pct": 96,
-        "drill": "pulldowns_flat_ground",
-        "note": null
+        "distance_ft": 60,
+        "throw_count": 20,
+        "intensity_pct": 80,
+        "drill": "Short Box Bullpen",
+        "note": "Increase to 20 throws. Fastball only."
       },
       "lifting_blocks": [
         {
-          "block_name": "Posterior Chain",
+          "block_name": "Block 1: Lower Strength",
           "exercises": [
             {
-              "exercise_id": "ex_004",
+              "exercise_id": "ex_002",
               "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
-              "superset_group": null,
+              "reps": "5",
+              "intensity": "82% 1RM",
+              "rest_s": 120,
+              "superset_group": "A",
               "note": null
             },
             {
               "exercise_id": "ex_005",
               "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
-              "superset_group": null,
+              "reps": "8",
+              "intensity": "67% 1RM",
+              "rest_s": 90,
+              "superset_group": "A",
               "note": null
-            },
+            }
+          ]
+        },
+        {
+          "block_name": "Block 2: Pull",
+          "exercises": [
             {
               "exercise_id": "ex_020",
-              "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
+              "sets": 4,
+              "reps": "10-12",
+              "intensity": "RPE 7-8",
+              "rest_s": 90,
               "superset_group": null,
               "note": null
             },
             {
-              "exercise_id": "ex_070",
-              "sets": 3,
-              "reps": "12",
-              "intensity": "BW",
-              "rest_s": null,
+              "exercise_id": "ex_023",
+              "sets": 2,
+              "reps": "15",
+              "intensity": "light",
+              "rest_s": 60,
               "superset_group": null,
               "note": null
             }
           ]
         },
         {
-          "block_name": "Push Pull",
+          "block_name": "Block 3: FPM",
           "exercises": [
             {
-              "exercise_id": "ex_025",
-              "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_128",
-              "sets": 3,
-              "reps": "6-8",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_029",
-              "sets": 3,
-              "reps": "10",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_041",
-              "sets": 3,
+              "exercise_id": "ex_039",
+              "sets": 2,
               "reps": "12",
-              "intensity": "BW",
-              "rest_s": null,
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_040",
+              "sets": 2,
+              "reps": "12",
+              "intensity": "light",
+              "rest_s": 60,
               "superset_group": null,
               "note": null
             }
           ]
         }
       ],
-      "day_focus": "Intent Restoration: 96% throwing",
-      "cues": []
+      "day_focus": "Mound volume increase to 20 throws.",
+      "cues": [
+        "Build mound rhythm.",
+        "Stay behind the ball."
+      ]
     },
     {
       "day_index": 29,
-      "template_key": "wk5_d2_fallback",
-      "date": "2026-08-11",
+      "template_key": "wk5_d2_flat",
+      "date": "2026-04-24",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Intent Restoration",
-      "intent_pct": null,
-      "is_deload": false,
-      "is_rest": true,
-      "throwing_5tuple": null,
-      "lifting_blocks": [],
-      "day_focus": null,
-      "cues": []
+      "phase_name": "Mound Volume",
+      "intent_pct": 75,
+      "is_deload": true,
+      "is_rest": false,
+      "throwing_5tuple": {
+        "distance_ft": 90,
+        "throw_count": 55,
+        "intensity_pct": 75,
+        "drill": "Flat Ground Throws",
+        "note": "Control volume."
+      },
+      "lifting_blocks": [
+        {
+          "block_name": "Block 1: Upper Pull",
+          "exercises": [
+            {
+              "exercise_id": "ex_019",
+              "sets": 3,
+              "reps": "6",
+              "intensity": "BW+15lb",
+              "rest_s": 120,
+              "superset_group": "A",
+              "note": null
+            },
+            {
+              "exercise_id": "ex_021",
+              "sets": 3,
+              "reps": "10/side",
+              "intensity": "RPE 7-8",
+              "rest_s": 90,
+              "superset_group": "A",
+              "note": null
+            }
+          ]
+        },
+        {
+          "block_name": "Block 2: Core",
+          "exercises": [
+            {
+              "exercise_id": "ex_045",
+              "sets": 3,
+              "reps": "8/side",
+              "intensity": "moderate",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_048",
+              "sets": 2,
+              "reps": "30s/side",
+              "intensity": "bodyweight",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            }
+          ]
+        },
+        {
+          "block_name": "Block 3: FPM",
+          "exercises": [
+            {
+              "exercise_id": "ex_041",
+              "sets": 2,
+              "reps": "12",
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_042",
+              "sets": 2,
+              "reps": "12",
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            }
+          ]
+        }
+      ],
+      "day_focus": "Flat ground + upper pull.",
+      "cues": [
+        "Keep pulldowns moderate.",
+        "Focus on scapular retraction."
+      ]
     },
     {
       "day_index": 30,
-      "template_key": "wk5_d3_fallback",
-      "date": "2026-08-12",
+      "template_key": "wk5_d3_rest",
+      "date": "2026-04-25",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Intent Restoration",
-      "intent_pct": 96,
-      "is_deload": false,
-      "is_rest": false,
-      "throwing_5tuple": {
-        "distance_ft": 120,
-        "throw_count": 73,
-        "intensity_pct": 96,
-        "drill": "pulldowns_flat_ground",
-        "note": null
-      },
+      "phase_name": "Mound Volume",
+      "intent_pct": 0,
+      "is_deload": true,
+      "is_rest": true,
+      "throwing_5tuple": null,
       "lifting_blocks": [],
-      "day_focus": "Intent Restoration: 96% throwing",
+      "day_focus": "Rest.",
       "cues": []
     },
     {
       "day_index": 31,
-      "template_key": "wk5_d4_fallback",
-      "date": "2026-08-13",
+      "template_key": "wk5_d4_mound",
+      "date": "2026-04-26",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Intent Restoration",
-      "intent_pct": null,
-      "is_deload": false,
+      "phase_name": "Mound Volume",
+      "intent_pct": 85,
+      "is_deload": true,
       "is_rest": false,
-      "throwing_5tuple": null,
+      "throwing_5tuple": {
+        "distance_ft": 60,
+        "throw_count": 20,
+        "intensity_pct": 85,
+        "drill": "Short Box Bullpen",
+        "note": "Upping intent slightly."
+      },
       "lifting_blocks": [
         {
-          "block_name": "Posterior Chain",
+          "block_name": "Block 1: Lower Power",
           "exercises": [
             {
               "exercise_id": "ex_004",
               "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
+              "reps": "6/side",
+              "intensity": "RPE 8",
+              "rest_s": 120,
+              "superset_group": "A",
+              "note": null
+            },
+            {
+              "exercise_id": "ex_014",
+              "sets": 3,
+              "reps": "6/side",
+              "intensity": "max intent",
+              "rest_s": 90,
+              "superset_group": "A",
+              "note": null
+            }
+          ]
+        },
+        {
+          "block_name": "Block 2: Push Accessory",
+          "exercises": [
+            {
+              "exercise_id": "ex_026",
+              "sets": 3,
+              "reps": "8/side",
+              "intensity": "RPE 7",
+              "rest_s": 90,
               "superset_group": null,
               "note": null
             },
             {
-              "exercise_id": "ex_005",
-              "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_020",
-              "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_070",
-              "sets": 3,
+              "exercise_id": "ex_028",
+              "sets": 2,
               "reps": "12",
-              "intensity": "BW",
-              "rest_s": null,
+              "intensity": "bodyweight",
+              "rest_s": 60,
               "superset_group": null,
               "note": null
             }
           ]
         },
         {
-          "block_name": "Push Pull",
+          "block_name": "Block 3: FPM",
           "exercises": [
             {
-              "exercise_id": "ex_025",
-              "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_128",
-              "sets": 3,
-              "reps": "6-8",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_029",
-              "sets": 3,
-              "reps": "10",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_041",
-              "sets": 3,
+              "exercise_id": "ex_039",
+              "sets": 2,
               "reps": "12",
-              "intensity": "BW",
-              "rest_s": null,
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_044",
+              "sets": 2,
+              "reps": "30s",
+              "intensity": "light",
+              "rest_s": 60,
               "superset_group": null,
               "note": null
             }
           ]
         }
       ],
-      "day_focus": "Intent Restoration: hypertrophy lifting",
-      "cues": []
+      "day_focus": "Second mound session + lower power.",
+      "cues": [
+        "Explosive bounds.",
+        "Mound: get downhill."
+      ]
     },
     {
       "day_index": 32,
-      "template_key": "wk5_d5_fallback",
-      "date": "2026-08-14",
+      "template_key": "wk5_d5_flat",
+      "date": "2026-04-27",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Intent Restoration",
-      "intent_pct": 96,
-      "is_deload": false,
+      "phase_name": "Mound Volume",
+      "intent_pct": 80,
+      "is_deload": true,
       "is_rest": false,
       "throwing_5tuple": {
-        "distance_ft": 120,
-        "throw_count": 73,
-        "intensity_pct": 96,
-        "drill": "pulldowns_flat_ground",
-        "note": null
+        "distance_ft": 105,
+        "throw_count": 55,
+        "intensity_pct": 80,
+        "drill": "Flat Ground Throws + Compression",
+        "note": "Compression at 90-120ft."
       },
-      "lifting_blocks": [],
-      "day_focus": "Intent Restoration: 96% throwing",
-      "cues": []
+      "lifting_blocks": [
+        {
+          "block_name": "Block 1: Lower Strength",
+          "exercises": [
+            {
+              "exercise_id": "ex_002",
+              "sets": 3,
+              "reps": "5",
+              "intensity": "82% 1RM",
+              "rest_s": 120,
+              "superset_group": "A",
+              "note": null
+            },
+            {
+              "exercise_id": "ex_005",
+              "sets": 3,
+              "reps": "8",
+              "intensity": "67% 1RM",
+              "rest_s": 90,
+              "superset_group": "A",
+              "note": null
+            }
+          ]
+        },
+        {
+          "block_name": "Block 2: Pull",
+          "exercises": [
+            {
+              "exercise_id": "ex_020",
+              "sets": 4,
+              "reps": "10-12",
+              "intensity": "RPE 7-8",
+              "rest_s": 90,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_023",
+              "sets": 2,
+              "reps": "15",
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            }
+          ]
+        },
+        {
+          "block_name": "Block 3: FPM",
+          "exercises": [
+            {
+              "exercise_id": "ex_039",
+              "sets": 2,
+              "reps": "12",
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_040",
+              "sets": 2,
+              "reps": "12",
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            }
+          ]
+        }
+      ],
+      "day_focus": "Flat ground volume + lower strength.",
+      "cues": [
+        "Compression: hard on-a-line.",
+        "Squat: keep chest up."
+      ]
     },
     {
       "day_index": 33,
-      "template_key": "wk5_d6_fallback",
-      "date": "2026-08-15",
+      "template_key": "wk5_d6_active_rec",
+      "date": "2026-04-28",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Intent Restoration",
-      "intent_pct": null,
-      "is_deload": false,
-      "is_rest": true,
+      "phase_name": "Mound Volume",
+      "intent_pct": 30,
+      "is_deload": true,
+      "is_rest": false,
       "throwing_5tuple": null,
-      "lifting_blocks": [],
-      "day_focus": null,
-      "cues": []
+      "lifting_blocks": [
+        {
+          "block_name": "Block 1: Recovery",
+          "exercises": [
+            {
+              "exercise_id": "ex_035",
+              "sets": 2,
+              "reps": "30s hold",
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_046",
+              "sets": 2,
+              "reps": "8/side",
+              "intensity": "bodyweight",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_039",
+              "sets": 1,
+              "reps": "12",
+              "intensity": "light",
+              "rest_s": 30,
+              "superset_group": null,
+              "note": null
+            }
+          ]
+        }
+      ],
+      "day_focus": "Recovery.",
+      "cues": [
+        "Light stretch, forearm maintenance."
+      ]
     },
     {
       "day_index": 34,
-      "template_key": "wk5_d7_fallback",
-      "date": "2026-08-16",
+      "template_key": "wk5_d7_rest",
+      "date": "2026-04-29",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Intent Restoration",
-      "intent_pct": null,
-      "is_deload": false,
+      "phase_name": "Mound Volume",
+      "intent_pct": 0,
+      "is_deload": true,
       "is_rest": true,
       "throwing_5tuple": null,
       "lifting_blocks": [],
-      "day_focus": null,
+      "day_focus": "Rest.",
       "cues": []
     },
     {
       "day_index": 35,
-      "template_key": "wk6_d1_fallback",
-      "date": "2026-08-17",
+      "template_key": "wk6_d1_mound",
+      "date": "2026-04-30",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Mound Build",
-      "intent_pct": 100,
+      "phase_name": "Mound Volume",
+      "intent_pct": 85,
       "is_deload": false,
       "is_rest": false,
       "throwing_5tuple": {
-        "distance_ft": 120,
-        "throw_count": 78,
-        "intensity_pct": 100,
-        "drill": "bullpen_progression",
-        "note": null
+        "distance_ft": 60,
+        "throw_count": 25,
+        "intensity_pct": 85,
+        "drill": "Short Box Bullpen",
+        "note": "Move to 25 throws. Fastball only."
       },
       "lifting_blocks": [
         {
-          "block_name": "Posterior Chain",
+          "block_name": "Block 1: Lower Strength",
           "exercises": [
             {
-              "exercise_id": "ex_004",
+              "exercise_id": "ex_002",
               "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
-              "superset_group": null,
+              "reps": "5",
+              "intensity": "85% 1RM",
+              "rest_s": 120,
+              "superset_group": "A",
               "note": null
             },
             {
-              "exercise_id": "ex_005",
+              "exercise_id": "ex_006",
               "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
-              "superset_group": null,
+              "reps": "8/side",
+              "intensity": "RPE 7",
+              "rest_s": 90,
+              "superset_group": "A",
               "note": null
-            },
+            }
+          ]
+        },
+        {
+          "block_name": "Block 2: Pull",
+          "exercises": [
             {
               "exercise_id": "ex_020",
-              "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
+              "sets": 4,
+              "reps": "10-12",
+              "intensity": "RPE 7-8",
+              "rest_s": 90,
               "superset_group": null,
               "note": null
             },
             {
-              "exercise_id": "ex_070",
-              "sets": 3,
-              "reps": "12",
-              "intensity": "BW",
-              "rest_s": null,
+              "exercise_id": "ex_023",
+              "sets": 2,
+              "reps": "15",
+              "intensity": "light",
+              "rest_s": 60,
               "superset_group": null,
               "note": null
             }
           ]
         },
         {
-          "block_name": "Push Pull",
+          "block_name": "Block 3: FPM",
           "exercises": [
             {
-              "exercise_id": "ex_025",
-              "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_128",
-              "sets": 3,
-              "reps": "6-8",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_029",
-              "sets": 3,
-              "reps": "10",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_041",
-              "sets": 3,
+              "exercise_id": "ex_039",
+              "sets": 2,
               "reps": "12",
-              "intensity": "BW",
-              "rest_s": null,
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_040",
+              "sets": 2,
+              "reps": "12",
+              "intensity": "light",
+              "rest_s": 60,
               "superset_group": null,
               "note": null
             }
           ]
         }
       ],
-      "day_focus": "Mound Build: 100% throwing",
-      "cues": []
+      "day_focus": "Mound volume to 25 throws.",
+      "cues": [
+        "Build mound rhythm.",
+        "Stay behind the ball."
+      ]
     },
     {
       "day_index": 36,
-      "template_key": "wk6_d2_fallback",
-      "date": "2026-08-18",
+      "template_key": "wk6_d2_flat",
+      "date": "2026-05-01",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Mound Build",
-      "intent_pct": null,
+      "phase_name": "Mound Volume",
+      "intent_pct": 80,
+      "is_deload": false,
+      "is_rest": false,
+      "throwing_5tuple": {
+        "distance_ft": 90,
+        "throw_count": 60,
+        "intensity_pct": 80,
+        "drill": "Flat Ground Throws",
+        "note": "Increase volume slightly."
+      },
+      "lifting_blocks": [
+        {
+          "block_name": "Block 1: Upper Pull",
+          "exercises": [
+            {
+              "exercise_id": "ex_019",
+              "sets": 3,
+              "reps": "6",
+              "intensity": "BW+15lb",
+              "rest_s": 120,
+              "superset_group": "A",
+              "note": null
+            },
+            {
+              "exercise_id": "ex_021",
+              "sets": 3,
+              "reps": "10/side",
+              "intensity": "RPE 7-8",
+              "rest_s": 90,
+              "superset_group": "A",
+              "note": null
+            }
+          ]
+        },
+        {
+          "block_name": "Block 2: Core",
+          "exercises": [
+            {
+              "exercise_id": "ex_045",
+              "sets": 3,
+              "reps": "8/side",
+              "intensity": "moderate",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_047",
+              "sets": 3,
+              "reps": "8",
+              "intensity": "bodyweight",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            }
+          ]
+        },
+        {
+          "block_name": "Block 3: FPM",
+          "exercises": [
+            {
+              "exercise_id": "ex_041",
+              "sets": 2,
+              "reps": "12",
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_042",
+              "sets": 2,
+              "reps": "12",
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            }
+          ]
+        }
+      ],
+      "day_focus": "Flat ground + upper pull.",
+      "cues": [
+        "Pull-ups: full ROM.",
+        "Keep throws free."
+      ]
+    },
+    {
+      "day_index": 37,
+      "template_key": "wk6_d3_rest",
+      "date": "2026-05-02",
+      "anchor_kind": "calendar_relative",
+      "phase_name": "Mound Volume",
+      "intent_pct": 0,
       "is_deload": false,
       "is_rest": true,
       "throwing_5tuple": null,
       "lifting_blocks": [],
-      "day_focus": null,
-      "cues": []
-    },
-    {
-      "day_index": 37,
-      "template_key": "wk6_d3_fallback",
-      "date": "2026-08-19",
-      "anchor_kind": "calendar_relative",
-      "phase_name": "Mound Build",
-      "intent_pct": 100,
-      "is_deload": false,
-      "is_rest": false,
-      "throwing_5tuple": {
-        "distance_ft": 120,
-        "throw_count": 78,
-        "intensity_pct": 100,
-        "drill": "bullpen_progression",
-        "note": null
-      },
-      "lifting_blocks": [],
-      "day_focus": "Mound Build: 100% throwing",
+      "day_focus": "Rest.",
       "cues": []
     },
     {
       "day_index": 38,
-      "template_key": "wk6_d4_fallback",
-      "date": "2026-08-20",
+      "template_key": "wk6_d4_mound",
+      "date": "2026-05-03",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Mound Build",
-      "intent_pct": null,
+      "phase_name": "Mound Volume",
+      "intent_pct": 88,
       "is_deload": false,
       "is_rest": false,
-      "throwing_5tuple": null,
+      "throwing_5tuple": {
+        "distance_ft": 60,
+        "throw_count": 25,
+        "intensity_pct": 88,
+        "drill": "Short Box Bullpen",
+        "note": "Higher intent."
+      },
       "lifting_blocks": [
         {
-          "block_name": "Posterior Chain",
+          "block_name": "Block 1: Lower Power",
           "exercises": [
             {
               "exercise_id": "ex_004",
               "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
+              "reps": "6/side",
+              "intensity": "RPE 8",
+              "rest_s": 120,
+              "superset_group": "A",
+              "note": null
+            },
+            {
+              "exercise_id": "ex_014",
+              "sets": 3,
+              "reps": "6/side",
+              "intensity": "max intent",
+              "rest_s": 90,
+              "superset_group": "A",
+              "note": null
+            }
+          ]
+        },
+        {
+          "block_name": "Block 2: Push Accessory",
+          "exercises": [
+            {
+              "exercise_id": "ex_026",
+              "sets": 3,
+              "reps": "8/side",
+              "intensity": "RPE 7",
+              "rest_s": 90,
               "superset_group": null,
               "note": null
             },
             {
-              "exercise_id": "ex_005",
-              "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_020",
-              "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_070",
-              "sets": 3,
+              "exercise_id": "ex_028",
+              "sets": 2,
               "reps": "12",
-              "intensity": "BW",
-              "rest_s": null,
+              "intensity": "bodyweight",
+              "rest_s": 60,
               "superset_group": null,
               "note": null
             }
           ]
         },
         {
-          "block_name": "Push Pull",
+          "block_name": "Block 3: FPM",
           "exercises": [
             {
-              "exercise_id": "ex_025",
-              "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_128",
-              "sets": 3,
-              "reps": "6-8",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_029",
-              "sets": 3,
-              "reps": "10",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_041",
-              "sets": 3,
+              "exercise_id": "ex_039",
+              "sets": 2,
               "reps": "12",
-              "intensity": "BW",
-              "rest_s": null,
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_044",
+              "sets": 2,
+              "reps": "30s",
+              "intensity": "light",
+              "rest_s": 60,
               "superset_group": null,
               "note": null
             }
           ]
         }
       ],
-      "day_focus": "Mound Build: hypertrophy lifting",
-      "cues": []
+      "day_focus": "Second mound session + lower power.",
+      "cues": [
+        "Explosive bounds.",
+        "Mound: get downhill."
+      ]
     },
     {
       "day_index": 39,
-      "template_key": "wk6_d5_fallback",
-      "date": "2026-08-21",
+      "template_key": "wk6_d5_flat",
+      "date": "2026-05-04",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Mound Build",
-      "intent_pct": 100,
+      "phase_name": "Mound Volume",
+      "intent_pct": 82,
       "is_deload": false,
       "is_rest": false,
       "throwing_5tuple": {
-        "distance_ft": 120,
-        "throw_count": 78,
-        "intensity_pct": 100,
-        "drill": "bullpen_progression",
-        "note": null
+        "distance_ft": 105,
+        "throw_count": 60,
+        "intensity_pct": 82,
+        "drill": "Flat Ground Throws + Compression",
+        "note": "Compression at 90-120ft."
       },
-      "lifting_blocks": [],
-      "day_focus": "Mound Build: 100% throwing",
-      "cues": []
+      "lifting_blocks": [
+        {
+          "block_name": "Block 1: Lower Strength",
+          "exercises": [
+            {
+              "exercise_id": "ex_002",
+              "sets": 3,
+              "reps": "5",
+              "intensity": "85% 1RM",
+              "rest_s": 120,
+              "superset_group": "A",
+              "note": null
+            },
+            {
+              "exercise_id": "ex_005",
+              "sets": 3,
+              "reps": "8",
+              "intensity": "67% 1RM",
+              "rest_s": 90,
+              "superset_group": "A",
+              "note": null
+            }
+          ]
+        },
+        {
+          "block_name": "Block 2: Pull",
+          "exercises": [
+            {
+              "exercise_id": "ex_020",
+              "sets": 4,
+              "reps": "10-12",
+              "intensity": "RPE 7-8",
+              "rest_s": 90,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_023",
+              "sets": 2,
+              "reps": "15",
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            }
+          ]
+        },
+        {
+          "block_name": "Block 3: FPM",
+          "exercises": [
+            {
+              "exercise_id": "ex_039",
+              "sets": 2,
+              "reps": "12",
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_040",
+              "sets": 2,
+              "reps": "12",
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            }
+          ]
+        }
+      ],
+      "day_focus": "Flat ground volume + lower strength.",
+      "cues": [
+        "Compression: hard on-a-line.",
+        "Squat: keep chest up."
+      ]
     },
     {
       "day_index": 40,
-      "template_key": "wk6_d6_fallback",
-      "date": "2026-08-22",
+      "template_key": "wk6_d6_active_rec",
+      "date": "2026-05-05",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Mound Build",
-      "intent_pct": null,
+      "phase_name": "Mound Volume",
+      "intent_pct": 30,
       "is_deload": false,
-      "is_rest": true,
+      "is_rest": false,
       "throwing_5tuple": null,
-      "lifting_blocks": [],
-      "day_focus": null,
-      "cues": []
+      "lifting_blocks": [
+        {
+          "block_name": "Block 1: Recovery",
+          "exercises": [
+            {
+              "exercise_id": "ex_035",
+              "sets": 2,
+              "reps": "30s hold",
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_046",
+              "sets": 2,
+              "reps": "8/side",
+              "intensity": "bodyweight",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_039",
+              "sets": 1,
+              "reps": "12",
+              "intensity": "light",
+              "rest_s": 30,
+              "superset_group": null,
+              "note": null
+            }
+          ]
+        }
+      ],
+      "day_focus": "Recovery.",
+      "cues": [
+        "Light stretch, forearm maintenance."
+      ]
     },
     {
       "day_index": 41,
-      "template_key": "wk6_d7_fallback",
-      "date": "2026-08-23",
+      "template_key": "wk6_d7_rest",
+      "date": "2026-05-06",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Mound Build",
-      "intent_pct": null,
+      "phase_name": "Mound Volume",
+      "intent_pct": 0,
       "is_deload": false,
       "is_rest": true,
       "throwing_5tuple": null,
       "lifting_blocks": [],
-      "day_focus": null,
+      "day_focus": "Rest.",
       "cues": []
     },
     {
       "day_index": 42,
-      "template_key": "wk7_d1_fallback",
-      "date": "2026-08-24",
+      "template_key": "wk7_d1_mound",
+      "date": "2026-05-07",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Mound Build",
-      "intent_pct": 100,
+      "phase_name": "Mound Volume",
+      "intent_pct": 85,
       "is_deload": false,
       "is_rest": false,
       "throwing_5tuple": {
-        "distance_ft": 120,
-        "throw_count": 79,
-        "intensity_pct": 100,
-        "drill": "bullpen_progression",
-        "note": null
+        "distance_ft": 60,
+        "throw_count": 30,
+        "intensity_pct": 85,
+        "drill": "Short Box Bullpen",
+        "note": "Increase to 30 throws."
       },
       "lifting_blocks": [
         {
-          "block_name": "Posterior Chain",
+          "block_name": "Block 1: Lower Strength",
           "exercises": [
             {
-              "exercise_id": "ex_004",
+              "exercise_id": "ex_002",
               "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
-              "superset_group": null,
+              "reps": "5",
+              "intensity": "85% 1RM",
+              "rest_s": 120,
+              "superset_group": "A",
               "note": null
             },
             {
-              "exercise_id": "ex_005",
+              "exercise_id": "ex_006",
               "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
-              "superset_group": null,
+              "reps": "8/side",
+              "intensity": "RPE 7",
+              "rest_s": 90,
+              "superset_group": "A",
               "note": null
-            },
+            }
+          ]
+        },
+        {
+          "block_name": "Block 2: Pull",
+          "exercises": [
             {
               "exercise_id": "ex_020",
-              "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
+              "sets": 4,
+              "reps": "10-12",
+              "intensity": "RPE 7-8",
+              "rest_s": 90,
               "superset_group": null,
               "note": null
             },
             {
-              "exercise_id": "ex_070",
-              "sets": 3,
-              "reps": "12",
-              "intensity": "BW",
-              "rest_s": null,
+              "exercise_id": "ex_023",
+              "sets": 2,
+              "reps": "15",
+              "intensity": "light",
+              "rest_s": 60,
               "superset_group": null,
               "note": null
             }
           ]
         },
         {
-          "block_name": "Push Pull",
+          "block_name": "Block 3: FPM",
           "exercises": [
             {
-              "exercise_id": "ex_025",
-              "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_128",
-              "sets": 3,
-              "reps": "6-8",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_029",
-              "sets": 3,
-              "reps": "10",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_041",
-              "sets": 3,
+              "exercise_id": "ex_039",
+              "sets": 2,
               "reps": "12",
-              "intensity": "BW",
-              "rest_s": null,
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_040",
+              "sets": 2,
+              "reps": "12",
+              "intensity": "light",
+              "rest_s": 60,
               "superset_group": null,
               "note": null
             }
           ]
         }
       ],
-      "day_focus": "Mound Build: 100% throwing",
-      "cues": []
+      "day_focus": "Mound volume to 30 throws.",
+      "cues": [
+        "Build mound rhythm.",
+        "Stay behind the ball."
+      ]
     },
     {
       "day_index": 43,
-      "template_key": "wk7_d2_fallback",
-      "date": "2026-08-25",
+      "template_key": "wk7_d2_flat",
+      "date": "2026-05-08",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Mound Build",
-      "intent_pct": null,
+      "phase_name": "Mound Volume",
+      "intent_pct": 80,
+      "is_deload": false,
+      "is_rest": false,
+      "throwing_5tuple": {
+        "distance_ft": 90,
+        "throw_count": 60,
+        "intensity_pct": 80,
+        "drill": "Flat Ground Throws",
+        "note": "Maintain volume."
+      },
+      "lifting_blocks": [
+        {
+          "block_name": "Block 1: Upper Pull",
+          "exercises": [
+            {
+              "exercise_id": "ex_019",
+              "sets": 3,
+              "reps": "6",
+              "intensity": "BW+15lb",
+              "rest_s": 120,
+              "superset_group": "A",
+              "note": null
+            },
+            {
+              "exercise_id": "ex_021",
+              "sets": 3,
+              "reps": "10/side",
+              "intensity": "RPE 7-8",
+              "rest_s": 90,
+              "superset_group": "A",
+              "note": null
+            }
+          ]
+        },
+        {
+          "block_name": "Block 2: Core",
+          "exercises": [
+            {
+              "exercise_id": "ex_045",
+              "sets": 3,
+              "reps": "8/side",
+              "intensity": "moderate",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_047",
+              "sets": 3,
+              "reps": "8",
+              "intensity": "bodyweight",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            }
+          ]
+        },
+        {
+          "block_name": "Block 3: FPM",
+          "exercises": [
+            {
+              "exercise_id": "ex_041",
+              "sets": 2,
+              "reps": "12",
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_042",
+              "sets": 2,
+              "reps": "12",
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            }
+          ]
+        }
+      ],
+      "day_focus": "Flat ground + upper pull.",
+      "cues": [
+        "Pull-ups: full ROM.",
+        "Keep throws free."
+      ]
+    },
+    {
+      "day_index": 44,
+      "template_key": "wk7_d3_rest",
+      "date": "2026-05-09",
+      "anchor_kind": "calendar_relative",
+      "phase_name": "Mound Volume",
+      "intent_pct": 0,
       "is_deload": false,
       "is_rest": true,
       "throwing_5tuple": null,
       "lifting_blocks": [],
-      "day_focus": null,
-      "cues": []
-    },
-    {
-      "day_index": 44,
-      "template_key": "wk7_d3_fallback",
-      "date": "2026-08-26",
-      "anchor_kind": "calendar_relative",
-      "phase_name": "Mound Build",
-      "intent_pct": 100,
-      "is_deload": false,
-      "is_rest": false,
-      "throwing_5tuple": {
-        "distance_ft": 120,
-        "throw_count": 79,
-        "intensity_pct": 100,
-        "drill": "bullpen_progression",
-        "note": null
-      },
-      "lifting_blocks": [],
-      "day_focus": "Mound Build: 100% throwing",
+      "day_focus": "Rest.",
       "cues": []
     },
     {
       "day_index": 45,
-      "template_key": "wk7_d4_fallback",
-      "date": "2026-08-27",
+      "template_key": "wk7_d4_mound",
+      "date": "2026-05-10",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Mound Build",
-      "intent_pct": null,
+      "phase_name": "Mound Volume",
+      "intent_pct": 88,
       "is_deload": false,
       "is_rest": false,
-      "throwing_5tuple": null,
+      "throwing_5tuple": {
+        "distance_ft": 60,
+        "throw_count": 30,
+        "intensity_pct": 88,
+        "drill": "Short Box Bullpen",
+        "note": "Higher intent."
+      },
       "lifting_blocks": [
         {
-          "block_name": "Posterior Chain",
+          "block_name": "Block 1: Lower Power",
           "exercises": [
             {
               "exercise_id": "ex_004",
               "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
+              "reps": "6/side",
+              "intensity": "RPE 8",
+              "rest_s": 120,
+              "superset_group": "A",
+              "note": null
+            },
+            {
+              "exercise_id": "ex_014",
+              "sets": 3,
+              "reps": "6/side",
+              "intensity": "max intent",
+              "rest_s": 90,
+              "superset_group": "A",
+              "note": null
+            }
+          ]
+        },
+        {
+          "block_name": "Block 2: Push Accessory",
+          "exercises": [
+            {
+              "exercise_id": "ex_026",
+              "sets": 3,
+              "reps": "8/side",
+              "intensity": "RPE 7",
+              "rest_s": 90,
               "superset_group": null,
               "note": null
             },
             {
-              "exercise_id": "ex_005",
-              "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_020",
-              "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_070",
-              "sets": 3,
+              "exercise_id": "ex_028",
+              "sets": 2,
               "reps": "12",
-              "intensity": "BW",
-              "rest_s": null,
+              "intensity": "bodyweight",
+              "rest_s": 60,
               "superset_group": null,
               "note": null
             }
           ]
         },
         {
-          "block_name": "Push Pull",
+          "block_name": "Block 3: FPM",
           "exercises": [
             {
-              "exercise_id": "ex_025",
-              "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_128",
-              "sets": 3,
-              "reps": "6-8",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_029",
-              "sets": 3,
-              "reps": "10",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_041",
-              "sets": 3,
+              "exercise_id": "ex_039",
+              "sets": 2,
               "reps": "12",
-              "intensity": "BW",
-              "rest_s": null,
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_044",
+              "sets": 2,
+              "reps": "30s",
+              "intensity": "light",
+              "rest_s": 60,
               "superset_group": null,
               "note": null
             }
           ]
         }
       ],
-      "day_focus": "Mound Build: hypertrophy lifting",
-      "cues": []
+      "day_focus": "Second mound session + lower power.",
+      "cues": [
+        "Explosive bounds.",
+        "Mound: get downhill."
+      ]
     },
     {
       "day_index": 46,
-      "template_key": "wk7_d5_fallback",
-      "date": "2026-08-28",
+      "template_key": "wk7_d5_flat",
+      "date": "2026-05-11",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Mound Build",
-      "intent_pct": 100,
+      "phase_name": "Mound Volume",
+      "intent_pct": 82,
       "is_deload": false,
       "is_rest": false,
       "throwing_5tuple": {
-        "distance_ft": 120,
-        "throw_count": 79,
-        "intensity_pct": 100,
-        "drill": "bullpen_progression",
-        "note": null
+        "distance_ft": 105,
+        "throw_count": 60,
+        "intensity_pct": 82,
+        "drill": "Flat Ground Throws + Compression",
+        "note": "Compression at 90-120ft."
       },
-      "lifting_blocks": [],
-      "day_focus": "Mound Build: 100% throwing",
-      "cues": []
+      "lifting_blocks": [
+        {
+          "block_name": "Block 1: Lower Strength",
+          "exercises": [
+            {
+              "exercise_id": "ex_002",
+              "sets": 3,
+              "reps": "5",
+              "intensity": "85% 1RM",
+              "rest_s": 120,
+              "superset_group": "A",
+              "note": null
+            },
+            {
+              "exercise_id": "ex_005",
+              "sets": 3,
+              "reps": "8",
+              "intensity": "67% 1RM",
+              "rest_s": 90,
+              "superset_group": "A",
+              "note": null
+            }
+          ]
+        },
+        {
+          "block_name": "Block 2: Pull",
+          "exercises": [
+            {
+              "exercise_id": "ex_020",
+              "sets": 4,
+              "reps": "10-12",
+              "intensity": "RPE 7-8",
+              "rest_s": 90,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_023",
+              "sets": 2,
+              "reps": "15",
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            }
+          ]
+        },
+        {
+          "block_name": "Block 3: FPM",
+          "exercises": [
+            {
+              "exercise_id": "ex_039",
+              "sets": 2,
+              "reps": "12",
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_040",
+              "sets": 2,
+              "reps": "12",
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            }
+          ]
+        }
+      ],
+      "day_focus": "Flat ground volume + lower strength.",
+      "cues": [
+        "Compression: hard on-a-line.",
+        "Squat: keep chest up."
+      ]
     },
     {
       "day_index": 47,
-      "template_key": "wk7_d6_fallback",
-      "date": "2026-08-29",
+      "template_key": "wk7_d6_active_rec",
+      "date": "2026-05-12",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Mound Build",
-      "intent_pct": null,
+      "phase_name": "Mound Volume",
+      "intent_pct": 30,
       "is_deload": false,
-      "is_rest": true,
+      "is_rest": false,
       "throwing_5tuple": null,
-      "lifting_blocks": [],
-      "day_focus": null,
-      "cues": []
+      "lifting_blocks": [
+        {
+          "block_name": "Block 1: Recovery",
+          "exercises": [
+            {
+              "exercise_id": "ex_035",
+              "sets": 2,
+              "reps": "30s hold",
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_046",
+              "sets": 2,
+              "reps": "8/side",
+              "intensity": "bodyweight",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_039",
+              "sets": 1,
+              "reps": "12",
+              "intensity": "light",
+              "rest_s": 30,
+              "superset_group": null,
+              "note": null
+            }
+          ]
+        }
+      ],
+      "day_focus": "Recovery.",
+      "cues": [
+        "Light stretch, forearm maintenance."
+      ]
     },
     {
       "day_index": 48,
-      "template_key": "wk7_d7_fallback",
-      "date": "2026-08-30",
+      "template_key": "wk7_d7_rest",
+      "date": "2026-05-13",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Mound Build",
-      "intent_pct": null,
+      "phase_name": "Mound Volume",
+      "intent_pct": 0,
       "is_deload": false,
       "is_rest": true,
       "throwing_5tuple": null,
       "lifting_blocks": [],
-      "day_focus": null,
+      "day_focus": "Rest.",
       "cues": []
     },
     {
       "day_index": 49,
-      "template_key": "wk8_d1_fallback",
-      "date": "2026-08-31",
+      "template_key": "wk8_d1_mound",
+      "date": "2026-05-14",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Mound Build",
-      "intent_pct": 100,
+      "phase_name": "Pre-Competition",
+      "intent_pct": 90,
       "is_deload": false,
       "is_rest": false,
       "throwing_5tuple": {
-        "distance_ft": 120,
-        "throw_count": 80,
-        "intensity_pct": 100,
-        "drill": "bullpen_progression",
-        "note": null
+        "distance_ft": 60,
+        "throw_count": 40,
+        "intensity_pct": 90,
+        "drill": "Full Bullpen",
+        "note": "Full bullpen: 40 throws, mix in breaking ball."
       },
       "lifting_blocks": [
         {
-          "block_name": "Posterior Chain",
+          "block_name": "Block 1: Lower Strength",
           "exercises": [
             {
-              "exercise_id": "ex_004",
+              "exercise_id": "ex_002",
               "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
-              "superset_group": null,
+              "reps": "5",
+              "intensity": "85% 1RM",
+              "rest_s": 120,
+              "superset_group": "A",
               "note": null
             },
             {
-              "exercise_id": "ex_005",
+              "exercise_id": "ex_006",
               "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
-              "superset_group": null,
+              "reps": "8/side",
+              "intensity": "RPE 7",
+              "rest_s": 90,
+              "superset_group": "A",
               "note": null
-            },
+            }
+          ]
+        },
+        {
+          "block_name": "Block 2: Pull",
+          "exercises": [
             {
               "exercise_id": "ex_020",
-              "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
+              "sets": 4,
+              "reps": "10-12",
+              "intensity": "RPE 7-8",
+              "rest_s": 90,
               "superset_group": null,
               "note": null
             },
             {
-              "exercise_id": "ex_070",
-              "sets": 3,
-              "reps": "12",
-              "intensity": "BW",
-              "rest_s": null,
+              "exercise_id": "ex_023",
+              "sets": 2,
+              "reps": "15",
+              "intensity": "light",
+              "rest_s": 60,
               "superset_group": null,
               "note": null
             }
           ]
         },
         {
-          "block_name": "Push Pull",
+          "block_name": "Block 3: FPM",
           "exercises": [
             {
-              "exercise_id": "ex_025",
-              "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_128",
-              "sets": 3,
-              "reps": "6-8",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_029",
-              "sets": 3,
-              "reps": "10",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_041",
-              "sets": 3,
+              "exercise_id": "ex_039",
+              "sets": 2,
               "reps": "12",
-              "intensity": "BW",
-              "rest_s": null,
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_040",
+              "sets": 2,
+              "reps": "12",
+              "intensity": "light",
+              "rest_s": 60,
               "superset_group": null,
               "note": null
             }
           ]
         }
       ],
-      "day_focus": "Mound Build: 100% throwing",
-      "cues": []
+      "day_focus": "Full bullpen (40 throws) with breaking ball. Pre-competition intensity.",
+      "cues": [
+        "Command over velo.",
+        "Use full windup."
+      ]
     },
     {
       "day_index": 50,
-      "template_key": "wk8_d2_fallback",
-      "date": "2026-09-01",
+      "template_key": "wk8_d2_flat",
+      "date": "2026-05-15",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Mound Build",
-      "intent_pct": null,
+      "phase_name": "Pre-Competition",
+      "intent_pct": 80,
+      "is_deload": false,
+      "is_rest": false,
+      "throwing_5tuple": {
+        "distance_ft": 90,
+        "throw_count": 55,
+        "intensity_pct": 80,
+        "drill": "Flat Ground Throws",
+        "note": "Flush arm between bullpens."
+      },
+      "lifting_blocks": [
+        {
+          "block_name": "Block 1: Upper Pull",
+          "exercises": [
+            {
+              "exercise_id": "ex_019",
+              "sets": 3,
+              "reps": "6",
+              "intensity": "BW+15lb",
+              "rest_s": 120,
+              "superset_group": "A",
+              "note": null
+            },
+            {
+              "exercise_id": "ex_021",
+              "sets": 3,
+              "reps": "10/side",
+              "intensity": "RPE 7-8",
+              "rest_s": 90,
+              "superset_group": "A",
+              "note": null
+            }
+          ]
+        },
+        {
+          "block_name": "Block 2: Core",
+          "exercises": [
+            {
+              "exercise_id": "ex_045",
+              "sets": 3,
+              "reps": "8/side",
+              "intensity": "moderate",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_048",
+              "sets": 2,
+              "reps": "30s/side",
+              "intensity": "bodyweight",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            }
+          ]
+        },
+        {
+          "block_name": "Block 3: FPM",
+          "exercises": [
+            {
+              "exercise_id": "ex_041",
+              "sets": 2,
+              "reps": "12",
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_042",
+              "sets": 2,
+              "reps": "12",
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            }
+          ]
+        }
+      ],
+      "day_focus": "Flush day + upper body.",
+      "cues": [
+        "Easy throws, focus on recovery.",
+        "Pull-ups: quality reps."
+      ]
+    },
+    {
+      "day_index": 51,
+      "template_key": "wk8_d3_rest",
+      "date": "2026-05-16",
+      "anchor_kind": "calendar_relative",
+      "phase_name": "Pre-Competition",
+      "intent_pct": 0,
       "is_deload": false,
       "is_rest": true,
       "throwing_5tuple": null,
       "lifting_blocks": [],
-      "day_focus": null,
-      "cues": []
-    },
-    {
-      "day_index": 51,
-      "template_key": "wk8_d3_fallback",
-      "date": "2026-09-02",
-      "anchor_kind": "calendar_relative",
-      "phase_name": "Mound Build",
-      "intent_pct": 100,
-      "is_deload": false,
-      "is_rest": false,
-      "throwing_5tuple": {
-        "distance_ft": 120,
-        "throw_count": 80,
-        "intensity_pct": 100,
-        "drill": "bullpen_progression",
-        "note": null
-      },
-      "lifting_blocks": [],
-      "day_focus": "Mound Build: 100% throwing",
+      "day_focus": "Rest.",
       "cues": []
     },
     {
       "day_index": 52,
-      "template_key": "wk8_d4_fallback",
-      "date": "2026-09-03",
+      "template_key": "wk8_d4_mound",
+      "date": "2026-05-17",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Mound Build",
-      "intent_pct": null,
+      "phase_name": "Pre-Competition",
+      "intent_pct": 92,
       "is_deload": false,
       "is_rest": false,
-      "throwing_5tuple": null,
+      "throwing_5tuple": {
+        "distance_ft": 60,
+        "throw_count": 40,
+        "intensity_pct": 92,
+        "drill": "Full Bullpen",
+        "note": "Second bullpen: execute pitches."
+      },
       "lifting_blocks": [
         {
-          "block_name": "Posterior Chain",
+          "block_name": "Block 1: Lower Power",
           "exercises": [
             {
               "exercise_id": "ex_004",
               "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
+              "reps": "6/side",
+              "intensity": "RPE 8",
+              "rest_s": 120,
+              "superset_group": "A",
+              "note": null
+            },
+            {
+              "exercise_id": "ex_014",
+              "sets": 3,
+              "reps": "6/side",
+              "intensity": "max intent",
+              "rest_s": 90,
+              "superset_group": "A",
+              "note": null
+            }
+          ]
+        },
+        {
+          "block_name": "Block 2: Push Accessory",
+          "exercises": [
+            {
+              "exercise_id": "ex_026",
+              "sets": 3,
+              "reps": "8/side",
+              "intensity": "RPE 7",
+              "rest_s": 90,
               "superset_group": null,
               "note": null
             },
             {
-              "exercise_id": "ex_005",
-              "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_020",
-              "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_070",
-              "sets": 3,
+              "exercise_id": "ex_028",
+              "sets": 2,
               "reps": "12",
-              "intensity": "BW",
-              "rest_s": null,
+              "intensity": "bodyweight",
+              "rest_s": 60,
               "superset_group": null,
               "note": null
             }
           ]
         },
         {
-          "block_name": "Push Pull",
+          "block_name": "Block 3: FPM",
           "exercises": [
             {
-              "exercise_id": "ex_025",
-              "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_128",
-              "sets": 3,
-              "reps": "6-8",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_029",
-              "sets": 3,
-              "reps": "10",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_041",
-              "sets": 3,
+              "exercise_id": "ex_039",
+              "sets": 2,
               "reps": "12",
-              "intensity": "BW",
-              "rest_s": null,
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_044",
+              "sets": 2,
+              "reps": "30s",
+              "intensity": "light",
+              "rest_s": 60,
               "superset_group": null,
               "note": null
             }
           ]
         }
       ],
-      "day_focus": "Mound Build: hypertrophy lifting",
-      "cues": []
+      "day_focus": "Execute bullpen, lower power.",
+      "cues": [
+        "Pitch sequences.",
+        "Explosive bounds."
+      ]
     },
     {
       "day_index": 53,
-      "template_key": "wk8_d5_fallback",
-      "date": "2026-09-04",
+      "template_key": "wk8_d5_flat",
+      "date": "2026-05-18",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Mound Build",
-      "intent_pct": 100,
+      "phase_name": "Pre-Competition",
+      "intent_pct": 80,
       "is_deload": false,
       "is_rest": false,
       "throwing_5tuple": {
-        "distance_ft": 120,
-        "throw_count": 80,
-        "intensity_pct": 100,
-        "drill": "bullpen_progression",
-        "note": null
+        "distance_ft": 105,
+        "throw_count": 55,
+        "intensity_pct": 80,
+        "drill": "Flat Ground Throws + Compression",
+        "note": "Volume maintenance."
       },
-      "lifting_blocks": [],
-      "day_focus": "Mound Build: 100% throwing",
-      "cues": []
+      "lifting_blocks": [
+        {
+          "block_name": "Block 1: Lower Strength",
+          "exercises": [
+            {
+              "exercise_id": "ex_002",
+              "sets": 3,
+              "reps": "5",
+              "intensity": "85% 1RM",
+              "rest_s": 120,
+              "superset_group": "A",
+              "note": null
+            },
+            {
+              "exercise_id": "ex_005",
+              "sets": 3,
+              "reps": "8",
+              "intensity": "67% 1RM",
+              "rest_s": 90,
+              "superset_group": "A",
+              "note": null
+            }
+          ]
+        },
+        {
+          "block_name": "Block 2: Pull",
+          "exercises": [
+            {
+              "exercise_id": "ex_020",
+              "sets": 4,
+              "reps": "10-12",
+              "intensity": "RPE 7-8",
+              "rest_s": 90,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_023",
+              "sets": 2,
+              "reps": "15",
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            }
+          ]
+        },
+        {
+          "block_name": "Block 3: FPM",
+          "exercises": [
+            {
+              "exercise_id": "ex_039",
+              "sets": 2,
+              "reps": "12",
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_040",
+              "sets": 2,
+              "reps": "12",
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            }
+          ]
+        }
+      ],
+      "day_focus": "Volume flat ground + lower strength.",
+      "cues": [
+        "Compression: on-a-line.",
+        "Squat: upright."
+      ]
     },
     {
       "day_index": 54,
-      "template_key": "wk8_d6_fallback",
-      "date": "2026-09-05",
+      "template_key": "wk8_d6_active_rec",
+      "date": "2026-05-19",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Mound Build",
-      "intent_pct": null,
+      "phase_name": "Pre-Competition",
+      "intent_pct": 30,
       "is_deload": false,
-      "is_rest": true,
+      "is_rest": false,
       "throwing_5tuple": null,
-      "lifting_blocks": [],
-      "day_focus": null,
-      "cues": []
+      "lifting_blocks": [
+        {
+          "block_name": "Block 1: Recovery",
+          "exercises": [
+            {
+              "exercise_id": "ex_035",
+              "sets": 2,
+              "reps": "30s hold",
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_046",
+              "sets": 2,
+              "reps": "8/side",
+              "intensity": "bodyweight",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_039",
+              "sets": 1,
+              "reps": "12",
+              "intensity": "light",
+              "rest_s": 30,
+              "superset_group": null,
+              "note": null
+            }
+          ]
+        }
+      ],
+      "day_focus": "Recovery.",
+      "cues": [
+        "Light stretch, forearm maintenance."
+      ]
     },
     {
       "day_index": 55,
-      "template_key": "wk8_d7_fallback",
-      "date": "2026-09-06",
+      "template_key": "wk8_d7_rest",
+      "date": "2026-05-20",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Mound Build",
-      "intent_pct": null,
+      "phase_name": "Pre-Competition",
+      "intent_pct": 0,
       "is_deload": false,
       "is_rest": true,
       "throwing_5tuple": null,
       "lifting_blocks": [],
-      "day_focus": null,
+      "day_focus": "Rest.",
       "cues": []
     },
     {
       "day_index": 56,
-      "template_key": "wk9_d1_fallback",
-      "date": "2026-09-07",
+      "template_key": "wk9_d1_mound",
+      "date": "2026-05-21",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Mound Build",
-      "intent_pct": 100,
+      "phase_name": "Pre-Competition",
+      "intent_pct": 92,
       "is_deload": false,
       "is_rest": false,
       "throwing_5tuple": {
-        "distance_ft": 120,
-        "throw_count": 81,
-        "intensity_pct": 100,
-        "drill": "bullpen_progression",
-        "note": null
+        "distance_ft": 60,
+        "throw_count": 45,
+        "intensity_pct": 92,
+        "drill": "Full Bullpen",
+        "note": "Bullpen: 45 throws, mix pitches, simulate innings."
       },
       "lifting_blocks": [
         {
-          "block_name": "Posterior Chain",
+          "block_name": "Block 1: Lower Strength",
           "exercises": [
             {
-              "exercise_id": "ex_004",
+              "exercise_id": "ex_002",
               "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
-              "superset_group": null,
+              "reps": "5",
+              "intensity": "85% 1RM",
+              "rest_s": 120,
+              "superset_group": "A",
               "note": null
             },
             {
-              "exercise_id": "ex_005",
+              "exercise_id": "ex_006",
               "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
-              "superset_group": null,
+              "reps": "8/side",
+              "intensity": "RPE 7",
+              "rest_s": 90,
+              "superset_group": "A",
               "note": null
-            },
+            }
+          ]
+        },
+        {
+          "block_name": "Block 2: Pull",
+          "exercises": [
             {
               "exercise_id": "ex_020",
-              "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
+              "sets": 4,
+              "reps": "10-12",
+              "intensity": "RPE 7-8",
+              "rest_s": 90,
               "superset_group": null,
               "note": null
             },
             {
-              "exercise_id": "ex_070",
-              "sets": 3,
-              "reps": "12",
-              "intensity": "BW",
-              "rest_s": null,
+              "exercise_id": "ex_023",
+              "sets": 2,
+              "reps": "15",
+              "intensity": "light",
+              "rest_s": 60,
               "superset_group": null,
               "note": null
             }
           ]
         },
         {
-          "block_name": "Push Pull",
+          "block_name": "Block 3: FPM",
           "exercises": [
             {
-              "exercise_id": "ex_025",
-              "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_128",
-              "sets": 3,
-              "reps": "6-8",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_029",
-              "sets": 3,
-              "reps": "10",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_041",
-              "sets": 3,
+              "exercise_id": "ex_039",
+              "sets": 2,
               "reps": "12",
-              "intensity": "BW",
-              "rest_s": null,
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_040",
+              "sets": 2,
+              "reps": "12",
+              "intensity": "light",
+              "rest_s": 60,
               "superset_group": null,
               "note": null
             }
           ]
         }
       ],
-      "day_focus": "Mound Build: 100% throwing",
-      "cues": []
+      "day_focus": "Peak bullpen volume (45 throws) before competition.",
+      "cues": [
+        "Simulate game intensity.",
+        "Focus on delivery repeatability."
+      ]
     },
     {
       "day_index": 57,
-      "template_key": "wk9_d2_fallback",
-      "date": "2026-09-08",
+      "template_key": "wk9_d2_flat",
+      "date": "2026-05-22",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Mound Build",
-      "intent_pct": null,
+      "phase_name": "Pre-Competition",
+      "intent_pct": 80,
+      "is_deload": false,
+      "is_rest": false,
+      "throwing_5tuple": {
+        "distance_ft": 90,
+        "throw_count": 55,
+        "intensity_pct": 80,
+        "drill": "Flat Ground Throws",
+        "note": "Flush day."
+      },
+      "lifting_blocks": [
+        {
+          "block_name": "Block 1: Upper Pull",
+          "exercises": [
+            {
+              "exercise_id": "ex_019",
+              "sets": 3,
+              "reps": "6",
+              "intensity": "BW+15lb",
+              "rest_s": 120,
+              "superset_group": "A",
+              "note": null
+            },
+            {
+              "exercise_id": "ex_021",
+              "sets": 3,
+              "reps": "10/side",
+              "intensity": "RPE 7-8",
+              "rest_s": 90,
+              "superset_group": "A",
+              "note": null
+            }
+          ]
+        },
+        {
+          "block_name": "Block 2: Core",
+          "exercises": [
+            {
+              "exercise_id": "ex_045",
+              "sets": 3,
+              "reps": "8/side",
+              "intensity": "moderate",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_048",
+              "sets": 2,
+              "reps": "30s/side",
+              "intensity": "bodyweight",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            }
+          ]
+        },
+        {
+          "block_name": "Block 3: FPM",
+          "exercises": [
+            {
+              "exercise_id": "ex_041",
+              "sets": 2,
+              "reps": "12",
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_042",
+              "sets": 2,
+              "reps": "12",
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            }
+          ]
+        }
+      ],
+      "day_focus": "Flush day + upper pull.",
+      "cues": [
+        "Easy throws, flush arm.",
+        "Pull-ups: quality."
+      ]
+    },
+    {
+      "day_index": 58,
+      "template_key": "wk9_d3_rest",
+      "date": "2026-05-23",
+      "anchor_kind": "calendar_relative",
+      "phase_name": "Pre-Competition",
+      "intent_pct": 0,
       "is_deload": false,
       "is_rest": true,
       "throwing_5tuple": null,
       "lifting_blocks": [],
-      "day_focus": null,
-      "cues": []
-    },
-    {
-      "day_index": 58,
-      "template_key": "wk9_d3_fallback",
-      "date": "2026-09-09",
-      "anchor_kind": "calendar_relative",
-      "phase_name": "Mound Build",
-      "intent_pct": 100,
-      "is_deload": false,
-      "is_rest": false,
-      "throwing_5tuple": {
-        "distance_ft": 120,
-        "throw_count": 81,
-        "intensity_pct": 100,
-        "drill": "bullpen_progression",
-        "note": null
-      },
-      "lifting_blocks": [],
-      "day_focus": "Mound Build: 100% throwing",
+      "day_focus": "Rest.",
       "cues": []
     },
     {
       "day_index": 59,
-      "template_key": "wk9_d4_fallback",
-      "date": "2026-09-10",
+      "template_key": "wk9_d4_mound",
+      "date": "2026-05-24",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Mound Build",
-      "intent_pct": null,
+      "phase_name": "Pre-Competition",
+      "intent_pct": 95,
       "is_deload": false,
       "is_rest": false,
-      "throwing_5tuple": null,
+      "throwing_5tuple": {
+        "distance_ft": 60,
+        "throw_count": 45,
+        "intensity_pct": 95,
+        "drill": "Full Bullpen",
+        "note": "Final high-intent bullpen. Game-like execution."
+      },
       "lifting_blocks": [
         {
-          "block_name": "Posterior Chain",
+          "block_name": "Block 1: Lower Power",
           "exercises": [
             {
               "exercise_id": "ex_004",
               "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
+              "reps": "6/side",
+              "intensity": "RPE 8",
+              "rest_s": 120,
+              "superset_group": "A",
+              "note": null
+            },
+            {
+              "exercise_id": "ex_014",
+              "sets": 3,
+              "reps": "6/side",
+              "intensity": "max intent",
+              "rest_s": 90,
+              "superset_group": "A",
+              "note": null
+            }
+          ]
+        },
+        {
+          "block_name": "Block 2: Push Accessory",
+          "exercises": [
+            {
+              "exercise_id": "ex_026",
+              "sets": 3,
+              "reps": "8/side",
+              "intensity": "RPE 7",
+              "rest_s": 90,
               "superset_group": null,
               "note": null
             },
             {
-              "exercise_id": "ex_005",
-              "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_020",
-              "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_070",
-              "sets": 3,
+              "exercise_id": "ex_028",
+              "sets": 2,
               "reps": "12",
-              "intensity": "BW",
-              "rest_s": null,
+              "intensity": "bodyweight",
+              "rest_s": 60,
               "superset_group": null,
               "note": null
             }
           ]
         },
         {
-          "block_name": "Push Pull",
+          "block_name": "Block 3: FPM",
           "exercises": [
             {
-              "exercise_id": "ex_025",
-              "sets": 3,
-              "reps": "8-10",
-              "intensity": "50-75% 1RM",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_128",
-              "sets": 3,
-              "reps": "6-8",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_029",
-              "sets": 3,
-              "reps": "10",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_041",
-              "sets": 3,
+              "exercise_id": "ex_039",
+              "sets": 2,
               "reps": "12",
-              "intensity": "BW",
-              "rest_s": null,
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_044",
+              "sets": 2,
+              "reps": "30s",
+              "intensity": "light",
+              "rest_s": 60,
               "superset_group": null,
               "note": null
             }
           ]
         }
       ],
-      "day_focus": "Mound Build: hypertrophy lifting",
-      "cues": []
+      "day_focus": "Final bullpen, lower power.",
+      "cues": [
+        "Execute all pitches.",
+        "Explosive bounds."
+      ]
     },
     {
       "day_index": 60,
-      "template_key": "wk9_d5_fallback",
-      "date": "2026-09-11",
+      "template_key": "wk9_d5_flat",
+      "date": "2026-05-25",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Mound Build",
-      "intent_pct": 100,
+      "phase_name": "Pre-Competition",
+      "intent_pct": 75,
       "is_deload": false,
       "is_rest": false,
       "throwing_5tuple": {
-        "distance_ft": 120,
-        "throw_count": 81,
-        "intensity_pct": 100,
-        "drill": "bullpen_progression",
-        "note": null
+        "distance_ft": 90,
+        "throw_count": 55,
+        "intensity_pct": 75,
+        "drill": "Flat Ground Throws",
+        "note": "Light flush."
       },
-      "lifting_blocks": [],
-      "day_focus": "Mound Build: 100% throwing",
-      "cues": []
+      "lifting_blocks": [
+        {
+          "block_name": "Block 1: Lower Strength",
+          "exercises": [
+            {
+              "exercise_id": "ex_002",
+              "sets": 3,
+              "reps": "5",
+              "intensity": "80% 1RM",
+              "rest_s": 120,
+              "superset_group": "A",
+              "note": null
+            },
+            {
+              "exercise_id": "ex_005",
+              "sets": 3,
+              "reps": "8",
+              "intensity": "65% 1RM",
+              "rest_s": 90,
+              "superset_group": "A",
+              "note": null
+            }
+          ]
+        },
+        {
+          "block_name": "Block 2: Pull",
+          "exercises": [
+            {
+              "exercise_id": "ex_020",
+              "sets": 4,
+              "reps": "10-12",
+              "intensity": "RPE 7",
+              "rest_s": 90,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_023",
+              "sets": 2,
+              "reps": "15",
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            }
+          ]
+        },
+        {
+          "block_name": "Block 3: FPM",
+          "exercises": [
+            {
+              "exercise_id": "ex_039",
+              "sets": 2,
+              "reps": "12",
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_040",
+              "sets": 2,
+              "reps": "12",
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            }
+          ]
+        }
+      ],
+      "day_focus": "Light flush + lower strength.",
+      "cues": [
+        "Easy throws.",
+        "Squat: upright."
+      ]
     },
     {
       "day_index": 61,
-      "template_key": "wk9_d6_fallback",
-      "date": "2026-09-12",
+      "template_key": "wk9_d6_active_rec",
+      "date": "2026-05-26",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Mound Build",
-      "intent_pct": null,
+      "phase_name": "Pre-Competition",
+      "intent_pct": 30,
       "is_deload": false,
-      "is_rest": true,
+      "is_rest": false,
       "throwing_5tuple": null,
-      "lifting_blocks": [],
-      "day_focus": null,
-      "cues": []
+      "lifting_blocks": [
+        {
+          "block_name": "Block 1: Recovery",
+          "exercises": [
+            {
+              "exercise_id": "ex_035",
+              "sets": 2,
+              "reps": "30s hold",
+              "intensity": "light",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_046",
+              "sets": 2,
+              "reps": "8/side",
+              "intensity": "bodyweight",
+              "rest_s": 60,
+              "superset_group": null,
+              "note": null
+            },
+            {
+              "exercise_id": "ex_039",
+              "sets": 1,
+              "reps": "12",
+              "intensity": "light",
+              "rest_s": 30,
+              "superset_group": null,
+              "note": null
+            }
+          ]
+        }
+      ],
+      "day_focus": "Recovery.",
+      "cues": [
+        "Light stretch, forearm maintenance."
+      ]
     },
     {
       "day_index": 62,
-      "template_key": "wk9_d7_fallback",
-      "date": "2026-09-13",
+      "template_key": "wk9_d7_rest",
+      "date": "2026-05-27",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Mound Build",
-      "intent_pct": null,
+      "phase_name": "Pre-Competition",
+      "intent_pct": 0,
       "is_deload": false,
       "is_rest": true,
       "throwing_5tuple": null,
       "lifting_blocks": [],
-      "day_focus": null,
+      "day_focus": "Rest.",
       "cues": []
     }
   ],
   "rationale": {
-    "phase_logic": "Deterministic fallback derived from block_library template. Phases mirror the live content.phases. Deload weeks from content.acwr_governor.deload_weeks_default. Lifting per content.lifting_integration.phase_mapping.",
-    "individualization_notes": "Generated as the deterministic safety net when LLM authoring failed. Operator should review and may regenerate via the Builder UI to get a fully individualized program.",
+    "phase_logic": "The program follows the 9-week Mound Reintroduction arc from the Return-to-Play Progression Model. Week 1-2 build flat-ground volume and distance (Base Throwing). Week 3 introduces mound work at 15 throws (Mound Introduction). Week 4 is a deload with reduced volume across the board. Weeks 5-7 scale mound volume from 20 to 30 throws (Mound Volume). Weeks 8-9 simulate pre-competition bullpen volumes (40-45 throws) with pitch mix. The progression respects the ACWR governor and the golden weekly throw counts (178-254).",
+    "individualization_notes": "Landon has a history of forearm/UCL tightness, so elevated FPM volume is programmed on at least 4 days per week. Lifting intensity stays in the strength range (no strength-power) per RTP Stage 2 guidelines. Mound volume ladder starts at 15 throws and progresses conservatively. Warm-up ladder is standard per knowledge pack but omitted from 5tuple counts. Pull-to-push ratio exceeds 2:1 each week, with pull exercises like chest-supported row, face pull, weighted chin-up. Front squat is primary lower body compound (per previous modification).",
     "cited_research_doc_ids": [
       "return_to_play_progression_model",
-      "fpm_strain_protocol",
       "ucl_flexor_pronator_protection",
-      "advanced_workload_performance",
-      "final_research_base"
+      "fpm_strain_protocol",
+      "driveline_throwing_program",
+      "advanced_workload_performance"
     ],
     "citations": []
   },
   "progression_state": {
     "current_week": 1,
-    "current_phase": null,
+    "current_phase": "base_throwing",
     "acwr_rolling": null,
     "banked_vs_planned": 0.0,
     "gate_status": {}
   },
   "generation_provenance": {
-    "fallback_used": true,
-    "template_id": "return_to_mound_9wk_v1",
+    "fallback_used": false,
     "attempts": 5,
-    "reject_reason": "max_reprompts_exhausted"
+    "status": "repaired"
   }
 }
