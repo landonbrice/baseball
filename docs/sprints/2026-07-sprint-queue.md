@@ -1,6 +1,14 @@
 # Sprint Queue — primed 2026-07-13 (PM: Claude)
 
 > Status: **PRIMED, NOT STARTED.** No sprint begins without Landon's explicit go.
+>
+> **07-13 grill outcomes (bind these sprints):** Sprint A's live-LLM run happens in the
+> Claude cloud env once Landon adds `DEEPSEEK_API_KEY` + `SUPABASE_URL` +
+> `SUPABASE_SERVICE_KEY` to the environment settings; DeepSeek stays the author model
+> until real output argues otherwise; Sprint B is FULL cleanup (dead tables drop after
+> audit, not code-only); the drive = **propose-and-confirm** (Option 3), so Sprint C
+> implements proposal UX + bounds rather than deciding policy. Robustness work aims at
+> Landon's ratified pain points: plan quality, check-in latency, stored-state trust.
 > Context: goal pivot to **return-to-play healthy**; summer = development phase;
 > **Sept–Oct = team onboarding + fully running**. Rework the slop before new features.
 > Agents: read `/CLAUDE.md` + `/MISSION_CONTROL.html` first. Update Mission Control as you work.

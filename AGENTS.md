@@ -3,9 +3,11 @@
 > This file is read by Codex (and any agent that looks for AGENTS.md). Gemini: see GEMINI.md
 > (same content). Claude Code reads CLAUDE.md. All three converge on the same two rules below.
 
-## Rule 1 — Read CLAUDE.md first
-`/CLAUDE.md` at the repo root is the canonical project brief: architecture, completed phases,
-key patterns, gotchas, schema, deploy notes. Everything there applies to you too.
+## Rule 1 — Read the briefs first, in this order
+1. `/PROJECT_VISION.md` — the light brief: goals, generation constitution, the honest
+   problem list, distilled conventions. Start here.
+2. `/CLAUDE.md` — the deep reference: architecture, completed phases, gotchas, schema.
+3. `/MISSION_CONTROL.html` + `/docs/sprints/` — live status and the primed sprint queue.
 
 ## Rule 2 — Update Mission Control when you finish meaningful work
 `/MISSION_CONTROL.html` is the shared, human-viewable build-state dashboard. Landon reads it
