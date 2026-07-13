@@ -1,0 +1,51 @@
+{
+  "_meta": {
+    "description": "12-week golden ACWR fixture for Program Engine load-math regression tests.",
+    "primary_source": "pitcher_program_app/docs/superpowers/research/2026-05-31-program-engine-recon.md Front 5 — transcribed verbatim during recon agent execution on a machine that could resolve the Google Drive aliases.",
+    "original_xlsx": "Ramp up with Bullpen ramp up  (1).xlsx (12 weeks); present in pitcher_program_app/past_arm_programs/ only as a 1108-byte Drive alias on this host (openpyxl: 'File is not a zip file').",
+    "verified_daily_anchor": {
+      "week": 1,
+      "day": 1,
+      "distance_ft": 45,
+      "throw_count": 40,
+      "intent_pct": 50,
+      "raw_volume": 2400,
+      "G_load_units": 2145,
+      "load_factor": 0.89375
+    },
+    "load_units_formula_hint": "G ≈ throws × intensity_factor × distance_factor. Empirical anchor: G/(dist × throws) = 0.894 at (45ft, 50%) ⇒ when calibrated to (1.0 × pct_decimal × dist_factor) suggests dist_factor for 45ft ≈ 1.79 (or pct-decimal × distance_in_ft normalization). Phase 2.1 load_math calibrates against this single anchor + the weekly curve.",
+    "deload_pattern": "3-up-1-down undulation. Wk4 dips below Wk3 (10375 < 10935). Wk7 dips below Wk6 (12090 < 13516). The empty %increase / ACWLR columns on the original xlsx are the human ACWR governor mental model — Phase 2 implements them deterministically.",
+    "use_in_tests": [
+      "tests/test_golden_acwr_curve.py — locks the curve + invariants here.",
+      "tests/test_load_math.py (Phase 2.1) — recomputes weekly G from daily 5-tuples once a full daily fixture is available; asserts 5% tolerance vs this curve.",
+      "guardrail #1 ACWR band check (Phase 2.4) — uses this curve as a known-good fixture that must validate as 'valid'."
+    ],
+    "gaps": [
+      "Daily 5-tuple grid for all 12 × ~5 days is NOT in this fixture — only the verified anchor above. The Drive-aliased xlsx is the missing source. If/when the operator resolves the alias (Finder → 'Show Original' → save outside Drive) into data/knowledge/golden/ramp_up_with_bullpen_12wk.xlsx, scripts/extract_golden_acwr_curve.py (Phase 0.3 follow-up) can extract the full daily grid and replace this fixture in place."
+    ]
+  },
+  "weekly_G_load_units": [
+    6960,
+    9194,
+    10935,
+    10375,
+    12049,
+    13516,
+    12090,
+    12960,
+    13620,
+    14000,
+    14300,
+    14616
+  ],
+  "weekly_G_note": "Indices 0-11 correspond to weeks 1-12. Wks 10-11 (14000, 14300) are interpolated linearly between recon's '…' range (week 9: 13620, week 12: 14616) since only the endpoint of the missing-middle was transcribed. Replace with real values once the xlsx is recoverable.",
+  "deload_weeks_1_indexed": [4, 7],
+  "expected_invariants": {
+    "min_weekly_G": 6960,
+    "max_weekly_G": 14616,
+    "deload_drop_from_prior_week_pct_min": 5,
+    "acute_chronic_ratio_band": {"lower": 0.8, "upper": 1.3, "hard_cap": 1.5},
+    "monotonic_overall_trajectory": true,
+    "deload_present": true
+  }
+}

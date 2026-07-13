@@ -1,0 +1,74 @@
+{
+  "_meta": {
+    "purpose": "Phase 4.3 drive-policy comparison harness fixtures.",
+    "shape": "Each scenario is a 10-day readiness sequence. day_offset is days from program day_index=0.",
+    "scenarios": [
+      "all_green: every day GREEN, no signals expected from any policy",
+      "mid_cycle_yellow: days 3-5 YELLOW low tissue, recover to GREEN",
+      "late_phase_red: days 7-9 RED with arm_feel=3 + active mod",
+      "repeated_low_tissue: every day YELLOW with tissue=3.5 — chronic load drift"
+    ]
+  },
+  "scenarios": [
+    {
+      "name": "all_green",
+      "readiness_sequence": [
+        {"day_offset": 0, "flag_level": "GREEN", "category_scores": {"tissue": 8.0, "load": 7.5, "recovery": 8.5}, "modifications": [], "arm_feel": 8},
+        {"day_offset": 1, "flag_level": "GREEN", "category_scores": {"tissue": 8.0, "load": 7.0, "recovery": 8.0}, "modifications": [], "arm_feel": 8},
+        {"day_offset": 2, "flag_level": "GREEN", "category_scores": {"tissue": 7.5, "load": 7.5, "recovery": 8.0}, "modifications": [], "arm_feel": 8},
+        {"day_offset": 3, "flag_level": "GREEN", "category_scores": {"tissue": 8.0, "load": 7.5, "recovery": 8.5}, "modifications": [], "arm_feel": 9},
+        {"day_offset": 4, "flag_level": "GREEN", "category_scores": {"tissue": 8.5, "load": 8.0, "recovery": 8.5}, "modifications": [], "arm_feel": 9},
+        {"day_offset": 5, "flag_level": "GREEN", "category_scores": {"tissue": 8.0, "load": 7.5, "recovery": 8.0}, "modifications": [], "arm_feel": 8},
+        {"day_offset": 6, "flag_level": "GREEN", "category_scores": {"tissue": 7.5, "load": 7.5, "recovery": 8.0}, "modifications": [], "arm_feel": 8},
+        {"day_offset": 7, "flag_level": "GREEN", "category_scores": {"tissue": 8.0, "load": 7.5, "recovery": 8.5}, "modifications": [], "arm_feel": 9},
+        {"day_offset": 8, "flag_level": "GREEN", "category_scores": {"tissue": 8.5, "load": 8.0, "recovery": 8.5}, "modifications": [], "arm_feel": 9},
+        {"day_offset": 9, "flag_level": "GREEN", "category_scores": {"tissue": 8.0, "load": 8.0, "recovery": 8.5}, "modifications": [], "arm_feel": 9}
+      ]
+    },
+    {
+      "name": "mid_cycle_yellow",
+      "readiness_sequence": [
+        {"day_offset": 0, "flag_level": "GREEN", "category_scores": {"tissue": 8.0, "load": 7.5, "recovery": 8.0}, "modifications": [], "arm_feel": 8},
+        {"day_offset": 1, "flag_level": "GREEN", "category_scores": {"tissue": 7.5, "load": 7.0, "recovery": 8.0}, "modifications": [], "arm_feel": 8},
+        {"day_offset": 2, "flag_level": "GREEN", "category_scores": {"tissue": 6.5, "load": 6.5, "recovery": 7.5}, "modifications": [], "arm_feel": 7},
+        {"day_offset": 3, "flag_level": "YELLOW", "category_scores": {"tissue": 3.5, "load": 5.5, "recovery": 6.5}, "modifications": [], "arm_feel": 6},
+        {"day_offset": 4, "flag_level": "YELLOW", "category_scores": {"tissue": 3.0, "load": 5.0, "recovery": 6.0}, "modifications": [], "arm_feel": 6},
+        {"day_offset": 5, "flag_level": "YELLOW", "category_scores": {"tissue": 4.0, "load": 6.0, "recovery": 6.5}, "modifications": [], "arm_feel": 7},
+        {"day_offset": 6, "flag_level": "GREEN", "category_scores": {"tissue": 6.0, "load": 7.0, "recovery": 7.5}, "modifications": [], "arm_feel": 8},
+        {"day_offset": 7, "flag_level": "GREEN", "category_scores": {"tissue": 7.5, "load": 7.5, "recovery": 8.0}, "modifications": [], "arm_feel": 8},
+        {"day_offset": 8, "flag_level": "GREEN", "category_scores": {"tissue": 8.0, "load": 7.5, "recovery": 8.0}, "modifications": [], "arm_feel": 9},
+        {"day_offset": 9, "flag_level": "GREEN", "category_scores": {"tissue": 8.0, "load": 8.0, "recovery": 8.5}, "modifications": [], "arm_feel": 9}
+      ]
+    },
+    {
+      "name": "late_phase_red",
+      "readiness_sequence": [
+        {"day_offset": 0, "flag_level": "GREEN", "category_scores": {"tissue": 8.0, "load": 7.5, "recovery": 8.0}, "modifications": [], "arm_feel": 8},
+        {"day_offset": 1, "flag_level": "GREEN", "category_scores": {"tissue": 7.5, "load": 7.5, "recovery": 8.0}, "modifications": [], "arm_feel": 8},
+        {"day_offset": 2, "flag_level": "GREEN", "category_scores": {"tissue": 7.0, "load": 7.0, "recovery": 7.5}, "modifications": [], "arm_feel": 7},
+        {"day_offset": 3, "flag_level": "GREEN", "category_scores": {"tissue": 7.0, "load": 7.0, "recovery": 7.5}, "modifications": [], "arm_feel": 7},
+        {"day_offset": 4, "flag_level": "YELLOW", "category_scores": {"tissue": 5.0, "load": 5.5, "recovery": 6.5}, "modifications": [], "arm_feel": 6},
+        {"day_offset": 5, "flag_level": "YELLOW", "category_scores": {"tissue": 4.5, "load": 5.0, "recovery": 6.0}, "modifications": [], "arm_feel": 5},
+        {"day_offset": 6, "flag_level": "YELLOW", "category_scores": {"tissue": 4.5, "load": 5.0, "recovery": 6.0}, "modifications": ["volume_caution"], "arm_feel": 5},
+        {"day_offset": 7, "flag_level": "RED", "category_scores": {"tissue": 3.0, "load": 3.5, "recovery": 5.0}, "modifications": ["medial_elbow_caution"], "arm_feel": 3},
+        {"day_offset": 8, "flag_level": "RED", "category_scores": {"tissue": 3.0, "load": 3.5, "recovery": 5.0}, "modifications": ["medial_elbow_caution"], "arm_feel": 3},
+        {"day_offset": 9, "flag_level": "RED", "category_scores": {"tissue": 3.5, "load": 4.0, "recovery": 5.5}, "modifications": ["medial_elbow_caution"], "arm_feel": 4}
+      ]
+    },
+    {
+      "name": "repeated_low_tissue",
+      "readiness_sequence": [
+        {"day_offset": 0, "flag_level": "YELLOW", "category_scores": {"tissue": 3.5, "load": 6.0, "recovery": 7.0}, "modifications": [], "arm_feel": 7},
+        {"day_offset": 1, "flag_level": "YELLOW", "category_scores": {"tissue": 3.5, "load": 6.0, "recovery": 7.0}, "modifications": [], "arm_feel": 7},
+        {"day_offset": 2, "flag_level": "YELLOW", "category_scores": {"tissue": 3.0, "load": 5.5, "recovery": 7.0}, "modifications": [], "arm_feel": 7},
+        {"day_offset": 3, "flag_level": "YELLOW", "category_scores": {"tissue": 3.5, "load": 6.0, "recovery": 7.0}, "modifications": [], "arm_feel": 7},
+        {"day_offset": 4, "flag_level": "YELLOW", "category_scores": {"tissue": 3.5, "load": 5.5, "recovery": 7.0}, "modifications": [], "arm_feel": 7},
+        {"day_offset": 5, "flag_level": "YELLOW", "category_scores": {"tissue": 4.0, "load": 5.5, "recovery": 7.0}, "modifications": [], "arm_feel": 7},
+        {"day_offset": 6, "flag_level": "YELLOW", "category_scores": {"tissue": 3.5, "load": 5.5, "recovery": 7.0}, "modifications": [], "arm_feel": 6},
+        {"day_offset": 7, "flag_level": "YELLOW", "category_scores": {"tissue": 3.5, "load": 5.5, "recovery": 7.0}, "modifications": [], "arm_feel": 7},
+        {"day_offset": 8, "flag_level": "YELLOW", "category_scores": {"tissue": 3.0, "load": 5.0, "recovery": 6.5}, "modifications": [], "arm_feel": 6},
+        {"day_offset": 9, "flag_level": "YELLOW", "category_scores": {"tissue": 3.5, "load": 5.5, "recovery": 7.0}, "modifications": [], "arm_feel": 7}
+      ]
+    }
+  ]
+}

@@ -8,12 +8,15 @@ applies_to:
 triggers:
   - reference
 phase: any
-priority: reference
+priority: standard
 contexts:
   - coach_chat
+  - program_gen
 summary: >
   Documents gaps in the original exercise library and adds missing exercises across
   lower body, upper body, and core categories based on Gemini v3 research output.
+  Program Engine v1: "GAP 3: PROGRESSION MODEL IS MISSING" section supplies progression
+  rules the engine reads at generation time — the de-facto requirements doc.
 ---
 
 # Research Gap Analysis & Additions
