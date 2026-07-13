@@ -156,7 +156,13 @@ async def author_validate_persist(
             previous_violations = None  # fresh attempt, no stale violation context
             continue
 
-        result: ValidationResult = validate_program(program, pitcher_validation_ctx)
+        # Repairs are deterministic in-memory clips (one applied per pass), so
+        # the budget must cover a valid-but-mislabeled program's worst case —
+        # run #9 attempt 1 carried 9 clippable violations and the default 3
+        # passes rejected a program the repair plane could have fully fixed.
+        result: ValidationResult = validate_program(
+            program, pitcher_validation_ctx, max_repair_passes=24
+        )
         attempts.append({
             "attempt_n": attempt_n,
             "status": result.status,

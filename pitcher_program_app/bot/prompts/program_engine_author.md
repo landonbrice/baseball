@@ -170,6 +170,13 @@ structural rules using these tags — programs violating either are REJECTED:
 - `phase_id` is `lower_snake_case`.
 - `phases[*].week_count` 1–16; `phase_type` ∈
   `{accumulation, intensification, realization, deload, transition, base}`.
+- Phase-gate rule (validator-enforced): NO day inside the FIRST phase may
+  have `intent_pct` ≥ 85. Keep the opening phase genuinely sub-maximal and
+  start a new phase before any day ramps to ≥85% intent — a single 85%+ day
+  inside phase 1 rejects the program.
+- Deload rule (validator-enforced): never program 5+ consecutive weeks
+  without a deload week. Mark each deload week's days `is_deload: true`
+  with visibly reduced volume.
 - `total_weeks` 1–24.
 
 ### Latitude (the LLM decides)

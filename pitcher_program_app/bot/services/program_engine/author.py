@@ -200,6 +200,10 @@ def _normalize_authored_dict(data: dict) -> dict:
       5. All length-capped prose fields clipped to their schema caps (run #8
          attempt 1 died on ONE over-long intent_summary in an otherwise-valid
          63-day program).
+      6. Days nested inside lifting_blocks lifted back to the days array
+         (runs #4/#8/#9 — the dominant failure class: one dropped `]}` makes
+         json_repair close lifting_blocks too late, so every subsequent day
+         nests recursively inside it; content is intact, only misplaced).
     """
     if not isinstance(data, dict):
         return data
@@ -208,6 +212,35 @@ def _normalize_authored_dict(data: dict) -> dict:
         v = obj.get(key)
         if isinstance(v, str) and len(v) > cap:
             obj[key] = v[: cap - 3] + "..."
+
+    def _is_migrant_day(b: Any) -> bool:
+        return isinstance(b, dict) and "day_index" in b and "block_name" not in b
+
+    days_in = data.get("days")
+    if isinstance(days_in, list):
+        out: list = []
+        queue = list(days_in)
+        while queue:
+            d = queue.pop(0)
+            if isinstance(d, dict) and isinstance(d.get("lifting_blocks"), list):
+                real_blocks: list = []
+                migrants: list = []
+                for b in d["lifting_blocks"]:
+                    (migrants if _is_migrant_day(b) else real_blocks).append(b)
+                if migrants:
+                    d["lifting_blocks"] = real_blocks
+                    queue = migrants + queue  # chronological order preserved
+                # Bracket slips also strand the day's own trailing fields
+                # (day_focus/cues) inside its last block — move them home.
+                for b in real_blocks:
+                    if isinstance(b, dict) and "block_name" in b:
+                        for stray in ("day_focus", "cues"):
+                            if stray in b:
+                                val = b.pop(stray)
+                                if not d.get(stray):
+                                    d[stray] = val
+            out.append(d)
+        data["days"] = out
 
     for day in data.get("days") or []:
         if not isinstance(day, dict):
