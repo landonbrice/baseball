@@ -222,7 +222,7 @@ def _remap_invalid_superset_groups(day: dict) -> None:
         ex["superset_group"] = remap[g]
 
 
-def _normalize_authored_dict(data: dict) -> dict:
+def _normalize_authored_dict(data: dict, *, start_date: Optional[str] = None) -> dict:
     """Deterministic normalization of near-miss LLM output (repair plane).
 
     Live run #5 attempt 3 parsed a full 63-day program cleanly and failed on
@@ -242,9 +242,29 @@ def _normalize_authored_dict(data: dict) -> dict:
          (runs #4/#8/#9 — the dominant failure class: one dropped `]}` makes
          json_repair close lifting_blocks too late, so every subsequent day
          nests recursively inside it; content is intact, only misplaced).
+      7. Calendar ownership (run #10 aftermath): the accepted program carried
+         dates starting 2026-03-26 — the model hallucinated an anchor from
+         context. Dates are pure mechanics (`date_i = start_date + i`), so
+         when `start_date` is provided every day date AND generated_at are
+         REWRITTEN deterministically; the LLM's date strings are ignored.
     """
     if not isinstance(data, dict):
         return data
+
+    if start_date is not None:
+        from datetime import date as _date, datetime as _datetime, timedelta as _timedelta
+
+        anchor = _date.fromisoformat(start_date) if isinstance(start_date, str) else start_date
+        for day in data.get("days") or []:
+            if isinstance(day, dict) and isinstance(day.get("day_index"), int):
+                day["date"] = (anchor + _timedelta(days=day["day_index"])).isoformat()
+        data["generated_at"] = _datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+        if data.get("target_date") and data.get("days"):
+            last = max(
+                (d.get("day_index", 0) for d in data["days"] if isinstance(d, dict)),
+                default=0,
+            )
+            data["target_date"] = (anchor + _timedelta(days=last)).isoformat()
 
     def _clip(obj: dict, key: str, cap: int) -> None:
         v = obj.get(key)
@@ -435,8 +455,20 @@ async def author_program(
         except Exception as e:
             logger.warning("author_program: JSON unrecoverable (%s)", e)
             raise GenerationFailure("json_parse_failed", detail=str(e)) from e
+    # Calendar ownership: derive start_date from the goal spec so the
+    # normalizer rewrites every day date deterministically (date_i =
+    # start + day_index). Explicit `start_date` wins; else back-derive
+    # from target_date − (target_weeks·7 − 1).
+    start_date = (goal_spec or {}).get("start_date")
+    if not start_date:
+        tgt, wks = (goal_spec or {}).get("target_date"), (goal_spec or {}).get("target_weeks")
+        if tgt and wks:
+            from datetime import date as _date, timedelta as _timedelta
+
+            start_date = (_date.fromisoformat(tgt) - _timedelta(days=int(wks) * 7 - 1)).isoformat()
+
     try:
-        program = PitcherProgram.model_validate(_normalize_authored_dict(data))
+        program = PitcherProgram.model_validate(_normalize_authored_dict(data, start_date=start_date))
     except ValidationError as e:
         logger.warning("author_program: schema validation failed post-normalize (%s)", e)
         raise GenerationFailure("schema_validation_failed", detail=str(e)) from e

@@ -140,6 +140,29 @@ def test_invalid_superset_labels_remapped_preserving_grouping():
     PitcherProgram.model_validate(data)
 
 
+def test_dates_rewritten_deterministically_from_start_date():
+    """Run #10 aftermath: the model hallucinated a March calendar anchor.
+    With start_date provided, every day date and generated_at are rewritten;
+    the LLM's date strings are ignored."""
+    days = [_day(0), _day(1), _day(2)]
+    for d in days:
+        d["date"] = "2026-03-26"  # model's hallucinated anchor — all wrong
+    prog = _program(days)
+    prog["target_date"] = "2026-05-27"
+    data = _normalize_authored_dict(prog, start_date="2026-07-13")
+
+    assert [d["date"] for d in data["days"]] == ["2026-07-13", "2026-07-14", "2026-07-15"]
+    assert data["target_date"] == "2026-07-15"  # last day_index re-anchored
+    assert not data["generated_at"].startswith("2026-03")
+    PitcherProgram.model_validate(data)
+
+
+def test_dates_untouched_without_start_date():
+    day = _day(0)
+    data = _normalize_authored_dict(_program([day]))
+    assert data["days"][0]["date"] == day["date"]
+
+
 def test_null_lifting_blocks_becomes_empty_list():
     day = _day(0, lifting_blocks=None)
     data = _normalize_authored_dict(_program([day]))
