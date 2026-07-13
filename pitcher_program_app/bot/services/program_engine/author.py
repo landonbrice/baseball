@@ -184,6 +184,44 @@ def _exercise_menu() -> str:
 
 
 
+_SUPERSET_GROUP_RE = re.compile(r"^[A-Z][0-9]?$")
+
+
+def _remap_invalid_superset_groups(day: dict) -> None:
+    """Remap "BR2"/"BS1"-style superset labels to schema-legal ones (run #10).
+
+    Grouping identity is what matters, not the label text — every exercise in
+    the day sharing an invalid label gets the same fresh legal label, chosen
+    to not collide with labels already in use that day.
+    """
+    exercises = [
+        ex
+        for block in day.get("lifting_blocks") or []
+        if isinstance(block, dict)
+        for ex in block.get("exercises") or []
+        if isinstance(ex, dict)
+    ]
+    used = {
+        ex["superset_group"]
+        for ex in exercises
+        if isinstance(ex.get("superset_group"), str) and _SUPERSET_GROUP_RE.match(ex["superset_group"])
+    }
+    remap: dict[str, str] = {}
+    for ex in exercises:
+        g = ex.get("superset_group")
+        if not isinstance(g, str) or _SUPERSET_GROUP_RE.match(g):
+            continue
+        if g not in remap:
+            fresh = next(
+                (c for c in "ABCDEFGHIJKLMNOPQRSTUVWXYZ" if c not in used), None
+            )
+            if fresh is None:  # 26 groups in one day — schema will reject; leave it
+                continue
+            used.add(fresh)
+            remap[g] = fresh
+        ex["superset_group"] = remap[g]
+
+
 def _normalize_authored_dict(data: dict) -> dict:
     """Deterministic normalization of near-miss LLM output (repair plane).
 
@@ -258,6 +296,7 @@ def _normalize_authored_dict(data: dict) -> dict:
                 # "" for ungrouped exercises (live run #7).
                 if isinstance(ex, dict) and isinstance(ex.get("superset_group"), str) and not ex["superset_group"].strip():
                     ex["superset_group"] = None
+        _remap_invalid_superset_groups(day)
     for phase in data.get("phases") or []:
         if isinstance(phase, dict):
             _clip(phase, "phase_id", 40)

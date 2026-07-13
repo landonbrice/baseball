@@ -120,6 +120,26 @@ def test_overlong_capped_strings_clipped():
     PitcherProgram.model_validate(data)
 
 
+def test_invalid_superset_labels_remapped_preserving_grouping():
+    """Run #10: model emits "BR2"/"BS1"-style 3-char labels. Grouping identity
+    must survive the remap; legal labels already in use must not be stolen."""
+    exs = [
+        _exercise(superset_group="BR2"),
+        _exercise(exercise_id="ex_020", superset_group="BR2"),
+        _exercise(exercise_id="ex_025", superset_group="A"),  # legal, keep
+        _exercise(exercise_id="ex_041", superset_group="BS1"),
+    ]
+    day = _day(0, lifting_blocks=[_block(exercises=exs)])
+    data = _normalize_authored_dict(_program([day]))
+
+    out = data["days"][0]["lifting_blocks"][0]["exercises"]
+    assert out[0]["superset_group"] == out[1]["superset_group"]  # grouping kept
+    assert out[2]["superset_group"] == "A"  # untouched
+    labels = {e["superset_group"] for e in out}
+    assert len(labels) == 3  # BR2-group, A, BS1-group all distinct
+    PitcherProgram.model_validate(data)
+
+
 def test_null_lifting_blocks_becomes_empty_list():
     day = _day(0, lifting_blocks=None)
     data = _normalize_authored_dict(_program([day]))
