@@ -204,7 +204,9 @@ async def _select_plan_path(
     # stay None and persistence takes the legacy write path.
     if _is_engine_drive_enabled(pitcher_id):
         try:
-            from bot.services.program_engine.drive import compose_drive_plan
+            import asyncio
+
+            from bot.services.program_engine.drive import compose_drive_plan, enrich_narrative_async
 
             drive_plan = compose_drive_plan(
                 pitcher_id,
@@ -214,6 +216,15 @@ async def _select_plan_path(
                 checkin_inputs=checkin_inputs,
             )
             if drive_plan is not None:
+                # Detached LLM color on the brief — the morning never waits
+                # for it (persist below races it deliberately; the task
+                # re-reads the entry before patching plan_narrative).
+                try:
+                    asyncio.create_task(
+                        enrich_narrative_async(pitcher_id, target_date, drive_plan, profile, triage_result)
+                    )
+                except RuntimeError:
+                    pass  # no running loop (sync test harness) — skip color
                 return drive_plan, None, None
         except Exception as exc:
             _log_program_path_failure(pitcher_id, exc)

@@ -257,6 +257,94 @@ def _morning_brief(day: Day, projected: ProjectedDay, program_row: dict, triage_
     return base + f" Your check-in came back {cls.upper()}{why_part}, so today is adjusted: {note}. Confirm or adjust below."
 
 
+def _arm_care_rider(profile: dict, triage_result: dict, rotation_day: int) -> tuple[Optional[dict], list[dict]]:
+    """The legacy arm-care block rides along on every drive day (ratified
+    2026-07-13: authored programs prescribe lifting/throwing; daily arm care
+    is standing hygiene, not program content).
+
+    Reuses the curated templates + plyocare selection from plan_generator.
+    Returns (arm_care_section, arm_care_blocks). Never raises — a rider must
+    not take down the morning.
+    """
+    try:
+        from bot.services.plan_generator import (
+            _build_arm_care_blocks,
+            _select_plyocare,
+            load_template,
+        )
+
+        pa = (triage_result or {}).get("protocol_adjustments") or {}
+        # triage emits "light" | "heavy" (no "standard" template exists)
+        arm_care = load_template(f"arm_care_{pa.get('arm_care_template') or 'light'}.json")
+        plyocare = None
+        if pa.get("plyocare_allowed", True):
+            try:
+                plyocare = _select_plyocare(
+                    load_template("plyocare_routines.json"),
+                    rotation_day,
+                    (triage_result or {}).get("flag_level", "green"),
+                )
+            except FileNotFoundError:
+                pass
+        blocks = _build_arm_care_blocks(arm_care, plyocare)
+        return (blocks[0] if blocks else None), blocks
+    except Exception:
+        logger.warning("drive: arm-care rider failed, shipping without it", exc_info=True)
+        return None, []
+
+
+async def enrich_narrative_async(pitcher_id: str, target_date: _date, plan: dict, profile: dict, triage_result: dict) -> bool:
+    """Async LLM color on the deterministic brief — never blocking, never load-bearing.
+
+    The morning ships instantly with the deterministic brief; this detached
+    task upgrades `plan_narrative` with 2-3 sentences of coach color a
+    moment later. morning_brief and the proposal stay untouched (they carry
+    the confirm contract). Failure of any kind is silent.
+    """
+    try:
+        import asyncio
+
+        from bot.services.db import get_daily_entry, upsert_daily_entry
+        from bot.services.llm import call_llm
+
+        # Grace period so the check-in's own entry persist always lands first
+        # (the task is spawned before process_checkin writes the full entry).
+        await asyncio.sleep(5)
+
+        ep = plan.get("engine_projection") or {}
+        lifting = plan.get("lifting") or {}
+        ex_names = ", ".join(x.get("name", "") for x in (lifting.get("exercises") or [])[:6])
+        throwing = plan.get("throwing") or {}
+        vs = throwing.get("volume_summary")
+        throw_txt = (vs or {}).get("text") if isinstance(vs, dict) else (vs or "no throwing")
+        prompt = (
+            f"Pitcher: {profile.get('name', pitcher_id)}. Today (program day {ep.get('day_index', 0) + 1}, "
+            f"phase {ep.get('phase_name', '?')}): throwing {throw_txt}; lifting: {ex_names or 'none'}. "
+            f"Triage: {(triage_result or {}).get('reasoning', '')[:200]}. "
+            "Write 2-3 sentences of morning coaching color: what today accomplishes in the program arc "
+            "and one focus cue. Direct, specific, no fluff, no greetings."
+        )
+        raw = await asyncio.wait_for(
+            call_llm("You are a sharp pitching coach writing a morning note.", prompt, max_tokens=220),
+            timeout=30,
+        )
+        color = (raw or "").strip()
+        if not color:
+            return False
+        entry = get_daily_entry(pitcher_id, target_date.isoformat()) or {}
+        base = plan.get("morning_brief") or ""
+        entry["plan_narrative"] = f"{base}\n\n{color}" if base else color
+        pg = entry.get("plan_generated") or {}
+        pg["brief_enriched"] = True
+        entry["plan_generated"] = pg
+        upsert_daily_entry(pitcher_id, entry)
+        logger.info("drive_brief_enriched", extra={"pitcher_id": pitcher_id, "chars": len(color)})
+        return True
+    except Exception:
+        logger.info("drive: async brief enrichment skipped", exc_info=True)
+        return False
+
+
 def compose_drive_plan(
     pitcher_id: str,
     triage_result: dict,
@@ -285,6 +373,9 @@ def compose_drive_plan(
     name_map = _exercise_name_map()
     lifting, exercise_blocks = _lifting_sections(delivered, name_map)
     throwing = _throwing_section(delivered)
+    arm_care, arm_care_blocks = _arm_care_rider(profile, triage_result, delivered.day_index % 7)
+    if arm_care_blocks:
+        exercise_blocks = arm_care_blocks + exercise_blocks
 
     # Warmup rides along from the legacy builder — deterministic, no LLM.
     warmup = None
@@ -330,7 +421,7 @@ def compose_drive_plan(
         "throwing": throwing,
         "lifting": lifting,
         "exercise_blocks": exercise_blocks,
-        "arm_care": None,
+        "arm_care": arm_care,
         "notes": changes,
         "modifications_applied": list((triage_result or {}).get("modification_flags") or []),
         "proposal": proposal,

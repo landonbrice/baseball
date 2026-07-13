@@ -101,7 +101,7 @@ def test_green_day_ships_silently(patched_drive):
     assert plan["throwing"]["day_type_label"]
     assert len(plan["lifting"]["exercises"]) == 2
     assert plan["lifting"]["exercises"][0]["name"] == "Front Squat"
-    assert plan["exercise_blocks"][0]["block_name"] == "Lower Strength"
+    assert any(b["block_name"] == "Lower Strength" for b in plan["exercise_blocks"])
     assert plan["engine_projection"]["program_id"] == "prog-test-0001"
 
 
@@ -127,6 +127,60 @@ def test_red_day_clamps_to_recovery(patched_drive):
     assert plan["proposal"]["readiness_class"] == "red"
     assert plan["throwing"]["throw_count"] <= 20
     assert plan["throwing"]["distance_ft"] <= 45
+
+
+def test_arm_care_rider_attached(patched_drive):
+    """Every drive day carries the legacy arm-care block (ratified 2026-07-13)."""
+    plan = drive.compose_drive_plan("landon_brice", GREEN, {}, date(2026, 7, 13), checkin_inputs={"arm_feel": 9})
+    assert plan["arm_care"] is not None
+    # arm care blocks prepend the engine's lifting blocks
+    assert "Arm Care" in plan["exercise_blocks"][0]["block_name"]
+    assert any(b["block_name"] == "Lower Strength" for b in plan["exercise_blocks"])
+
+
+@pytest.mark.asyncio
+async def test_enrich_narrative_patches_entry(monkeypatch):
+    """Async color: LLM text lands in plan_narrative; morning_brief untouched."""
+    store = {"entry": {"plan_generated": {"source": "engine_projected"}}}
+
+    async def fake_llm(sys, user, **k):
+        return "Day one sets the base. Stay smooth on the RDLs."
+
+    async def no_sleep(_):
+        return None
+
+    monkeypatch.setattr("bot.services.llm.call_llm", fake_llm)
+    monkeypatch.setattr("asyncio.sleep", no_sleep)
+    monkeypatch.setattr("bot.services.db.get_daily_entry", lambda pid, d: dict(store["entry"]))
+    monkeypatch.setattr(
+        "bot.services.db.upsert_daily_entry",
+        lambda pid, e: store.update(entry=e),
+    )
+    plan = {
+        "morning_brief": "Week 1, day 1 — Base Throwing.",
+        "engine_projection": {"day_index": 0, "phase_name": "Base Throwing"},
+        "lifting": {"exercises": [{"name": "Front Squat"}]},
+        "throwing": {"volume_summary": {"text": "48 throws @ 60ft"}},
+    }
+    ok = await drive.enrich_narrative_async("landon_brice", date(2026, 7, 13), plan, {"name": "Landon"}, {"reasoning": "yellow via WHOOP"})
+    assert ok is True
+    assert "Stay smooth" in store["entry"]["plan_narrative"]
+    assert store["entry"]["plan_narrative"].startswith("Week 1, day 1")
+    assert store["entry"]["plan_generated"]["brief_enriched"] is True
+
+
+@pytest.mark.asyncio
+async def test_enrich_narrative_silent_on_llm_failure(monkeypatch):
+    async def boom(*a, **k):
+        raise TimeoutError("llm down")
+
+    async def no_sleep(_):
+        return None
+
+    monkeypatch.setattr("bot.services.llm.call_llm", boom)
+    monkeypatch.setattr("asyncio.sleep", no_sleep)
+    ok = await drive.enrich_narrative_async("landon_brice", date(2026, 7, 13), {}, {}, {})
+    assert ok is False  # silent, no raise
 
 
 def test_no_active_program_returns_none(monkeypatch):
