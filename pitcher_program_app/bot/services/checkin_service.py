@@ -137,6 +137,19 @@ def _is_program_aware_enabled(pitcher_id: str) -> bool:
         return False
 
 
+def _is_engine_drive_enabled(pitcher_id: str) -> bool:
+    """Sprint C: per-pitcher gate for the engine-projected drive path.
+
+    Same feature_flags jsonb idiom as `program_aware_plan_gen`; exposed at
+    module level so tests patch this single seam.
+    """
+    try:
+        return bool(_db.get_feature_flag(pitcher_id, "program_engine_v1"))
+    except Exception:
+        logger.warning("get_feature_flag failed for %s", pitcher_id, exc_info=True)
+        return False
+
+
 def _has_any_active_program(pitcher_id: str) -> bool:
     """True if the pitcher has any active program (throwing or lifting domain)."""
     try:
@@ -184,6 +197,27 @@ async def _select_plan_path(
     # non-program branches; ``None`` means the program path was taken (compose
     # emits its own structured event with full schema).
     legacy_reason: str | None = None
+
+    # Sprint C: engine drive tries FIRST. Flag-gated per-pitcher; returns None
+    # when no active engine program covers today (falls through). Engine
+    # programs are date-keyed — no counter advance, so program_id/hold_event
+    # stay None and persistence takes the legacy write path.
+    if _is_engine_drive_enabled(pitcher_id):
+        try:
+            from bot.services.program_engine.drive import compose_drive_plan
+
+            drive_plan = compose_drive_plan(
+                pitcher_id,
+                triage_result,
+                profile,
+                target_date,
+                checkin_inputs=checkin_inputs,
+            )
+            if drive_plan is not None:
+                return drive_plan, None, None
+        except Exception as exc:
+            _log_program_path_failure(pitcher_id, exc)
+            # fall through to program-aware / legacy
 
     if _is_program_aware_enabled(pitcher_id) and _has_any_active_program(pitcher_id):
         try:
@@ -664,6 +698,10 @@ async def process_checkin(
             # falls back to derive_day_focus when this is missing (legacy rows
             # + the cold-start partial entry path).
             "day_focus": plan_result.get("day_focus") if plan_result else None,
+            # Sprint C: the drive's propose-and-confirm envelope + projection
+            # provenance. None on non-engine paths.
+            "proposal": plan_result.get("proposal") if plan_result else None,
+            "engine_projection": plan_result.get("engine_projection") if plan_result else None,
             # F4: per-day summary rationale (None when rationale disabled or generation failed)
             "day_summary_rationale": day_summary_rationale,
         },
@@ -772,6 +810,7 @@ async def process_checkin(
         "soreness_response": plan_result.get("soreness_response") if plan_result else None,
         "exercise_blocks": plan_result.get("exercise_blocks", []) if plan_result else [],
         "throwing_plan": plan_result.get("throwing_plan") if plan_result else None,
+        "proposal": plan_result.get("proposal") if plan_result else None,
         "estimated_duration_min": plan_result.get("estimated_duration_min") if plan_result else None,
         "modifications_applied": (
             plan_result.get("modifications_applied", []) if plan_result

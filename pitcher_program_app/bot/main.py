@@ -20,7 +20,12 @@ from telegram.ext import (
     filters,
 )
 from bot.config import TELEGRAM_BOT_TOKEN, MINI_APP_URL
-from bot.handlers.daily_checkin import get_checkin_handler, plan_completion_callback, skip_details_handler
+from bot.handlers.daily_checkin import (
+    drive_proposal_callback,
+    get_checkin_handler,
+    plan_completion_callback,
+    skip_details_handler,
+)
 from bot.handlers.post_outing import get_outing_handler
 from bot.handlers.qa import handle_question
 from bot.services.context_manager import load_profile, get_pitcher_id_by_telegram
@@ -418,6 +423,39 @@ async def backup_command(update: Update, context) -> None:
         f"Data status (Supabase):\n"
         f"  Pitchers: {pitcher_count} ({pitchers_with_id} with telegram_id)\n"
         f"  Total log entries: {total_entries}\n"
+    )
+
+
+async def buildprogram(update: Update, context) -> None:
+    """Handle /buildprogram [goal] — kick an async engine authoring job.
+
+    Authoring is a 5–25 min compile step; the job runs detached and DMs the
+    pitcher when the draft lands (Sprint C — Telegram-first async UX).
+    """
+    import asyncio as _asyncio
+
+    from bot.services.program_engine.authoring_job import GOAL_WEEKS, run_authoring_job
+
+    telegram_id = update.effective_user.id
+    pitcher_id = get_pitcher_id_by_telegram(telegram_id)
+    if not pitcher_id:
+        await update.message.reply_text("I don't recognize this account — ask your coach to set you up.")
+        return
+
+    goal = (context.args[0].lower() if context.args else "return_to_play")
+    if goal not in GOAL_WEEKS:
+        await update.message.reply_text(
+            f"I can build: {', '.join(GOAL_WEEKS)}. Try /buildprogram return_to_play"
+        )
+        return
+
+    _asyncio.create_task(
+        run_authoring_job(pitcher_id, goal, chat_id=update.effective_chat.id)
+    )
+    await update.message.reply_text(
+        f"On it — authoring your {GOAL_WEEKS[goal]}-week {goal.replace('_', ' ')} program. "
+        "This takes a few minutes (the AI designs every day, then the safety guardrails "
+        "check its work). I'll message you when the draft is ready."
     )
 
 
@@ -1098,9 +1136,13 @@ def register_handlers(application) -> None:
     application.add_handler(CommandHandler("testemergency", test_emergency_command))
     application.add_handler(CommandHandler("gamestart", gamestart))
     application.add_handler(CommandHandler("dashboard", dashboard))
+    application.add_handler(CommandHandler("buildprogram", buildprogram))
     application.add_handler(CommandHandler("backup", backup_command))
     application.add_handler(CommandHandler("refreshschedule", refresh_schedule))
     application.add_handler(CallbackQueryHandler(
         plan_completion_callback, pattern=r"^plan_(done|skipped|dashboard)$"
+    ))
+    application.add_handler(CallbackQueryHandler(
+        drive_proposal_callback, pattern=r"^drive_(confirm|adjust)$"
     ))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, _text_dispatcher))

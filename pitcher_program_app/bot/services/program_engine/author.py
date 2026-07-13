@@ -184,7 +184,45 @@ def _exercise_menu() -> str:
 
 
 
-def _normalize_authored_dict(data: dict) -> dict:
+_SUPERSET_GROUP_RE = re.compile(r"^[A-Z][0-9]?$")
+
+
+def _remap_invalid_superset_groups(day: dict) -> None:
+    """Remap "BR2"/"BS1"-style superset labels to schema-legal ones (run #10).
+
+    Grouping identity is what matters, not the label text — every exercise in
+    the day sharing an invalid label gets the same fresh legal label, chosen
+    to not collide with labels already in use that day.
+    """
+    exercises = [
+        ex
+        for block in day.get("lifting_blocks") or []
+        if isinstance(block, dict)
+        for ex in block.get("exercises") or []
+        if isinstance(ex, dict)
+    ]
+    used = {
+        ex["superset_group"]
+        for ex in exercises
+        if isinstance(ex.get("superset_group"), str) and _SUPERSET_GROUP_RE.match(ex["superset_group"])
+    }
+    remap: dict[str, str] = {}
+    for ex in exercises:
+        g = ex.get("superset_group")
+        if not isinstance(g, str) or _SUPERSET_GROUP_RE.match(g):
+            continue
+        if g not in remap:
+            fresh = next(
+                (c for c in "ABCDEFGHIJKLMNOPQRSTUVWXYZ" if c not in used), None
+            )
+            if fresh is None:  # 26 groups in one day — schema will reject; leave it
+                continue
+            used.add(fresh)
+            remap[g] = fresh
+        ex["superset_group"] = remap[g]
+
+
+def _normalize_authored_dict(data: dict, *, start_date: Optional[str] = None) -> dict:
     """Deterministic normalization of near-miss LLM output (repair plane).
 
     Live run #5 attempt 3 parsed a full 63-day program cleanly and failed on
@@ -204,9 +242,29 @@ def _normalize_authored_dict(data: dict) -> dict:
          (runs #4/#8/#9 — the dominant failure class: one dropped `]}` makes
          json_repair close lifting_blocks too late, so every subsequent day
          nests recursively inside it; content is intact, only misplaced).
+      7. Calendar ownership (run #10 aftermath): the accepted program carried
+         dates starting 2026-03-26 — the model hallucinated an anchor from
+         context. Dates are pure mechanics (`date_i = start_date + i`), so
+         when `start_date` is provided every day date AND generated_at are
+         REWRITTEN deterministically; the LLM's date strings are ignored.
     """
     if not isinstance(data, dict):
         return data
+
+    if start_date is not None:
+        from datetime import date as _date, datetime as _datetime, timedelta as _timedelta
+
+        anchor = _date.fromisoformat(start_date) if isinstance(start_date, str) else start_date
+        for day in data.get("days") or []:
+            if isinstance(day, dict) and isinstance(day.get("day_index"), int):
+                day["date"] = (anchor + _timedelta(days=day["day_index"])).isoformat()
+        data["generated_at"] = _datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+        if data.get("target_date") and data.get("days"):
+            last = max(
+                (d.get("day_index", 0) for d in data["days"] if isinstance(d, dict)),
+                default=0,
+            )
+            data["target_date"] = (anchor + _timedelta(days=last)).isoformat()
 
     def _clip(obj: dict, key: str, cap: int) -> None:
         v = obj.get(key)
@@ -258,6 +316,7 @@ def _normalize_authored_dict(data: dict) -> dict:
                 # "" for ungrouped exercises (live run #7).
                 if isinstance(ex, dict) and isinstance(ex.get("superset_group"), str) and not ex["superset_group"].strip():
                     ex["superset_group"] = None
+        _remap_invalid_superset_groups(day)
     for phase in data.get("phases") or []:
         if isinstance(phase, dict):
             _clip(phase, "phase_id", 40)
@@ -396,8 +455,20 @@ async def author_program(
         except Exception as e:
             logger.warning("author_program: JSON unrecoverable (%s)", e)
             raise GenerationFailure("json_parse_failed", detail=str(e)) from e
+    # Calendar ownership: derive start_date from the goal spec so the
+    # normalizer rewrites every day date deterministically (date_i =
+    # start + day_index). Explicit `start_date` wins; else back-derive
+    # from target_date − (target_weeks·7 − 1).
+    start_date = (goal_spec or {}).get("start_date")
+    if not start_date:
+        tgt, wks = (goal_spec or {}).get("target_date"), (goal_spec or {}).get("target_weeks")
+        if tgt and wks:
+            from datetime import date as _date, timedelta as _timedelta
+
+            start_date = (_date.fromisoformat(tgt) - _timedelta(days=int(wks) * 7 - 1)).isoformat()
+
     try:
-        program = PitcherProgram.model_validate(_normalize_authored_dict(data))
+        program = PitcherProgram.model_validate(_normalize_authored_dict(data, start_date=start_date))
     except ValidationError as e:
         logger.warning("author_program: schema validation failed post-normalize (%s)", e)
         raise GenerationFailure("schema_validation_failed", detail=str(e)) from e

@@ -73,10 +73,10 @@
     {
       "id": "engine",
       "name": "Program Engine v1 (the frontier)",
-      "status": "active",
-      "pct": 93,
+      "status": "shipped",
+      "pct": 100,
       "summary": "Sprint A executed 07-13 on PR #37 (which merged in and supersedes #34): ACWR fixture recalibrated from the REAL recovered data (wks 10-11 corrected), RED-day projection inversion fixed + regression-tested, RTP knowledge pack authored (doc + return_to_mound_9wk_v1 seed), demo goal-dispatched with return_to_play default, verified end-to-end in mocked mode.",
-      "next": "Run #10 in flight: first run where attempts reached guardrails. Then: authored-program accept, viewer refresh, PR #38 merge."
+      "next": "Sprint C shipped on PR #39 (merge to deploy the drive). Next: mini-app confirm UI + Builder async state, governor re-pacing v2, roster rollout."
     },
     {
       "id": "builder",
@@ -120,6 +120,16 @@
     }
   ],
   "milestones": [
+    {
+      "date": "2026-07-13",
+      "title": "The drive is live: engine program projects into daily check-ins",
+      "detail": "fbb85b24 active for landon_brice; program_engine_v1 flag on; green ships silently, yellow/red propose-and-confirm via Telegram; verified end-to-end against prod."
+    },
+    {
+      "date": "2026-07-13",
+      "title": "First LLM-authored program accepted by guardrail plane",
+      "detail": "9wk return-to-mound, fallback_used=false, status=repaired, 34 throw days / 45 lift days. 10 live runs, 9 defect classes fixed."
+    },
     {
       "date": "2026-07-13",
       "title": "Sprints A (offline) + B (core) executed",
@@ -304,6 +314,16 @@
     }
   ],
   "log": [
+    {
+      "date": "2026-07-13",
+      "agent": "Claude (Fable)",
+      "summary": "Sprint C: drive shipped \u2014 engine program ACTIVATED for landon_brice (Jul13-Sep13), propose-and-confirm on modulated days, /buildprogram async authoring. 1108 tests green on PR #39."
+    },
+    {
+      "date": "2026-07-13",
+      "agent": "Claude (Fable)",
+      "summary": "MILESTONE: run #10 attempt 5 ACCEPTED \u2014 first LLM-authored 9wk RTP program passes guardrails (5 phases incl. explicit deload wk). PR #38 merged; artifacts + viewer on PR #39."
+    },
     {
       "date": "2026-07-13",
       "agent": "Claude (Fable)",

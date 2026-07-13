@@ -349,7 +349,23 @@ def project(
 ) -> ProjectedDay:
     """Project the program's matching day onto today's reality.
 
-    Pure function. Looks up `program.days` for the matching ISO date string,
+    Thin wrapper over `project_days` for callers holding a full
+    PitcherProgram. The live drive path (checkin) holds only the persisted
+    `generated_schedule_json.days` list and calls `project_days` directly.
+    """
+    return project_days(program.days, date, readiness, policy=policy)
+
+
+def project_days(
+    days: list[Day],
+    date: _date,
+    readiness: dict,
+    *,
+    policy: PolicyName = "silent_absorb",
+) -> ProjectedDay:
+    """Project the matching day from a days list onto today's reality.
+
+    Pure function. Looks up `days` for the matching ISO date string,
     classifies readiness, modulates the intended day deterministically, and
     emits a `ProjectedDay` whose `governor_signal` is policy-dependent.
 
@@ -357,7 +373,7 @@ def project(
     the program away from its goal mid-day.
 
     Raises:
-        ValueError: if no Day in `program.days` matches `date`.
+        ValueError: if no Day in `days` matches `date`.
         ValueError: if `policy` is not one of the valid policies.
     """
     if policy not in _VALID_POLICIES:
@@ -365,11 +381,11 @@ def project(
             f"unknown policy {policy!r}; expected one of {_VALID_POLICIES}"
         )
     iso_date = date.isoformat()
-    intended_day: Optional[Day] = next((d for d in program.days if d.date == iso_date), None)
+    intended_day: Optional[Day] = next((d for d in days if d.date == iso_date), None)
     if intended_day is None:
         raise ValueError(
             f"date {iso_date} does not correspond to any program day (program covers "
-            f"{program.days[0].date}..{program.days[-1].date if program.days else 'n/a'})"
+            f"{days[0].date}..{days[-1].date if days else 'n/a'})"
         )
 
     readiness_class = _classify_readiness(readiness)

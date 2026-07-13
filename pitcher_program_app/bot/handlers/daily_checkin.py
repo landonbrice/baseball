@@ -810,6 +810,24 @@ async def _generate_plan_and_respond(message, context) -> int:
         for alert in result["alerts"]:
             await message.reply_text(f"⚠️ {alert}")
 
+        # Sprint C drive: propose-and-confirm on modulated days. The adjusted
+        # day is ALREADY live (auto-accept) — Confirm is acknowledgment, Adjust
+        # routes to the existing swap/coach surfaces. Green days skip this.
+        proposal = result.get("proposal")
+        if proposal:
+            changes = proposal.get("changes") or []
+            lines = "\n".join(f"• {c}" for c in changes[:5])
+            keyboard = InlineKeyboardMarkup([[
+                InlineKeyboardButton("✅ Looks good", callback_data="drive_confirm"),
+                InlineKeyboardButton("🔧 Adjust", callback_data="drive_adjust"),
+            ]])
+            await message.reply_text(
+                f"Today was adjusted for your {proposal.get('readiness_class', '').upper()} check-in:\n"
+                f"{lines}\n\n"
+                "This version is already your plan — confirm, or tell me what to change.",
+                reply_markup=keyboard,
+            )
+
         # Dashboard link
         from bot.config import MINI_APP_URL
         if MINI_APP_URL:
@@ -840,6 +858,43 @@ async def _generate_plan_and_respond(message, context) -> int:
         )
 
     return ConversationHandler.END
+
+
+async def drive_proposal_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle the drive's propose-and-confirm buttons (Sprint C).
+
+    The modulated plan is already persisted (auto-accept) — Confirm stamps
+    `plan_generated.proposal.status='confirmed'` for the record; Adjust
+    points at the existing swap/coach surfaces (v1 — no re-projection).
+    """
+    query = update.callback_query
+    await query.answer()
+    pitcher_id = context.user_data.get("pitcher_id")
+
+    if query.data == "drive_confirm":
+        if pitcher_id:
+            try:
+                from datetime import datetime
+                from bot.config import CHICAGO_TZ
+                from bot.services.db import get_daily_entry, upsert_daily_entry
+
+                today = datetime.now(CHICAGO_TZ).strftime("%Y-%m-%d")
+                entry = get_daily_entry(pitcher_id, today) or {}
+                pg = entry.get("plan_generated") or {}
+                if pg.get("proposal"):
+                    pg["proposal"]["status"] = "confirmed"
+                    entry["plan_generated"] = pg
+                    upsert_daily_entry(pitcher_id, entry)
+            except Exception:
+                logger.warning("drive_confirm persist failed for %s", pitcher_id, exc_info=True)
+        await query.edit_message_reply_markup(reply_markup=None)
+        await query.message.reply_text("Locked in. Go get after it. 💪")
+    else:  # drive_adjust
+        await query.edit_message_reply_markup(reply_markup=None)
+        await query.message.reply_text(
+            "Tell me what to change (e.g. \"swap the front squats\" or \"I want to throw more today\") "
+            "and I'll take it from there — or open the mini app to swap exercises directly."
+        )
 
 
 async def plan_completion_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

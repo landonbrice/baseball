@@ -15,7 +15,7 @@ _Generated 2026-06-02 against `landon_brice`._
    - Goal: `return_to_play` · 9 weeks
    - knowledge_version: `9d185eb1dd6ea5aabc7508919c3ee936f7c81a21`
    - Generation attempts: 5
-   - Fallback used: True
+   - Fallback used: False
    - Total days: 63
 
 2. **Living-knowledge proof** — see [`02_living_knowledge_proof.md`](02_living_knowledge_proof.md).
