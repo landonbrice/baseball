@@ -78,6 +78,10 @@ def _build_index_from_rows(rows: list[dict]) -> None:
         ex_id = row.get("id")
         if not ex_id:
             continue
+        # Canonical IDs resolve to themselves — guardrail #7 passes authored
+        # exercise_id values (ex_NNN) through this index, and without this
+        # every LEGITIMATE id was flagged unknown_exercise_id (live run #6).
+        index[_normalize(ex_id)] = ex_id
         name = row.get("name")
         if name:
             try:

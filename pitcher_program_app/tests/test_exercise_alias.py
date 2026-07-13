@@ -177,3 +177,14 @@ def test_get_exercises_failure_keeps_last_good(monkeypatch, caplog):
     exercise_alias._build_index()
     # Existing entry still works
     assert resolve_alias("seal row") == "ex_020"
+
+
+def test_canonical_ids_resolve_to_themselves():
+    """Guardrail #7 passes authored ex_NNN ids through the alias index —
+    they must resolve (live run #6 regression: every real id flagged unknown)."""
+    from bot.services import exercise_alias as ea
+
+    ea._build_index_from_rows([{"id": "ex_002", "name": "Front Squat", "aliases": ["front squats"]}])
+    assert ea.try_resolve_alias("ex_002") == "ex_002"
+    assert ea.try_resolve_alias("Front Squat") == "ex_002"
+    ea.refresh_index() if hasattr(ea, "refresh_index") else None
