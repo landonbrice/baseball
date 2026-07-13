@@ -172,6 +172,48 @@ def _exercise_menu() -> str:
     return _EXERCISE_MENU_CACHE
 
 
+
+
+def _normalize_authored_dict(data: dict) -> dict:
+    """Deterministic normalization of near-miss LLM output (repair plane).
+
+    Live run #5 attempt 3 parsed a full 63-day program cleanly and failed on
+    exactly three MECHANICAL classes — fix those, reject nothing the schema
+    can still catch afterward:
+      1. day_focus (and similar) strings over the 120-char cap → clipped.
+      2. lifting_blocks: null on non-lifting days → [].
+      3. citations shaped {doc_id, sections} → {doc_id, title, why} (title
+         derived from doc_id; why joined from sections; display re-resolves
+         real titles from frontmatter anyway).
+    """
+    if not isinstance(data, dict):
+        return data
+    for day in data.get("days") or []:
+        if not isinstance(day, dict):
+            continue
+        if day.get("lifting_blocks") is None:
+            day["lifting_blocks"] = []
+        df = day.get("day_focus")
+        if isinstance(df, str) and len(df) > 120:
+            day["day_focus"] = df[:117] + "..."
+    rationale = data.get("rationale")
+    if isinstance(rationale, dict):
+        fixed = []
+        for c in rationale.get("citations") or []:
+            if not isinstance(c, dict):
+                continue
+            doc_id = c.get("doc_id") or ""
+            title = c.get("title") or doc_id.replace("_", " ").title()
+            why = c.get("why")
+            if not why:
+                sections = c.get("sections")
+                why = "; ".join(sections) if isinstance(sections, list) else "cited by author"
+            fixed.append({"doc_id": doc_id, "title": title, "why": str(why)[:500]})
+        if fixed:
+            rationale["citations"] = fixed
+    return data
+
+
 def _build_user_prompt(
     *,
     pitcher_profile: dict,
@@ -272,30 +314,26 @@ async def author_program(
 
     text = _strip_json_fences(raw)
 
-    # Parse JSON
+    # Parse (with deterministic bracket repair) → normalize → validate.
+    # json_repair handles the one-bad-bracket-in-65KB class (live run #3);
+    # _normalize_authored_dict handles the mechanical near-misses (run #5);
+    # the full Pydantic schema still gates everything at the end.
     try:
-        # PitcherProgram.model_validate_json does both parse + validate in one
-        # step, but we strip fences first so error messages are cleaner.
-        program = PitcherProgram.model_validate_json(text)
-    except ValidationError as e:
-        # Deterministic repair pass before rejecting: long single-shot JSON
-        # (60k+ chars) routinely arrives with ONE unbalanced bracket/quote
-        # (live run #3: complete-looking doc, one missing ']'). json_repair
-        # fixes that class mechanically; schema validation still gates the
-        # result, so a mangled repair cannot slip through.
-        if "json_invalid" in str(e):
-            try:
-                import json_repair
+        data = json.loads(text)
+    except (json.JSONDecodeError, ValueError):
+        try:
+            import json_repair
 
-                repaired = json_repair.repair_json(text)
-                program = PitcherProgram.model_validate_json(repaired)
-                logger.warning("author_program: JSON repaired deterministically (json_repair)")
-            except Exception as e2:
-                logger.warning("author_program: schema validation failed after repair (%s)", e2)
-                raise GenerationFailure("schema_validation_failed", detail=str(e)) from e
-        else:
-            logger.warning("author_program: schema validation failed (%s)", e)
-            raise GenerationFailure("schema_validation_failed", detail=str(e)) from e
+            data = json_repair.loads(text)
+            logger.warning("author_program: JSON repaired deterministically (json_repair)")
+        except Exception as e:
+            logger.warning("author_program: JSON unrecoverable (%s)", e)
+            raise GenerationFailure("json_parse_failed", detail=str(e)) from e
+    try:
+        program = PitcherProgram.model_validate(_normalize_authored_dict(data))
+    except ValidationError as e:
+        logger.warning("author_program: schema validation failed post-normalize (%s)", e)
+        raise GenerationFailure("schema_validation_failed", detail=str(e)) from e
     except (json.JSONDecodeError, ValueError) as e:
         logger.warning("author_program: JSON parse failed (%s)", e)
         raise GenerationFailure("json_parse_failed", detail=str(e)) from e
