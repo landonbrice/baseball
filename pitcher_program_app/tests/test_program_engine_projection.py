@@ -357,3 +357,64 @@ def test_unknown_policy_raises_value_error(velocity_program):
     target = _date.fromisoformat(day.date)
     with pytest.raises(ValueError, match="unknown policy"):
         project(velocity_program, target, {}, policy="ad_hoc_freestyle")  # type: ignore[arg-type]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# RED-day recovery caps are ceilings, never floors (regression — Sprint A fix)
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def test_red_day_never_raises_a_light_intended_day():
+    """A RED day on an already-light prescription must not INCREASE volume.
+
+    Pre-fix, _modulate_red pinned throwing to a flat 20 throws / 45ft / 50%,
+    which inflated e.g. an intended 8-throw touch-up day to 20 throws.
+    """
+    from bot.services.program_engine.projection import _modulate_red
+    from bot.services.program_engine.schemas import Day, ThrowingFiveTuple
+
+    light = Day(
+        day_index=10,
+        template_key="wk2_d3_light",
+        date="2026-07-20",
+        intent_pct=40,
+        throwing_5tuple=ThrowingFiveTuple(
+            distance_ft=30,
+            throw_count=8,
+            intensity_pct=40,
+            drill="easy catch",
+        ),
+    )
+    delivered = _modulate_red(light)
+    assert delivered.throwing_5tuple.throw_count == 8, "recovery cap must not raise throws"
+    assert delivered.throwing_5tuple.distance_ft == 30, "recovery cap must not raise distance"
+    assert delivered.throwing_5tuple.intensity_pct == 40, "recovery cap must not raise intensity"
+    assert delivered.intent_pct == 40
+
+
+def test_red_day_still_caps_a_heavy_intended_day():
+    from bot.services.program_engine.projection import (
+        RED_RECOVERY_DISTANCE_FT,
+        RED_RECOVERY_INTENT_PCT,
+        RED_RECOVERY_THROW_COUNT,
+        _modulate_red,
+    )
+    from bot.services.program_engine.schemas import Day, ThrowingFiveTuple
+
+    heavy = Day(
+        day_index=30,
+        template_key="wk5_d1_velo",
+        date="2026-08-10",
+        intent_pct=85,
+        throwing_5tuple=ThrowingFiveTuple(
+            distance_ft=120,
+            throw_count=70,
+            intensity_pct=85,
+            drill="long toss",
+        ),
+    )
+    delivered = _modulate_red(heavy)
+    assert delivered.throwing_5tuple.throw_count == RED_RECOVERY_THROW_COUNT
+    assert delivered.throwing_5tuple.distance_ft == RED_RECOVERY_DISTANCE_FT
+    assert delivered.throwing_5tuple.intensity_pct == RED_RECOVERY_INTENT_PCT
+    assert delivered.intent_pct == RED_RECOVERY_INTENT_PCT

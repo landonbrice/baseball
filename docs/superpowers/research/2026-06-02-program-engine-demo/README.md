@@ -16,15 +16,15 @@ _Generated 2026-06-02 against `landon_brice`._
 
 1. **End-to-end generation** — see [`01_generated_program.md`](01_generated_program.md) for human-readable; [`01_generated_program.json`](01_generated_program.json) for the artifact.
    - Pitcher: `landon_brice`
-   - Goal: `velocity` · 12 weeks
-   - knowledge_version: `0c62fd5547765d88`
+   - Goal: `return_to_play` · 9 weeks
+   - knowledge_version: `818030d0d8ab91a0`
    - Generation attempts: 1
    - Fallback used: True
-   - Total days: 84
+   - Total days: 63
 
 2. **Living-knowledge proof** — see [`02_living_knowledge_proof.md`](02_living_knowledge_proof.md).
-   - kv before: `0c62fd5547765d88`
-   - kv after: `7f1af73f2efc68bf`
+   - kv before: `818030d0d8ab91a0`
+   - kv after: `e4254623253396b0`
    - **Hash invalidates as expected.**
 
 3. **Drive seam walk** — see [`03_drive_seam_trace.md`](03_drive_seam_trace.md).

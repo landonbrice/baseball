@@ -201,13 +201,19 @@ def _modulate_red(intended: Day) -> Day:
     delivered = deepcopy(intended)
     if delivered.throwing_5tuple is not None:
         five = delivered.throwing_5tuple
+        # Recovery caps are ceilings, never floors: a RED day must not prescribe
+        # MORE than the program intended on an already-light day.
         delivered.throwing_5tuple = five.model_copy(update={
-            "distance_ft": RED_RECOVERY_DISTANCE_FT,
-            "throw_count": RED_RECOVERY_THROW_COUNT,
-            "intensity_pct": RED_RECOVERY_INTENT_PCT,
+            "distance_ft": min(five.distance_ft, RED_RECOVERY_DISTANCE_FT),
+            "throw_count": min(five.throw_count, RED_RECOVERY_THROW_COUNT),
+            "intensity_pct": min(five.intensity_pct, RED_RECOVERY_INTENT_PCT),
             "note": "RECOVERY (RED day)",
         })
-        delivered.intent_pct = RED_RECOVERY_INTENT_PCT
+        delivered.intent_pct = (
+            min(delivered.intent_pct, RED_RECOVERY_INTENT_PCT)
+            if delivered.intent_pct is not None
+            else RED_RECOVERY_INTENT_PCT
+        )
 
     if delivered.lifting_blocks:
         # Keep first block but cap at 4 exercises; drop additional blocks

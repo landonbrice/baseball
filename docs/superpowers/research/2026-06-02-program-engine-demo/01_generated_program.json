@@ -1,59 +1,47 @@
 {
   "pitcher_id": "landon_brice",
-  "goal": "velocity",
+  "goal": "return_to_play",
   "domain": "unified",
-  "knowledge_version": "0c62fd5547765d88",
+  "knowledge_version": "818030d0d8ab91a0",
   "engine_version": "v1",
-  "generated_at": "2026-06-03T13:49:27",
-  "target_date": "2026-08-25",
-  "total_weeks": 12,
+  "generated_at": "2026-07-13T00:47:01",
+  "target_date": "2026-09-13",
+  "total_weeks": 9,
   "status": "draft",
   "phases": [
     {
-      "phase_id": "base_building",
-      "name": "Base Building",
-      "week_count": 3,
+      "phase_id": "reintroduction",
+      "name": "Reintroduction",
+      "week_count": 2,
       "phase_type": "base",
-      "intent_summary": "Build base. No high-intent throwing.",
-      "intent_kpis": [
-        "max_distance_75ft",
-        "effort_50pct"
-      ],
-      "default_training_intent": "lifting+throwing"
-    },
-    {
-      "phase_id": "distance_extension",
-      "name": "Distance Extension",
-      "week_count": 3,
-      "phase_type": "accumulation",
-      "intent_summary": "Add distance. Some long-toss snaps.",
-      "intent_kpis": [
-        "max_distance_105ft",
-        "effort_70pct"
-      ],
-      "default_training_intent": "lifting+throwing"
-    },
-    {
-      "phase_id": "compressionpluspulldowns",
-      "name": "Compression+Pulldowns",
-      "week_count": 3,
-      "phase_type": "accumulation",
-      "intent_summary": "Introduce pulldowns.",
+      "intent_summary": "3 days/wk. Compression 'on a line' at 80% then 85-90%. No mound.",
       "intent_kpis": [
         "max_distance_120ft",
-        "effort_80pct"
+        "effort_85pct"
       ],
       "default_training_intent": "lifting+throwing"
     },
     {
-      "phase_id": "max_intentplusmound",
-      "name": "Max Intent+Mound",
+      "phase_id": "intent_restoration",
+      "name": "Intent Restoration",
       "week_count": 3,
+      "phase_type": "accumulation",
+      "intent_summary": "4 days/wk. Flat-ground pulldowns reach 100%. Mound begins at 50ft ('on the bump, move plate in \u2014 groove fastball'). Wk4 is the deload dip.",
+      "intent_kpis": [
+        "max_distance_120ft",
+        "effort_100pct"
+      ],
+      "default_training_intent": "lifting+throwing"
+    },
+    {
+      "phase_id": "mound_build",
+      "name": "Mound Build",
+      "week_count": 4,
       "phase_type": "realization",
-      "intent_summary": "Mound work + full progression.",
+      "intent_summary": "Bullpen ladder climbs 15\u219250 throws; pitch mix after FB command.",
       "intent_kpis": [
         "max_distance_120ft",
-        "effort_90pct"
+        "effort_100pct"
       ],
       "default_training_intent": "lifting+throwing"
     }
@@ -62,17 +50,17 @@
     {
       "day_index": 0,
       "template_key": "wk1_d1_fallback",
-      "date": "2026-06-03",
+      "date": "2026-07-13",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Base Building",
-      "intent_pct": 50,
+      "phase_name": "Reintroduction",
+      "intent_pct": 84,
       "is_deload": false,
       "is_rest": false,
       "throwing_5tuple": {
-        "distance_ft": 75,
-        "throw_count": 16,
-        "intensity_pct": 50,
-        "drill": "long toss",
+        "distance_ft": 120,
+        "throw_count": 63,
+        "intensity_pct": 84,
+        "drill": "compression_on_a_line_80pct",
         "note": null
       },
       "lifting_blocks": [
@@ -159,15 +147,15 @@
           ]
         }
       ],
-      "day_focus": "Base Building: 50% throwing",
+      "day_focus": "Reintroduction: 84% throwing",
       "cues": []
     },
     {
       "day_index": 1,
       "template_key": "wk1_d2_fallback",
-      "date": "2026-06-04",
+      "date": "2026-07-14",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Base Building",
+      "phase_name": "Reintroduction",
       "intent_pct": null,
       "is_deload": false,
       "is_rest": true,
@@ -179,29 +167,29 @@
     {
       "day_index": 2,
       "template_key": "wk1_d3_fallback",
-      "date": "2026-06-05",
+      "date": "2026-07-15",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Base Building",
-      "intent_pct": 50,
+      "phase_name": "Reintroduction",
+      "intent_pct": 84,
       "is_deload": false,
       "is_rest": false,
       "throwing_5tuple": {
-        "distance_ft": 75,
-        "throw_count": 16,
-        "intensity_pct": 50,
-        "drill": "long toss",
+        "distance_ft": 120,
+        "throw_count": 63,
+        "intensity_pct": 84,
+        "drill": "compression_on_a_line_80pct",
         "note": null
       },
       "lifting_blocks": [],
-      "day_focus": "Base Building: 50% throwing",
+      "day_focus": "Reintroduction: 84% throwing",
       "cues": []
     },
     {
       "day_index": 3,
       "template_key": "wk1_d4_fallback",
-      "date": "2026-06-06",
+      "date": "2026-07-16",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Base Building",
+      "phase_name": "Reintroduction",
       "intent_pct": null,
       "is_deload": false,
       "is_rest": false,
@@ -290,35 +278,35 @@
           ]
         }
       ],
-      "day_focus": "Base Building: hypertrophy lifting",
+      "day_focus": "Reintroduction: hypertrophy lifting",
       "cues": []
     },
     {
       "day_index": 4,
       "template_key": "wk1_d5_fallback",
-      "date": "2026-06-07",
+      "date": "2026-07-17",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Base Building",
-      "intent_pct": 50,
+      "phase_name": "Reintroduction",
+      "intent_pct": 84,
       "is_deload": false,
       "is_rest": false,
       "throwing_5tuple": {
-        "distance_ft": 75,
-        "throw_count": 16,
-        "intensity_pct": 50,
-        "drill": "long toss",
+        "distance_ft": 120,
+        "throw_count": 63,
+        "intensity_pct": 84,
+        "drill": "compression_on_a_line_80pct",
         "note": null
       },
       "lifting_blocks": [],
-      "day_focus": "Base Building: 50% throwing",
+      "day_focus": "Reintroduction: 84% throwing",
       "cues": []
     },
     {
       "day_index": 5,
       "template_key": "wk1_d6_fallback",
-      "date": "2026-06-08",
+      "date": "2026-07-18",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Base Building",
+      "phase_name": "Reintroduction",
       "intent_pct": null,
       "is_deload": false,
       "is_rest": true,
@@ -330,9 +318,9 @@
     {
       "day_index": 6,
       "template_key": "wk1_d7_fallback",
-      "date": "2026-06-09",
+      "date": "2026-07-19",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Base Building",
+      "phase_name": "Reintroduction",
       "intent_pct": null,
       "is_deload": false,
       "is_rest": true,
@@ -344,17 +332,17 @@
     {
       "day_index": 7,
       "template_key": "wk2_d1_fallback",
-      "date": "2026-06-10",
+      "date": "2026-07-20",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Base Building",
-      "intent_pct": 50,
+      "phase_name": "Reintroduction",
+      "intent_pct": 84,
       "is_deload": false,
       "is_rest": false,
       "throwing_5tuple": {
-        "distance_ft": 75,
-        "throw_count": 16,
-        "intensity_pct": 50,
-        "drill": "long toss",
+        "distance_ft": 120,
+        "throw_count": 63,
+        "intensity_pct": 84,
+        "drill": "compression_on_a_line_80pct",
         "note": null
       },
       "lifting_blocks": [
@@ -441,15 +429,15 @@
           ]
         }
       ],
-      "day_focus": "Base Building: 50% throwing",
+      "day_focus": "Reintroduction: 84% throwing",
       "cues": []
     },
     {
       "day_index": 8,
       "template_key": "wk2_d2_fallback",
-      "date": "2026-06-11",
+      "date": "2026-07-21",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Base Building",
+      "phase_name": "Reintroduction",
       "intent_pct": null,
       "is_deload": false,
       "is_rest": true,
@@ -461,29 +449,29 @@
     {
       "day_index": 9,
       "template_key": "wk2_d3_fallback",
-      "date": "2026-06-12",
+      "date": "2026-07-22",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Base Building",
-      "intent_pct": 50,
+      "phase_name": "Reintroduction",
+      "intent_pct": 84,
       "is_deload": false,
       "is_rest": false,
       "throwing_5tuple": {
-        "distance_ft": 75,
-        "throw_count": 16,
-        "intensity_pct": 50,
-        "drill": "long toss",
+        "distance_ft": 120,
+        "throw_count": 63,
+        "intensity_pct": 84,
+        "drill": "compression_on_a_line_80pct",
         "note": null
       },
       "lifting_blocks": [],
-      "day_focus": "Base Building: 50% throwing",
+      "day_focus": "Reintroduction: 84% throwing",
       "cues": []
     },
     {
       "day_index": 10,
       "template_key": "wk2_d4_fallback",
-      "date": "2026-06-13",
+      "date": "2026-07-23",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Base Building",
+      "phase_name": "Reintroduction",
       "intent_pct": null,
       "is_deload": false,
       "is_rest": false,
@@ -572,35 +560,35 @@
           ]
         }
       ],
-      "day_focus": "Base Building: hypertrophy lifting",
+      "day_focus": "Reintroduction: hypertrophy lifting",
       "cues": []
     },
     {
       "day_index": 11,
       "template_key": "wk2_d5_fallback",
-      "date": "2026-06-14",
+      "date": "2026-07-24",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Base Building",
-      "intent_pct": 50,
+      "phase_name": "Reintroduction",
+      "intent_pct": 84,
       "is_deload": false,
       "is_rest": false,
       "throwing_5tuple": {
-        "distance_ft": 75,
-        "throw_count": 16,
-        "intensity_pct": 50,
-        "drill": "long toss",
+        "distance_ft": 120,
+        "throw_count": 63,
+        "intensity_pct": 84,
+        "drill": "compression_on_a_line_80pct",
         "note": null
       },
       "lifting_blocks": [],
-      "day_focus": "Base Building: 50% throwing",
+      "day_focus": "Reintroduction: 84% throwing",
       "cues": []
     },
     {
       "day_index": 12,
       "template_key": "wk2_d6_fallback",
-      "date": "2026-06-15",
+      "date": "2026-07-25",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Base Building",
+      "phase_name": "Reintroduction",
       "intent_pct": null,
       "is_deload": false,
       "is_rest": true,
@@ -612,9 +600,9 @@
     {
       "day_index": 13,
       "template_key": "wk2_d7_fallback",
-      "date": "2026-06-16",
+      "date": "2026-07-26",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Base Building",
+      "phase_name": "Reintroduction",
       "intent_pct": null,
       "is_deload": false,
       "is_rest": true,
@@ -626,17 +614,17 @@
     {
       "day_index": 14,
       "template_key": "wk3_d1_fallback",
-      "date": "2026-06-17",
+      "date": "2026-07-27",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Base Building",
-      "intent_pct": 50,
+      "phase_name": "Intent Restoration",
+      "intent_pct": 88,
       "is_deload": false,
       "is_rest": false,
       "throwing_5tuple": {
-        "distance_ft": 75,
-        "throw_count": 16,
-        "intensity_pct": 50,
-        "drill": "long toss",
+        "distance_ft": 120,
+        "throw_count": 66,
+        "intensity_pct": 88,
+        "drill": "pulldowns_flat_ground",
         "note": null
       },
       "lifting_blocks": [
@@ -723,15 +711,15 @@
           ]
         }
       ],
-      "day_focus": "Base Building: 50% throwing",
+      "day_focus": "Intent Restoration: 88% throwing",
       "cues": []
     },
     {
       "day_index": 15,
       "template_key": "wk3_d2_fallback",
-      "date": "2026-06-18",
+      "date": "2026-07-28",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Base Building",
+      "phase_name": "Intent Restoration",
       "intent_pct": null,
       "is_deload": false,
       "is_rest": true,
@@ -743,29 +731,29 @@
     {
       "day_index": 16,
       "template_key": "wk3_d3_fallback",
-      "date": "2026-06-19",
+      "date": "2026-07-29",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Base Building",
-      "intent_pct": 50,
+      "phase_name": "Intent Restoration",
+      "intent_pct": 88,
       "is_deload": false,
       "is_rest": false,
       "throwing_5tuple": {
-        "distance_ft": 75,
-        "throw_count": 16,
-        "intensity_pct": 50,
-        "drill": "long toss",
+        "distance_ft": 120,
+        "throw_count": 66,
+        "intensity_pct": 88,
+        "drill": "pulldowns_flat_ground",
         "note": null
       },
       "lifting_blocks": [],
-      "day_focus": "Base Building: 50% throwing",
+      "day_focus": "Intent Restoration: 88% throwing",
       "cues": []
     },
     {
       "day_index": 17,
       "template_key": "wk3_d4_fallback",
-      "date": "2026-06-20",
+      "date": "2026-07-30",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Base Building",
+      "phase_name": "Intent Restoration",
       "intent_pct": null,
       "is_deload": false,
       "is_rest": false,
@@ -854,35 +842,35 @@
           ]
         }
       ],
-      "day_focus": "Base Building: hypertrophy lifting",
+      "day_focus": "Intent Restoration: hypertrophy lifting",
       "cues": []
     },
     {
       "day_index": 18,
       "template_key": "wk3_d5_fallback",
-      "date": "2026-06-21",
+      "date": "2026-07-31",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Base Building",
-      "intent_pct": 50,
+      "phase_name": "Intent Restoration",
+      "intent_pct": 88,
       "is_deload": false,
       "is_rest": false,
       "throwing_5tuple": {
-        "distance_ft": 75,
-        "throw_count": 16,
-        "intensity_pct": 50,
-        "drill": "long toss",
+        "distance_ft": 120,
+        "throw_count": 66,
+        "intensity_pct": 88,
+        "drill": "pulldowns_flat_ground",
         "note": null
       },
       "lifting_blocks": [],
-      "day_focus": "Base Building: 50% throwing",
+      "day_focus": "Intent Restoration: 88% throwing",
       "cues": []
     },
     {
       "day_index": 19,
       "template_key": "wk3_d6_fallback",
-      "date": "2026-06-22",
+      "date": "2026-08-01",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Base Building",
+      "phase_name": "Intent Restoration",
       "intent_pct": null,
       "is_deload": false,
       "is_rest": true,
@@ -894,9 +882,9 @@
     {
       "day_index": 20,
       "template_key": "wk3_d7_fallback",
-      "date": "2026-06-23",
+      "date": "2026-08-02",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Base Building",
+      "phase_name": "Intent Restoration",
       "intent_pct": null,
       "is_deload": false,
       "is_rest": true,
@@ -908,17 +896,17 @@
     {
       "day_index": 21,
       "template_key": "wk4_d1_fallback",
-      "date": "2026-06-24",
+      "date": "2026-08-03",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Distance Extension",
-      "intent_pct": 45,
-      "is_deload": true,
+      "phase_name": "Intent Restoration",
+      "intent_pct": 92,
+      "is_deload": false,
       "is_rest": false,
       "throwing_5tuple": {
-        "distance_ft": 105,
-        "throw_count": 10,
-        "intensity_pct": 45,
-        "drill": "long toss",
+        "distance_ft": 120,
+        "throw_count": 70,
+        "intensity_pct": 92,
+        "drill": "pulldowns_flat_ground",
         "note": null
       },
       "lifting_blocks": [
@@ -926,19 +914,19 @@
           "block_name": "Posterior Chain",
           "exercises": [
             {
-              "exercise_id": "ex_001",
+              "exercise_id": "ex_004",
               "sets": 3,
-              "reps": "6-8",
-              "intensity": "70-80% 1RM",
+              "reps": "8-10",
+              "intensity": "50-75% 1RM",
               "rest_s": null,
               "superset_group": null,
               "note": null
             },
             {
-              "exercise_id": "ex_004",
+              "exercise_id": "ex_005",
               "sets": 3,
-              "reps": "6-8",
-              "intensity": "70-80% 1RM",
+              "reps": "8-10",
+              "intensity": "50-75% 1RM",
               "rest_s": null,
               "superset_group": null,
               "note": null
@@ -947,7 +935,7 @@
               "exercise_id": "ex_020",
               "sets": 3,
               "reps": "8-10",
-              "intensity": "70-80% 1RM",
+              "intensity": "50-75% 1RM",
               "rest_s": null,
               "superset_group": null,
               "note": null
@@ -969,8 +957,8 @@
             {
               "exercise_id": "ex_025",
               "sets": 3,
-              "reps": "6-8",
-              "intensity": "75-85% 1RM",
+              "reps": "8-10",
+              "intensity": "50-75% 1RM",
               "rest_s": null,
               "superset_group": null,
               "note": null
@@ -978,7 +966,7 @@
             {
               "exercise_id": "ex_128",
               "sets": 3,
-              "reps": "5-8",
+              "reps": "6-8",
               "intensity": "BW",
               "rest_s": null,
               "superset_group": null,
@@ -986,7 +974,7 @@
             },
             {
               "exercise_id": "ex_029",
-              "sets": 2,
+              "sets": 3,
               "reps": "10",
               "intensity": "BW",
               "rest_s": null,
@@ -1005,17 +993,17 @@
           ]
         }
       ],
-      "day_focus": "Distance Extension: 45% throwing",
+      "day_focus": "Intent Restoration: 92% throwing",
       "cues": []
     },
     {
       "day_index": 22,
       "template_key": "wk4_d2_fallback",
-      "date": "2026-06-25",
+      "date": "2026-08-04",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Distance Extension",
+      "phase_name": "Intent Restoration",
       "intent_pct": null,
-      "is_deload": true,
+      "is_deload": false,
       "is_rest": true,
       "throwing_5tuple": null,
       "lifting_blocks": [],
@@ -1025,31 +1013,31 @@
     {
       "day_index": 23,
       "template_key": "wk4_d3_fallback",
-      "date": "2026-06-26",
+      "date": "2026-08-05",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Distance Extension",
-      "intent_pct": 45,
-      "is_deload": true,
+      "phase_name": "Intent Restoration",
+      "intent_pct": 92,
+      "is_deload": false,
       "is_rest": false,
       "throwing_5tuple": {
-        "distance_ft": 105,
-        "throw_count": 10,
-        "intensity_pct": 45,
-        "drill": "long toss",
+        "distance_ft": 120,
+        "throw_count": 70,
+        "intensity_pct": 92,
+        "drill": "pulldowns_flat_ground",
         "note": null
       },
       "lifting_blocks": [],
-      "day_focus": "Distance Extension: 45% throwing",
+      "day_focus": "Intent Restoration: 92% throwing",
       "cues": []
     },
     {
       "day_index": 24,
       "template_key": "wk4_d4_fallback",
-      "date": "2026-06-27",
+      "date": "2026-08-06",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Distance Extension",
+      "phase_name": "Intent Restoration",
       "intent_pct": null,
-      "is_deload": true,
+      "is_deload": false,
       "is_rest": false,
       "throwing_5tuple": null,
       "lifting_blocks": [
@@ -1057,19 +1045,19 @@
           "block_name": "Posterior Chain",
           "exercises": [
             {
-              "exercise_id": "ex_001",
+              "exercise_id": "ex_004",
               "sets": 3,
-              "reps": "6-8",
-              "intensity": "70-80% 1RM",
+              "reps": "8-10",
+              "intensity": "50-75% 1RM",
               "rest_s": null,
               "superset_group": null,
               "note": null
             },
             {
-              "exercise_id": "ex_004",
+              "exercise_id": "ex_005",
               "sets": 3,
-              "reps": "6-8",
-              "intensity": "70-80% 1RM",
+              "reps": "8-10",
+              "intensity": "50-75% 1RM",
               "rest_s": null,
               "superset_group": null,
               "note": null
@@ -1078,7 +1066,7 @@
               "exercise_id": "ex_020",
               "sets": 3,
               "reps": "8-10",
-              "intensity": "70-80% 1RM",
+              "intensity": "50-75% 1RM",
               "rest_s": null,
               "superset_group": null,
               "note": null
@@ -1100,8 +1088,8 @@
             {
               "exercise_id": "ex_025",
               "sets": 3,
-              "reps": "6-8",
-              "intensity": "75-85% 1RM",
+              "reps": "8-10",
+              "intensity": "50-75% 1RM",
               "rest_s": null,
               "superset_group": null,
               "note": null
@@ -1109,7 +1097,7 @@
             {
               "exercise_id": "ex_128",
               "sets": 3,
-              "reps": "5-8",
+              "reps": "6-8",
               "intensity": "BW",
               "rest_s": null,
               "superset_group": null,
@@ -1117,7 +1105,7 @@
             },
             {
               "exercise_id": "ex_029",
-              "sets": 2,
+              "sets": 3,
               "reps": "10",
               "intensity": "BW",
               "rest_s": null,
@@ -1136,37 +1124,37 @@
           ]
         }
       ],
-      "day_focus": "Distance Extension: hypertrophy_to_strength lifting",
+      "day_focus": "Intent Restoration: hypertrophy lifting",
       "cues": []
     },
     {
       "day_index": 25,
       "template_key": "wk4_d5_fallback",
-      "date": "2026-06-28",
+      "date": "2026-08-07",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Distance Extension",
-      "intent_pct": 45,
-      "is_deload": true,
+      "phase_name": "Intent Restoration",
+      "intent_pct": 92,
+      "is_deload": false,
       "is_rest": false,
       "throwing_5tuple": {
-        "distance_ft": 105,
-        "throw_count": 10,
-        "intensity_pct": 45,
-        "drill": "long toss",
+        "distance_ft": 120,
+        "throw_count": 70,
+        "intensity_pct": 92,
+        "drill": "pulldowns_flat_ground",
         "note": null
       },
       "lifting_blocks": [],
-      "day_focus": "Distance Extension: 45% throwing",
+      "day_focus": "Intent Restoration: 92% throwing",
       "cues": []
     },
     {
       "day_index": 26,
       "template_key": "wk4_d6_fallback",
-      "date": "2026-06-29",
+      "date": "2026-08-08",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Distance Extension",
+      "phase_name": "Intent Restoration",
       "intent_pct": null,
-      "is_deload": true,
+      "is_deload": false,
       "is_rest": true,
       "throwing_5tuple": null,
       "lifting_blocks": [],
@@ -1176,11 +1164,11 @@
     {
       "day_index": 27,
       "template_key": "wk4_d7_fallback",
-      "date": "2026-06-30",
+      "date": "2026-08-09",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Distance Extension",
+      "phase_name": "Intent Restoration",
       "intent_pct": null,
-      "is_deload": true,
+      "is_deload": false,
       "is_rest": true,
       "throwing_5tuple": null,
       "lifting_blocks": [],
@@ -1190,17 +1178,17 @@
     {
       "day_index": 28,
       "template_key": "wk5_d1_fallback",
-      "date": "2026-07-01",
+      "date": "2026-08-10",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Distance Extension",
-      "intent_pct": 60,
+      "phase_name": "Intent Restoration",
+      "intent_pct": 96,
       "is_deload": false,
       "is_rest": false,
       "throwing_5tuple": {
-        "distance_ft": 105,
-        "throw_count": 17,
-        "intensity_pct": 60,
-        "drill": "long toss",
+        "distance_ft": 120,
+        "throw_count": 73,
+        "intensity_pct": 96,
+        "drill": "pulldowns_flat_ground",
         "note": null
       },
       "lifting_blocks": [
@@ -1208,19 +1196,19 @@
           "block_name": "Posterior Chain",
           "exercises": [
             {
-              "exercise_id": "ex_001",
+              "exercise_id": "ex_004",
               "sets": 3,
-              "reps": "6-8",
-              "intensity": "70-80% 1RM",
+              "reps": "8-10",
+              "intensity": "50-75% 1RM",
               "rest_s": null,
               "superset_group": null,
               "note": null
             },
             {
-              "exercise_id": "ex_004",
+              "exercise_id": "ex_005",
               "sets": 3,
-              "reps": "6-8",
-              "intensity": "70-80% 1RM",
+              "reps": "8-10",
+              "intensity": "50-75% 1RM",
               "rest_s": null,
               "superset_group": null,
               "note": null
@@ -1229,7 +1217,7 @@
               "exercise_id": "ex_020",
               "sets": 3,
               "reps": "8-10",
-              "intensity": "70-80% 1RM",
+              "intensity": "50-75% 1RM",
               "rest_s": null,
               "superset_group": null,
               "note": null
@@ -1251,8 +1239,8 @@
             {
               "exercise_id": "ex_025",
               "sets": 3,
-              "reps": "6-8",
-              "intensity": "75-85% 1RM",
+              "reps": "8-10",
+              "intensity": "50-75% 1RM",
               "rest_s": null,
               "superset_group": null,
               "note": null
@@ -1260,7 +1248,7 @@
             {
               "exercise_id": "ex_128",
               "sets": 3,
-              "reps": "5-8",
+              "reps": "6-8",
               "intensity": "BW",
               "rest_s": null,
               "superset_group": null,
@@ -1268,7 +1256,7 @@
             },
             {
               "exercise_id": "ex_029",
-              "sets": 2,
+              "sets": 3,
               "reps": "10",
               "intensity": "BW",
               "rest_s": null,
@@ -1287,15 +1275,15 @@
           ]
         }
       ],
-      "day_focus": "Distance Extension: 60% throwing",
+      "day_focus": "Intent Restoration: 96% throwing",
       "cues": []
     },
     {
       "day_index": 29,
       "template_key": "wk5_d2_fallback",
-      "date": "2026-07-02",
+      "date": "2026-08-11",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Distance Extension",
+      "phase_name": "Intent Restoration",
       "intent_pct": null,
       "is_deload": false,
       "is_rest": true,
@@ -1307,29 +1295,29 @@
     {
       "day_index": 30,
       "template_key": "wk5_d3_fallback",
-      "date": "2026-07-03",
+      "date": "2026-08-12",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Distance Extension",
-      "intent_pct": 60,
+      "phase_name": "Intent Restoration",
+      "intent_pct": 96,
       "is_deload": false,
       "is_rest": false,
       "throwing_5tuple": {
-        "distance_ft": 105,
-        "throw_count": 17,
-        "intensity_pct": 60,
-        "drill": "long toss",
+        "distance_ft": 120,
+        "throw_count": 73,
+        "intensity_pct": 96,
+        "drill": "pulldowns_flat_ground",
         "note": null
       },
       "lifting_blocks": [],
-      "day_focus": "Distance Extension: 60% throwing",
+      "day_focus": "Intent Restoration: 96% throwing",
       "cues": []
     },
     {
       "day_index": 31,
       "template_key": "wk5_d4_fallback",
-      "date": "2026-07-04",
+      "date": "2026-08-13",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Distance Extension",
+      "phase_name": "Intent Restoration",
       "intent_pct": null,
       "is_deload": false,
       "is_rest": false,
@@ -1339,19 +1327,19 @@
           "block_name": "Posterior Chain",
           "exercises": [
             {
-              "exercise_id": "ex_001",
+              "exercise_id": "ex_004",
               "sets": 3,
-              "reps": "6-8",
-              "intensity": "70-80% 1RM",
+              "reps": "8-10",
+              "intensity": "50-75% 1RM",
               "rest_s": null,
               "superset_group": null,
               "note": null
             },
             {
-              "exercise_id": "ex_004",
+              "exercise_id": "ex_005",
               "sets": 3,
-              "reps": "6-8",
-              "intensity": "70-80% 1RM",
+              "reps": "8-10",
+              "intensity": "50-75% 1RM",
               "rest_s": null,
               "superset_group": null,
               "note": null
@@ -1360,7 +1348,7 @@
               "exercise_id": "ex_020",
               "sets": 3,
               "reps": "8-10",
-              "intensity": "70-80% 1RM",
+              "intensity": "50-75% 1RM",
               "rest_s": null,
               "superset_group": null,
               "note": null
@@ -1382,8 +1370,8 @@
             {
               "exercise_id": "ex_025",
               "sets": 3,
-              "reps": "6-8",
-              "intensity": "75-85% 1RM",
+              "reps": "8-10",
+              "intensity": "50-75% 1RM",
               "rest_s": null,
               "superset_group": null,
               "note": null
@@ -1391,7 +1379,7 @@
             {
               "exercise_id": "ex_128",
               "sets": 3,
-              "reps": "5-8",
+              "reps": "6-8",
               "intensity": "BW",
               "rest_s": null,
               "superset_group": null,
@@ -1399,7 +1387,7 @@
             },
             {
               "exercise_id": "ex_029",
-              "sets": 2,
+              "sets": 3,
               "reps": "10",
               "intensity": "BW",
               "rest_s": null,
@@ -1418,35 +1406,35 @@
           ]
         }
       ],
-      "day_focus": "Distance Extension: hypertrophy_to_strength lifting",
+      "day_focus": "Intent Restoration: hypertrophy lifting",
       "cues": []
     },
     {
       "day_index": 32,
       "template_key": "wk5_d5_fallback",
-      "date": "2026-07-05",
+      "date": "2026-08-14",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Distance Extension",
-      "intent_pct": 60,
+      "phase_name": "Intent Restoration",
+      "intent_pct": 96,
       "is_deload": false,
       "is_rest": false,
       "throwing_5tuple": {
-        "distance_ft": 105,
-        "throw_count": 17,
-        "intensity_pct": 60,
-        "drill": "long toss",
+        "distance_ft": 120,
+        "throw_count": 73,
+        "intensity_pct": 96,
+        "drill": "pulldowns_flat_ground",
         "note": null
       },
       "lifting_blocks": [],
-      "day_focus": "Distance Extension: 60% throwing",
+      "day_focus": "Intent Restoration: 96% throwing",
       "cues": []
     },
     {
       "day_index": 33,
       "template_key": "wk5_d6_fallback",
-      "date": "2026-07-06",
+      "date": "2026-08-15",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Distance Extension",
+      "phase_name": "Intent Restoration",
       "intent_pct": null,
       "is_deload": false,
       "is_rest": true,
@@ -1458,9 +1446,9 @@
     {
       "day_index": 34,
       "template_key": "wk5_d7_fallback",
-      "date": "2026-07-07",
+      "date": "2026-08-16",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Distance Extension",
+      "phase_name": "Intent Restoration",
       "intent_pct": null,
       "is_deload": false,
       "is_rest": true,
@@ -1472,17 +1460,17 @@
     {
       "day_index": 35,
       "template_key": "wk6_d1_fallback",
-      "date": "2026-07-08",
+      "date": "2026-08-17",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Distance Extension",
-      "intent_pct": 65,
+      "phase_name": "Mound Build",
+      "intent_pct": 100,
       "is_deload": false,
       "is_rest": false,
       "throwing_5tuple": {
-        "distance_ft": 105,
-        "throw_count": 18,
-        "intensity_pct": 65,
-        "drill": "long toss",
+        "distance_ft": 120,
+        "throw_count": 78,
+        "intensity_pct": 100,
+        "drill": "bullpen_progression",
         "note": null
       },
       "lifting_blocks": [
@@ -1490,19 +1478,19 @@
           "block_name": "Posterior Chain",
           "exercises": [
             {
-              "exercise_id": "ex_001",
+              "exercise_id": "ex_004",
               "sets": 3,
-              "reps": "6-8",
-              "intensity": "70-80% 1RM",
+              "reps": "8-10",
+              "intensity": "50-75% 1RM",
               "rest_s": null,
               "superset_group": null,
               "note": null
             },
             {
-              "exercise_id": "ex_004",
+              "exercise_id": "ex_005",
               "sets": 3,
-              "reps": "6-8",
-              "intensity": "70-80% 1RM",
+              "reps": "8-10",
+              "intensity": "50-75% 1RM",
               "rest_s": null,
               "superset_group": null,
               "note": null
@@ -1511,7 +1499,7 @@
               "exercise_id": "ex_020",
               "sets": 3,
               "reps": "8-10",
-              "intensity": "70-80% 1RM",
+              "intensity": "50-75% 1RM",
               "rest_s": null,
               "superset_group": null,
               "note": null
@@ -1533,8 +1521,8 @@
             {
               "exercise_id": "ex_025",
               "sets": 3,
-              "reps": "6-8",
-              "intensity": "75-85% 1RM",
+              "reps": "8-10",
+              "intensity": "50-75% 1RM",
               "rest_s": null,
               "superset_group": null,
               "note": null
@@ -1542,7 +1530,7 @@
             {
               "exercise_id": "ex_128",
               "sets": 3,
-              "reps": "5-8",
+              "reps": "6-8",
               "intensity": "BW",
               "rest_s": null,
               "superset_group": null,
@@ -1550,7 +1538,7 @@
             },
             {
               "exercise_id": "ex_029",
-              "sets": 2,
+              "sets": 3,
               "reps": "10",
               "intensity": "BW",
               "rest_s": null,
@@ -1569,15 +1557,15 @@
           ]
         }
       ],
-      "day_focus": "Distance Extension: 65% throwing",
+      "day_focus": "Mound Build: 100% throwing",
       "cues": []
     },
     {
       "day_index": 36,
       "template_key": "wk6_d2_fallback",
-      "date": "2026-07-09",
+      "date": "2026-08-18",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Distance Extension",
+      "phase_name": "Mound Build",
       "intent_pct": null,
       "is_deload": false,
       "is_rest": true,
@@ -1589,29 +1577,29 @@
     {
       "day_index": 37,
       "template_key": "wk6_d3_fallback",
-      "date": "2026-07-10",
+      "date": "2026-08-19",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Distance Extension",
-      "intent_pct": 65,
+      "phase_name": "Mound Build",
+      "intent_pct": 100,
       "is_deload": false,
       "is_rest": false,
       "throwing_5tuple": {
-        "distance_ft": 105,
-        "throw_count": 18,
-        "intensity_pct": 65,
-        "drill": "long toss",
+        "distance_ft": 120,
+        "throw_count": 78,
+        "intensity_pct": 100,
+        "drill": "bullpen_progression",
         "note": null
       },
       "lifting_blocks": [],
-      "day_focus": "Distance Extension: 65% throwing",
+      "day_focus": "Mound Build: 100% throwing",
       "cues": []
     },
     {
       "day_index": 38,
       "template_key": "wk6_d4_fallback",
-      "date": "2026-07-11",
+      "date": "2026-08-20",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Distance Extension",
+      "phase_name": "Mound Build",
       "intent_pct": null,
       "is_deload": false,
       "is_rest": false,
@@ -1621,19 +1609,19 @@
           "block_name": "Posterior Chain",
           "exercises": [
             {
-              "exercise_id": "ex_001",
+              "exercise_id": "ex_004",
               "sets": 3,
-              "reps": "6-8",
-              "intensity": "70-80% 1RM",
+              "reps": "8-10",
+              "intensity": "50-75% 1RM",
               "rest_s": null,
               "superset_group": null,
               "note": null
             },
             {
-              "exercise_id": "ex_004",
+              "exercise_id": "ex_005",
               "sets": 3,
-              "reps": "6-8",
-              "intensity": "70-80% 1RM",
+              "reps": "8-10",
+              "intensity": "50-75% 1RM",
               "rest_s": null,
               "superset_group": null,
               "note": null
@@ -1642,7 +1630,7 @@
               "exercise_id": "ex_020",
               "sets": 3,
               "reps": "8-10",
-              "intensity": "70-80% 1RM",
+              "intensity": "50-75% 1RM",
               "rest_s": null,
               "superset_group": null,
               "note": null
@@ -1664,8 +1652,8 @@
             {
               "exercise_id": "ex_025",
               "sets": 3,
-              "reps": "6-8",
-              "intensity": "75-85% 1RM",
+              "reps": "8-10",
+              "intensity": "50-75% 1RM",
               "rest_s": null,
               "superset_group": null,
               "note": null
@@ -1673,7 +1661,7 @@
             {
               "exercise_id": "ex_128",
               "sets": 3,
-              "reps": "5-8",
+              "reps": "6-8",
               "intensity": "BW",
               "rest_s": null,
               "superset_group": null,
@@ -1681,7 +1669,7 @@
             },
             {
               "exercise_id": "ex_029",
-              "sets": 2,
+              "sets": 3,
               "reps": "10",
               "intensity": "BW",
               "rest_s": null,
@@ -1700,35 +1688,35 @@
           ]
         }
       ],
-      "day_focus": "Distance Extension: hypertrophy_to_strength lifting",
+      "day_focus": "Mound Build: hypertrophy lifting",
       "cues": []
     },
     {
       "day_index": 39,
       "template_key": "wk6_d5_fallback",
-      "date": "2026-07-12",
+      "date": "2026-08-21",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Distance Extension",
-      "intent_pct": 65,
+      "phase_name": "Mound Build",
+      "intent_pct": 100,
       "is_deload": false,
       "is_rest": false,
       "throwing_5tuple": {
-        "distance_ft": 105,
-        "throw_count": 18,
-        "intensity_pct": 65,
-        "drill": "long toss",
+        "distance_ft": 120,
+        "throw_count": 78,
+        "intensity_pct": 100,
+        "drill": "bullpen_progression",
         "note": null
       },
       "lifting_blocks": [],
-      "day_focus": "Distance Extension: 65% throwing",
+      "day_focus": "Mound Build: 100% throwing",
       "cues": []
     },
     {
       "day_index": 40,
       "template_key": "wk6_d6_fallback",
-      "date": "2026-07-13",
+      "date": "2026-08-22",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Distance Extension",
+      "phase_name": "Mound Build",
       "intent_pct": null,
       "is_deload": false,
       "is_rest": true,
@@ -1740,9 +1728,9 @@
     {
       "day_index": 41,
       "template_key": "wk6_d7_fallback",
-      "date": "2026-07-14",
+      "date": "2026-08-23",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Distance Extension",
+      "phase_name": "Mound Build",
       "intent_pct": null,
       "is_deload": false,
       "is_rest": true,
@@ -1754,17 +1742,17 @@
     {
       "day_index": 42,
       "template_key": "wk7_d1_fallback",
-      "date": "2026-07-15",
+      "date": "2026-08-24",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Compression+Pulldowns",
-      "intent_pct": 62,
-      "is_deload": true,
+      "phase_name": "Mound Build",
+      "intent_pct": 100,
+      "is_deload": false,
       "is_rest": false,
       "throwing_5tuple": {
         "distance_ft": 120,
-        "throw_count": 12,
-        "intensity_pct": 62,
-        "drill": "long toss",
+        "throw_count": 79,
+        "intensity_pct": 100,
+        "drill": "bullpen_progression",
         "note": null
       },
       "lifting_blocks": [
@@ -1772,19 +1760,19 @@
           "block_name": "Posterior Chain",
           "exercises": [
             {
-              "exercise_id": "ex_001",
-              "sets": 4,
-              "reps": "4-6",
-              "intensity": "85% 1RM",
+              "exercise_id": "ex_004",
+              "sets": 3,
+              "reps": "8-10",
+              "intensity": "50-75% 1RM",
               "rest_s": null,
               "superset_group": null,
               "note": null
             },
             {
-              "exercise_id": "ex_004",
+              "exercise_id": "ex_005",
               "sets": 3,
-              "reps": "6",
-              "intensity": "80% 1RM",
+              "reps": "8-10",
+              "intensity": "50-75% 1RM",
               "rest_s": null,
               "superset_group": null,
               "note": null
@@ -1792,8 +1780,8 @@
             {
               "exercise_id": "ex_020",
               "sets": 3,
-              "reps": "6-8",
-              "intensity": "80% 1RM",
+              "reps": "8-10",
+              "intensity": "50-75% 1RM",
               "rest_s": null,
               "superset_group": null,
               "note": null
@@ -1801,7 +1789,7 @@
             {
               "exercise_id": "ex_070",
               "sets": 3,
-              "reps": "10",
+              "reps": "12",
               "intensity": "BW",
               "rest_s": null,
               "superset_group": null,
@@ -1814,17 +1802,17 @@
           "exercises": [
             {
               "exercise_id": "ex_025",
-              "sets": 4,
-              "reps": "4-6",
-              "intensity": "85% 1RM",
+              "sets": 3,
+              "reps": "8-10",
+              "intensity": "50-75% 1RM",
               "rest_s": null,
               "superset_group": null,
               "note": null
             },
             {
               "exercise_id": "ex_128",
-              "sets": 4,
-              "reps": "4-6",
+              "sets": 3,
+              "reps": "6-8",
               "intensity": "BW",
               "rest_s": null,
               "superset_group": null,
@@ -1832,7 +1820,7 @@
             },
             {
               "exercise_id": "ex_029",
-              "sets": 2,
+              "sets": 3,
               "reps": "10",
               "intensity": "BW",
               "rest_s": null,
@@ -1842,7 +1830,7 @@
             {
               "exercise_id": "ex_041",
               "sets": 3,
-              "reps": "10",
+              "reps": "12",
               "intensity": "BW",
               "rest_s": null,
               "superset_group": null,
@@ -1851,17 +1839,17 @@
           ]
         }
       ],
-      "day_focus": "Compression+Pulldowns: 62% throwing",
+      "day_focus": "Mound Build: 100% throwing",
       "cues": []
     },
     {
       "day_index": 43,
       "template_key": "wk7_d2_fallback",
-      "date": "2026-07-16",
+      "date": "2026-08-25",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Compression+Pulldowns",
+      "phase_name": "Mound Build",
       "intent_pct": null,
-      "is_deload": true,
+      "is_deload": false,
       "is_rest": true,
       "throwing_5tuple": null,
       "lifting_blocks": [],
@@ -1871,31 +1859,31 @@
     {
       "day_index": 44,
       "template_key": "wk7_d3_fallback",
-      "date": "2026-07-17",
+      "date": "2026-08-26",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Compression+Pulldowns",
-      "intent_pct": 62,
-      "is_deload": true,
+      "phase_name": "Mound Build",
+      "intent_pct": 100,
+      "is_deload": false,
       "is_rest": false,
       "throwing_5tuple": {
         "distance_ft": 120,
-        "throw_count": 12,
-        "intensity_pct": 62,
-        "drill": "long toss",
+        "throw_count": 79,
+        "intensity_pct": 100,
+        "drill": "bullpen_progression",
         "note": null
       },
       "lifting_blocks": [],
-      "day_focus": "Compression+Pulldowns: 62% throwing",
+      "day_focus": "Mound Build: 100% throwing",
       "cues": []
     },
     {
       "day_index": 45,
       "template_key": "wk7_d4_fallback",
-      "date": "2026-07-18",
+      "date": "2026-08-27",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Compression+Pulldowns",
+      "phase_name": "Mound Build",
       "intent_pct": null,
-      "is_deload": true,
+      "is_deload": false,
       "is_rest": false,
       "throwing_5tuple": null,
       "lifting_blocks": [
@@ -1903,19 +1891,19 @@
           "block_name": "Posterior Chain",
           "exercises": [
             {
-              "exercise_id": "ex_001",
-              "sets": 4,
-              "reps": "4-6",
-              "intensity": "85% 1RM",
+              "exercise_id": "ex_004",
+              "sets": 3,
+              "reps": "8-10",
+              "intensity": "50-75% 1RM",
               "rest_s": null,
               "superset_group": null,
               "note": null
             },
             {
-              "exercise_id": "ex_004",
+              "exercise_id": "ex_005",
               "sets": 3,
-              "reps": "6",
-              "intensity": "80% 1RM",
+              "reps": "8-10",
+              "intensity": "50-75% 1RM",
               "rest_s": null,
               "superset_group": null,
               "note": null
@@ -1923,8 +1911,8 @@
             {
               "exercise_id": "ex_020",
               "sets": 3,
-              "reps": "6-8",
-              "intensity": "80% 1RM",
+              "reps": "8-10",
+              "intensity": "50-75% 1RM",
               "rest_s": null,
               "superset_group": null,
               "note": null
@@ -1932,7 +1920,7 @@
             {
               "exercise_id": "ex_070",
               "sets": 3,
-              "reps": "10",
+              "reps": "12",
               "intensity": "BW",
               "rest_s": null,
               "superset_group": null,
@@ -1945,17 +1933,17 @@
           "exercises": [
             {
               "exercise_id": "ex_025",
-              "sets": 4,
-              "reps": "4-6",
-              "intensity": "85% 1RM",
+              "sets": 3,
+              "reps": "8-10",
+              "intensity": "50-75% 1RM",
               "rest_s": null,
               "superset_group": null,
               "note": null
             },
             {
               "exercise_id": "ex_128",
-              "sets": 4,
-              "reps": "4-6",
+              "sets": 3,
+              "reps": "6-8",
               "intensity": "BW",
               "rest_s": null,
               "superset_group": null,
@@ -1963,7 +1951,7 @@
             },
             {
               "exercise_id": "ex_029",
-              "sets": 2,
+              "sets": 3,
               "reps": "10",
               "intensity": "BW",
               "rest_s": null,
@@ -1973,7 +1961,7 @@
             {
               "exercise_id": "ex_041",
               "sets": 3,
-              "reps": "10",
+              "reps": "12",
               "intensity": "BW",
               "rest_s": null,
               "superset_group": null,
@@ -1982,37 +1970,37 @@
           ]
         }
       ],
-      "day_focus": "Compression+Pulldowns: strength lifting",
+      "day_focus": "Mound Build: hypertrophy lifting",
       "cues": []
     },
     {
       "day_index": 46,
       "template_key": "wk7_d5_fallback",
-      "date": "2026-07-19",
+      "date": "2026-08-28",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Compression+Pulldowns",
-      "intent_pct": 62,
-      "is_deload": true,
+      "phase_name": "Mound Build",
+      "intent_pct": 100,
+      "is_deload": false,
       "is_rest": false,
       "throwing_5tuple": {
         "distance_ft": 120,
-        "throw_count": 12,
-        "intensity_pct": 62,
-        "drill": "long toss",
+        "throw_count": 79,
+        "intensity_pct": 100,
+        "drill": "bullpen_progression",
         "note": null
       },
       "lifting_blocks": [],
-      "day_focus": "Compression+Pulldowns: 62% throwing",
+      "day_focus": "Mound Build: 100% throwing",
       "cues": []
     },
     {
       "day_index": 47,
       "template_key": "wk7_d6_fallback",
-      "date": "2026-07-20",
+      "date": "2026-08-29",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Compression+Pulldowns",
+      "phase_name": "Mound Build",
       "intent_pct": null,
-      "is_deload": true,
+      "is_deload": false,
       "is_rest": true,
       "throwing_5tuple": null,
       "lifting_blocks": [],
@@ -2022,11 +2010,11 @@
     {
       "day_index": 48,
       "template_key": "wk7_d7_fallback",
-      "date": "2026-07-21",
+      "date": "2026-08-30",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Compression+Pulldowns",
+      "phase_name": "Mound Build",
       "intent_pct": null,
-      "is_deload": true,
+      "is_deload": false,
       "is_rest": true,
       "throwing_5tuple": null,
       "lifting_blocks": [],
@@ -2036,17 +2024,17 @@
     {
       "day_index": 49,
       "template_key": "wk8_d1_fallback",
-      "date": "2026-07-22",
+      "date": "2026-08-31",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Compression+Pulldowns",
-      "intent_pct": 75,
+      "phase_name": "Mound Build",
+      "intent_pct": 100,
       "is_deload": false,
       "is_rest": false,
       "throwing_5tuple": {
         "distance_ft": 120,
-        "throw_count": 19,
-        "intensity_pct": 75,
-        "drill": "long toss",
+        "throw_count": 80,
+        "intensity_pct": 100,
+        "drill": "bullpen_progression",
         "note": null
       },
       "lifting_blocks": [
@@ -2054,19 +2042,19 @@
           "block_name": "Posterior Chain",
           "exercises": [
             {
-              "exercise_id": "ex_001",
-              "sets": 4,
-              "reps": "4-6",
-              "intensity": "85% 1RM",
+              "exercise_id": "ex_004",
+              "sets": 3,
+              "reps": "8-10",
+              "intensity": "50-75% 1RM",
               "rest_s": null,
               "superset_group": null,
               "note": null
             },
             {
-              "exercise_id": "ex_004",
+              "exercise_id": "ex_005",
               "sets": 3,
-              "reps": "6",
-              "intensity": "80% 1RM",
+              "reps": "8-10",
+              "intensity": "50-75% 1RM",
               "rest_s": null,
               "superset_group": null,
               "note": null
@@ -2074,8 +2062,8 @@
             {
               "exercise_id": "ex_020",
               "sets": 3,
-              "reps": "6-8",
-              "intensity": "80% 1RM",
+              "reps": "8-10",
+              "intensity": "50-75% 1RM",
               "rest_s": null,
               "superset_group": null,
               "note": null
@@ -2083,7 +2071,7 @@
             {
               "exercise_id": "ex_070",
               "sets": 3,
-              "reps": "10",
+              "reps": "12",
               "intensity": "BW",
               "rest_s": null,
               "superset_group": null,
@@ -2096,17 +2084,17 @@
           "exercises": [
             {
               "exercise_id": "ex_025",
-              "sets": 4,
-              "reps": "4-6",
-              "intensity": "85% 1RM",
+              "sets": 3,
+              "reps": "8-10",
+              "intensity": "50-75% 1RM",
               "rest_s": null,
               "superset_group": null,
               "note": null
             },
             {
               "exercise_id": "ex_128",
-              "sets": 4,
-              "reps": "4-6",
+              "sets": 3,
+              "reps": "6-8",
               "intensity": "BW",
               "rest_s": null,
               "superset_group": null,
@@ -2114,7 +2102,7 @@
             },
             {
               "exercise_id": "ex_029",
-              "sets": 2,
+              "sets": 3,
               "reps": "10",
               "intensity": "BW",
               "rest_s": null,
@@ -2124,7 +2112,7 @@
             {
               "exercise_id": "ex_041",
               "sets": 3,
-              "reps": "10",
+              "reps": "12",
               "intensity": "BW",
               "rest_s": null,
               "superset_group": null,
@@ -2133,15 +2121,15 @@
           ]
         }
       ],
-      "day_focus": "Compression+Pulldowns: 75% throwing",
+      "day_focus": "Mound Build: 100% throwing",
       "cues": []
     },
     {
       "day_index": 50,
       "template_key": "wk8_d2_fallback",
-      "date": "2026-07-23",
+      "date": "2026-09-01",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Compression+Pulldowns",
+      "phase_name": "Mound Build",
       "intent_pct": null,
       "is_deload": false,
       "is_rest": true,
@@ -2153,29 +2141,29 @@
     {
       "day_index": 51,
       "template_key": "wk8_d3_fallback",
-      "date": "2026-07-24",
+      "date": "2026-09-02",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Compression+Pulldowns",
-      "intent_pct": 75,
+      "phase_name": "Mound Build",
+      "intent_pct": 100,
       "is_deload": false,
       "is_rest": false,
       "throwing_5tuple": {
         "distance_ft": 120,
-        "throw_count": 19,
-        "intensity_pct": 75,
-        "drill": "long toss",
+        "throw_count": 80,
+        "intensity_pct": 100,
+        "drill": "bullpen_progression",
         "note": null
       },
       "lifting_blocks": [],
-      "day_focus": "Compression+Pulldowns: 75% throwing",
+      "day_focus": "Mound Build: 100% throwing",
       "cues": []
     },
     {
       "day_index": 52,
       "template_key": "wk8_d4_fallback",
-      "date": "2026-07-25",
+      "date": "2026-09-03",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Compression+Pulldowns",
+      "phase_name": "Mound Build",
       "intent_pct": null,
       "is_deload": false,
       "is_rest": false,
@@ -2185,19 +2173,19 @@
           "block_name": "Posterior Chain",
           "exercises": [
             {
-              "exercise_id": "ex_001",
-              "sets": 4,
-              "reps": "4-6",
-              "intensity": "85% 1RM",
+              "exercise_id": "ex_004",
+              "sets": 3,
+              "reps": "8-10",
+              "intensity": "50-75% 1RM",
               "rest_s": null,
               "superset_group": null,
               "note": null
             },
             {
-              "exercise_id": "ex_004",
+              "exercise_id": "ex_005",
               "sets": 3,
-              "reps": "6",
-              "intensity": "80% 1RM",
+              "reps": "8-10",
+              "intensity": "50-75% 1RM",
               "rest_s": null,
               "superset_group": null,
               "note": null
@@ -2205,8 +2193,8 @@
             {
               "exercise_id": "ex_020",
               "sets": 3,
-              "reps": "6-8",
-              "intensity": "80% 1RM",
+              "reps": "8-10",
+              "intensity": "50-75% 1RM",
               "rest_s": null,
               "superset_group": null,
               "note": null
@@ -2214,7 +2202,7 @@
             {
               "exercise_id": "ex_070",
               "sets": 3,
-              "reps": "10",
+              "reps": "12",
               "intensity": "BW",
               "rest_s": null,
               "superset_group": null,
@@ -2227,17 +2215,17 @@
           "exercises": [
             {
               "exercise_id": "ex_025",
-              "sets": 4,
-              "reps": "4-6",
-              "intensity": "85% 1RM",
+              "sets": 3,
+              "reps": "8-10",
+              "intensity": "50-75% 1RM",
               "rest_s": null,
               "superset_group": null,
               "note": null
             },
             {
               "exercise_id": "ex_128",
-              "sets": 4,
-              "reps": "4-6",
+              "sets": 3,
+              "reps": "6-8",
               "intensity": "BW",
               "rest_s": null,
               "superset_group": null,
@@ -2245,7 +2233,7 @@
             },
             {
               "exercise_id": "ex_029",
-              "sets": 2,
+              "sets": 3,
               "reps": "10",
               "intensity": "BW",
               "rest_s": null,
@@ -2255,7 +2243,7 @@
             {
               "exercise_id": "ex_041",
               "sets": 3,
-              "reps": "10",
+              "reps": "12",
               "intensity": "BW",
               "rest_s": null,
               "superset_group": null,
@@ -2264,35 +2252,35 @@
           ]
         }
       ],
-      "day_focus": "Compression+Pulldowns: strength lifting",
+      "day_focus": "Mound Build: hypertrophy lifting",
       "cues": []
     },
     {
       "day_index": 53,
       "template_key": "wk8_d5_fallback",
-      "date": "2026-07-26",
+      "date": "2026-09-04",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Compression+Pulldowns",
-      "intent_pct": 75,
+      "phase_name": "Mound Build",
+      "intent_pct": 100,
       "is_deload": false,
       "is_rest": false,
       "throwing_5tuple": {
         "distance_ft": 120,
-        "throw_count": 19,
-        "intensity_pct": 75,
-        "drill": "long toss",
+        "throw_count": 80,
+        "intensity_pct": 100,
+        "drill": "bullpen_progression",
         "note": null
       },
       "lifting_blocks": [],
-      "day_focus": "Compression+Pulldowns: 75% throwing",
+      "day_focus": "Mound Build: 100% throwing",
       "cues": []
     },
     {
       "day_index": 54,
       "template_key": "wk8_d6_fallback",
-      "date": "2026-07-27",
+      "date": "2026-09-05",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Compression+Pulldowns",
+      "phase_name": "Mound Build",
       "intent_pct": null,
       "is_deload": false,
       "is_rest": true,
@@ -2304,9 +2292,9 @@
     {
       "day_index": 55,
       "template_key": "wk8_d7_fallback",
-      "date": "2026-07-28",
+      "date": "2026-09-06",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Compression+Pulldowns",
+      "phase_name": "Mound Build",
       "intent_pct": null,
       "is_deload": false,
       "is_rest": true,
@@ -2318,17 +2306,17 @@
     {
       "day_index": 56,
       "template_key": "wk9_d1_fallback",
-      "date": "2026-07-29",
+      "date": "2026-09-07",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Compression+Pulldowns",
-      "intent_pct": 77,
+      "phase_name": "Mound Build",
+      "intent_pct": 100,
       "is_deload": false,
       "is_rest": false,
       "throwing_5tuple": {
         "distance_ft": 120,
-        "throw_count": 19,
-        "intensity_pct": 77,
-        "drill": "long toss",
+        "throw_count": 81,
+        "intensity_pct": 100,
+        "drill": "bullpen_progression",
         "note": null
       },
       "lifting_blocks": [
@@ -2336,19 +2324,19 @@
           "block_name": "Posterior Chain",
           "exercises": [
             {
-              "exercise_id": "ex_001",
-              "sets": 4,
-              "reps": "4-6",
-              "intensity": "85% 1RM",
+              "exercise_id": "ex_004",
+              "sets": 3,
+              "reps": "8-10",
+              "intensity": "50-75% 1RM",
               "rest_s": null,
               "superset_group": null,
               "note": null
             },
             {
-              "exercise_id": "ex_004",
+              "exercise_id": "ex_005",
               "sets": 3,
-              "reps": "6",
-              "intensity": "80% 1RM",
+              "reps": "8-10",
+              "intensity": "50-75% 1RM",
               "rest_s": null,
               "superset_group": null,
               "note": null
@@ -2356,8 +2344,8 @@
             {
               "exercise_id": "ex_020",
               "sets": 3,
-              "reps": "6-8",
-              "intensity": "80% 1RM",
+              "reps": "8-10",
+              "intensity": "50-75% 1RM",
               "rest_s": null,
               "superset_group": null,
               "note": null
@@ -2365,7 +2353,7 @@
             {
               "exercise_id": "ex_070",
               "sets": 3,
-              "reps": "10",
+              "reps": "12",
               "intensity": "BW",
               "rest_s": null,
               "superset_group": null,
@@ -2378,17 +2366,17 @@
           "exercises": [
             {
               "exercise_id": "ex_025",
-              "sets": 4,
-              "reps": "4-6",
-              "intensity": "85% 1RM",
+              "sets": 3,
+              "reps": "8-10",
+              "intensity": "50-75% 1RM",
               "rest_s": null,
               "superset_group": null,
               "note": null
             },
             {
               "exercise_id": "ex_128",
-              "sets": 4,
-              "reps": "4-6",
+              "sets": 3,
+              "reps": "6-8",
               "intensity": "BW",
               "rest_s": null,
               "superset_group": null,
@@ -2396,7 +2384,7 @@
             },
             {
               "exercise_id": "ex_029",
-              "sets": 2,
+              "sets": 3,
               "reps": "10",
               "intensity": "BW",
               "rest_s": null,
@@ -2406,7 +2394,7 @@
             {
               "exercise_id": "ex_041",
               "sets": 3,
-              "reps": "10",
+              "reps": "12",
               "intensity": "BW",
               "rest_s": null,
               "superset_group": null,
@@ -2415,15 +2403,15 @@
           ]
         }
       ],
-      "day_focus": "Compression+Pulldowns: 77% throwing",
+      "day_focus": "Mound Build: 100% throwing",
       "cues": []
     },
     {
       "day_index": 57,
       "template_key": "wk9_d2_fallback",
-      "date": "2026-07-30",
+      "date": "2026-09-08",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Compression+Pulldowns",
+      "phase_name": "Mound Build",
       "intent_pct": null,
       "is_deload": false,
       "is_rest": true,
@@ -2435,29 +2423,29 @@
     {
       "day_index": 58,
       "template_key": "wk9_d3_fallback",
-      "date": "2026-07-31",
+      "date": "2026-09-09",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Compression+Pulldowns",
-      "intent_pct": 77,
+      "phase_name": "Mound Build",
+      "intent_pct": 100,
       "is_deload": false,
       "is_rest": false,
       "throwing_5tuple": {
         "distance_ft": 120,
-        "throw_count": 19,
-        "intensity_pct": 77,
-        "drill": "long toss",
+        "throw_count": 81,
+        "intensity_pct": 100,
+        "drill": "bullpen_progression",
         "note": null
       },
       "lifting_blocks": [],
-      "day_focus": "Compression+Pulldowns: 77% throwing",
+      "day_focus": "Mound Build: 100% throwing",
       "cues": []
     },
     {
       "day_index": 59,
       "template_key": "wk9_d4_fallback",
-      "date": "2026-08-01",
+      "date": "2026-09-10",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Compression+Pulldowns",
+      "phase_name": "Mound Build",
       "intent_pct": null,
       "is_deload": false,
       "is_rest": false,
@@ -2467,19 +2455,19 @@
           "block_name": "Posterior Chain",
           "exercises": [
             {
-              "exercise_id": "ex_001",
-              "sets": 4,
-              "reps": "4-6",
-              "intensity": "85% 1RM",
+              "exercise_id": "ex_004",
+              "sets": 3,
+              "reps": "8-10",
+              "intensity": "50-75% 1RM",
               "rest_s": null,
               "superset_group": null,
               "note": null
             },
             {
-              "exercise_id": "ex_004",
+              "exercise_id": "ex_005",
               "sets": 3,
-              "reps": "6",
-              "intensity": "80% 1RM",
+              "reps": "8-10",
+              "intensity": "50-75% 1RM",
               "rest_s": null,
               "superset_group": null,
               "note": null
@@ -2487,8 +2475,8 @@
             {
               "exercise_id": "ex_020",
               "sets": 3,
-              "reps": "6-8",
-              "intensity": "80% 1RM",
+              "reps": "8-10",
+              "intensity": "50-75% 1RM",
               "rest_s": null,
               "superset_group": null,
               "note": null
@@ -2496,7 +2484,7 @@
             {
               "exercise_id": "ex_070",
               "sets": 3,
-              "reps": "10",
+              "reps": "12",
               "intensity": "BW",
               "rest_s": null,
               "superset_group": null,
@@ -2509,17 +2497,17 @@
           "exercises": [
             {
               "exercise_id": "ex_025",
-              "sets": 4,
-              "reps": "4-6",
-              "intensity": "85% 1RM",
+              "sets": 3,
+              "reps": "8-10",
+              "intensity": "50-75% 1RM",
               "rest_s": null,
               "superset_group": null,
               "note": null
             },
             {
               "exercise_id": "ex_128",
-              "sets": 4,
-              "reps": "4-6",
+              "sets": 3,
+              "reps": "6-8",
               "intensity": "BW",
               "rest_s": null,
               "superset_group": null,
@@ -2527,7 +2515,7 @@
             },
             {
               "exercise_id": "ex_029",
-              "sets": 2,
+              "sets": 3,
               "reps": "10",
               "intensity": "BW",
               "rest_s": null,
@@ -2537,7 +2525,7 @@
             {
               "exercise_id": "ex_041",
               "sets": 3,
-              "reps": "10",
+              "reps": "12",
               "intensity": "BW",
               "rest_s": null,
               "superset_group": null,
@@ -2546,35 +2534,35 @@
           ]
         }
       ],
-      "day_focus": "Compression+Pulldowns: strength lifting",
+      "day_focus": "Mound Build: hypertrophy lifting",
       "cues": []
     },
     {
       "day_index": 60,
       "template_key": "wk9_d5_fallback",
-      "date": "2026-08-02",
+      "date": "2026-09-11",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Compression+Pulldowns",
-      "intent_pct": 77,
+      "phase_name": "Mound Build",
+      "intent_pct": 100,
       "is_deload": false,
       "is_rest": false,
       "throwing_5tuple": {
         "distance_ft": 120,
-        "throw_count": 19,
-        "intensity_pct": 77,
-        "drill": "long toss",
+        "throw_count": 81,
+        "intensity_pct": 100,
+        "drill": "bullpen_progression",
         "note": null
       },
       "lifting_blocks": [],
-      "day_focus": "Compression+Pulldowns: 77% throwing",
+      "day_focus": "Mound Build: 100% throwing",
       "cues": []
     },
     {
       "day_index": 61,
       "template_key": "wk9_d6_fallback",
-      "date": "2026-08-03",
+      "date": "2026-09-12",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Compression+Pulldowns",
+      "phase_name": "Mound Build",
       "intent_pct": null,
       "is_deload": false,
       "is_rest": true,
@@ -2586,855 +2574,9 @@
     {
       "day_index": 62,
       "template_key": "wk9_d7_fallback",
-      "date": "2026-08-04",
+      "date": "2026-09-13",
       "anchor_kind": "calendar_relative",
-      "phase_name": "Compression+Pulldowns",
-      "intent_pct": null,
-      "is_deload": false,
-      "is_rest": true,
-      "throwing_5tuple": null,
-      "lifting_blocks": [],
-      "day_focus": null,
-      "cues": []
-    },
-    {
-      "day_index": 63,
-      "template_key": "wk10_d1_fallback",
-      "date": "2026-08-05",
-      "anchor_kind": "calendar_relative",
-      "phase_name": "Max Intent+Mound",
-      "intent_pct": 82,
-      "is_deload": false,
-      "is_rest": false,
-      "throwing_5tuple": {
-        "distance_ft": 120,
-        "throw_count": 20,
-        "intensity_pct": 82,
-        "drill": "long toss",
-        "note": null
-      },
-      "lifting_blocks": [
-        {
-          "block_name": "Posterior Chain",
-          "exercises": [
-            {
-              "exercise_id": "ex_001",
-              "sets": 4,
-              "reps": "3-5",
-              "intensity": "90% 1RM",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_014",
-              "sets": 3,
-              "reps": "5",
-              "intensity": "Near Maximal",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_020",
-              "sets": 3,
-              "reps": "5-8",
-              "intensity": "80% 1RM",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_070",
-              "sets": 3,
-              "reps": "10",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            }
-          ]
-        },
-        {
-          "block_name": "Push Pull",
-          "exercises": [
-            {
-              "exercise_id": "ex_025",
-              "sets": 4,
-              "reps": "3-5",
-              "intensity": "87-95% 1RM",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_128",
-              "sets": 4,
-              "reps": "3-5",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_145",
-              "sets": 3,
-              "reps": "5",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_041",
-              "sets": 3,
-              "reps": "10",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            }
-          ]
-        }
-      ],
-      "day_focus": "Max Intent+Mound: 82% throwing",
-      "cues": []
-    },
-    {
-      "day_index": 64,
-      "template_key": "wk10_d2_fallback",
-      "date": "2026-08-06",
-      "anchor_kind": "calendar_relative",
-      "phase_name": "Max Intent+Mound",
-      "intent_pct": null,
-      "is_deload": false,
-      "is_rest": true,
-      "throwing_5tuple": null,
-      "lifting_blocks": [],
-      "day_focus": null,
-      "cues": []
-    },
-    {
-      "day_index": 65,
-      "template_key": "wk10_d3_fallback",
-      "date": "2026-08-07",
-      "anchor_kind": "calendar_relative",
-      "phase_name": "Max Intent+Mound",
-      "intent_pct": 82,
-      "is_deload": false,
-      "is_rest": false,
-      "throwing_5tuple": {
-        "distance_ft": 120,
-        "throw_count": 20,
-        "intensity_pct": 82,
-        "drill": "long toss",
-        "note": null
-      },
-      "lifting_blocks": [],
-      "day_focus": "Max Intent+Mound: 82% throwing",
-      "cues": []
-    },
-    {
-      "day_index": 66,
-      "template_key": "wk10_d4_fallback",
-      "date": "2026-08-08",
-      "anchor_kind": "calendar_relative",
-      "phase_name": "Max Intent+Mound",
-      "intent_pct": null,
-      "is_deload": false,
-      "is_rest": false,
-      "throwing_5tuple": null,
-      "lifting_blocks": [
-        {
-          "block_name": "Posterior Chain",
-          "exercises": [
-            {
-              "exercise_id": "ex_001",
-              "sets": 4,
-              "reps": "3-5",
-              "intensity": "90% 1RM",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_014",
-              "sets": 3,
-              "reps": "5",
-              "intensity": "Near Maximal",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_020",
-              "sets": 3,
-              "reps": "5-8",
-              "intensity": "80% 1RM",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_070",
-              "sets": 3,
-              "reps": "10",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            }
-          ]
-        },
-        {
-          "block_name": "Push Pull",
-          "exercises": [
-            {
-              "exercise_id": "ex_025",
-              "sets": 4,
-              "reps": "3-5",
-              "intensity": "87-95% 1RM",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_128",
-              "sets": 4,
-              "reps": "3-5",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_145",
-              "sets": 3,
-              "reps": "5",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_041",
-              "sets": 3,
-              "reps": "10",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            }
-          ]
-        }
-      ],
-      "day_focus": "Max Intent+Mound: strength_power lifting",
-      "cues": []
-    },
-    {
-      "day_index": 67,
-      "template_key": "wk10_d5_fallback",
-      "date": "2026-08-09",
-      "anchor_kind": "calendar_relative",
-      "phase_name": "Max Intent+Mound",
-      "intent_pct": 82,
-      "is_deload": false,
-      "is_rest": false,
-      "throwing_5tuple": {
-        "distance_ft": 120,
-        "throw_count": 20,
-        "intensity_pct": 82,
-        "drill": "long toss",
-        "note": null
-      },
-      "lifting_blocks": [],
-      "day_focus": "Max Intent+Mound: 82% throwing",
-      "cues": []
-    },
-    {
-      "day_index": 68,
-      "template_key": "wk10_d6_fallback",
-      "date": "2026-08-10",
-      "anchor_kind": "calendar_relative",
-      "phase_name": "Max Intent+Mound",
-      "intent_pct": null,
-      "is_deload": false,
-      "is_rest": true,
-      "throwing_5tuple": null,
-      "lifting_blocks": [],
-      "day_focus": null,
-      "cues": []
-    },
-    {
-      "day_index": 69,
-      "template_key": "wk10_d7_fallback",
-      "date": "2026-08-11",
-      "anchor_kind": "calendar_relative",
-      "phase_name": "Max Intent+Mound",
-      "intent_pct": null,
-      "is_deload": false,
-      "is_rest": true,
-      "throwing_5tuple": null,
-      "lifting_blocks": [],
-      "day_focus": null,
-      "cues": []
-    },
-    {
-      "day_index": 70,
-      "template_key": "wk11_d1_fallback",
-      "date": "2026-08-12",
-      "anchor_kind": "calendar_relative",
-      "phase_name": "Max Intent+Mound",
-      "intent_pct": 85,
-      "is_deload": false,
-      "is_rest": false,
-      "throwing_5tuple": {
-        "distance_ft": 120,
-        "throw_count": 21,
-        "intensity_pct": 85,
-        "drill": "long toss",
-        "note": null
-      },
-      "lifting_blocks": [
-        {
-          "block_name": "Posterior Chain",
-          "exercises": [
-            {
-              "exercise_id": "ex_001",
-              "sets": 4,
-              "reps": "3-5",
-              "intensity": "90% 1RM",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_014",
-              "sets": 3,
-              "reps": "5",
-              "intensity": "Near Maximal",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_020",
-              "sets": 3,
-              "reps": "5-8",
-              "intensity": "80% 1RM",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_070",
-              "sets": 3,
-              "reps": "10",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            }
-          ]
-        },
-        {
-          "block_name": "Push Pull",
-          "exercises": [
-            {
-              "exercise_id": "ex_025",
-              "sets": 4,
-              "reps": "3-5",
-              "intensity": "87-95% 1RM",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_128",
-              "sets": 4,
-              "reps": "3-5",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_145",
-              "sets": 3,
-              "reps": "5",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_041",
-              "sets": 3,
-              "reps": "10",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            }
-          ]
-        }
-      ],
-      "day_focus": "Max Intent+Mound: 85% throwing",
-      "cues": []
-    },
-    {
-      "day_index": 71,
-      "template_key": "wk11_d2_fallback",
-      "date": "2026-08-13",
-      "anchor_kind": "calendar_relative",
-      "phase_name": "Max Intent+Mound",
-      "intent_pct": null,
-      "is_deload": false,
-      "is_rest": true,
-      "throwing_5tuple": null,
-      "lifting_blocks": [],
-      "day_focus": null,
-      "cues": []
-    },
-    {
-      "day_index": 72,
-      "template_key": "wk11_d3_fallback",
-      "date": "2026-08-14",
-      "anchor_kind": "calendar_relative",
-      "phase_name": "Max Intent+Mound",
-      "intent_pct": 85,
-      "is_deload": false,
-      "is_rest": false,
-      "throwing_5tuple": {
-        "distance_ft": 120,
-        "throw_count": 21,
-        "intensity_pct": 85,
-        "drill": "long toss",
-        "note": null
-      },
-      "lifting_blocks": [],
-      "day_focus": "Max Intent+Mound: 85% throwing",
-      "cues": []
-    },
-    {
-      "day_index": 73,
-      "template_key": "wk11_d4_fallback",
-      "date": "2026-08-15",
-      "anchor_kind": "calendar_relative",
-      "phase_name": "Max Intent+Mound",
-      "intent_pct": null,
-      "is_deload": false,
-      "is_rest": false,
-      "throwing_5tuple": null,
-      "lifting_blocks": [
-        {
-          "block_name": "Posterior Chain",
-          "exercises": [
-            {
-              "exercise_id": "ex_001",
-              "sets": 4,
-              "reps": "3-5",
-              "intensity": "90% 1RM",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_014",
-              "sets": 3,
-              "reps": "5",
-              "intensity": "Near Maximal",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_020",
-              "sets": 3,
-              "reps": "5-8",
-              "intensity": "80% 1RM",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_070",
-              "sets": 3,
-              "reps": "10",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            }
-          ]
-        },
-        {
-          "block_name": "Push Pull",
-          "exercises": [
-            {
-              "exercise_id": "ex_025",
-              "sets": 4,
-              "reps": "3-5",
-              "intensity": "87-95% 1RM",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_128",
-              "sets": 4,
-              "reps": "3-5",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_145",
-              "sets": 3,
-              "reps": "5",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_041",
-              "sets": 3,
-              "reps": "10",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            }
-          ]
-        }
-      ],
-      "day_focus": "Max Intent+Mound: strength_power lifting",
-      "cues": []
-    },
-    {
-      "day_index": 74,
-      "template_key": "wk11_d5_fallback",
-      "date": "2026-08-16",
-      "anchor_kind": "calendar_relative",
-      "phase_name": "Max Intent+Mound",
-      "intent_pct": 85,
-      "is_deload": false,
-      "is_rest": false,
-      "throwing_5tuple": {
-        "distance_ft": 120,
-        "throw_count": 21,
-        "intensity_pct": 85,
-        "drill": "long toss",
-        "note": null
-      },
-      "lifting_blocks": [],
-      "day_focus": "Max Intent+Mound: 85% throwing",
-      "cues": []
-    },
-    {
-      "day_index": 75,
-      "template_key": "wk11_d6_fallback",
-      "date": "2026-08-17",
-      "anchor_kind": "calendar_relative",
-      "phase_name": "Max Intent+Mound",
-      "intent_pct": null,
-      "is_deload": false,
-      "is_rest": true,
-      "throwing_5tuple": null,
-      "lifting_blocks": [],
-      "day_focus": null,
-      "cues": []
-    },
-    {
-      "day_index": 76,
-      "template_key": "wk11_d7_fallback",
-      "date": "2026-08-18",
-      "anchor_kind": "calendar_relative",
-      "phase_name": "Max Intent+Mound",
-      "intent_pct": null,
-      "is_deload": false,
-      "is_rest": true,
-      "throwing_5tuple": null,
-      "lifting_blocks": [],
-      "day_focus": null,
-      "cues": []
-    },
-    {
-      "day_index": 77,
-      "template_key": "wk12_d1_fallback",
-      "date": "2026-08-19",
-      "anchor_kind": "calendar_relative",
-      "phase_name": "Max Intent+Mound",
-      "intent_pct": 87,
-      "is_deload": false,
-      "is_rest": false,
-      "throwing_5tuple": {
-        "distance_ft": 120,
-        "throw_count": 21,
-        "intensity_pct": 87,
-        "drill": "long toss",
-        "note": null
-      },
-      "lifting_blocks": [
-        {
-          "block_name": "Posterior Chain",
-          "exercises": [
-            {
-              "exercise_id": "ex_001",
-              "sets": 4,
-              "reps": "3-5",
-              "intensity": "90% 1RM",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_014",
-              "sets": 3,
-              "reps": "5",
-              "intensity": "Near Maximal",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_020",
-              "sets": 3,
-              "reps": "5-8",
-              "intensity": "80% 1RM",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_070",
-              "sets": 3,
-              "reps": "10",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            }
-          ]
-        },
-        {
-          "block_name": "Push Pull",
-          "exercises": [
-            {
-              "exercise_id": "ex_025",
-              "sets": 4,
-              "reps": "3-5",
-              "intensity": "87-95% 1RM",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_128",
-              "sets": 4,
-              "reps": "3-5",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_145",
-              "sets": 3,
-              "reps": "5",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_041",
-              "sets": 3,
-              "reps": "10",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            }
-          ]
-        }
-      ],
-      "day_focus": "Max Intent+Mound: 87% throwing",
-      "cues": []
-    },
-    {
-      "day_index": 78,
-      "template_key": "wk12_d2_fallback",
-      "date": "2026-08-20",
-      "anchor_kind": "calendar_relative",
-      "phase_name": "Max Intent+Mound",
-      "intent_pct": null,
-      "is_deload": false,
-      "is_rest": true,
-      "throwing_5tuple": null,
-      "lifting_blocks": [],
-      "day_focus": null,
-      "cues": []
-    },
-    {
-      "day_index": 79,
-      "template_key": "wk12_d3_fallback",
-      "date": "2026-08-21",
-      "anchor_kind": "calendar_relative",
-      "phase_name": "Max Intent+Mound",
-      "intent_pct": 87,
-      "is_deload": false,
-      "is_rest": false,
-      "throwing_5tuple": {
-        "distance_ft": 120,
-        "throw_count": 21,
-        "intensity_pct": 87,
-        "drill": "long toss",
-        "note": null
-      },
-      "lifting_blocks": [],
-      "day_focus": "Max Intent+Mound: 87% throwing",
-      "cues": []
-    },
-    {
-      "day_index": 80,
-      "template_key": "wk12_d4_fallback",
-      "date": "2026-08-22",
-      "anchor_kind": "calendar_relative",
-      "phase_name": "Max Intent+Mound",
-      "intent_pct": null,
-      "is_deload": false,
-      "is_rest": false,
-      "throwing_5tuple": null,
-      "lifting_blocks": [
-        {
-          "block_name": "Posterior Chain",
-          "exercises": [
-            {
-              "exercise_id": "ex_001",
-              "sets": 4,
-              "reps": "3-5",
-              "intensity": "90% 1RM",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_014",
-              "sets": 3,
-              "reps": "5",
-              "intensity": "Near Maximal",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_020",
-              "sets": 3,
-              "reps": "5-8",
-              "intensity": "80% 1RM",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_070",
-              "sets": 3,
-              "reps": "10",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            }
-          ]
-        },
-        {
-          "block_name": "Push Pull",
-          "exercises": [
-            {
-              "exercise_id": "ex_025",
-              "sets": 4,
-              "reps": "3-5",
-              "intensity": "87-95% 1RM",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_128",
-              "sets": 4,
-              "reps": "3-5",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_145",
-              "sets": 3,
-              "reps": "5",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            },
-            {
-              "exercise_id": "ex_041",
-              "sets": 3,
-              "reps": "10",
-              "intensity": "BW",
-              "rest_s": null,
-              "superset_group": null,
-              "note": null
-            }
-          ]
-        }
-      ],
-      "day_focus": "Max Intent+Mound: strength_power lifting",
-      "cues": []
-    },
-    {
-      "day_index": 81,
-      "template_key": "wk12_d5_fallback",
-      "date": "2026-08-23",
-      "anchor_kind": "calendar_relative",
-      "phase_name": "Max Intent+Mound",
-      "intent_pct": 87,
-      "is_deload": false,
-      "is_rest": false,
-      "throwing_5tuple": {
-        "distance_ft": 120,
-        "throw_count": 21,
-        "intensity_pct": 87,
-        "drill": "long toss",
-        "note": null
-      },
-      "lifting_blocks": [],
-      "day_focus": "Max Intent+Mound: 87% throwing",
-      "cues": []
-    },
-    {
-      "day_index": 82,
-      "template_key": "wk12_d6_fallback",
-      "date": "2026-08-24",
-      "anchor_kind": "calendar_relative",
-      "phase_name": "Max Intent+Mound",
-      "intent_pct": null,
-      "is_deload": false,
-      "is_rest": true,
-      "throwing_5tuple": null,
-      "lifting_blocks": [],
-      "day_focus": null,
-      "cues": []
-    },
-    {
-      "day_index": 83,
-      "template_key": "wk12_d7_fallback",
-      "date": "2026-08-25",
-      "anchor_kind": "calendar_relative",
-      "phase_name": "Max Intent+Mound",
+      "phase_name": "Mound Build",
       "intent_pct": null,
       "is_deload": false,
       "is_rest": true,
@@ -3448,10 +2590,11 @@
     "phase_logic": "Deterministic fallback derived from block_library template. Phases mirror the live content.phases. Deload weeks from content.acwr_governor.deload_weeks_default. Lifting per content.lifting_integration.phase_mapping.",
     "individualization_notes": "Generated as the deterministic safety net when LLM authoring failed. Operator should review and may regenerate via the Builder UI to get a fully individualized program.",
     "cited_research_doc_ids": [
-      "velocity_progression_model",
-      "driveline_throwing_program",
-      "FINAL_research_base",
-      "research_gap_analysis"
+      "return_to_play_progression_model",
+      "fpm_strain_protocol",
+      "ucl_flexor_pronator_protection",
+      "advanced_workload_performance",
+      "final_research_base"
     ],
     "citations": []
   },
@@ -3464,6 +2607,6 @@
   },
   "generation_provenance": {
     "fallback_used": true,
-    "template_id": "velocity_12wk_v1"
+    "template_id": "return_to_mound_9wk_v1"
   }
 }

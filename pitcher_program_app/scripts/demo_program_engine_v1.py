@@ -50,7 +50,19 @@ if str(_APP_ROOT) not in sys.path:
 
 OUTPUT_DIR = _REPO_ROOT / "docs" / "superpowers" / "research" / "2026-06-02-program-engine-demo"
 PITCHER_DATA_DIR = _APP_ROOT / "data" / "pitchers" / "landon_brice"
-KNOWLEDGE_DOC = _APP_ROOT / "data" / "knowledge" / "research" / "velocity_progression_model.md"
+
+# Goal selection (--goal). return_to_play is the v1 target per the 2026-07-13
+# goal pivot; velocity remains the second pack.
+GOAL = "velocity"
+_KNOWLEDGE_DOCS = {
+    "velocity": _APP_ROOT / "data" / "knowledge" / "research" / "velocity_progression_model.md",
+    "return_to_play": _APP_ROOT / "data" / "knowledge" / "research" / "return_to_play_progression_model.md",
+}
+_GOAL_WEEKS = {"velocity": 12, "return_to_play": 9}
+
+
+def _knowledge_doc() -> Path:
+    return _KNOWLEDGE_DOCS[GOAL]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -73,6 +85,21 @@ def _detect_mode() -> dict:
 # ─────────────────────────────────────────────────────────────────────────────
 # Stubs for the no-env case
 # ─────────────────────────────────────────────────────────────────────────────
+
+
+def _block_stub() -> dict:
+    """Goal-dispatched template stub for the no-Supabase case."""
+    if GOAL == "return_to_play":
+        return _rtp_block_stub()
+    return _velocity_block_stub()
+
+
+def _rtp_block_stub() -> dict:
+    """Mirrors the return_to_mound_9wk_v1 row (single source: the seed script)."""
+    from scripts.seed_rtp_knowledge_pack import ROW
+    tpl = deepcopy(ROW)
+    tpl["duration_weeks"] = [8, 10]
+    return tpl
 
 
 def _velocity_block_stub() -> dict:
@@ -133,10 +160,12 @@ def _stub_resolve_program_gen(goal_spec: dict, profile: dict) -> dict:
     stub as the only template. Computes a deterministic knowledge_version
     over what's loaded.
     """
-    doc_text = KNOWLEDGE_DOC.read_text() if KNOWLEDGE_DOC.exists() else ""
-    template = _velocity_block_stub()
+    doc = _knowledge_doc()
+    doc_id = doc.stem
+    doc_text = doc.read_text() if doc.exists() else ""
+    template = _block_stub()
     payload = {
-        "doc_ids": ["velocity_progression_model"],
+        "doc_ids": [doc_id],
         "doc_text": doc_text,
         "template_id": template["block_template_id"],
         "template_content": template["content"],
@@ -144,12 +173,12 @@ def _stub_resolve_program_gen(goal_spec: dict, profile: dict) -> dict:
     norm = json.dumps(payload, sort_keys=True, ensure_ascii=True).encode("utf-8")
     kv = hashlib.sha1(norm).hexdigest()[:16]
     return {
-        "docs": [{"id": "velocity_progression_model", "text": doc_text}],
+        "docs": [{"id": doc_id, "text": doc_text}],
         "templates": [template],
         "exemplars": [],
         "knowledge_version": kv,
         "combined": doc_text,
-        "loaded_doc_ids": ["velocity_progression_model"],
+        "loaded_doc_ids": [doc_id],
     }
 
 
@@ -327,13 +356,13 @@ def _living_knowledge_proof(mode: dict, goal_spec: dict, profile: dict) -> dict:
     Mutation: append a marker comment line so the file content changes but
     no semantic damage is done (and we always revert in `finally`).
     """
-    if not KNOWLEDGE_DOC.exists():
-        return {"ok": False, "reason": "velocity_progression_model.md missing"}
-    original_text = KNOWLEDGE_DOC.read_text()
+    if not _knowledge_doc().exists():
+        return {"ok": False, "reason": f"{_knowledge_doc().name} missing"}
+    original_text = _knowledge_doc().read_text()
     try:
         kv_before, _ = _resolve_kv(mode, goal_spec, profile)
         marker = "\n<!-- living-knowledge-proof: 2026-06-02 -->\n"
-        KNOWLEDGE_DOC.write_text(original_text + marker)
+        _knowledge_doc().write_text(original_text + marker)
         kv_after, _ = _resolve_kv(mode, goal_spec, profile)
         return {
             "ok": True,
@@ -343,7 +372,7 @@ def _living_knowledge_proof(mode: dict, goal_spec: dict, profile: dict) -> dict:
             "mutation_applied": "appended marker comment line",
         }
     finally:
-        KNOWLEDGE_DOC.write_text(original_text)
+        _knowledge_doc().write_text(original_text)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -426,17 +455,18 @@ async def _run_all(persist: bool) -> dict:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     mode = _detect_mode()
     profile, context = _load_pitcher()
-    target_date = (date.today() + timedelta(days=84 - 1)).isoformat()
+    weeks = _GOAL_WEEKS[GOAL]
+    target_date = (date.today() + timedelta(days=weeks * 7 - 1)).isoformat()
     goal_spec = {
-        "tags": ["velocity"],
-        "target_weeks": 12,
+        "tags": [GOAL],
+        "target_weeks": weeks,
         "target_date": target_date,
         "tunables": {},
     }
 
     # Resolve knowledge pack (will be re-used for both demo 1 + 2)
     kv, pack = _resolve_kv(mode, goal_spec, profile)
-    template = _velocity_block_stub() if mode["block_library_mode"] != "live" else pack["templates"][0]
+    template = _block_stub() if mode["block_library_mode"] != "live" else pack["templates"][0]
 
     # ── Sub-demo 1 — generation
     gen = await _run_generation(mode, goal_spec, profile, context, pack, template)
@@ -604,7 +634,12 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Phase 5 demo for Program Engine v1.")
     parser.add_argument("--persist", action="store_true",
                         help="Also write a programs row (requires Supabase env vars).")
+    parser.add_argument("--goal", choices=("velocity", "return_to_play"),
+                        default="return_to_play",
+                        help="Which knowledge pack to author against (default: return_to_play per the 2026-07-13 goal pivot).")
     args = parser.parse_args()
+    global GOAL
+    GOAL = args.goal
     summary = asyncio.run(_run_all(persist=args.persist))
     print("Demo complete.")
     print(json.dumps({k: v for k, v in summary.items() if k != "gen"}, indent=2, default=str))

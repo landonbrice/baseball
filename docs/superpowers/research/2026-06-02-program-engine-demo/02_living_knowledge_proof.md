@@ -2,8 +2,8 @@
 
 Block-library mode: `stubbed_from_migration_033`.
 
-- **knowledge_version BEFORE mutation**: `0c62fd5547765d88`
-- **knowledge_version AFTER mutation**: `7f1af73f2efc68bf`
+- **knowledge_version BEFORE mutation**: `818030d0d8ab91a0`
+- **knowledge_version AFTER mutation**: `e4254623253396b0`
 - **kv changed**: `True`
 - **mutation**: appended marker comment line
 
