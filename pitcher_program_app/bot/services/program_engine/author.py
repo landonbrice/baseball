@@ -46,8 +46,11 @@ class GenerationFailure(Exception):
 _SYSTEM_PROMPT = (
     "You are a brilliant pitching coach authoring complete multi-week training "
     "programs as JSON. Emit ONLY valid JSON matching the PitcherProgram schema — "
-    "no markdown, no prose, no fences. The downstream guardrails enforce the "
-    "invariants; you focus on the program design."
+    "no markdown, no prose, no fences. Emit COMPACT JSON: no indentation, no "
+    "newlines between tokens, single spaces only where JSON requires none — the "
+    "output is machine-parsed and length-constrained, so every wasted character "
+    "risks truncation. Keep drill/note strings terse. The downstream guardrails "
+    "enforce the invariants; you focus on the program design."
 )
 
 
@@ -240,11 +243,12 @@ async def author_program(
         raw = await call_llm_reasoning(
             system_prompt=_SYSTEM_PROMPT,
             user_message=user_prompt,
-            # A full multi-week PitcherProgram (60-90 day objects) exceeds 8k
-            # output tokens — first live run truncated mid-JSON at 8000.
-            # deepseek-reasoner accepts 32k (probed 2026-07-13).
-            max_tokens=32000,
+            # A full multi-week PitcherProgram (60-90 day objects) is ~20k+
+            # output tokens and the reasoner's CoT shares the budget — 8k and
+            # 32k both truncated live. 65536 probed accepted 2026-07-13.
+            max_tokens=65536,
             timeout=300,  # one-shot compile step; latency-tolerant by design
+            return_metadata=True,
         )
     except TimeoutError as e:
         logger.warning("author_program: LLM timeout (%s)", e)
@@ -252,6 +256,16 @@ async def author_program(
     except Exception as e:
         logger.warning("author_program: LLM error (%s)", e)
         raise GenerationFailure("llm_error", detail=str(e)) from e
+
+    # return_metadata=True → (content, finish_reason). Truncation is a
+    # first-class failure: don't burn a parse attempt on a cut-off body.
+    if isinstance(raw, tuple):
+        raw, finish_reason = raw[0], (raw[1] or "stop")
+        if finish_reason == "length":
+            raise GenerationFailure(
+                "llm_truncated",
+                detail=f"finish_reason=length at max_tokens=65536; output chars={len(raw or '')}",
+            )
 
     if not isinstance(raw, str) or not raw.strip():
         raise GenerationFailure("llm_empty_response")
