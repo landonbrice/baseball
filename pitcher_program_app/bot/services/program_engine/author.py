@@ -278,8 +278,24 @@ async def author_program(
         # step, but we strip fences first so error messages are cleaner.
         program = PitcherProgram.model_validate_json(text)
     except ValidationError as e:
-        logger.warning("author_program: schema validation failed (%s)", e)
-        raise GenerationFailure("schema_validation_failed", detail=str(e)) from e
+        # Deterministic repair pass before rejecting: long single-shot JSON
+        # (60k+ chars) routinely arrives with ONE unbalanced bracket/quote
+        # (live run #3: complete-looking doc, one missing ']'). json_repair
+        # fixes that class mechanically; schema validation still gates the
+        # result, so a mangled repair cannot slip through.
+        if "json_invalid" in str(e):
+            try:
+                import json_repair
+
+                repaired = json_repair.repair_json(text)
+                program = PitcherProgram.model_validate_json(repaired)
+                logger.warning("author_program: JSON repaired deterministically (json_repair)")
+            except Exception as e2:
+                logger.warning("author_program: schema validation failed after repair (%s)", e2)
+                raise GenerationFailure("schema_validation_failed", detail=str(e)) from e
+        else:
+            logger.warning("author_program: schema validation failed (%s)", e)
+            raise GenerationFailure("schema_validation_failed", detail=str(e)) from e
     except (json.JSONDecodeError, ValueError) as e:
         logger.warning("author_program: JSON parse failed (%s)", e)
         raise GenerationFailure("json_parse_failed", detail=str(e)) from e
