@@ -312,7 +312,10 @@ def build_week_snapshot(pitcher_id: str) -> dict:
     for e in week_entries:
         t = e.get("throwing") or {}
         if t and t.get("type") and t["type"] not in ("none", "no_throw"):
-            vol = (t.get("volume_summary") or {}).get("total_throws_estimate")
+            # Tolerate non-dict volume_summary (2026-07-13: drive briefly
+            # emitted a string here; historical rows may carry it)
+            _vs = t.get("volume_summary")
+            vol = _vs.get("total_throws_estimate") if isinstance(_vs, dict) else None
             throwing_days.append({
                 "date": e["date"],
                 "type": t["type"],

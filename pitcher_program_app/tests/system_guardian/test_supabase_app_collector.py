@@ -308,9 +308,10 @@ async def test_research_load_5pct_degraded_emits_info():
 
 @pytest.mark.asyncio
 async def test_research_load_high_injection_chars_emits_warning():
-    """LLM-regression canary: mean injection chars > 8000 fires warning even
-    if degraded share is 0."""
-    rows = [{"degraded": False, "total_chars": 12000}] * 10
+    """LLM-regression canary: mean injection chars over threshold fires a
+    warning even if degraded share is 0. Threshold is 48k (above the 40k
+    program-gen budget — 20k means were false-alarming, Sprint D)."""
+    rows = [{"degraded": False, "total_chars": 60000}] * 10
     fake = _FakeClient(
         {
             "daily_entries": [],
@@ -327,7 +328,7 @@ async def test_research_load_high_injection_chars_emits_warning():
     rla = [o for o in out if o["event_type"] == "research_load_anomaly"]
     assert len(rla) == 1
     assert rla[0]["severity_hint"] == "warning"
-    assert rla[0]["metadata"]["mean_total_chars"] == 12000
+    assert rla[0]["metadata"]["mean_total_chars"] == 60000
 
 
 @pytest.mark.asyncio

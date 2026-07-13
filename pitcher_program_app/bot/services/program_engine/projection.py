@@ -140,6 +140,11 @@ def _classify_readiness(readiness: dict) -> str:
 
     flag_map = {
         "GREEN": "green",
+        # Triage's modified_green = "green with modifications applied". The
+        # explicit baseline is green; the inferred-severity rule below still
+        # upgrades to yellow/red when category scores or arm feel warrant it
+        # (exactly what happened 2026-07-13: WHOOP recovery 19 → yellow).
+        "MODIFIED_GREEN": "green",
         "YELLOW": "yellow",
         "RED": "red",
         "CRITICAL_RED": "critical_red",
@@ -157,8 +162,33 @@ def _classify_readiness(readiness: dict) -> str:
 # ─────────────────────────────────────────────────────────────────────────────
 
 
+def _trim_sets(day: Day, *, min_sets_to_trim: int, factor: float | None = None) -> None:
+    """Reduce lifting volume WITHOUT touching the session structure.
+
+    Ratified coaching philosophy (2026-07-13): "the team needs to get their
+    work — 20% recovery means fewer sets, not fewer exercises." Every block
+    and every exercise survives; only `sets` shrinks. With `factor` set,
+    sets scale by it (floor 1); otherwise exercises at/above
+    `min_sets_to_trim` lose exactly one set.
+    """
+    new_blocks = []
+    for block in day.lifting_blocks:
+        new_exs = []
+        for ex in block.exercises:
+            if factor is not None:
+                new_sets = max(1, int(ex.sets * factor + 0.5))
+            elif ex.sets >= min_sets_to_trim:
+                new_sets = ex.sets - 1
+            else:
+                new_sets = ex.sets
+            new_exs.append(ex.model_copy(update={"sets": new_sets}))
+        new_blocks.append(block.model_copy(update={"exercises": new_exs}))
+    day.lifting_blocks = new_blocks
+
+
 def _modulate_yellow(intended: Day) -> Day:
-    """YELLOW: drop intent 10pp, throws by 20%, drop one accessory lift.
+    """YELLOW: drop intent 10pp, throws by 20%; every lift keeps its
+    exercises — working sets ≥3 lose one set.
 
     Mutates the deep-copy `delivered` (caller's responsibility to pass a copy).
     Returns the SAME object for chaining clarity.
@@ -178,25 +208,17 @@ def _modulate_yellow(intended: Day) -> Day:
             "throw_count": new_throws,
             "intensity_pct": new_intent,
         })
-    # Drop one accessory: pop the last exercise off the last lifting block.
-    # A "block" needs ≥1 exercise per schema, so if there's exactly one, drop
-    # the whole block instead.
-    if delivered.lifting_blocks:
-        last_block = delivered.lifting_blocks[-1]
-        if len(last_block.exercises) > 1:
-            new_exercises = list(last_block.exercises[:-1])
-            delivered.lifting_blocks[-1] = last_block.model_copy(update={"exercises": new_exercises})
-        else:
-            delivered.lifting_blocks = list(delivered.lifting_blocks[:-1])
+    _trim_sets(delivered, min_sets_to_trim=3)
     return delivered
 
 
 def _modulate_red(intended: Day) -> Day:
-    """RED: recovery-only throwing (50% / 20 throws / 45ft); minimal lifting.
+    """RED: recovery-only throwing (50% / 20 throws / 45ft); lifting keeps
+    its full structure with sets scaled to ~60%.
 
-    Lifting: 1 compound + 2 accessories + 1 core (4 total exercises across 1
-    block). If there's already a lifting block, trim it; if not, leave empty
-    (recovery-mobility day).
+    The throwing clamp is arm protection and stays hard. The lift survives
+    intact per the ratified philosophy — same blocks, same exercises,
+    substantially less volume.
     """
     delivered = deepcopy(intended)
     if delivered.throwing_5tuple is not None:
@@ -215,11 +237,7 @@ def _modulate_red(intended: Day) -> Day:
             else RED_RECOVERY_INTENT_PCT
         )
 
-    if delivered.lifting_blocks:
-        # Keep first block but cap at 4 exercises; drop additional blocks
-        first = delivered.lifting_blocks[0]
-        trimmed = list(first.exercises[:4]) if len(first.exercises) > 4 else list(first.exercises)
-        delivered.lifting_blocks = [first.model_copy(update={"exercises": trimmed})]
+    _trim_sets(delivered, min_sets_to_trim=2, factor=0.6)
     return delivered
 
 

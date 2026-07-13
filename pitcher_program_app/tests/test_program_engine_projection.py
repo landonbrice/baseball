@@ -161,8 +161,11 @@ def test_yellow_inferred_from_low_tissue_alone(velocity_program):
     assert result.modulation["reason"] == "yellow"
 
 
-def test_yellow_drops_one_accessory(velocity_program):
-    """YELLOW should pop the last accessory off the last lifting block."""
+def test_yellow_keeps_structure_trims_sets(velocity_program):
+    """YELLOW keeps every exercise; working sets >=3 lose one set.
+
+    Volume-first philosophy ratified 2026-07-13: biometrics gate intensity,
+    the session structure survives."""
     day = _find_lifting_day(velocity_program, after_index=14)
     target = _date.fromisoformat(day.date)
     result = project(
@@ -173,7 +176,14 @@ def test_yellow_drops_one_accessory(velocity_program):
     )
     intended_total_ex = sum(len(b.exercises) for b in result.intended.lifting_blocks)
     delivered_total_ex = sum(len(b.exercises) for b in result.delivered.lifting_blocks)
-    assert delivered_total_ex == intended_total_ex - 1
+    assert delivered_total_ex == intended_total_ex  # nothing removed
+    intended_sets = sum(ex.sets for b in result.intended.lifting_blocks for ex in b.exercises)
+    delivered_sets = sum(ex.sets for b in result.delivered.lifting_blocks for ex in b.exercises)
+    assert delivered_sets < intended_sets  # volume down
+    # per-exercise: exactly one set less where sets >= 3, unchanged below
+    for ib, db in zip(result.intended.lifting_blocks, result.delivered.lifting_blocks):
+        for ie, de in zip(ib.exercises, db.exercises):
+            assert de.sets == (ie.sets - 1 if ie.sets >= 3 else ie.sets)
 
 
 def test_red_downgrades_to_recovery_throwing(velocity_program):

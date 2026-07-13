@@ -394,16 +394,43 @@ async def _run_probes() -> list[dict]:
         logger.error("app_health: /admin/health probe builder failed: %s", e, exc_info=True)
         observations.append(_build_collector_failure_observation(e, step="admin_health"))
 
-    # recent_errors_count — telemetry not yet wired.
+    # recent_errors_count — in-process ring handler (Sprint D; closes the
+    # gap that made the 2026-07-13 check-in failure diagnosable only by
+    # inference). Falls back to the honest not-wired note if the handler
+    # was never installed in this process.
     try:
-        observations.append(
-            _build_not_wired_observation(
-                "recent_errors_count",
-                "in_process_error_counter",
-                "app currently relies on stdout for unstructured errors",
+        from bot.services.system_guardian.error_telemetry import is_installed, recent_errors
+
+        if is_installed():
+            errs = recent_errors(minutes=60)
+            observations.append({
+                "observed_at": _now_iso(),
+                "source": _SOURCE,
+                "service": "api",
+                "event_type": "recent_errors_count",
+                "severity_hint": "warning" if errs else "info",
+                "surface": "api_route",
+                "route_or_job": "in_process_error_counter",
+                "message": (
+                    f"recent_errors_count: {len(errs)} ERROR records in last 60m"
+                    + (f" — latest: [{errs[-1]['logger']}] {errs[-1]['message'][:160]}" if errs else "")
+                ),
+                "metadata": {
+                    "category": "app_health",
+                    "code": "recent_errors_count",
+                    "count": len(errs),
+                    "samples": errs[-5:],
+                },
+            })
+        else:
+            observations.append(
+                _build_not_wired_observation(
+                    "recent_errors_count",
+                    "in_process_error_counter",
+                    "error_telemetry handler not installed in this process",
+                )
             )
-        )
-    except Exception as e:  # pragma: no cover — pure dict construction
+    except Exception as e:  # pragma: no cover
         observations.append(
             _build_collector_failure_observation(e, step="recent_errors_count")
         )

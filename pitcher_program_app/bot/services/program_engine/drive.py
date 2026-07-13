@@ -145,12 +145,16 @@ def _throwing_section(day: Day) -> Optional[dict]:
     return {
         "type": "program_throwing",
         "day_type": "program_throwing",
-        "day_label": day.day_focus or drill.title(),
+        "day_type_label": day.day_focus or drill.title(),
         "intent": f"{five.intensity_pct}%",
         "intensity_range": f"{five.intensity_pct}%",
         "distance_ft": five.distance_ft,
         "throw_count": five.throw_count,
-        "volume_summary": summary,
+        # DICT by legacy contract — checkin_service's session note,
+        # progression.py, and DailyCard all read .total_throws_estimate
+        # (2026-07-13 incident: a string here crashed every check-in
+        # post-persist with AttributeError on str.get).
+        "volume_summary": {"total_throws_estimate": five.throw_count, "text": summary},
         "phases": [
             {
                 "name": "Program throwing",
@@ -214,12 +218,28 @@ def _describe_changes(projected: ProjectedDay) -> list[str]:
     n_del = sum(len(b.exercises) for b in delivered.lifting_blocks)
     if n_del < n_int:
         changes.append(f"Lifting trimmed {n_int} → {n_del} exercises")
+    else:
+        # Volume-first modulation: exercises survive, sets shrink.
+        sets_int = sum(ex.sets for b in intended.lifting_blocks for ex in b.exercises)
+        sets_del = sum(ex.sets for b in delivered.lifting_blocks for ex in b.exercises)
+        if sets_del < sets_int:
+            changes.append(f"Lift volume {sets_int} → {sets_del} total sets (all exercises kept)")
     if delivered.is_rest and not intended.is_rest:
         changes.append("Full rest day (was a training day)")
     return changes
 
 
-def _morning_brief(day: Day, projected: ProjectedDay, program_row: dict) -> str:
+def _why(triage_result: dict) -> str:
+    """One-line reason for the modulation, straight from triage.
+
+    Ratified 2026-07-13: the proposal must lead with WHY (e.g. "WHOOP
+    recovery 19, HRV -51%") so the confirm/adjust call is informed.
+    """
+    reasoning = (triage_result or {}).get("reasoning") or ""
+    return reasoning.strip().rstrip(".")[:200]
+
+
+def _morning_brief(day: Day, projected: ProjectedDay, program_row: dict, triage_result: dict) -> str:
     cls = projected.modulation.get("reason", "green")
     week = day.day_index // 7 + 1
     base = f"Week {week}, day {day.day_index % 7 + 1} of your program"
@@ -232,7 +252,97 @@ def _morning_brief(day: Day, projected: ProjectedDay, program_row: dict) -> str:
         return base + " You're green — the day ships as written."
     changes = _describe_changes(projected)
     note = "; ".join(changes[:3]) if changes else "volume dialed back"
-    return base + f" Your check-in came back {cls.upper()}, so today is adjusted: {note}. Confirm or adjust below."
+    why = _why(triage_result)
+    why_part = f" ({why})" if why else ""
+    return base + f" Your check-in came back {cls.upper()}{why_part}, so today is adjusted: {note}. Confirm or adjust below."
+
+
+def _arm_care_rider(profile: dict, triage_result: dict, rotation_day: int) -> tuple[Optional[dict], list[dict]]:
+    """The legacy arm-care block rides along on every drive day (ratified
+    2026-07-13: authored programs prescribe lifting/throwing; daily arm care
+    is standing hygiene, not program content).
+
+    Reuses the curated templates + plyocare selection from plan_generator.
+    Returns (arm_care_section, arm_care_blocks). Never raises — a rider must
+    not take down the morning.
+    """
+    try:
+        from bot.services.plan_generator import (
+            _build_arm_care_blocks,
+            _select_plyocare,
+            load_template,
+        )
+
+        pa = (triage_result or {}).get("protocol_adjustments") or {}
+        # triage emits "light" | "heavy" (no "standard" template exists)
+        arm_care = load_template(f"arm_care_{pa.get('arm_care_template') or 'light'}.json")
+        plyocare = None
+        if pa.get("plyocare_allowed", True):
+            try:
+                plyocare = _select_plyocare(
+                    load_template("plyocare_routines.json"),
+                    rotation_day,
+                    (triage_result or {}).get("flag_level", "green"),
+                )
+            except FileNotFoundError:
+                pass
+        blocks = _build_arm_care_blocks(arm_care, plyocare)
+        return (blocks[0] if blocks else None), blocks
+    except Exception:
+        logger.warning("drive: arm-care rider failed, shipping without it", exc_info=True)
+        return None, []
+
+
+async def enrich_narrative_async(pitcher_id: str, target_date: _date, plan: dict, profile: dict, triage_result: dict) -> bool:
+    """Async LLM color on the deterministic brief — never blocking, never load-bearing.
+
+    The morning ships instantly with the deterministic brief; this detached
+    task upgrades `plan_narrative` with 2-3 sentences of coach color a
+    moment later. morning_brief and the proposal stay untouched (they carry
+    the confirm contract). Failure of any kind is silent.
+    """
+    try:
+        import asyncio
+
+        from bot.services.db import get_daily_entry, upsert_daily_entry
+        from bot.services.llm import call_llm
+
+        # Grace period so the check-in's own entry persist always lands first
+        # (the task is spawned before process_checkin writes the full entry).
+        await asyncio.sleep(5)
+
+        ep = plan.get("engine_projection") or {}
+        lifting = plan.get("lifting") or {}
+        ex_names = ", ".join(x.get("name", "") for x in (lifting.get("exercises") or [])[:6])
+        throwing = plan.get("throwing") or {}
+        vs = throwing.get("volume_summary")
+        throw_txt = (vs or {}).get("text") if isinstance(vs, dict) else (vs or "no throwing")
+        prompt = (
+            f"Pitcher: {profile.get('name', pitcher_id)}. Today (program day {ep.get('day_index', 0) + 1}, "
+            f"phase {ep.get('phase_name', '?')}): throwing {throw_txt}; lifting: {ex_names or 'none'}. "
+            f"Triage: {(triage_result or {}).get('reasoning', '')[:200]}. "
+            "Write 2-3 sentences of morning coaching color: what today accomplishes in the program arc "
+            "and one focus cue. Direct, specific, no fluff, no greetings."
+        )
+        raw = await asyncio.wait_for(
+            call_llm("You are a sharp pitching coach writing a morning note.", prompt, max_tokens=220),
+            timeout=30,
+        )
+        color = (raw or "").strip()
+        if not color:
+            return False
+        entry = get_daily_entry(pitcher_id, target_date.isoformat()) or {}
+        base = plan.get("morning_brief") or ""
+        entry["plan_narrative"] = f"{base}\n\n{color}" if base else color
+        pg = entry.get("plan_generated") or {}
+        pg["brief_enriched"] = True
+        entry["plan_generated"] = pg
+        upsert_daily_entry(pitcher_id, entry)
+        logger.info("drive_brief_enriched", extra={"pitcher_id": pitcher_id, "chars": len(color)})
+        return True
+    except Exception:
+        logger.info("drive: async brief enrichment skipped", exc_info=True)
+        return False
 
 
 def compose_drive_plan(
@@ -263,6 +373,9 @@ def compose_drive_plan(
     name_map = _exercise_name_map()
     lifting, exercise_blocks = _lifting_sections(delivered, name_map)
     throwing = _throwing_section(delivered)
+    arm_care, arm_care_blocks = _arm_care_rider(profile, triage_result, delivered.day_index % 7)
+    if arm_care_blocks:
+        exercise_blocks = arm_care_blocks + exercise_blocks
 
     # Warmup rides along from the legacy builder — deterministic, no LLM.
     warmup = None
@@ -273,7 +386,7 @@ def compose_drive_plan(
     except Exception:
         logger.warning("drive: warmup builder failed, shipping without warmup", exc_info=True)
 
-    brief = _morning_brief(delivered, projected, row)
+    brief = _morning_brief(delivered, projected, row, triage_result)
     changes = _describe_changes(projected) if modulated else []
 
     proposal = None
@@ -283,6 +396,7 @@ def compose_drive_plan(
             "auto_accept": True,
             "readiness_class": projected.modulation.get("reason"),
             "changes": changes,
+            "why": _why(triage_result),
         }
 
     if projected.governor_signal:
@@ -307,7 +421,7 @@ def compose_drive_plan(
         "throwing": throwing,
         "lifting": lifting,
         "exercise_blocks": exercise_blocks,
-        "arm_care": None,
+        "arm_care": arm_care,
         "notes": changes,
         "modifications_applied": list((triage_result or {}).get("modification_flags") or []),
         "proposal": proposal,

@@ -1026,6 +1026,17 @@ def _schedule_jobs(application: Application) -> None:
     )
     logger.info("Scheduled hourly Guardian shakedown expiry check")
 
+    # In-process error telemetry (Sprint D) — ring handler on the root
+    # logger so app_health's recent_errors_count reports real ERROR records
+    # instead of the "not wired" note. Idempotent, never raises.
+    try:
+        from bot.services.system_guardian.error_telemetry import install_error_telemetry
+
+        install_error_telemetry()
+        logger.info("Installed in-process error telemetry ring handler")
+    except Exception:
+        logger.warning("error telemetry install failed", exc_info=True)
+
     # System Guardian periodic tick — every 15 minutes (PR-6 / A1). Runs all
     # three Phase 1 collectors in parallel under a 30s wallclock budget, with
     # belt-and-suspenders 5s per-collector ceilings. Tracks consecutive
