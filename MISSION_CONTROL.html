@@ -37,36 +37,36 @@
 {
   "meta": {
     "project": "Pitcher Training Intelligence",
-    "team": "Chicago · Pitching Staff",
-    "north_star": "An app that authors a genuinely individualized multi-week PROGRAM (team or individual goal, full player context) and projects each DAY out of it — throwing, lifting, mobility — via research-based LLM calls blended with authored deterministic pathways. Landon's #1 goal right now: RETURN TO PLAY HEALTHY (not velocity). Summer 2026 = development phase; Sept–Oct = team onboarding + fully running.",
+    "team": "Chicago \u00b7 Pitching Staff",
+    "north_star": "An app that authors a genuinely individualized multi-week PROGRAM (team or individual goal, full player context) and projects each DAY out of it \u2014 throwing, lifting, mobility \u2014 via research-based LLM calls blended with authored deterministic pathways. Landon's #1 goal right now: RETURN TO PLAY HEALTHY (not velocity). Summer 2026 = development phase; Sept\u2013Oct = team onboarding + fully running.",
     "updated": "2026-07-13",
-    "updated_by": "Claude (Fable) — PM session"
+    "updated_by": "Claude (Fable)"
   },
   "scoreboard": [
     {
       "label": "Frontier",
       "value": "Engine live run",
-      "sub": "everything staged — blocked ONLY on env network policy"
+      "sub": "everything staged \u2014 blocked ONLY on env network policy"
     },
     {
       "label": "Open PRs",
       "value": "3",
-      "sub": "#37 carries engine+sprints (supersedes #34) · #33 · #36"
+      "sub": "#37 carries engine+sprints (supersedes #34) \u00b7 #33 \u00b7 #36"
     },
     {
       "label": "Sprint A",
       "value": "6/7",
-      "sub": "done offline · live-LLM run awaits network allow-list"
+      "sub": "done offline \u00b7 live-LLM run awaits network allow-list"
     },
     {
       "label": "Backend tests",
-      "value": "1,085 ✓",
-      "sub": "2026-07-13 · +206 from engine merge + sprint fixes"
+      "value": "1,085 \u2713",
+      "sub": "2026-07-13 \u00b7 +206 from engine merge + sprint fixes"
     },
     {
       "label": "Sprint B core",
-      "value": "−1,112",
-      "sub": "lines of slop deleted · legacy engine gone"
+      "value": "\u22121,112",
+      "sub": "lines of slop deleted \u00b7 legacy engine gone"
     }
   ],
   "workstreams": [
@@ -74,24 +74,24 @@
       "id": "engine",
       "name": "Program Engine v1 (the frontier)",
       "status": "active",
-      "pct": 90,
+      "pct": 93,
       "summary": "Sprint A executed 07-13 on PR #37 (which merged in and supersedes #34): ACWR fixture recalibrated from the REAL recovered data (wks 10-11 corrected), RED-day projection inversion fixed + regression-tested, RTP knowledge pack authored (doc + return_to_mound_9wk_v1 seed), demo goal-dispatched with return_to_play default, verified end-to-end in mocked mode.",
-      "next": "ONE step left: the live-LLM run. Blocked solely on the env network policy (proxy 403s api.deepseek.com + supabase.co). Allow-list both domains, then run per docs/runbooks/program_engine_live_run.md; also seed the RTP template and run the saved_plans audit while connected."
+      "next": "Run #10 in flight: first run where attempts reached guardrails. Then: authored-program accept, viewer refresh, PR #38 merge."
     },
     {
       "id": "builder",
       "name": "Program Builder v1 (shipped shell)",
       "status": "shipped",
       "pct": 97,
-      "summary": "Plans 1-8 shipped. Sprint B (07-13) deleted the legacy v0 engine that still ran per check-in (programs.py + 330-line dead route block), wired the morning_brief helper, removed 8 orphaned frontend files, fixed test_coach_chat isolation — and fixed a real bug: ProgramDetail had shown 'Program not found' for every new program since Plan 6; now renders real schedules via new GET /api/programs/{id}.",
-      "next": "When network opens: run verify_saved_plans_deprecated.py → hard-drop saved_plans + orphan tables (migration ready to write); verify the D2 canary retroactively."
+      "summary": "Plans 1-8 shipped. Sprint B (07-13) deleted the legacy v0 engine that still ran per check-in (programs.py + 330-line dead route block), wired the morning_brief helper, removed 8 orphaned frontend files, fixed test_coach_chat isolation \u2014 and fixed a real bug: ProgramDetail had shown 'Program not found' for every new program since Plan 6; now renders real schedules via new GET /api/programs/{id}.",
+      "next": "When network opens: run verify_saved_plans_deprecated.py \u2192 hard-drop saved_plans + orphan tables (migration ready to write); verify the D2 canary retroactively."
     },
     {
       "id": "frontend",
       "name": "Frontend / design system",
       "status": "paused",
       "pct": 40,
-      "summary": "Coach-app editorial redesign (Specs 1–3) shipped. PR #33 starts the @cue/ui shared-package split (Phase 0.1) so mini-app + coach-app stop duplicating tokens/components.",
+      "summary": "Coach-app editorial redesign (Specs 1\u20133) shipped. PR #33 starts the @cue/ui shared-package split (Phase 0.1) so mini-app + coach-app stop duplicating tokens/components.",
       "next": "Decide: merge or park PR #33. If the Engine demo needs UI, reuse existing BuilderSlideOver contracts instead of blocking on the package split."
     },
     {
@@ -108,14 +108,14 @@
       "status": "shipped",
       "pct": 70,
       "summary": "System Guardian V1 live (collectors, incidents, admin routes, digest). Full public-schema RLS lockdown done across 3 migration waves.",
-      "next": "WHOOP token rotation (Kamat/Kwinter/Richert — outstanding since Apr 30). Guardian Phase 2 (Railway + Supabase mgmt collectors) when env tokens are added."
+      "next": "WHOOP token rotation (Kamat/Kwinter/Richert \u2014 outstanding since Apr 30). Guardian Phase 2 (Railway + Supabase mgmt collectors) when env tokens are added."
     },
     {
       "id": "knowledge",
       "name": "Knowledge & research content",
       "status": "active",
       "pct": 85,
-      "summary": "12 resolver-ready frontmatter docs + 159-exercise library live. GOLDEN DATA RECOVERED 07-12: both crown-jewel macrocycles (return-to-mound 8wk, ramp-up 12wk) pulled from Drive into data/knowledge/golden_programs/ — the repo copies had been broken macOS aliases all along. PR #36 adds a high-quality mechanics/drill research pack (mergeable, content-only).",
+      "summary": "12 resolver-ready frontmatter docs + 159-exercise library live. GOLDEN DATA RECOVERED 07-12: both crown-jewel macrocycles (return-to-mound 8wk, ramp-up 12wk) pulled from Drive into data/knowledge/golden_programs/ \u2014 the repo copies had been broken macOS aliases all along. PR #36 adds a high-quality mechanics/drill research pack (mergeable, content-only).",
       "next": "Seed return_to_mound_9wk_v1 into block_library when network opens (scripts/seed_rtp_knowledge_pack.py); merge PR #36 with frontmatter/placement so the resolver can pull it."
     }
   ],
@@ -143,17 +143,17 @@
     },
     {
       "date": "2026-06-03",
-      "title": "Engine v1 phases 0–5 implemented (PR #34)",
+      "title": "Engine v1 phases 0\u20135 implemented (PR #34)",
       "workstream": "engine",
       "status": "done",
-      "detail": "Schemas, load math, structural+content invariants, guardrail orchestrator, fallback, author, projection ×3 policies, governor, resolver extension, migrations 033/034, ~199 tests. Feature-flag off."
+      "detail": "Schemas, load math, structural+content invariants, guardrail orchestrator, fallback, author, projection \u00d73 policies, governor, resolver extension, migrations 033/034, ~199 tests. Feature-flag off."
     },
     {
       "date": "TBD",
       "title": "Engine v1: LIVE-LLM demo on landon_brice",
       "workstream": "engine",
       "status": "active",
-      "detail": "The unproven thesis: author_program() has never hit a real model — demo so far ran the deterministic fallback. Run scripts/demo_program_engine_v1 with real keys; then edit-a-doc→regenerate and dead-arm projection proofs."
+      "detail": "The unproven thesis: author_program() has never hit a real model \u2014 demo so far ran the deterministic fallback. Run scripts/demo_program_engine_v1 with real keys; then edit-a-doc\u2192regenerate and dead-arm projection proofs."
     },
     {
       "date": "TBD",
@@ -181,18 +181,18 @@
       "title": "Program Engine design spec approved (Rev 3)",
       "workstream": "engine",
       "status": "done",
-      "detail": "LLM-forward + guardrails + living knowledge; reconciled with shipped Builder — replace the core, reuse the shell. PR #35 merged."
+      "detail": "LLM-forward + guardrails + living knowledge; reconciled with shipped Builder \u2014 replace the core, reuse the shell. PR #35 merged."
     },
     {
       "date": "2026-05-16",
-      "title": "Program Builder v1 complete (Plans 1–8)",
+      "title": "Program Builder v1 complete (Plans 1\u20138)",
       "workstream": "builder",
       "status": "done",
       "detail": "Tagged program-builder-v1-complete; Plan 8 cleanup + full-roster rollout merged (PR #31)."
     },
     {
       "date": "2026-05-13",
-      "title": "System Guardian V1 shipped (PRs #15–#21)",
+      "title": "System Guardian V1 shipped (PRs #15\u2013#21)",
       "workstream": "ops",
       "status": "done",
       "detail": "Self-monitoring observability: collectors, incident clustering, admin surface, 9am digest integration."
@@ -202,7 +202,7 @@
       "title": "Security lockdown wave (RLS + WHOOP)",
       "workstream": "ops",
       "status": "done",
-      "detail": "Migrations 010/011/012/017/018 — full public-schema RLS lockdown. Token rotation still outstanding."
+      "detail": "Migrations 010/011/012/017/018 \u2014 full public-schema RLS lockdown. Token rotation still outstanding."
     },
     {
       "date": "2026-04-21",
@@ -213,7 +213,7 @@
     },
     {
       "date": "2026-04-21",
-      "title": "Coach dashboard editorial redesign (Specs 1–3)",
+      "title": "Coach dashboard editorial redesign (Specs 1\u20133)",
       "workstream": "frontend",
       "status": "done",
       "detail": "Brand shell, Team Overview triage feed, secondary pages, nudge endpoint."
@@ -233,7 +233,7 @@
     {
       "sev": "high",
       "title": "Program-path canary never verified",
-      "detail": "Plan 8's tag was gated on a 7-day ≥80% canary window post-May-16. Nobody checked. Read the 9am digest history / daily_entries plan_generated.source before building on top."
+      "detail": "Plan 8's tag was gated on a 7-day \u226580% canary window post-May-16. Nobody checked. Read the 9am digest history / daily_entries plan_generated.source before building on top."
     },
     {
       "sev": "med",
@@ -243,12 +243,12 @@
     {
       "sev": "med",
       "title": "PR #33 quietly rewired the live mini-app",
-      "detail": "Beyond the additive @cue/ui package, it already did the React 19 / Tailwind 4 / Vite 8 convergence and MSW mocks — phases its own roadmap doc marks 'todo/high-risk'. Review as a stack migration, not a scaffold."
+      "detail": "Beyond the additive @cue/ui package, it already did the React 19 / Tailwind 4 / Vite 8 convergence and MSW mocks \u2014 phases its own roadmap doc marks 'todo/high-risk'. Review as a stack migration, not a scaffold."
     },
     {
       "sev": "med",
       "title": "Two program systems coexist during Engine build",
-      "detail": "Builder's rotation-repeat core is live for 12 pitchers while the Engine replaces it behind PROGRAM_ENGINE_V1=False. Guard generated_schedule_json shape compatibility (spec §14 constraint 2)."
+      "detail": "Builder's rotation-repeat core is live for 12 pitchers while the Engine replaces it behind PROGRAM_ENGINE_V1=False. Guard generated_schedule_json shape compatibility (spec \u00a714 constraint 2)."
     },
     {
       "sev": "low",
@@ -264,15 +264,15 @@
   "decisions": [
     {
       "date": "2026-07-13",
-      "what": "BACKEND GRILL (Landon): (1) live-LLM run unblocked by adding DEEPSEEK_API_KEY + SUPABASE_URL + SUPABASE_SERVICE_KEY to the Claude cloud env — Claude runs it autonomously; (2) DeepSeek stays the author model until real output says otherwise; (3) Sprint B cleanup = FULL (dead tables drop after audit); (4) robustness aims at plan quality, check-in latency, and stored-state trust — not silent breakage."
+      "what": "BACKEND GRILL (Landon): (1) live-LLM run unblocked by adding DEEPSEEK_API_KEY + SUPABASE_URL + SUPABASE_SERVICE_KEY to the Claude cloud env \u2014 Claude runs it autonomously; (2) DeepSeek stays the author model until real output says otherwise; (3) Sprint B cleanup = FULL (dead tables drop after audit); (4) robustness aims at plan quality, check-in latency, and stored-state trust \u2014 not silent breakage."
     },
     {
       "date": "2026-07-13",
-      "what": "PROJECT_VISION.md rewritten as the light agent brief (goals + constitution + problems + distilled conventions); stale March version superseded. Read order for agents: PROJECT_VISION.md → CLAUDE.md → MISSION_CONTROL.html."
+      "what": "PROJECT_VISION.md rewritten as the light agent brief (goals + constitution + problems + distilled conventions); stale March version superseded. Read order for agents: PROJECT_VISION.md \u2192 CLAUDE.md \u2192 MISSION_CONTROL.html."
     },
     {
       "date": "2026-07-13",
-      "what": "THE DRIVE decided (Landon): Option 3 — propose-and-confirm. A bad-readiness day shrinks today deterministically; the system PROPOSES the program reschedule and the player confirms. Hardens toward auto-re-pace with coach visibility at fall onboarding. Intricacies deferred to Sprint C."
+      "what": "THE DRIVE decided (Landon): Option 3 \u2014 propose-and-confirm. A bad-readiness day shrinks today deterministically; the system PROPOSES the program reschedule and the player confirms. Hardens toward auto-re-pace with coach visibility at fall onboarding. Intricacies deferred to Sprint C."
     },
     {
       "date": "2026-07-13",
@@ -280,7 +280,7 @@
     },
     {
       "date": "2026-07-13",
-      "what": "TIMELINE (Landon): summer = development phase (Landon is the only daily user; engine remains demo-grade). September–October = team onboarding + system fully running. All fall-facing work is sequenced against that."
+      "what": "TIMELINE (Landon): summer = development phase (Landon is the only daily user; engine remains demo-grade). September\u2013October = team onboarding + system fully running. All fall-facing work is sequenced against that."
     },
     {
       "date": "2026-07-13",
@@ -292,7 +292,7 @@
     },
     {
       "date": "2026-06-01",
-      "what": "Engine strategy: NOT greenfield — replace program_generator's generation core in place; reuse funnel/lifecycle/projection/flag/UI; persist on `programs` table."
+      "what": "Engine strategy: NOT greenfield \u2014 replace program_generator's generation core in place; reuse funnel/lifecycle/projection/flag/UI; persist on `programs` table."
     },
     {
       "date": "2026-05-31",
@@ -300,10 +300,15 @@
     },
     {
       "date": "2026-05-31",
-      "what": "OPEN #1 'the drive' (projection/override/re-pacing policy) deliberately deferred — build project() as a tested seam, decide policy with fresh thought."
+      "what": "OPEN #1 'the drive' (projection/override/re-pacing policy) deliberately deferred \u2014 build project() as a tested seam, decide policy with fresh thought."
     }
   ],
   "log": [
+    {
+      "date": "2026-07-13",
+      "agent": "Claude (Fable)",
+      "summary": "Live runs #8-#9: guardrail false-fatals fixed (real exercise ctx, tagged menu, warning tolerance), un-nester + repair budget 24. HTML program viewer artifact published. Run #10 in flight on PR #38."
+    },
     {
       "date": "2026-07-13",
       "agent": "Claude (Fable)",
@@ -322,17 +327,17 @@
     {
       "date": "2026-07-13",
       "agent": "Claude (Fable)",
-      "summary": "Landon: goal pivot to return-to-play; fall onboarding timeline; rework slop before features. Sprint queue A–D primed (docs/sprints/)."
+      "summary": "Landon: goal pivot to return-to-play; fall onboarding timeline; rework slop before features. Sprint queue A\u2013D primed (docs/sprints/)."
     },
     {
       "date": "2026-07-12",
       "agent": "Claude (Fable)",
-      "summary": "Recovered both golden macrocycles from Drive → data/knowledge/golden_programs/ (CSV + repaired xlsx, checksum-verified)."
+      "summary": "Recovered both golden macrocycles from Drive \u2192 data/knowledge/golden_programs/ (CSV + repaired xlsx, checksum-verified)."
     },
     {
       "date": "2026-07-12",
       "agent": "Claude (Fable)",
-      "summary": "4-agent survey: PR #34 engine ≈95% built (LLM path unproven); 880 tests green; legacy programs.py found live; frontend dead-code map."
+      "summary": "4-agent survey: PR #34 engine \u224895% built (LLM path unproven); 880 tests green; legacy programs.py found live; frontend dead-code map."
     },
     {
       "date": "2026-07-12",
