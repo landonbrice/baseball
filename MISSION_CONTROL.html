@@ -38,9 +38,9 @@
   "meta": {
     "project": "Pitcher Training Intelligence",
     "team": "Chicago · Pitching Staff",
-    "north_star": "A brilliant-coach intelligence that authors genuinely individualized multi-week programs — the program is the artifact, the day is a projection of it — on the hardened bot + API + two-app substrate already in production.",
-    "updated": "2026-07-12",
-    "updated_by": "Claude (Fable) — orientation session"
+    "north_star": "An app that authors a genuinely individualized multi-week PROGRAM (team or individual goal, full player context) and projects each DAY out of it — throwing, lifting, mobility — via research-based LLM calls blended with authored deterministic pathways. Landon's #1 goal right now: RETURN TO PLAY HEALTHY (not velocity). Summer 2026 = development phase; Sept–Oct = team onboarding + fully running.",
+    "updated": "2026-07-13",
+    "updated_by": "Claude (Fable) — PM session"
   },
   "scoreboard": [
     { "label": "Frontier", "value": "Program Engine v1", "sub": "≈95% code-complete on PR #34 · LLM path unproven" },
@@ -56,7 +56,7 @@
       "status": "active",
       "pct": 80,
       "summary": "LLM-forward authoring + deterministic guardrails + living knowledge, replacing the Builder's generation core in place. PR #34 is a full implementation (12 modules, ~199 tests, phases 0–5 done, off-by-default flag) — but the LLM authoring path has only ever run through the mocked/fallback route.",
-      "next": "Run the live-LLM demo (needs DEEPSEEK_API_KEY + Supabase env), recalibrate load-math against the newly recovered golden CSVs, fix the RED-day projection inversion bug, finish Phase 6 (runbook/tag), then merge #34."
+      "next": "Sprint A: re-aim the knowledge pack at return-to-play (goal pivot 07-13), run the live-LLM demo on Landon's real RTP context, recalibrate load-math against the recovered golden CSVs, fix the RED-day projection inversion bug, Phase 6 close-out, merge #34."
     },
     {
       "id": "builder",
@@ -96,7 +96,7 @@
       "status": "active",
       "pct": 70,
       "summary": "12 resolver-ready frontmatter docs + 159-exercise library live. GOLDEN DATA RECOVERED 07-12: both crown-jewel macrocycles (return-to-mound 8wk, ramp-up 12wk) pulled from Drive into data/knowledge/golden_programs/ — the repo copies had been broken macOS aliases all along. PR #36 adds a high-quality mechanics/drill research pack (mergeable, content-only).",
-      "next": "Recalibrate the engine's ACWR golden-curve fixture against the real day-by-day data (it was seeded from a transcript); merge PR #36 and decide frontmatter/placement so the resolver can pull it."
+      "next": "Author the return-to-play knowledge pack from golden_return_to_mound_8wk.csv (the goal pivot makes this THE v1 pack; velocity pack demoted to second). Merge PR #36 with frontmatter/placement so the resolver can pull it."
     }
   ],
   "milestones": [
@@ -125,12 +125,16 @@
     { "sev": "low", "title": "Repo bloat / dead frontend code", "detail": "6 orphaned mini-app components (~380 lines), 2 orphaned coach-app files, 386 hardcoded hex colors in mini-app, dead _unwrap_morning_brief helper, api/routes.py at 3,062 lines." }
   ],
   "decisions": [
+    { "date": "2026-07-13", "what": "GOAL PIVOT (Landon): v1 target goal is return-to-play-healthy, not velocity. The engine stays goal-agnostic; the first knowledge pack is the return-to-mound arc (golden 8wk program is exactly this)." },
+    { "date": "2026-07-13", "what": "TIMELINE (Landon): summer = development phase (Landon is the only daily user; engine remains demo-grade). September–October = team onboarding + system fully running. All fall-facing work is sequenced against that." },
+    { "date": "2026-07-13", "what": "PROCESS (Landon): understand and rework the slop (three coexisting generation pipelines) BEFORE sprinting on new features. Sprint queue primed in docs/sprints/2026-07-sprint-queue.md; no sprint starts without Landon's go." },
     { "date": "2026-07-12", "what": "Mission Control (this file) is the canonical cross-agent status surface; every agent updates the JSON island after meaningful work." },
     { "date": "2026-06-01", "what": "Engine strategy: NOT greenfield — replace program_generator's generation core in place; reuse funnel/lifecycle/projection/flag/UI; persist on `programs` table." },
     { "date": "2026-05-31", "what": "Architecture: LLM-forward generation + deterministic content-independent guardrails + living editable knowledge. Program is the primary artifact; day is a projection." },
     { "date": "2026-05-31", "what": "OPEN #1 'the drive' (projection/override/re-pacing policy) deliberately deferred — build project() as a tested seam, decide policy with fresh thought." }
   ],
   "log": [
+    { "date": "2026-07-13", "agent": "Claude (Fable)", "summary": "Landon: goal pivot to return-to-play; fall onboarding timeline; rework slop before features. Sprint queue A–D primed (docs/sprints/)." },
     { "date": "2026-07-12", "agent": "Claude (Fable)", "summary": "Recovered both golden macrocycles from Drive → data/knowledge/golden_programs/ (CSV + repaired xlsx, checksum-verified)." },
     { "date": "2026-07-12", "agent": "Claude (Fable)", "summary": "4-agent survey: PR #34 engine ≈95% built (LLM path unproven); 880 tests green; legacy programs.py found live; frontend dead-code map." },
     { "date": "2026-07-12", "agent": "Claude (Fable)", "summary": "Re-orientation scrape: read spec Rev 3 + handoff, audited 3 open PRs + branches, stood up Mission Control." }
