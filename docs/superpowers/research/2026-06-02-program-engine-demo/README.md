@@ -6,7 +6,7 @@ _Generated 2026-06-02 against `landon_brice`._
 
 - **LLM**: `live`
 - **block_library**: `live`
-- **persist mode**: `dry-run`
+- **persist mode**: `on`
 
 ## What this demonstrates
 
@@ -38,4 +38,4 @@ _Generated 2026-06-02 against `landon_brice`._
 - ✅ knowledge_version SHA-1 changes when the source doc is edited (living-knowledge proof).
 - ✅ Drive seam modulates throwing on YELLOW/RED days without breaking the program.
 
-_Dry-run only — no `programs` row was written. Re-run with `--persist` to commit one._
+_A `programs` row was written (see top-of-script return value)._
