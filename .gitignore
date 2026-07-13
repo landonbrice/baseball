@@ -14,3 +14,11 @@ Highlights/*.mpeg
 Highlights/*.MPEG
 .superpowers/
 pitcher_program_app/scripts/.plan_gen_baseline.json
+
+# Dev artifacts / build output (see CLAUDE.md Known Issues — repo bloat)
+graphify-out/
+__pycache__/
+*.pyc
+node_modules/
+.venv/
+venv/

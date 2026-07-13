@@ -14,6 +14,32 @@ from bot.services.day_focus import derive_day_focus
 logger = logging.getLogger(__name__)
 
 
+def _unwrap_morning_brief(raw) -> str:
+    """Single coercion point for morning_brief dict-or-string extraction.
+
+    ``morning_brief`` shows up in two shapes across the codebase: a plain
+    string, or a dict/JSON-string envelope like ``{"coaching_note": "..."}``
+    (see ``checkin_service.normalize_brief`` and
+    ``bot/prompts/plan_generation_structured.md``). This is the single place
+    that unwraps either shape down to plain text — every other call site
+    that used to hand-roll an ``isinstance(raw, dict)`` check should call
+    this instead. Callers that may receive a JSON-*string* envelope (rather
+    than an already-parsed dict) should ``json.loads`` it first; this helper
+    does not attempt JSON parsing itself.
+    """
+    if raw is None:
+        return ""
+    if isinstance(raw, str):
+        return raw
+    if isinstance(raw, dict):
+        for k in ("coaching_note", "text", "brief", "body", "content", "message"):
+            if raw.get(k):
+                value = raw[k]
+                return value if isinstance(value, str) else str(value)
+        return ""
+    return str(raw)
+
+
 def load_template(filename: str) -> dict:
     """Load a JSON template from the templates directory."""
     path = os.path.join(TEMPLATES_DIR, filename)
@@ -420,7 +446,7 @@ async def generate_plan(
             # Structured plan parsed successfully
             from bot.services.checkin_service import normalize_brief
             raw_brief = plan.get("morning_brief", "")
-            narrative = raw_brief.get("coaching_note", "") if isinstance(raw_brief, dict) else str(raw_brief or "")
+            narrative = _unwrap_morning_brief(raw_brief)
             morning_brief = normalize_brief(raw_brief)
             arm_care_data = plan.get("arm_care") or {}
             lifting_data = plan.get("lifting") or {}

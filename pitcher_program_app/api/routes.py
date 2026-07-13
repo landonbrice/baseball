@@ -19,7 +19,7 @@ from bot.services.context_manager import (
 from bot.services.db import get_daily_entries
 from bot.services import db as _db
 from bot.services.progression import analyze_progression
-from bot.services.plan_generator import get_upcoming_days
+from bot.services.plan_generator import get_upcoming_days, _unwrap_morning_brief
 from bot.services.checkin_service import process_checkin, normalize_brief
 from bot.services.team_daily_status import get_team_daily_status, to_staff_pulse
 from bot.services.outing_service import process_outing
@@ -705,16 +705,12 @@ async def post_chat(pitcher_id: str, request: Request):
                 narrative = result.get("plan_narrative") or ""
                 if not narrative:
                     raw_brief = result.get("morning_brief")
-                    if isinstance(raw_brief, dict):
-                        narrative = raw_brief.get("coaching_note", "") or ""
-                    elif isinstance(raw_brief, str) and raw_brief:
+                    if isinstance(raw_brief, str) and raw_brief:
                         try:
-                            parsed = json.loads(raw_brief)
-                            if isinstance(parsed, dict):
-                                narrative = parsed.get("coaching_note", "") or ""
+                            raw_brief = json.loads(raw_brief)
                         except (json.JSONDecodeError, ValueError):
-                            narrative = raw_brief  # legacy plain-string brief
-                narrative = str(narrative) if narrative else ""
+                            pass  # legacy plain-string brief — passed through as-is below
+                    narrative = _unwrap_morning_brief(raw_brief)
                 if narrative:
                     messages.append({"type": "text", "content": narrative})
 
@@ -2208,335 +2204,12 @@ async def whoop_callback(code: str = Query(...), state: str = Query(...)):
         raise HTTPException(status_code=500, detail="Failed to connect WHOOP. Try again.")
 
 
-# === Programs tab endpoint (Task 5.1) ===
+# === Scheduled-throw endpoints ===
 
-from bot.services import programs as programs_svc
 from bot.services.weekly_model import (
     add_scheduled_throw,
     remove_scheduled_throw,
-    update_phase_state,
 )
-
-
-def _build_week_arc(pitcher_id: str, program: dict, training_model: dict) -> dict:
-    """Build the week arc payload for a pitcher's active program.
-
-    Window anchoring (per spec):
-      - starter: [last_outing_date, last_outing_date + rotation_length - 1]
-      - reliever: [last_appearance_date, last_appearance_date + 6]
-      - new pitcher (no last outing): current calendar week (Sun-Sat, Chicago tz)
-
-    Rotation_day for today is sourced from training_model.days_since_outing (canonical,
-    controlled by check-in flow) rather than recomputed from (today - last_outing_date).days,
-    which can drift when last_outing_date is stale. The window_start is back-derived so that
-    today lands on the correct rotation_day offset.
-    """
-    from bot.services import db as _db
-
-    template = _db.get_program_template(program["template_id"])
-    role = (template or {}).get("role", "starter")
-    rotation_length = (template or {}).get("rotation_length", 7)
-
-    last_outing = training_model.get("last_outing_date")
-    today_chicago = datetime.now(CHICAGO_TZ).date()
-
-    if last_outing:
-        anchor_date = date.fromisoformat(last_outing) if isinstance(last_outing, str) else last_outing
-
-        # Use days_since_outing as canonical rotation_day for today (matches /upcoming).
-        # Back-derive window_start so the displayed arc aligns with check-in state.
-        days_since = training_model.get("days_since_outing")
-        if days_since is not None:
-            # today = window_start + days_since  →  window_start = today - days_since
-            window_start = today_chicago - timedelta(days=int(days_since))
-        else:
-            window_start = anchor_date
-
-        window_end = window_start + timedelta(days=rotation_length - 1 if role == "starter" else 6)
-        anchor_type = "calendar" if role == "starter" else "appearance"
-    else:
-        # Calendar fallback: Sunday → Saturday containing today
-        window_start = today_chicago - timedelta(days=(today_chicago.weekday() + 1) % 7)
-        window_end = window_start + timedelta(days=6)
-        anchor_type = "calendar"
-
-    state = training_model.get("current_week_state") or {}
-    scheduled_throws = state.get("scheduled_throws") or []
-    throws_by_date = {t["date"]: t for t in scheduled_throws}
-
-    days = []
-    for offset in range((window_end - window_start).days + 1):
-        d = window_start + timedelta(days=offset)
-        rotation_day = (d - window_start).days  # 0-indexed; day 0 = anchor (outing day)
-        is_today = d == today_chicago
-        is_past = d < today_chicago
-        scheduled = throws_by_date.get(d.isoformat())
-
-        emoji, label = _day_emoji_and_label(rotation_day, scheduled, is_anchor=(offset == 0))
-        state_key = "outing" if offset == 0 else ("today" if is_today else ("done" if is_past else "upcoming"))
-
-        days.append({
-            "date": d.isoformat(),
-            "day_label": d.strftime("%a").upper(),
-            "rotation_day": rotation_day,
-            "state": state_key,
-            "emoji": emoji,
-            "label": label,
-            "logged": bool(scheduled and scheduled.get("source") in ("chat", "button")),
-            "has_game": False,  # filled in by schedule overlay
-        })
-
-    return {"anchor_type": anchor_type, "days": days}
-
-
-def _day_emoji_and_label(rotation_day: int, scheduled: dict | None, *, is_anchor: bool) -> tuple[str, str]:
-    """Pick the bubble emoji + label for a day."""
-    if is_anchor:
-        return ("⚾", "Start")
-    if scheduled:
-        type_to_emoji = {"bullpen": "🎯", "side": "🎯", "long_toss": "🎯", "catch": "🧢", "game": "⚾"}
-        type_to_label = {"bullpen": "Bullpen", "side": "Side", "long_toss": "Long toss", "catch": "Catch", "game": "Game"}
-        return (type_to_emoji.get(scheduled["type"], "🎯"), type_to_label.get(scheduled["type"], "Throw"))
-    rotation_emoji = {1: "🛁", 2: "🏋️", 3: "🎯", 4: "🏋️", 5: "🎯", 6: "💪"}
-    rotation_label = {1: "Recovery", 2: "Heavy lift", 3: "Bullpen", 4: "Strength", 5: "Side", 6: "Prep"}
-    return (rotation_emoji.get(rotation_day, "·"), rotation_label.get(rotation_day, ""))
-
-
-def _overlay_schedule_on_arc(arc: dict, schedule: list[dict]) -> None:
-    """Mutate arc.days[*].has_game based on schedule entries."""
-    game_dates = {g["date"] for g in schedule}
-    for day in arc["days"]:
-        if day["date"] in game_dates:
-            day["has_game"] = True
-
-
-def _fetch_schedule_for_window(start_iso: str, end_iso: str, pitcher_id: str) -> list[dict]:
-    """Read UChicago games in the window from the schedule table."""
-    from bot.services import db as _db
-
-    try:
-        resp = (
-            _db.get_client()
-            .table("schedule")
-            .select("*")
-            .gte("game_date", start_iso)
-            .lte("game_date", end_iso)
-            .order("game_date")
-            .execute()
-        )
-    except Exception:
-        return []
-    games = resp.data or []
-    return [
-        {
-            "date": g["game_date"],
-            "opponent": g.get("opponent", "TBD"),
-            "home": g.get("home_away") == "home",
-            "time": g.get("start_time"),
-            "result": g.get("result"),
-            "doubleheader": g.get("is_doubleheader", False),
-            "is_your_start": False,
-        }
-        for g in games
-    ]
-
-
-def _build_today_detail(arc: dict, training_model: dict, pitcher_id: str = None) -> dict | None:
-    today_day = next((d for d in arc["days"] if d["state"] == "today"), None)
-    if not today_day:
-        return None
-
-    pills = []
-    subtitle = ""
-
-    if pitcher_id:
-        try:
-            from bot.services import db as _db
-            today_str = datetime.now(CHICAGO_TZ).strftime("%Y-%m-%d")
-            resp = (
-                _db.get_client()
-                .table("daily_entries")
-                .select("plan_generated, pre_training")
-                .eq("pitcher_id", pitcher_id)
-                .eq("date", today_str)
-                .execute()
-            )
-            if resp.data:
-                plan = (resp.data[0].get("plan_generated") or {})
-
-                # --- Arm care pill: first exercise_block whose block_name starts with "Arm Care"
-                blocks = plan.get("exercise_blocks") or []
-                lift_blocks = []
-                for block in blocks:
-                    bname = block.get("block_name", "")
-                    if bname.lower().startswith("arm care"):
-                        # Extract the parenthetical type, e.g. "Arm Care (Arm Care Heavy)" → "Heavy"
-                        import re as _re
-                        m = _re.search(r"\(.*?(heavy|light)\)", bname, _re.IGNORECASE)
-                        care_label = m.group(0).strip("()").capitalize() if m else "Arm care"
-                        pills.append({"emoji": "💪", "label": care_label, "type": "care"})
-                    else:
-                        lift_blocks.append(bname)
-
-                # --- Lifting pill: first non-arm-care block name (e.g. "Strength")
-                if lift_blocks:
-                    pills.append({"emoji": "🏋️", "label": lift_blocks[0], "type": "lift"})
-
-                # --- Throwing pill: from throwing_plan (actual field name in plan_generated)
-                throwing_plan = plan.get("throwing_plan") or {}
-                if isinstance(throwing_plan, dict):
-                    # Prefer day_type_label (e.g. "Hybrid A — Extension + Compression"),
-                    # fall back to type (e.g. "hybrid_a")
-                    throw_label = throwing_plan.get("day_type_label") or throwing_plan.get("type") or ""
-                    # Truncate long labels at the em-dash
-                    if "—" in throw_label:
-                        throw_label = throw_label.split("—")[0].strip()
-                    if throw_label:
-                        pills.append({"emoji": "⚾", "label": throw_label, "type": "throw"})
-
-                # --- Subtitle: morning_brief if present, else template_day label
-                # D2: unwrap JSON-string envelopes from normalize_brief
-                raw_brief = plan.get("morning_brief") or ""
-                if isinstance(raw_brief, dict):
-                    brief = raw_brief.get("coaching_note", "") or ""
-                elif isinstance(raw_brief, str) and raw_brief.strip().startswith("{"):
-                    try:
-                        parsed = json.loads(raw_brief)
-                        brief = parsed.get("coaching_note", "") if isinstance(parsed, dict) else raw_brief
-                    except (json.JSONDecodeError, ValueError):
-                        brief = raw_brief
-                else:
-                    brief = raw_brief
-                if not brief:
-                    # Derive a short description from template_day + source
-                    template_day = plan.get("template_day", "")
-                    source = plan.get("source", "")
-                    if template_day:
-                        subtitle = template_day.replace("_", " ").capitalize()
-                        if source == "python_fallback":
-                            subtitle += " · auto-generated"
-                else:
-                    subtitle = str(brief)[:200]
-        except Exception:
-            pass  # Graceful degradation — return stub pills/subtitle
-
-    return {
-        "rotation_day": today_day["rotation_day"],
-        "label": f"{today_day['label']} day",
-        "title": today_day["label"],
-        "subtitle": subtitle,
-        "pills": pills,
-    }
-
-
-@router.get("/pitcher/{pitcher_id}/program")
-async def get_pitcher_program(pitcher_id: str, request: Request):
-    """Return the active program with computed phase, week arc, schedule, and today detail."""
-    from bot.services import db as _db
-
-    _require_pitcher_auth(request, pitcher_id)
-
-    program = programs_svc.get_active_program(pitcher_id)
-    if not program:
-        return {"program": None, "week_arc": None, "schedule": [], "today_detail": None}
-
-    phase = programs_svc.compute_current_phase(program)
-
-    training_model_resp = (
-        _db.get_client()
-        .table("pitcher_training_model")
-        .select("*")
-        .eq("pitcher_id", pitcher_id)
-        .execute()
-    )
-    training_model = (training_model_resp.data or [{}])[0]
-
-    arc = _build_week_arc(pitcher_id, program, training_model)
-    schedule = _fetch_schedule_for_window(arc["days"][0]["date"], arc["days"][-1]["date"], pitcher_id)
-    _overlay_schedule_on_arc(arc, schedule)
-
-    program_payload = {
-        "id": program["id"],
-        "name": program["name"],
-        "current_phase": phase,
-        "phase_progress": {
-            "week": phase["week_in_program"],
-            "total": program.get("total_weeks") or sum(p.get("week_count", 0) for p in program.get("phases_snapshot", [])),
-        },
-    }
-
-    return {
-        "program": program_payload,
-        "week_arc": arc,
-        "schedule": schedule,
-        "today_detail": _build_today_detail(arc, training_model, pitcher_id=pitcher_id),
-    }
-
-
-@router.get("/pitcher/{pitcher_id}/program/history")
-async def get_program_history(pitcher_id: str, request: Request):
-    _require_pitcher_auth(request, pitcher_id)
-    history = programs_svc.list_program_history(pitcher_id)
-    return {"programs": [
-        {
-            "id": p["id"],
-            "name": p["name"],
-            "template_id": p["template_id"],
-            "start_date": p["start_date"],
-            "end_date": p.get("end_date"),
-            "deactivated_at": p.get("deactivated_at"),
-            "deactivation_reason": p.get("deactivation_reason"),
-            "current_phase": p.get("_current_phase"),
-        }
-        for p in history
-    ]}
-
-
-@router.get("/program/{program_id}")
-async def get_program_detail(program_id: int, request: Request):
-    """Program detail. No pitcher auth — anyone with the id can read program structure."""
-    from bot.services import db as _db
-    program = _db.get_training_program(program_id)
-    if not program:
-        raise HTTPException(status_code=404, detail="Program not found")
-    template = _db.get_program_template(program["template_id"])
-    phase = programs_svc.compute_current_phase(program)
-    return {
-        "program": program,
-        "template": template,
-        "current_phase": phase,
-    }
-
-
-@router.get("/schedule/this-week")
-async def get_schedule_this_week(pitcher_id: str, request: Request):
-    """UChicago games for the pitcher's current rotation week, with is_your_start flag."""
-    _require_pitcher_auth(request, pitcher_id)
-
-    program = programs_svc.get_active_program(pitcher_id)
-    if not program:
-        return {"games": []}
-
-    from bot.services import db as _db
-    training_model_resp = (
-        _db.get_client()
-        .table("pitcher_training_model")
-        .select("*")
-        .eq("pitcher_id", pitcher_id)
-        .execute()
-    )
-    training_model = (training_model_resp.data or [{}])[0]
-    arc = _build_week_arc(pitcher_id, program, training_model)
-    schedule = _fetch_schedule_for_window(arc["days"][0]["date"], arc["days"][-1]["date"], pitcher_id)
-
-    last_outing = training_model.get("last_outing_date")
-    if last_outing:
-        last_outing_iso = last_outing if isinstance(last_outing, str) else last_outing.isoformat()
-        for game in schedule:
-            if game["date"] == last_outing_iso:
-                game["is_your_start"] = True
-
-    return {"games": schedule}
 
 
 @router.post("/pitcher/{pitcher_id}/scheduled-throw")
@@ -2925,6 +2598,31 @@ async def get_program_templates(
     _resolve_pitcher_id_from_request(request)  # auth gate
     rows = _db.list_block_library_templates(domain=domain, phase=phase)
     return {"templates": rows}
+
+
+@router.get("/programs/{program_id}")
+async def get_program_detail(program_id: str, request: Request):
+    """Full single-program read for the ProgramDetail viewer.
+
+    NOTE: declared AFTER every literal /programs/* GET so it can't swallow them.
+    Ownership is opaque: cross-pitcher reads return 404, matching the
+    activate/archive contract. Returns the full row INCLUDING
+    generated_schedule_json — this is the one endpoint where the heavy body
+    is the point.
+    """
+    pitcher_id = _resolve_pitcher_id_from_request(request)
+    program = _db.get_program(program_id)
+    if not program or program.get("pitcher_id") != pitcher_id:
+        raise HTTPException(status_code=404, detail="program not found")
+    template = None
+    parent_id = program.get("parent_template_id")
+    if parent_id:
+        try:
+            rows = _db.list_block_library_templates()
+            template = next((t for t in rows if t.get("block_template_id") == parent_id), None)
+        except Exception:
+            template = None
+    return {"program": program, "template": template}
 
 
 @router.post("/programs/{program_id}/activate")

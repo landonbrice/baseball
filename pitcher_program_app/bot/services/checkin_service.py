@@ -36,27 +36,6 @@ logger = logging.getLogger(__name__)
 RATIONALE_ENABLED = os.getenv("RATIONALE_ENABLED", "true").lower() in ("true", "1", "yes")
 
 
-def _unwrap_morning_brief(raw) -> str:
-    """F4 consolidation of duplicate morning_brief dict-or-string coercions.
-
-    Scattered coercions across the codebase (tech-debt item in CLAUDE.md) check
-    ``isinstance(raw, dict)`` and pluck a few keys before falling back to str.
-    This helper centralises that logic. ``normalize_brief`` (the canonical
-    persistence helper) delegates here for the unwrap step, then JSON-wraps.
-    """
-    if raw is None:
-        return ""
-    if isinstance(raw, str):
-        return raw
-    if isinstance(raw, dict):
-        for k in ("text", "brief", "body", "content", "message"):
-            if raw.get(k):
-                value = raw[k]
-                return value if isinstance(value, str) else str(value)
-        return ""
-    return str(raw)
-
-
 def normalize_brief(raw) -> str:
     """D3: Canonical morning_brief on write is always a JSON-string.
 
@@ -743,13 +722,6 @@ async def process_checkin(
         upsert_training_model(pitcher_id, model)
     except Exception as e:
         logger.warning(f"Failed to update weekly state for {pitcher_id}: {e}")
-
-    # Recompute phase state from active program (non-blocking — must never fail a check-in)
-    try:
-        from bot.services.weekly_model import update_phase_state
-        update_phase_state(pitcher_id)
-    except Exception as exc:
-        logger.warning(f"update_phase_state failed for {pitcher_id}: {exc}")
 
     # Write rich session note to context
     flag = triage_result["flag_level"].upper()
