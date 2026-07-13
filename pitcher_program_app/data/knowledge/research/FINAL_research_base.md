@@ -8,12 +8,16 @@ applies_to:
 triggers:
   - reference
 phase: any
-priority: reference
+priority: critical
 contexts:
   - coach_chat
+  - program_gen
 summary: >
   Synthesized research base from Driveline, Cressey Sports Performance, and Tread Athletics —
   universal training principles, exercise selection rules, and in-season programming guidelines.
+  Program Engine v1: ~80% of a compilable program engine — exercise DB with %1RM/tempo/rotation-day,
+  starter template, flag modifications, deload rules, progression rules. Routed to program_gen
+  so the LLM author has the generative spine, not just the physiology.
 ---
 
 # UChicago Pitcher Training System — Synthesized Research Base

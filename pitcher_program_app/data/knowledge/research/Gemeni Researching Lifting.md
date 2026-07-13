@@ -8,12 +8,15 @@ applies_to:
 triggers:
   - reference
 phase: any
-priority: reference
+priority: standard
 contexts:
   - coach_chat
+  - program_gen
 summary: >
   Gemini-sourced exercise research — FPM loading protocols, scapular exercises,
   push/pull ratio guidelines, and exercise alternatives for pitcher-specific lifting.
+  Program Engine v1: routed to program_gen so the lifting half of the velocity pack
+  has the FPM + pull:push + alternative-exercise rules at authoring time.
 ---
 
 Gemmini Research Plan

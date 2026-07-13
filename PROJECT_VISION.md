@@ -1,150 +1,94 @@
-# Pitcher Training Intelligence — Project Vision
+# Project Vision — Pitcher Training Intelligence
 
-> Last updated: 2026-03-31
-> Status: Phases 1-8 complete (WHOOP, adoption push, dynamic exercise pool). Next: The Ledger, periodization, exercise progression curves.
+> Rewritten 2026-07-13 (PM session with Landon). This is the **light brief**: goals,
+> conventions, and problems in one read. Deep reference = `CLAUDE.md`. Live status =
+> `MISSION_CONTROL.html`. Sprint plans = `docs/sprints/`. The March 2026 version of this
+> file is superseded; git history has it.
 
-## What This Is
+## The product in one paragraph (ratified by Landon 2026-07-13)
 
-A training intelligence system for the UChicago pitching staff. Each pitcher gets personalized daily programs (lifting, arm care, recovery, throwing), evidence-based Q&A, and longitudinal tracking — driven by their individual profile, injury history, biometric context, and conversation history.
+An app that authors a genuinely individualized **multi-week program** — for a team or an
+individual chasing a goal — and structures **each day out of that program**: dynamic
+throwing, lifting, and mobility routines, generated from the player's full context
+(profile, injury history, readiness, biometrics) through **research-based LLM calls
+blended with authored deterministic pathways**. The program is the primary artifact; the
+day is a projection of it. It must beat both a Google Sheet and a raw LLM chat.
 
-The system has three layers:
-- **Bot (Telegram)** — The conversational input layer. Morning check-ins, post-outing reports, free-text Q&A. This is where the coaching relationship lives.
-- **Mini App (React)** — The value/visibility layer. See your program, track completion, view your trajectory over time. This is where compounding becomes tangible.
-- **Intelligence Engine (Python/FastAPI)** — Triage, plan generation, knowledge retrieval, progression analysis. The thinking that connects input to output.
+## Where we are, and where we're going
 
----
+- **Landon's #1 training goal right now: return to play healthy** (not velocity). The
+  first knowledge pack and the v1 demo target the return-to-mound arc. The engine stays
+  goal-agnostic underneath.
+- **Summer 2026 = development phase.** Landon is the only daily user. The team is off the
+  system. This is the cheapest time we will ever have to rework foundations.
+- **September–October 2026 = team onboarding.** Everyone re-onboarded, system fully
+  running, engine-authored programs live. All sequencing points at this.
+- **Sprint queue (primed, gated on Landon's go): `docs/sprints/2026-07-sprint-queue.md`**
+  — A: prove the engine core with a live-LLM return-to-play demo → B: collapse three
+  generation pipelines into one spine + full dead-code/dead-table cleanup → C: implement
+  the drive + Landon's daily plans go live on the engine → D: fall onboarding.
 
-## Current State (March 28, 2026)
+## The generation constitution (division of authority)
 
-### What's Built and Working
+| Plane | Owns | Runs |
+|---|---|---|
+| **LLM** (research-grounded) | Program *authoring*: phase structure, progression, exercise selection, the "why" | Once per program, at creation / explicit regenerate. Model: DeepSeek reasoner for now (decision 07-13; revisit after first real output) |
+| **Deterministic** | Safety + math + the day: ACWR/load math, contraindications, deload cadence, ramps, day *projection*, triage | Every day, every check-in — no model in the loop |
+| **Authored knowledge** | The tunable content both planes read: research docs, templates, golden programs | Resolved at generation time; edit a doc → next generation changes, no code change |
 
-**Intelligence layer — strong and hardened.** Check-in pipeline saves data before plan generation (no data loss on LLM failure). Partial-save-then-upsert pattern. Template fallback when LLM fails. Rotation day only increments after successful check-in. Extended time-off handling uses lift preference for template selection. Rest day preference enforced at both template and prompt level.
+**Rules:** the LLM decides *what the program is*; determinism decides *whether it's safe*
+and *what today is*. Daily output must never depend on a live LLM call succeeding.
+**The drive** (bad-readiness day → program impact) is **propose-and-confirm**: today
+shrinks deterministically, the reschedule is proposed, the player confirms (decision
+07-13; bounds and intricacies in Sprint C).
 
-**Notifications — live.** Morning check-ins (pitcher's preferred time), 6pm evening follow-up if unanswered, Sunday 6pm weekly summary with LLM coaching narrative. All scheduled from Supabase, not filesystem.
+## The problems, honestly (agent-visible; Landon ratified 2026-07-13)
 
-**Visible compounding — shipped.**
-- Arm feel trend chart (4 weeks), sparkline, consistency streak, week dots
-- LLM-generated weekly coaching narrative (Sunday, cached, displayed on Home)
-- Enhanced progression observations (positive + negative patterns)
-- Toast notifications for success/error across the app
-- Stale plan detection + banners on Home
+1. **Three generation pipelines coexist** — legacy slot-filler (live for all),
+   Builder's rotation-repeat (live behind flag), Engine v1 (built on PR #34, dormant,
+   LLM path never run against a real model). The slop is the coexistence. Endgame: one
+   spine — engine authors, projection produces the day, legacy survives only as the
+   deterministic fallback floor.
+2. **The engine's thesis is unproven** — every green test runs the fallback.
+   Highest-leverage hour in the project: the live-LLM run on Landon's real context.
+3. **Landon's real pain as the daily user** (aim robustness work here):
+   plan quality/repetitiveness (the engine's job to fix), slow/failing check-ins
+   (latency path), and **distrust of stored state** (rotation day / phases / week state
+   sometimes look wrong → the one-spine convergence and state audits address this).
+   Silent breakage is NOT a top pain — Guardian covers it adequately.
+4. **Dead weight approved for full removal** (decision 07-13, cheapest-ever window):
+   legacy `programs.py` engine still running per check-in, `saved_plans` (post-audit),
+   orphan tables `training_programs`/`program_templates`/`schedule` + blocking FK,
+   ~400 lines of orphaned frontend, 3,062-line `api/routes.py`, duplicated phase
+   vocabularies.
 
-**Data layer — durable.** Supabase Postgres. Zero filesystem dependencies for pitcher data. Column whitelist in db.py prevents schema mismatch errors. Chicago timezone throughout.
+## Conventions that keep agents out of trouble (distilled — full detail in CLAUDE.md)
 
-**All bugs from prior sprint resolved:**
-- Check-in pipeline failures (soreness_response column, error handling, rotation drift)
-- All 10 timezone bugs fixed (CHICAGO_TZ everywhere)
-- Notifications never firing (JSON filesystem → Supabase migration)
-- Rest day preference ignored
-- Rotation day wrong for extended time-off
-- Silent error handling (toast system added)
-- CoachFAB badge not rendering
-- Dead code removed (ChatBar, NextOutingPicker, TrendChart)
+1. **Update `MISSION_CONTROL.html`** (JSON island only) after meaningful work; validate
+   with the one-liner in its header. This is the shared memory across Claude/Codex/Gemini.
+2. **Tests stay green**: `cd pitcher_program_app && python -m pytest tests/ -q` (use a
+   venv; system pip fights PyJWT/cryptography). 880+ pass as of 07-12.
+3. **Supabase is source of truth**; access via `bot/services/db.py` with `service_role`
+   only; column whitelists guard upserts; new tables ship RLS-locked (010/012/017 idiom);
+   migrations via Supabase MCP. `pitchers` PK is `pitcher_id`.
+4. **All dates Chicago**: `datetime.now(CHICAGO_TZ)` server-side, `en-CA` + timeZone
+   client-side.
+5. **Check-in semantics live in `team_daily_status.py`** — never re-derive them.
+   `checked_in` == `pre_training.arm_feel is not null`.
+6. **Two-pass lesson is law**: Python builds a complete valid thing first; LLM enriches
+   after; timeout → the deterministic result ships.
+7. **Plans have two lifting homes** (`lifting` top-level + `plan_generated.lifting`) —
+   swap/mutation code must handle both (CLAUDE.md "Dual-Write" gotcha).
+8. **Coach-app brand tokens are locked** (`tokens.css`); brand colors ≠ alert colors;
+   Scoreboard takes exactly 5 cells.
+9. **Knowledge is content, not code**: research docs carry YAML frontmatter under
+   `data/knowledge/research/`; golden programs under `data/knowledge/golden_programs/`;
+   the resolver (`research_resolver.py`) is the single door.
+10. **Don't start a new workstream lane without logging it** in Mission Control; sprints
+    don't start without Landon's explicit go.
 
-### What's Built Since March 28
+## Product scope
 
-- **WHOOP integration** — COMPLETE. Full OAuth pipeline, daily pulls, biometric triage, WhoopCard UI.
-- **Adoption push** — COMPLETE. Personalized `/start`, contextual morning notifications, arm feel buttons → full check-in.
-- **Dynamic exercise pool** — COMPLETE. 95-exercise library drives selection. Variety across weeks. Injury-aware.
-- **Onboarding flow** — COMPLETE. `/start` shows personalized intro + auto check-in prompt.
-
-### What's Not Yet Built
-
-1. **The Ledger** — Modification history visualization. Data exists in `plan_generated.modifications_applied`. Needs frontend timeline on Profile.
-2. **Periodization** — No multi-week phases. Exercise pool adds variety but training intent is rotation-day-fixed, not block-progression-aware.
-3. **Exercise progression curves** — Volume/intensity trends for key lifts over time.
-4. **Coach dashboard** — Staff-facing view of team readiness, flags, trends.
-5. **Truncated JSON repair** — LLM sometimes cuts off mid-JSON. `finish_reason` surfaced but no repair logic.
-
-### What's Intentionally Out of Scope
-
-- Mechanical/pitching instruction (coaches own this)
-- Medical diagnosis (system flags concerns → tells pitcher to see trainer)
-- Supplement recommendations
-- Nutrition programming
-
----
-
-## Sprint History
-
-### Sprint 1: Foundation → Visible Compounding (March 2026)
-
-**Phase 1: Supabase Migration** — COMPLETE
-All pitcher data in Supabase. db.py service layer, context_manager.py Supabase-backed, chat_messages table, JSON fallback available.
-
-**Phase 2: State Awareness** — COMPLETE
-Cross-platform conversation history, morning status endpoint, check-in state queryable, bot adapts to yesterday's data.
-
-**Phase 3: Coaching Conversation Quality** — COMPLETE
-Adaptive check-in flow, smart defaults, context-aware prompts, extended time-off acknowledgment, rest day respected.
-
-**Phase 4: Visible Compounding** — COMPLETE
-Arm feel trend chart, consistency streak, LLM weekly narrative, enhanced observations, toast system, stale plan detection.
-
-**Phase 5: Polish & Adoption** — COMPLETE
-CLAUDE.md updated, all broken flows fixed, notifications live, dead code removed, error handling improved.
-
-### Sprint 2: Biometric Intelligence + Adoption (March 29-31, 2026)
-
-**Phase 6: WHOOP Integration** — COMPLETE
-Full biometric pipeline: per-pitcher OAuth PKCE linking, daily 6am pull, recovery/HRV/sleep/strain into triage + plan gen + weekly narrative. WhoopCard on Home. Smart cache re-pulls when core metrics null.
-
-**Phase 7: Adoption Push** — COMPLETE
-Personalized `/start` (injury-aware intro + auto check-in), contextual morning notifications (yesterday's arm feel, WHOOP as conversational sentence), morning arm feel buttons enter full ConversationHandler, human evening follow-up. Fixed `post_init` not firing on Railway (scheduler was silently dead). Handler registration consolidated into single `register_handlers()` function.
-
-**Phase 8: Dynamic Exercise Pool** — COMPLETE
-`exercise_pool.py` selects 7-8 lifting exercises from the 95-exercise Supabase library per session. Filters by day focus, rotation_day_usage, injury contraindications, modification_flags. Prefers exercises not used in last 7 days. LLM personalizes prescriptions but cannot hallucinate IDs. Explicit lift preference always honored (overrides rotation day).
-
-**Key fixes shipped:**
-- `day_key` NameError in plan gen fallback path
-- `timedelta` missing import in morning notification
-- `run.py` handler registration mismatch (commands silently missing on Railway)
-- Re-check-in button for same-day testing (upserts, no rotation drift)
-- Exercise ID validation strips LLM-hallucinated IDs before minimum-count check
-
----
-
-## Next Sprint: Program Intelligence
-
-### Phase 9: The Ledger (Modification History)
-**Goal:** Show each pitcher a timeline of every adaptation the system has made for them. Make the coaching relationship visible.
-
-- Surface `modifications_applied` from daily entries as a timeline on Profile
-- Group by category (injury-related, fatigue-based, preference-based)
-- Link to the daily plan where each modification was applied
-
-### Phase 10: Periodization Layer
-**Goal:** Multi-week training structure. Exercise pool adds variety but not progressive phases.
-
-- Phase/block schema (4-week cycles: hypertrophy → strength → power → deload)
-- Training intent auto-advances based on week-in-block
-- Cumulative load tracking (28-day volume trends, not just 7-day)
-- Auto-deload triggers (cumulative fatigue, sustained low arm feel, WHOOP recovery trends)
-
-### Phase 11: Exercise Progression Curves
-**Goal:** Track volume/intensity trends for key lifts over time. Surface to pitcher.
-
-- Completion data already logged (`completed_exercises` in daily_entries)
-- Need: prescribed vs. actual tracking, weight progression over weeks
-- Mini-app visualization: per-exercise trend lines
-
----
-
-## Future Considerations (Post-Sprint)
-
-- **Coach dashboard** — Staff-facing view showing team readiness, flag levels, concerning trends
-- **Truncated JSON repair** — Salvage partial LLM responses instead of falling back to template
-- **Generalization** — Multi-team support, configurable templates, white-label potential
-- **Outing data integration** — Trackman/Rapsodo pitch tracking data alongside subjective reports
-- **The Trajectory** — Season arc view with recovery fingerprinting and predictive insights
-
----
-
-## Success Metrics
-
-1. **Data durability** — Zero risk of data loss on redeploy ✅
-2. **State coherence** — Bot and mini app share the same view ✅
-3. **Check-in quality** — Interaction feels like talking to a coach ✅
-4. **Visible progress** — Pitchers reference their trend data unprompted (tracking)
-5. **Daily active check-ins** — Target: 6+ of 12 pitchers daily (in progress)
-6. **Biometric accuracy** — WHOOP-informed triage replaces self-reported defaults (next)
+*Deliberately thin — Landon is taking the product side in a dedicated session; this
+section gets filled there. Until then: pitcher mini-app + coach dashboard exist and work;
+the product question is how program-first generation reshapes them for fall onboarding.*

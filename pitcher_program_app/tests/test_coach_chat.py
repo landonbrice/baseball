@@ -8,8 +8,28 @@ import pytest
 
 
 def _stub_telegram():
-    """Stub the telegram package so qa.py can be imported without installing it."""
-    if "telegram" in sys.modules:
+    """Make sure qa.py can be imported, with or without telegram installed.
+
+    Prefers the real `python-telegram-bot` package when it's available —
+    qa.py's module-level `context: ContextTypes.DEFAULT_TYPE` annotation
+    needs a real `ContextTypes` (with a `DEFAULT_TYPE` attribute), which a
+    bare `object` placeholder can't provide. Only when running in isolation
+    did an earlier version of this stub install `ContextTypes = object`
+    unconditionally, which happened to work when some other test module
+    imported the real `telegram` package first (populating sys.modules
+    before this file's guard short-circuited) but raised
+    `AttributeError: type object 'object' has no attribute 'DEFAULT_TYPE'`
+    when this file ran alone. Falling back to a minimal fake only when the
+    real package genuinely isn't installed keeps this file self-sufficient
+    in both orderings without touching production code.
+    """
+    try:
+        import telegram  # noqa: F401
+        import telegram.ext  # noqa: F401
+        return
+    except ImportError:
+        pass
+    if "telegram" in sys.modules and "telegram.ext" in sys.modules:
         return
     telegram = types.ModuleType("telegram")
     telegram.Update = object

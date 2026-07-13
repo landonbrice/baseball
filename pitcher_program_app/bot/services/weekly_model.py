@@ -194,31 +194,9 @@ def update_week_state_after_checkin(
 import uuid as _uuid
 from datetime import date, timezone
 from bot.services import db
-from bot.services.programs import compute_current_phase, get_active_program
 
 SCHEDULED_THROW_TYPES = {"catch", "long_toss", "bullpen", "side", "game"}
 SCHEDULED_THROW_RETENTION_DAYS = 14
-
-
-def update_phase_state(pitcher_id: str, as_of: date | None = None) -> dict | None:
-    """Recompute current_week_state.phase from the active program. Returns the new phase dict.
-
-    Called from checkin_service after each check-in. Safe to call when no active program
-    exists — returns None and does not write.
-    """
-    program = get_active_program(pitcher_id)
-    if not program:
-        return None
-    phase = compute_current_phase(program, as_of=as_of or date.today())
-
-    # Read-modify-write current_week_state
-    model = db.get_client().table("pitcher_training_model").select("current_week_state").eq("pitcher_id", pitcher_id).execute()
-    if not model.data:
-        return None
-    state = model.data[0].get("current_week_state") or {}
-    state["phase"] = phase
-    db.get_client().table("pitcher_training_model").update({"current_week_state": state}).eq("pitcher_id", pitcher_id).execute()
-    return phase
 
 
 def add_scheduled_throw(pitcher_id: str, throw: dict) -> dict:

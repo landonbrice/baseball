@@ -1,0 +1,624 @@
+<!--
+  ═══════════════════════════════════════════════════════════════════════
+  MISSION CONTROL — Pitcher Training Intelligence
+  ═══════════════════════════════════════════════════════════════════════
+  This is the single shared build-state dashboard for ALL agents
+  (Claude Code, Codex, Gemini CLI) and for Landon.
+
+  AGENT PROTOCOL — read carefully:
+  1. Edit ONLY the JSON inside the <script id="mission-data"> island below,
+     between the MISSION-DATA-START and MISSION-DATA-END markers.
+     NEVER touch the HTML/CSS/JS renderer.
+  2. After any meaningful unit of work (feature landed, phase completed,
+     bug found, decision made, PR opened/merged), update:
+       - meta.updated (YYYY-MM-DD) and meta.updated_by (your agent name)
+       - the relevant workstream's pct / status / next
+       - append a log entry (newest FIRST): {date, agent, summary}
+       - append to decisions[] if a real decision was made
+       - add/resolve risks[] as reality changes
+  3. Keep it INFORMATIVE, not bloated: log summaries ≤ 140 chars,
+     milestone details ≤ 2 sentences. Prune log entries older than
+     ~30 days into a single "archived" line rather than deleting history.
+  4. Validate your edit: the JSON must parse. If you break it the page
+     shows a red error banner instead of rendering. Run:
+       python3 -c "import json,re;s=open('MISSION_CONTROL.html').read();json.loads(re.findall(r'DATA-START-->(.*?)<!--MISSION',s,re.S)[-1]);print('OK')"
+  5. Status vocabularies (do not invent new ones):
+       workstream.status: shipped | active | design | paused | backlog
+       milestone.status:  done | active | next | blocked
+       risk.sev:          high | med | low
+  ═══════════════════════════════════════════════════════════════════════
+-->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mission Control · Pitcher Training Intelligence</title>
+
+<script id="mission-data" type="application/json">
+<!--MISSION-DATA-START-->
+{
+  "meta": {
+    "project": "Pitcher Training Intelligence",
+    "team": "Chicago · Pitching Staff",
+    "north_star": "An app that authors a genuinely individualized multi-week PROGRAM (team or individual goal, full player context) and projects each DAY out of it — throwing, lifting, mobility — via research-based LLM calls blended with authored deterministic pathways. Landon's #1 goal right now: RETURN TO PLAY HEALTHY (not velocity). Summer 2026 = development phase; Sept–Oct = team onboarding + fully running.",
+    "updated": "2026-07-13",
+    "updated_by": "Claude (Fable) — PM session"
+  },
+  "scoreboard": [
+    {
+      "label": "Frontier",
+      "value": "Engine live run",
+      "sub": "everything staged — blocked ONLY on env network policy"
+    },
+    {
+      "label": "Open PRs",
+      "value": "3",
+      "sub": "#37 carries engine+sprints (supersedes #34) · #33 · #36"
+    },
+    {
+      "label": "Sprint A",
+      "value": "6/7",
+      "sub": "done offline · live-LLM run awaits network allow-list"
+    },
+    {
+      "label": "Backend tests",
+      "value": "1,085 ✓",
+      "sub": "2026-07-13 · +206 from engine merge + sprint fixes"
+    },
+    {
+      "label": "Sprint B core",
+      "value": "−1,112",
+      "sub": "lines of slop deleted · legacy engine gone"
+    }
+  ],
+  "workstreams": [
+    {
+      "id": "engine",
+      "name": "Program Engine v1 (the frontier)",
+      "status": "active",
+      "pct": 90,
+      "summary": "Sprint A executed 07-13 on PR #37 (which merged in and supersedes #34): ACWR fixture recalibrated from the REAL recovered data (wks 10-11 corrected), RED-day projection inversion fixed + regression-tested, RTP knowledge pack authored (doc + return_to_mound_9wk_v1 seed), demo goal-dispatched with return_to_play default, verified end-to-end in mocked mode.",
+      "next": "ONE step left: the live-LLM run. Blocked solely on the env network policy (proxy 403s api.deepseek.com + supabase.co). Allow-list both domains, then run per docs/runbooks/program_engine_live_run.md; also seed the RTP template and run the saved_plans audit while connected."
+    },
+    {
+      "id": "builder",
+      "name": "Program Builder v1 (shipped shell)",
+      "status": "shipped",
+      "pct": 97,
+      "summary": "Plans 1-8 shipped. Sprint B (07-13) deleted the legacy v0 engine that still ran per check-in (programs.py + 330-line dead route block), wired the morning_brief helper, removed 8 orphaned frontend files, fixed test_coach_chat isolation — and fixed a real bug: ProgramDetail had shown 'Program not found' for every new program since Plan 6; now renders real schedules via new GET /api/programs/{id}.",
+      "next": "When network opens: run verify_saved_plans_deprecated.py → hard-drop saved_plans + orphan tables (migration ready to write); verify the D2 canary retroactively."
+    },
+    {
+      "id": "frontend",
+      "name": "Frontend / design system",
+      "status": "paused",
+      "pct": 40,
+      "summary": "Coach-app editorial redesign (Specs 1–3) shipped. PR #33 starts the @cue/ui shared-package split (Phase 0.1) so mini-app + coach-app stop duplicating tokens/components.",
+      "next": "Decide: merge or park PR #33. If the Engine demo needs UI, reuse existing BuilderSlideOver contracts instead of blocking on the package split."
+    },
+    {
+      "id": "intelligence",
+      "name": "Triage & baselines",
+      "status": "shipped",
+      "pct": 80,
+      "summary": "Phase 1 trajectory-aware triage live (tissue/load/recovery scores, per-pitcher baselines, dual-path with legacy fallback). Category scores surfaced in coach app.",
+      "next": "Baselines cold-start decision: auto-seed after N check-ins vs coach-triggered; surface no-baseline state in coach UI."
+    },
+    {
+      "id": "ops",
+      "name": "Ops, Guardian & security",
+      "status": "shipped",
+      "pct": 70,
+      "summary": "System Guardian V1 live (collectors, incidents, admin routes, digest). Full public-schema RLS lockdown done across 3 migration waves.",
+      "next": "WHOOP token rotation (Kamat/Kwinter/Richert — outstanding since Apr 30). Guardian Phase 2 (Railway + Supabase mgmt collectors) when env tokens are added."
+    },
+    {
+      "id": "knowledge",
+      "name": "Knowledge & research content",
+      "status": "active",
+      "pct": 85,
+      "summary": "12 resolver-ready frontmatter docs + 159-exercise library live. GOLDEN DATA RECOVERED 07-12: both crown-jewel macrocycles (return-to-mound 8wk, ramp-up 12wk) pulled from Drive into data/knowledge/golden_programs/ — the repo copies had been broken macOS aliases all along. PR #36 adds a high-quality mechanics/drill research pack (mergeable, content-only).",
+      "next": "Seed return_to_mound_9wk_v1 into block_library when network opens (scripts/seed_rtp_knowledge_pack.py); merge PR #36 with frontmatter/placement so the resolver can pull it."
+    }
+  ],
+  "milestones": [
+    {
+      "date": "2026-07-13",
+      "title": "Sprints A (offline) + B (core) executed",
+      "workstream": "engine",
+      "status": "done",
+      "detail": "Engine merged to PR #37; real-data calibration; RED-day fix; RTP pack; legacy engine deleted; ProgramDetail bug found+fixed. 1,085 tests green. Live run staged behind the network policy."
+    },
+    {
+      "date": "2026-07-12",
+      "title": "Golden macrocycle data recovered from Drive",
+      "workstream": "knowledge",
+      "status": "done",
+      "detail": "Both crown-jewel xlsx (aliases in repo since April) recovered: return-to-mound 8wk binary+CSV, ramp-up 12wk CSV (checksum-verified). Unblocks real ACWR calibration. data/knowledge/golden_programs/."
+    },
+    {
+      "date": "2026-07-12",
+      "title": "Re-orientation + Mission Control stood up",
+      "workstream": "ops",
+      "status": "done",
+      "detail": "Full-project scrape after 6-week pause: 4-agent survey, 880 tests re-verified green, all 3 open PRs audited (all merge clean). This dashboard is now the shared agent status surface."
+    },
+    {
+      "date": "2026-06-03",
+      "title": "Engine v1 phases 0–5 implemented (PR #34)",
+      "workstream": "engine",
+      "status": "done",
+      "detail": "Schemas, load math, structural+content invariants, guardrail orchestrator, fallback, author, projection ×3 policies, governor, resolver extension, migrations 033/034, ~199 tests. Feature-flag off."
+    },
+    {
+      "date": "TBD",
+      "title": "Engine v1: LIVE-LLM demo on landon_brice",
+      "workstream": "engine",
+      "status": "active",
+      "detail": "The unproven thesis: author_program() has never hit a real model — demo so far ran the deterministic fallback. Run scripts/demo_program_engine_v1 with real keys; then edit-a-doc→regenerate and dead-arm projection proofs."
+    },
+    {
+      "date": "TBD",
+      "title": "Engine v1: Phase 6 close-out + tag",
+      "workstream": "engine",
+      "status": "next",
+      "detail": "Runbook, CLAUDE.md update, RED-day projection inversion fix, recalibrate golden ACWR fixture from recovered CSVs, tag program-engine-v1-clean-room, merge PR #34."
+    },
+    {
+      "date": "2026-07-13",
+      "title": "'The drive' policy decided: propose-and-confirm",
+      "workstream": "engine",
+      "status": "next",
+      "detail": "OPEN #1 resolved at policy level (Landon, Option 3): today shrinks deterministically, the reschedule is proposed and player-confirmed. Implementation + bounds/intricacies = Sprint C."
+    },
+    {
+      "date": "TBD",
+      "title": "Program Builder v1 truly closed",
+      "workstream": "builder",
+      "status": "next",
+      "detail": "Canary verification (never checked since May 16) + cleanup tag + saved_plans hard-drop PR + delete legacy programs.py (dead engine still running per check-in)."
+    },
+    {
+      "date": "2026-06-01",
+      "title": "Program Engine design spec approved (Rev 3)",
+      "workstream": "engine",
+      "status": "done",
+      "detail": "LLM-forward + guardrails + living knowledge; reconciled with shipped Builder — replace the core, reuse the shell. PR #35 merged."
+    },
+    {
+      "date": "2026-05-16",
+      "title": "Program Builder v1 complete (Plans 1–8)",
+      "workstream": "builder",
+      "status": "done",
+      "detail": "Tagged program-builder-v1-complete; Plan 8 cleanup + full-roster rollout merged (PR #31)."
+    },
+    {
+      "date": "2026-05-13",
+      "title": "System Guardian V1 shipped (PRs #15–#21)",
+      "workstream": "ops",
+      "status": "done",
+      "detail": "Self-monitoring observability: collectors, incident clustering, admin surface, 9am digest integration."
+    },
+    {
+      "date": "2026-04-30",
+      "title": "Security lockdown wave (RLS + WHOOP)",
+      "workstream": "ops",
+      "status": "done",
+      "detail": "Migrations 010/011/012/017/018 — full public-schema RLS lockdown. Token rotation still outstanding."
+    },
+    {
+      "date": "2026-04-21",
+      "title": "Phase 1 trajectory-aware triage",
+      "workstream": "intelligence",
+      "status": "done",
+      "detail": "Three-category scoring + per-pitcher baselines + recovery curves; legacy path preserved behind golden snapshots."
+    },
+    {
+      "date": "2026-04-21",
+      "title": "Coach dashboard editorial redesign (Specs 1–3)",
+      "workstream": "frontend",
+      "status": "done",
+      "detail": "Brand shell, Team Overview triage feed, secondary pages, nudge endpoint."
+    }
+  ],
+  "risks": [
+    {
+      "sev": "high",
+      "title": "Cloud env network policy blocks the live run",
+      "detail": "Proxy answers 403 to CONNECT for api.deepseek.com and beyolhukpbvvoxvjnwtd.supabase.co. Keys are present and verified; the ONLY blocker for the engine live run, the RTP seed, and the saved_plans audit. Fix: allow-list both domains in environment network settings."
+    },
+    {
+      "sev": "high",
+      "title": "Engine's generative core is unproven",
+      "detail": "Everything green runs through the deterministic fallback; author_program() has never hit deepseek-reasoner. First live run may surface parse/latency/quality issues the mocks can't. All staging complete (see runbook)."
+    },
+    {
+      "sev": "high",
+      "title": "Program-path canary never verified",
+      "detail": "Plan 8's tag was gated on a 7-day ≥80% canary window post-May-16. Nobody checked. Read the 9am digest history / daily_entries plan_generated.source before building on top."
+    },
+    {
+      "sev": "med",
+      "title": "WHOOP tokens still not rotated",
+      "detail": "Exposed pre-lockdown (Apr 30). Kamat/Kwinter/Richert must re-link via /whoop; optionally rotate the anon key."
+    },
+    {
+      "sev": "med",
+      "title": "PR #33 quietly rewired the live mini-app",
+      "detail": "Beyond the additive @cue/ui package, it already did the React 19 / Tailwind 4 / Vite 8 convergence and MSW mocks — phases its own roadmap doc marks 'todo/high-risk'. Review as a stack migration, not a scaffold."
+    },
+    {
+      "sev": "med",
+      "title": "Two program systems coexist during Engine build",
+      "detail": "Builder's rotation-repeat core is live for 12 pitchers while the Engine replaces it behind PROGRAM_ENGINE_V1=False. Guard generated_schedule_json shape compatibility (spec §14 constraint 2)."
+    },
+    {
+      "sev": "low",
+      "title": "June 28 'deep scrape' review doc is missing",
+      "detail": "Not in repo, branches, Drive, or artifacts. Locate and commit it, or accept this dashboard as its replacement."
+    },
+    {
+      "sev": "low",
+      "title": "Repo bloat / dead frontend code",
+      "detail": "6 orphaned mini-app components (~380 lines), 2 orphaned coach-app files, 386 hardcoded hex colors in mini-app, dead _unwrap_morning_brief helper, api/routes.py at 3,062 lines."
+    }
+  ],
+  "decisions": [
+    {
+      "date": "2026-07-13",
+      "what": "BACKEND GRILL (Landon): (1) live-LLM run unblocked by adding DEEPSEEK_API_KEY + SUPABASE_URL + SUPABASE_SERVICE_KEY to the Claude cloud env — Claude runs it autonomously; (2) DeepSeek stays the author model until real output says otherwise; (3) Sprint B cleanup = FULL (dead tables drop after audit); (4) robustness aims at plan quality, check-in latency, and stored-state trust — not silent breakage."
+    },
+    {
+      "date": "2026-07-13",
+      "what": "PROJECT_VISION.md rewritten as the light agent brief (goals + constitution + problems + distilled conventions); stale March version superseded. Read order for agents: PROJECT_VISION.md → CLAUDE.md → MISSION_CONTROL.html."
+    },
+    {
+      "date": "2026-07-13",
+      "what": "THE DRIVE decided (Landon): Option 3 — propose-and-confirm. A bad-readiness day shrinks today deterministically; the system PROPOSES the program reschedule and the player confirms. Hardens toward auto-re-pace with coach visibility at fall onboarding. Intricacies deferred to Sprint C."
+    },
+    {
+      "date": "2026-07-13",
+      "what": "GOAL PIVOT (Landon): v1 target goal is return-to-play-healthy, not velocity. The engine stays goal-agnostic; the first knowledge pack is the return-to-mound arc (golden 8wk program is exactly this)."
+    },
+    {
+      "date": "2026-07-13",
+      "what": "TIMELINE (Landon): summer = development phase (Landon is the only daily user; engine remains demo-grade). September–October = team onboarding + system fully running. All fall-facing work is sequenced against that."
+    },
+    {
+      "date": "2026-07-13",
+      "what": "PROCESS (Landon): understand and rework the slop (three coexisting generation pipelines) BEFORE sprinting on new features. Sprint queue primed in docs/sprints/2026-07-sprint-queue.md; no sprint starts without Landon's go."
+    },
+    {
+      "date": "2026-07-12",
+      "what": "Mission Control (this file) is the canonical cross-agent status surface; every agent updates the JSON island after meaningful work."
+    },
+    {
+      "date": "2026-06-01",
+      "what": "Engine strategy: NOT greenfield — replace program_generator's generation core in place; reuse funnel/lifecycle/projection/flag/UI; persist on `programs` table."
+    },
+    {
+      "date": "2026-05-31",
+      "what": "Architecture: LLM-forward generation + deterministic content-independent guardrails + living editable knowledge. Program is the primary artifact; day is a projection."
+    },
+    {
+      "date": "2026-05-31",
+      "what": "OPEN #1 'the drive' (projection/override/re-pacing policy) deliberately deferred — build project() as a tested seam, decide policy with fresh thought."
+    }
+  ],
+  "log": [
+    {
+      "date": "2026-07-13",
+      "agent": "Claude (Fable)",
+      "summary": "Sprint A offline-complete: engine merged into PR #37, real ACWR calibration, RED-day fix, RTP pack authored, live run staged (network-blocked)."
+    },
+    {
+      "date": "2026-07-13",
+      "agent": "Claude (Fable)",
+      "summary": "Sprint B: legacy engine deleted (-1,112 lines), morning_brief wired, ProgramDetail rebuilt on real programs API. 1,085 tests green."
+    },
+    {
+      "date": "2026-07-13",
+      "agent": "Claude (Fable)",
+      "summary": "Backend grill answered; drive=propose-and-confirm; full cleanup approved; PROJECT_VISION.md rewritten as the light agent brief."
+    },
+    {
+      "date": "2026-07-13",
+      "agent": "Claude (Fable)",
+      "summary": "Landon: goal pivot to return-to-play; fall onboarding timeline; rework slop before features. Sprint queue A–D primed (docs/sprints/)."
+    },
+    {
+      "date": "2026-07-12",
+      "agent": "Claude (Fable)",
+      "summary": "Recovered both golden macrocycles from Drive → data/knowledge/golden_programs/ (CSV + repaired xlsx, checksum-verified)."
+    },
+    {
+      "date": "2026-07-12",
+      "agent": "Claude (Fable)",
+      "summary": "4-agent survey: PR #34 engine ≈95% built (LLM path unproven); 880 tests green; legacy programs.py found live; frontend dead-code map."
+    },
+    {
+      "date": "2026-07-12",
+      "agent": "Claude (Fable)",
+      "summary": "Re-orientation scrape: read spec Rev 3 + handoff, audited 3 open PRs + branches, stood up Mission Control."
+    }
+  ]
+}
+<!--MISSION-DATA-END-->
+</script>
+
+<style>
+  :root {
+    --bg: #f7f1e3;
+    --bg-raise: #fdfaf1;
+    --ink: #221a1d;
+    --ink-soft: #5d5250;
+    --ink-faint: #8a7f7b;
+    --line: #d9cfba;
+    --maroon: #5c1020;
+    --maroon-ink: #430b17;
+    --rose: #ecdfd2;
+    --forest: #1f5c38;
+    --amber: #9a6516;
+    --crimson: #a61b2b;
+    --slate: #6b7280;
+    --chip-bg: #efe7d3;
+    --shadow: 0 1px 2px rgba(34,26,29,.06), 0 8px 24px -18px rgba(34,26,29,.35);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #181215; --bg-raise: #211a1e; --ink: #f0e8da; --ink-soft: #b5a89f;
+      --ink-faint: #857a72; --line: #3a2f31; --maroon: #b35468; --maroon-ink: #d98a9b;
+      --rose: #33242a; --forest: #6fbf8f; --amber: #d9a44a; --crimson: #e06a76;
+      --slate: #9aa3af; --chip-bg: #2b2226;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px -18px rgba(0,0,0,.8);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #181215; --bg-raise: #211a1e; --ink: #f0e8da; --ink-soft: #b5a89f;
+    --ink-faint: #857a72; --line: #3a2f31; --maroon: #b35468; --maroon-ink: #d98a9b;
+    --rose: #33242a; --forest: #6fbf8f; --amber: #d9a44a; --crimson: #e06a76;
+    --slate: #9aa3af; --chip-bg: #2b2226;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px -18px rgba(0,0,0,.8);
+  }
+  :root[data-theme="light"] {
+    --bg: #f7f1e3; --bg-raise: #fdfaf1; --ink: #221a1d; --ink-soft: #5d5250;
+    --ink-faint: #8a7f7b; --line: #d9cfba; --maroon: #5c1020; --maroon-ink: #430b17;
+    --rose: #ecdfd2; --forest: #1f5c38; --amber: #9a6516; --crimson: #a61b2b;
+    --slate: #6b7280; --chip-bg: #efe7d3;
+    --shadow: 0 1px 2px rgba(34,26,29,.06), 0 8px 24px -18px rgba(34,26,29,.35);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 15px/1.55 ui-sans-serif, system-ui, "Segoe UI", Helvetica, Arial, sans-serif;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 28px 24px 80px; }
+
+  .serif { font-family: "Source Serif 4", Georgia, "Times New Roman", serif; }
+  .eyebrow {
+    font-size: 11px; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--maroon); font-weight: 700;
+  }
+  header.masthead { border-bottom: 3px double var(--line); padding-bottom: 18px; margin-bottom: 22px; }
+  header.masthead h1 {
+    margin: 4px 0 6px; font-size: clamp(26px, 4vw, 38px); line-height: 1.12;
+    font-weight: 700; text-wrap: balance;
+  }
+  .northstar { max-width: 68ch; color: var(--ink-soft); margin: 0; }
+  .stamp { margin-top: 10px; font-size: 12.5px; color: var(--ink-faint); }
+  .stamp b { color: var(--ink-soft); font-weight: 600; }
+
+  #err {
+    display: none; background: var(--crimson); color: #fff; padding: 12px 16px;
+    border-radius: 6px; margin: 16px 0; font-weight: 600;
+  }
+
+  .scoreboard {
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 1px;
+    background: var(--line); border: 1px solid var(--line); border-radius: 8px;
+    overflow: hidden; margin-bottom: 30px; box-shadow: var(--shadow);
+  }
+  .cell { background: var(--bg-raise); padding: 14px 14px 12px; min-width: 0; }
+  .cell .label { font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-faint); font-weight: 700; }
+  .cell .value {
+    font-family: "Source Serif 4", Georgia, serif; font-size: 22px; font-weight: 700;
+    margin: 2px 0; font-variant-numeric: tabular-nums; overflow-wrap: break-word;
+  }
+  .cell .sub { font-size: 12px; color: var(--ink-soft); }
+  @media (max-width: 860px) { .scoreboard { grid-template-columns: repeat(2, 1fr); } .cell:last-child { grid-column: span 2; } }
+
+  h2.sec {
+    font-family: "Source Serif 4", Georgia, serif; font-size: 21px; margin: 38px 0 4px;
+    padding-top: 16px; border-top: 1px solid var(--line);
+  }
+  .sec-sub { margin: 0 0 16px; font-size: 13px; color: var(--ink-faint); }
+
+  .lanes { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+  .lane {
+    background: var(--bg-raise); border: 1px solid var(--line); border-radius: 8px;
+    padding: 16px 16px 14px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 8px;
+  }
+  .lane-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  .lane h3 { font-family: "Source Serif 4", Georgia, serif; font-size: 16.5px; margin: 0; }
+  .status-pill {
+    flex: none; font-size: 10.5px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase;
+    padding: 3px 9px; border-radius: 99px; border: 1.5px solid currentColor;
+  }
+  .st-shipped { color: var(--forest); } .st-active { color: var(--amber); }
+  .st-design { color: var(--maroon); } .st-paused, .st-backlog { color: var(--slate); }
+  .bar { height: 6px; border-radius: 99px; background: var(--chip-bg); overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--maroon); border-radius: 99px; }
+  .pct { font-size: 11.5px; color: var(--ink-faint); font-variant-numeric: tabular-nums; }
+  .lane p { margin: 0; font-size: 13.5px; color: var(--ink-soft); }
+  .lane .next { font-size: 13px; border-top: 1px dashed var(--line); padding-top: 8px; }
+  .lane .next b { color: var(--maroon); font-weight: 700; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+  .chip {
+    font: 600 12.5px/1 inherit; font-family: inherit; padding: 7px 13px; border-radius: 99px;
+    border: 1px solid var(--line); background: var(--chip-bg); color: var(--ink-soft); cursor: pointer;
+  }
+  .chip[aria-pressed="true"] { background: var(--maroon); border-color: var(--maroon); color: var(--bg); }
+  .chip:focus-visible { outline: 2px solid var(--maroon); outline-offset: 2px; }
+
+  .timeline { list-style: none; margin: 0; padding: 0; border-left: 2px solid var(--line); }
+  .timeline li { position: relative; padding: 0 0 16px 22px; }
+  .timeline li::before {
+    content: ""; position: absolute; left: -7px; top: 6px; width: 12px; height: 12px;
+    border-radius: 50%; background: var(--bg); border: 3px solid var(--slate);
+  }
+  .timeline li.m-done::before { border-color: var(--forest); background: var(--forest); }
+  .timeline li.m-active::before { border-color: var(--amber); background: var(--amber); }
+  .timeline li.m-next::before { border-color: var(--slate); }
+  .timeline li.m-blocked::before { border-color: var(--crimson); background: var(--crimson); }
+  .m-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
+  .m-date { font-size: 12px; color: var(--ink-faint); font-variant-numeric: tabular-nums; min-width: 78px; }
+  .m-title { font-weight: 650; }
+  .m-title button {
+    all: unset; cursor: pointer; font-weight: 650; color: var(--ink);
+  }
+  .m-title button:focus-visible { outline: 2px solid var(--maroon); outline-offset: 2px; }
+  .m-ws { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--maroon); font-weight: 700; }
+  .m-detail { display: none; margin: 4px 0 0; font-size: 13.5px; color: var(--ink-soft); max-width: 72ch; }
+  li.open .m-detail { display: block; }
+
+  .risks { display: flex; flex-direction: column; gap: 10px; }
+  .risk {
+    display: flex; gap: 12px; background: var(--bg-raise); border: 1px solid var(--line);
+    border-radius: 8px; padding: 12px 14px; box-shadow: var(--shadow);
+  }
+  .risk .stripe { flex: none; width: 4px; border-radius: 99px; }
+  .sev-high .stripe { background: var(--crimson); } .sev-med .stripe { background: var(--amber); } .sev-low .stripe { background: var(--slate); }
+  .risk b { font-weight: 650; }
+  .risk .sev-tag { font-size: 10.5px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; margin-right: 8px; }
+  .sev-high .sev-tag { color: var(--crimson); } .sev-med .sev-tag { color: var(--amber); } .sev-low .sev-tag { color: var(--slate); }
+  .risk p { margin: 2px 0 0; font-size: 13.5px; color: var(--ink-soft); }
+
+  table.plain { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  table.plain td { padding: 8px 10px 8px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+  table.plain td.d { white-space: nowrap; color: var(--ink-faint); font-variant-numeric: tabular-nums; width: 92px; }
+  table.plain td.a { white-space: nowrap; color: var(--maroon); font-weight: 650; width: 140px; }
+  .tbl-scroll { overflow-x: auto; }
+
+  footer { margin-top: 48px; font-size: 12px; color: var(--ink-faint); border-top: 1px solid var(--line); padding-top: 14px; }
+  @media (prefers-reduced-motion: no-preference) {
+    .bar i { transition: width .6s cubic-bezier(.2,.7,.3,1); }
+  }
+</style>
+
+<div class="wrap">
+  <div id="err" role="alert"></div>
+  <header class="masthead">
+    <div class="eyebrow" id="h-team"></div>
+    <h1 class="serif">Mission Control</h1>
+    <p class="northstar" id="h-northstar"></p>
+    <p class="stamp">Last updated <b id="h-updated"></b> by <b id="h-by"></b> · agents: edit the JSON island in this file only</p>
+  </header>
+
+  <section class="scoreboard" id="scoreboard" aria-label="Scoreboard"></section>
+
+  <h2 class="sec serif">Workstreams</h2>
+  <p class="sec-sub">Where each lane stands and the single next step that moves it.</p>
+  <div class="lanes" id="lanes"></div>
+
+  <h2 class="sec serif">Milestones</h2>
+  <p class="sec-sub">Click a title for detail. Filter by status.</p>
+  <div class="chips" id="filters" role="group" aria-label="Milestone filters"></div>
+  <ul class="timeline" id="timeline"></ul>
+
+  <h2 class="sec serif">Risks &amp; blockers</h2>
+  <div class="risks" id="risks"></div>
+
+  <h2 class="sec serif">Decision log</h2>
+  <div class="tbl-scroll"><table class="plain" id="decisions"></table></div>
+
+  <h2 class="sec serif">Activity log</h2>
+  <div class="tbl-scroll"><table class="plain" id="log"></table></div>
+
+  <footer>Data lives in the <code>#mission-data</code> JSON island in this file. Renderer is static — agents never edit it. Validate edits with the one-liner in the header comment.</footer>
+</div>
+
+<script>
+(function () {
+  var esc = function (s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  };
+  var raw = document.getElementById("mission-data").textContent;
+  raw = raw.replace(/<!--[\s\S]*?-->/g, "");
+  var d;
+  try { d = JSON.parse(raw); }
+  catch (e) {
+    var err = document.getElementById("err");
+    err.style.display = "block";
+    err.textContent = "mission-data JSON failed to parse: " + e.message + " — fix the JSON island (an agent broke it).";
+    return;
+  }
+
+  document.getElementById("h-team").textContent = (d.meta.team || "") + " · " + (d.meta.project || "");
+  document.getElementById("h-northstar").textContent = d.meta.north_star || "";
+  document.getElementById("h-updated").textContent = d.meta.updated || "?";
+  document.getElementById("h-by").textContent = d.meta.updated_by || "?";
+
+  document.getElementById("scoreboard").innerHTML = (d.scoreboard || []).slice(0, 5).map(function (c) {
+    return '<div class="cell"><div class="label">' + esc(c.label) + '</div><div class="value">' + esc(c.value) + '</div><div class="sub">' + esc(c.sub) + "</div></div>";
+  }).join("");
+
+  document.getElementById("lanes").innerHTML = (d.workstreams || []).map(function (w) {
+    var pct = Math.max(0, Math.min(100, +w.pct || 0));
+    return '<div class="lane">' +
+      '<div class="lane-head"><h3>' + esc(w.name) + '</h3><span class="status-pill st-' + esc(w.status) + '">' + esc(w.status) + "</span></div>" +
+      '<div class="bar" role="img" aria-label="' + pct + '% complete"><i style="width:' + pct + '%"></i></div>' +
+      '<div class="pct">' + pct + "% complete</div>" +
+      "<p>" + esc(w.summary) + "</p>" +
+      '<p class="next"><b>Next →</b> ' + esc(w.next) + "</p></div>";
+  }).join("");
+
+  var statuses = ["all", "done", "active", "next", "blocked"];
+  var current = "all";
+  var filters = document.getElementById("filters");
+  filters.innerHTML = statuses.map(function (s) {
+    return '<button class="chip" data-s="' + s + '" aria-pressed="' + (s === current) + '">' + s + "</button>";
+  }).join("");
+  filters.addEventListener("click", function (ev) {
+    var b = ev.target.closest(".chip"); if (!b) return;
+    current = b.dataset.s;
+    Array.prototype.forEach.call(filters.children, function (c) { c.setAttribute("aria-pressed", c.dataset.s === current); });
+    renderTimeline();
+  });
+
+  var wsName = {};
+  (d.workstreams || []).forEach(function (w) { wsName[w.id] = w.name; });
+
+  function renderTimeline() {
+    var items = (d.milestones || []).filter(function (m) { return current === "all" || m.status === current; });
+    document.getElementById("timeline").innerHTML = items.map(function (m, i) {
+      return '<li class="m-' + esc(m.status) + '">' +
+        '<div class="m-row"><span class="m-date">' + esc(m.date) + '</span>' +
+        '<span class="m-title"><button aria-expanded="false" data-i="' + i + '">' + esc(m.title) + "</button></span>" +
+        '<span class="m-ws">' + esc(m.workstream) + "</span></div>" +
+        '<p class="m-detail">' + esc(m.detail) + "</p></li>";
+    }).join("") || '<li><div class="m-row"><span class="m-title">Nothing with this status.</span></div></li>';
+  }
+  document.getElementById("timeline").addEventListener("click", function (ev) {
+    var b = ev.target.closest("button"); if (!b) return;
+    var li = b.closest("li"); li.classList.toggle("open");
+    b.setAttribute("aria-expanded", li.classList.contains("open"));
+  });
+  renderTimeline();
+
+  document.getElementById("risks").innerHTML = (d.risks || []).map(function (r) {
+    return '<div class="risk sev-' + esc(r.sev) + '"><div class="stripe"></div><div>' +
+      '<span class="sev-tag">' + esc(r.sev) + "</span><b>" + esc(r.title) + "</b>" +
+      "<p>" + esc(r.detail) + "</p></div></div>";
+  }).join("");
+
+  document.getElementById("decisions").innerHTML = (d.decisions || []).map(function (x) {
+    return '<tr><td class="d">' + esc(x.date) + "</td><td>" + esc(x.what) + "</td></tr>";
+  }).join("");
+
+  document.getElementById("log").innerHTML = (d.log || []).map(function (x) {
+    return '<tr><td class="d">' + esc(x.date) + '</td><td class="a">' + esc(x.agent) + "</td><td>" + esc(x.summary) + "</td></tr>";
+  }).join("");
+})();
+</script>

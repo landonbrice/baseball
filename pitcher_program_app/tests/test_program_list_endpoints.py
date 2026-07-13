@@ -174,3 +174,51 @@ def test_get_holds_today_ignores_hold_for_non_active_program(client):
         resp = client.get("/api/programs/holds-today", headers={"X-Test-Pitcher-Id": PID})
     assert resp.status_code == 200
     assert resp.json() == {"throwing": False, "lifting": False}
+
+
+# ----------------------------- /programs/{id} (detail) -----------------------------
+
+def test_get_program_detail_happy_path(client):
+    from bot.services import db as _db
+    program = {
+        "program_id": "p9", "pitcher_id": PID, "domain": "throwing",
+        "status": "active", "start_date": "2026-07-14",
+        "nominal_end_date": "2026-09-14", "current_day_index": 3,
+        "held_days_count": 0, "parent_template_id": "return_to_mound_9wk_v1",
+        "generated_schedule_json": {"days": [
+            {"day_index": 0, "template_key": "wk1_d1", "date": "2026-07-14"},
+        ]},
+    }
+    tpl = {"block_template_id": "return_to_mound_9wk_v1", "name": "Return to Play — 9-Week Mound Reintroduction"}
+    with patch.object(_db, "get_program", return_value=program), \
+         patch.object(_db, "list_block_library_templates", return_value=[tpl]):
+        resp = client.get("/api/programs/p9", headers={"X-Test-Pitcher-Id": PID})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["program"]["program_id"] == "p9"
+    assert body["program"]["generated_schedule_json"]["days"]
+    assert body["template"]["name"].startswith("Return to Play")
+
+
+def test_get_program_detail_cross_pitcher_is_opaque_404(client):
+    from bot.services import db as _db
+    program = {"program_id": "p9", "pitcher_id": "someone_else"}
+    with patch.object(_db, "get_program", return_value=program):
+        resp = client.get("/api/programs/p9", headers={"X-Test-Pitcher-Id": PID})
+    assert resp.status_code == 404
+
+
+def test_get_program_detail_missing_404(client):
+    from bot.services import db as _db
+    with patch.object(_db, "get_program", return_value=None):
+        resp = client.get("/api/programs/p9", headers={"X-Test-Pitcher-Id": PID})
+    assert resp.status_code == 404
+
+
+def test_get_program_detail_does_not_swallow_literal_routes(client):
+    """Route-order guard: /programs/active must still hit the active handler."""
+    from bot.services import db as _db
+    with patch.object(_db, "list_programs_for_pitcher_summary", return_value=[]):
+        resp = client.get("/api/programs/active", headers={"X-Test-Pitcher-Id": PID})
+    assert resp.status_code == 200
+    assert set(resp.json().keys()) == {"throwing", "lifting"}

@@ -85,13 +85,97 @@ def _validate_schedule(schedule: dict, tuned_spec: dict, template: dict, profile
     return failures
 
 
+def _generate_program_v1_engine(pitcher_id: str, template_id: str, tuned_spec: dict,
+                                  constraint_envelope: dict, session_id: str | None) -> dict:
+    """Program Engine v1 path. Called by `generate_program` when PROGRAM_ENGINE_V1
+    flag is on. Wraps `program_engine.orchestrator.author_validate_persist`,
+    then maps the returned PitcherProgram back to the legacy `programs` row shape
+    so persistence is identical.
+
+    Imported lazily so the legacy path has zero new dependencies when the flag
+    is off (Phase 0 entry condition).
+    """
+    import asyncio
+    from bot.services.program_engine.orchestrator import author_validate_persist
+    from bot.services.research_resolver import resolve_for_program_gen
+
+    template = _load_template(template_id)
+    if not template:
+        raise ValueError(f"template not found: {template_id}")
+    profile = _load_pitcher_profile(pitcher_id) or {}
+    start_date_str = constraint_envelope.get("start_date") or date.today().isoformat()
+    start_date = date.fromisoformat(start_date_str)
+    weeks = int((tuned_spec or {}).get("weeks", _DEFAULT_WEEKS))
+    target_date = (start_date + timedelta(days=weeks * 7 - 1)).isoformat()
+
+    goal_spec = {
+        "tags": list(template.get("goal_tags") or []) or ["unknown"],
+        "target_weeks": weeks,
+        "target_date": target_date,
+        "tunables": tuned_spec or {},
+    }
+    knowledge_pack = resolve_for_program_gen(
+        pitcher_profile=profile,
+        pitcher_context="",
+        goal_spec=goal_spec,
+    )
+    pitcher_validation_ctx = constraint_envelope.get("validation_ctx") or {
+        "exercises_rows": [],
+        "available_equipment": (profile.get("training") or {}).get("equipment_constraints") or [],
+        "active_modifications": [],
+        "tag_lookup": {},
+    }
+
+    result = asyncio.run(author_validate_persist(
+        pitcher_profile=profile,
+        pitcher_context="",
+        goal_spec=goal_spec,
+        knowledge_pack=knowledge_pack,
+        pitcher_validation_ctx=pitcher_validation_ctx,
+        block_library_row=template,
+        target_date=target_date,
+    ))
+
+    schedule = {
+        "scaffold_kind": "engine_v1_authored",
+        "days": [d.model_dump() for d in result.program.days],
+    }
+    row = {
+        "pitcher_id": pitcher_id,
+        "parent_template_id": template_id,
+        "domain": template.get("domain"),
+        "tuned_spec_json": tuned_spec or {},
+        "generated_schedule_json": schedule,
+        "start_date": start_date.isoformat(),
+        "nominal_end_date": target_date,
+        "current_day_index": 0,
+        "held_days_count": 0,
+        "status": "draft",
+        "created_by": constraint_envelope.get("created_by", pitcher_id),
+        "created_by_role": constraint_envelope.get("created_by_role", "pitcher"),
+        "knowledge_version": result.knowledge_version,
+        "generation_provenance": result.program.generation_provenance,
+        "engine_version": "v1",
+    }
+    program_id = _persist_program(row)
+    row["program_id"] = program_id
+    return row
+
+
 def generate_program(pitcher_id: str, template_id: str, tuned_spec: dict,
                       constraint_envelope: dict, session_id: str | None) -> dict:
     """Layer 3: produce a draft program for the pitcher.
 
     Returns the persisted program row. Status will be 'draft' on success or 'error'
     after two consecutive validation failures (the second falls back to default tuning).
+
+    Routes to the Program Engine v1 path when `PROGRAM_ENGINE_V1` is True;
+    otherwise runs the legacy rotation-repeat path unchanged.
     """
+    from bot.services.program_engine.feature_flag import PROGRAM_ENGINE_V1
+    if PROGRAM_ENGINE_V1:
+        return _generate_program_v1_engine(pitcher_id, template_id, tuned_spec, constraint_envelope, session_id)
+
     template = _load_template(template_id)
     if not template:
         raise ValueError(f"template not found: {template_id}")
