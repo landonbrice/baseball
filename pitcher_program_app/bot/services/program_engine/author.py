@@ -47,9 +47,12 @@ _SYSTEM_PROMPT = (
     "You are a brilliant pitching coach authoring complete multi-week training "
     "programs as JSON. Emit ONLY valid JSON matching the PitcherProgram schema — "
     "no markdown, no prose, no fences. Emit COMPACT JSON: no indentation, no "
-    "newlines between tokens, single spaces only where JSON requires none — the "
-    "output is machine-parsed and length-constrained, so every wasted character "
-    "risks truncation. Keep drill/note strings terse. The downstream guardrails "
+    "newlines between tokens. Keep drill/note strings terse. Your output budget "
+    "is 65,536 tokens — a complete 9-week program with full lifting detail on "
+    "every day fits comfortably, so write every single day as a complete Day "
+    "object. NEVER summarize, abbreviate, or skip days; NEVER emit placeholder "
+    "text, comments, or meta-commentary inside arrays — one non-object element "
+    "in `days` invalidates the entire program. The downstream guardrails "
     "enforce the invariants; you focus on the program design."
 )
 
@@ -194,25 +197,39 @@ def _normalize_authored_dict(data: dict) -> dict:
          real titles from frontmatter anyway).
       4. superset_group "" → None (run #7 — the model uses the empty string
          for ungrouped exercises; the schema pattern requires "A1"-style).
+      5. All length-capped prose fields clipped to their schema caps (run #8
+         attempt 1 died on ONE over-long intent_summary in an otherwise-valid
+         63-day program).
     """
     if not isinstance(data, dict):
         return data
+
+    def _clip(obj: dict, key: str, cap: int) -> None:
+        v = obj.get(key)
+        if isinstance(v, str) and len(v) > cap:
+            obj[key] = v[: cap - 3] + "..."
+
     for day in data.get("days") or []:
         if not isinstance(day, dict):
             continue
         if day.get("lifting_blocks") is None:
             day["lifting_blocks"] = []
-        df = day.get("day_focus")
-        if isinstance(df, str) and len(df) > 120:
-            day["day_focus"] = df[:117] + "..."
+        _clip(day, "day_focus", 120)
+        _clip(day, "phase_name", 60)
         for block in day.get("lifting_blocks") or []:
             if not isinstance(block, dict):
                 continue
+            _clip(block, "block_name", 60)
             for ex in block.get("exercises") or []:
                 # superset_group must be None or "A1"-style; the model emits
                 # "" for ungrouped exercises (live run #7).
                 if isinstance(ex, dict) and isinstance(ex.get("superset_group"), str) and not ex["superset_group"].strip():
                     ex["superset_group"] = None
+    for phase in data.get("phases") or []:
+        if isinstance(phase, dict):
+            _clip(phase, "phase_id", 40)
+            _clip(phase, "name", 60)
+            _clip(phase, "intent_summary", 240)
     rationale = data.get("rationale")
     if isinstance(rationale, dict):
         fixed = []
@@ -225,7 +242,7 @@ def _normalize_authored_dict(data: dict) -> dict:
             if not why:
                 sections = c.get("sections")
                 why = "; ".join(sections) if isinstance(sections, list) else "cited by author"
-            fixed.append({"doc_id": doc_id, "title": title, "why": str(why)[:500]})
+            fixed.append({"doc_id": doc_id, "title": title, "why": str(why)[:240]})
         if fixed:
             rationale["citations"] = fixed
     return data

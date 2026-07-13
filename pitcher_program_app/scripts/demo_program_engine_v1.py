@@ -244,7 +244,7 @@ async def _run_generation(mode: dict, goal_spec: dict, profile: dict, context: s
             pitcher_validation_ctx=pitcher_validation_ctx,
             block_library_row=template,
             target_date=goal_spec["target_date"],
-            max_reprompts=2,
+            max_reprompts=4,
         )
         return {
             "program": result.program,
