@@ -512,7 +512,7 @@ async def _run_all(persist: bool) -> dict:
             "held_days_count": 0,
             "status": "draft",
             "created_by": program.pitcher_id,
-            "created_by_role": "demo_script",
+            "created_by_role": "pitcher",  # DB CHECK allows pitcher|coach; provenance marks the demo
             "knowledge_version": program.knowledge_version,
             "generation_provenance": program.generation_provenance,
             "engine_version": program.engine_version,

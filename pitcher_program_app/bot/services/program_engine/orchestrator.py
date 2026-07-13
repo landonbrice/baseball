@@ -144,10 +144,17 @@ async def author_validate_persist(
             )
             if is_last:
                 break
-            # Don't re-prompt on a GenerationFailure — the LLM is broken in
-            # some way (timeout, malformed). Skip re-prompt, go to fallback.
-            logger.warning("orchestrator: GenerationFailure on attempt %d, going to fallback", attempt_n)
-            break
+            # GenerationFailures are empirically STOCHASTIC per-sample slips
+            # (truncation, one bad bracket in 65KB, a mangled day) — not
+            # deterministic brokenness. Retry with a fresh sample up to the
+            # attempt cap; the fallback still floors the worst case.
+            # (Live runs 2026-07-13 each failed differently on attempt 1.)
+            logger.warning(
+                "orchestrator: GenerationFailure on attempt %d (%s), retrying with fresh sample",
+                attempt_n, e.reason,
+            )
+            previous_violations = None  # fresh attempt, no stale violation context
+            continue
 
         result: ValidationResult = validate_program(program, pitcher_validation_ctx)
         attempts.append({
