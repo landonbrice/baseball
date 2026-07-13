@@ -771,7 +771,12 @@ async def process_checkin(
     throwing_data = (plan_result.get("throwing") or {}) if plan_result else {}
     if throwing_data.get("type", "none") != "none" and throwing_data.get("type") != "no_throw":
         day_label = throwing_data.get("day_type_label") or throwing_data.get("type", "")
-        vol = (throwing_data.get("volume_summary") or {}).get("total_throws_estimate")
+        # volume_summary is a dict by contract, but tolerate any shape — a
+        # string here took down every drive check-in on 2026-07-13
+        # (AttributeError AFTER the entry upsert, so the plan persisted while
+        # the bot reported failure).
+        _vs = throwing_data.get("volume_summary")
+        vol = _vs.get("total_throws_estimate") if isinstance(_vs, dict) else None
         intensity = throwing_data.get("intensity_range", "")
         parts = [f"Throwing: {day_label}"]
         if intensity:

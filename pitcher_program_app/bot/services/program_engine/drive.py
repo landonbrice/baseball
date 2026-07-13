@@ -145,12 +145,16 @@ def _throwing_section(day: Day) -> Optional[dict]:
     return {
         "type": "program_throwing",
         "day_type": "program_throwing",
-        "day_label": day.day_focus or drill.title(),
+        "day_type_label": day.day_focus or drill.title(),
         "intent": f"{five.intensity_pct}%",
         "intensity_range": f"{five.intensity_pct}%",
         "distance_ft": five.distance_ft,
         "throw_count": five.throw_count,
-        "volume_summary": summary,
+        # DICT by legacy contract — checkin_service's session note,
+        # progression.py, and DailyCard all read .total_throws_estimate
+        # (2026-07-13 incident: a string here crashed every check-in
+        # post-persist with AttributeError on str.get).
+        "volume_summary": {"total_throws_estimate": five.throw_count, "text": summary},
         "phases": [
             {
                 "name": "Program throwing",

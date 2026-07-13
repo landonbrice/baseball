@@ -93,6 +93,12 @@ def test_green_day_ships_silently(patched_drive):
     assert plan["proposal"] is None
     assert plan["throwing"]["throw_count"] == 40
     assert plan["throwing"]["type"] == "program_throwing"
+    # volume_summary MUST be a dict — a string here crashed every check-in
+    # post-persist on 2026-07-13 (str.get AttributeError in the session-note
+    # builder and progression.py)
+    assert isinstance(plan["throwing"]["volume_summary"], dict)
+    assert plan["throwing"]["volume_summary"]["total_throws_estimate"] == 40
+    assert plan["throwing"]["day_type_label"]
     assert len(plan["lifting"]["exercises"]) == 2
     assert plan["lifting"]["exercises"][0]["name"] == "Front Squat"
     assert plan["exercise_blocks"][0]["block_name"] == "Lower Strength"
