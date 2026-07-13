@@ -61,7 +61,7 @@ _SOURCE = "supabase_app.collect_supabase_app"
 # Thresholds.
 _DAILY_ENTRIES_STALE_WARN = 3
 _RESEARCH_DEGRADED_RATE_WARN = 0.25
-_RESEARCH_INJECTION_CHARS_WARN = 8000
+_RESEARCH_INJECTION_CHARS_WARN = 48000  # program-gen budget is 40k chars (resolve_for_program_gen, 2026-07-12); warn only above it
 _UI_FALLBACK_24H_WARN = 10
 
 # Production-safe column list for `daily_entries` (CLAUDE.md).

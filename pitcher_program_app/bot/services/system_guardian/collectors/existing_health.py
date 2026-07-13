@@ -187,6 +187,7 @@ def _build_plan_health_observations(plan: dict | None) -> list[dict]:
     total = plan.get("total_plans", 0) or 0
     enriched = plan.get("llm_enriched", 0) or 0
     fallback = plan.get("python_fallback", 0) or 0
+    prescribed = plan.get("prescribed", 0) or 0
     no_plan = plan.get("no_plan", 0) or 0
     degraded = plan.get("degraded_pitchers") or []
     rate = plan.get("degradation_rate") or 0.0
@@ -264,7 +265,7 @@ def _build_plan_health_observations(plan: dict | None) -> list[dict]:
             "route_or_job": "compute_plan_health",
             "message": (
                 f"plan_health_summary: {enriched} enriched, {fallback} fallback, "
-                f"{no_plan} no_plan on {plan.get('date', '?')}"
+                f"{prescribed} prescribed, {no_plan} no_plan on {plan.get('date', '?')}"
             ),
             "metadata": {
                 "category": "existing_health",

@@ -49,6 +49,7 @@ def compute_plan_health(date: str = None) -> dict:
 
     llm_enriched = 0
     python_fallback = 0
+    prescribed = 0
     no_plan = 0
     source_reason_counts = {}
     degraded_pitchers = []
@@ -63,6 +64,12 @@ def compute_plan_health(date: str = None) -> dict:
             reason = plan_gen.get("source_reason") or "unknown"
             source_reason_counts[reason] = source_reason_counts.get(reason, 0) + 1
             degraded_pitchers.append(entry.get("pitcher_id"))
+        elif source in ("program_prescribed", "engine_projected"):
+            # Program-driven plans (Plan 6 program-aware + Sprint C drive) —
+            # healthy by construction, no LLM review to degrade. Counted
+            # separately so the digest never calls a drive morning "no plan"
+            # (2026-07-13: the first live drive check-in showed up as no_plan).
+            prescribed += 1
         else:
             # source is None → partial entry (check-in saved, plan didn't ship)
             # OR this is an old row from before source tagging (pre-2026-04-09)
@@ -73,9 +80,10 @@ def compute_plan_health(date: str = None) -> dict:
 
     return {
         "date": date,
-        "total_plans": total,
+        "total_plans": total + prescribed,
         "llm_enriched": llm_enriched,
         "python_fallback": python_fallback,
+        "prescribed": prescribed,
         "no_plan": no_plan,
         "degradation_rate": rate,
         "source_reason_counts": source_reason_counts,

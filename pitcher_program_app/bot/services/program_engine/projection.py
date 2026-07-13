@@ -140,6 +140,11 @@ def _classify_readiness(readiness: dict) -> str:
 
     flag_map = {
         "GREEN": "green",
+        # Triage's modified_green = "green with modifications applied". The
+        # explicit baseline is green; the inferred-severity rule below still
+        # upgrades to yellow/red when category scores or arm feel warrant it
+        # (exactly what happened 2026-07-13: WHOOP recovery 19 → yellow).
+        "MODIFIED_GREEN": "green",
         "YELLOW": "yellow",
         "RED": "red",
         "CRITICAL_RED": "critical_red",
