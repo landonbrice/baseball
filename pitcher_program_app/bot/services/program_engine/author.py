@@ -156,7 +156,7 @@ def _exercise_menu() -> str:
     try:
         from bot.services.db import get_client
 
-        resp = get_client().table("exercises").select("id, name").order("id").execute()
+        resp = get_client().table("exercises").select("id, name, tags, category").order("id").execute()
         rows = resp.data or []
     except Exception as e:  # offline / no creds — fall back to the snapshot
         logger.warning("author: live exercise menu unavailable (%s); using snapshot", e)
@@ -166,8 +166,15 @@ def _exercise_menu() -> str:
             rows = json.loads(snapshot.read_text())
         except Exception:
             rows = []
+    from bot.services.program_engine.structural_invariants import derive_structural_tags
+
+    def _line(r: dict) -> str:
+        tags = derive_structural_tags(r)
+        suffix = f"  [{','.join(sorted(tags))}]" if tags else ""
+        return f"{r['id']}  {r.get('name', '')}{suffix}"
+
     _EXERCISE_MENU_CACHE = "\n".join(
-        f"{r['id']}  {r.get('name', '')}" for r in rows if r.get("id")
+        _line(r) for r in rows if r.get("id")
     ) or "(exercise menu unavailable)"
     return _EXERCISE_MENU_CACHE
 
@@ -185,6 +192,8 @@ def _normalize_authored_dict(data: dict) -> dict:
       3. citations shaped {doc_id, sections} → {doc_id, title, why} (title
          derived from doc_id; why joined from sections; display re-resolves
          real titles from frontmatter anyway).
+      4. superset_group "" → None (run #7 — the model uses the empty string
+         for ungrouped exercises; the schema pattern requires "A1"-style).
     """
     if not isinstance(data, dict):
         return data
@@ -196,6 +205,14 @@ def _normalize_authored_dict(data: dict) -> dict:
         df = day.get("day_focus")
         if isinstance(df, str) and len(df) > 120:
             day["day_focus"] = df[:117] + "..."
+        for block in day.get("lifting_blocks") or []:
+            if not isinstance(block, dict):
+                continue
+            for ex in block.get("exercises") or []:
+                # superset_group must be None or "A1"-style; the model emits
+                # "" for ungrouped exercises (live run #7).
+                if isinstance(ex, dict) and isinstance(ex.get("superset_group"), str) and not ex["superset_group"].strip():
+                    ex["superset_group"] = None
     rationale = data.get("rationale")
     if isinstance(rationale, dict):
         fixed = []
