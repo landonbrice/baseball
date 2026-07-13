@@ -1,7 +1,7 @@
 # Generated Velocity Program — `landon_brice`
 
-**Mode**: `mocked_fallback_as_llm` (LLM: `mocked_fallback_as_llm`, block_library: `stubbed_from_migration_033`)
-**Knowledge version**: `818030d0d8ab91a0`
+**Mode**: `live_llm` (LLM: `live`, block_library: `live`)
+**Knowledge version**: `9d185eb1dd6ea5aabc7508919c3ee936f7c81a21`
 **Engine version**: `v1`
 **Goal**: return_to_play · **Domain**: unified
 **Span**: 9 weeks · target_date 2026-09-13
