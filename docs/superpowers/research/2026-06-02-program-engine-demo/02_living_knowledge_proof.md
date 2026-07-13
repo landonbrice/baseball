@@ -1,9 +1,9 @@
 # Living-knowledge proof
 
-Block-library mode: `stubbed_from_migration_033`.
+Block-library mode: `live`.
 
-- **knowledge_version BEFORE mutation**: `818030d0d8ab91a0`
-- **knowledge_version AFTER mutation**: `e4254623253396b0`
+- **knowledge_version BEFORE mutation**: `9d185eb1dd6ea5aabc7508919c3ee936f7c81a21`
+- **knowledge_version AFTER mutation**: `12239824c8035d80aa2bc401bb8283313417aa1c`
 - **kv changed**: `True`
 - **mutation**: appended marker comment line
 

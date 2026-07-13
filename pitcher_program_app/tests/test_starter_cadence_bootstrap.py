@@ -6,9 +6,12 @@ increments. Marked skip after the bootstrap merges; preserved for one-shot valid
 import os
 import pytest
 
-pytestmark = pytest.mark.skipif(
-    not (os.environ.get("SUPABASE_URL") and os.environ.get("SUPABASE_SERVICE_KEY")),
-    reason="Bootstrap smoke test requires live Supabase credentials",
+pytestmark = pytest.mark.skip(
+    reason=(
+        "One-shot bootstrap snapshot (2026-04-30) — drifted as designed: programs "
+        "have since been archived/replaced (e.g. landon_brice archived his starter "
+        "2026-05-16). Preserved for historical validation only, per module docstring."
+    ),
 )
 
 

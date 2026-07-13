@@ -116,7 +116,7 @@ async def test_author_program_schema_invalid_raises():
 async def test_author_program_includes_previous_violations_in_prompt():
     """Re-prompt path: previous_violations is woven into the user prompt."""
     captured = {}
-    async def _capture(system_prompt, user_message, max_tokens):
+    async def _capture(system_prompt, user_message, max_tokens, timeout=None, return_metadata=False):
         captured["user_message"] = user_message
         return _valid_program_json()
 

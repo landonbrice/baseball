@@ -145,14 +145,38 @@ keys are a hard parse failure (the schema has `extra="forbid"`).
 - `intent_pct` is 0–100.
 - `throwing_5tuple.distance_ft` 0–400, `throw_count` 0–200, `intensity_pct` 0–100.
 - `lifting_blocks[*].exercises[*].exercise_id` matches `^ex_\d{3}$` exactly
-  (3-digit zero-padded). Use canonical IDs from the live `exercises` table.
+  (3-digit zero-padded). Use ONLY IDs from the exercise menu below — any other
+  ID is a fatal validation error.
+
+## Exercise menu (the complete canonical library — id → name)
+
+Lines carry a bracketed tag suffix where structurally relevant: `[pull]`,
+`[push]`, `[fpm]` (flexor-pronator mass). The validator enforces two hard
+structural rules using these tags — programs violating either are REJECTED:
+
+1. **Pull:push ratio** — in every week, total pull sets must be ≥ 2× total
+   push sets (count `sets` on `[pull]` vs `[push]` exercises).
+2. **FPM cadence** — in every week, at least 4 distinct days must include at
+   least one `[fpm]` exercise in their lifting blocks. FPM work is low-cost
+   arm care (wrist/forearm) — a 2-set FPM exercise appended to any training
+   day satisfies it, including throwing-focused days with light lifting.
+
+{exercise_menu}
 - `lifting_blocks[*].exercises[*].sets` 1–10.
 - `lifting_blocks[*].exercises[*].reps` is a freeform string (`"8"`, `"8-10"`,
   `"3 each leg"`, `"2RIR"`).
-- `superset_group` matches `^[A-Z][0-9]?$` (e.g. `A`, `A1`, `B2`).
+- `superset_group` matches `^[A-Z][0-9]?$` (e.g. `A`, `A1`, `B2`) — or `null`
+  for ungrouped exercises. Never the empty string.
 - `phase_id` is `lower_snake_case`.
 - `phases[*].week_count` 1–16; `phase_type` ∈
   `{accumulation, intensification, realization, deload, transition, base}`.
+- Phase-gate rule (validator-enforced): NO day inside the FIRST phase may
+  have `intent_pct` ≥ 85. Keep the opening phase genuinely sub-maximal and
+  start a new phase before any day ramps to ≥85% intent — a single 85%+ day
+  inside phase 1 rejects the program.
+- Deload rule (validator-enforced): never program 5+ consecutive weeks
+  without a deload week. Mark each deload week's days `is_deload: true`
+  with visibly reduced volume.
 - `total_weeks` 1–24.
 
 ### Latitude (the LLM decides)

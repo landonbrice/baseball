@@ -28,6 +28,26 @@ TAG_PULL = "pull"
 TAG_PUSH = "push"
 TAG_FPM = "fpm"  # flexor-pronator-mass
 
+
+def derive_structural_tags(row: dict) -> set[str]:
+    """Classify an `exercises` row into the structural-invariant vocabulary.
+
+    The library doesn't tag every row with the literal `pull`/`push`/`fpm`
+    strings — categories (`upper_body_pull`, `upper_body_push`, `forearm_fpm`)
+    carry the classification for rows whose tag list omits it. Callers use
+    this to build the `tag_lookup` the pull:push and FPM invariants consume.
+    """
+    tags = set(row.get("tags") or [])
+    category = row.get("category") or ""
+    out: set[str] = set()
+    if TAG_PULL in tags or category == "upper_body_pull":
+        out.add(TAG_PULL)
+    if TAG_PUSH in tags or category == "upper_body_push":
+        out.add(TAG_PUSH)
+    if TAG_FPM in tags or category == "forearm_fpm":
+        out.add(TAG_FPM)
+    return out
+
 # Defaults — overridable per-call so the velocity knowledge pack's
 # `content.acwr_governor` / `lifting_integration` can tighten them.
 DELOAD_MAX_ACCUMULATION_WEEKS = 4   # invariant: ≤4 accum weeks before a deload

@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+from pathlib import Path
 from typing import Any, Optional
 
 from pydantic import ValidationError
@@ -45,8 +46,14 @@ class GenerationFailure(Exception):
 _SYSTEM_PROMPT = (
     "You are a brilliant pitching coach authoring complete multi-week training "
     "programs as JSON. Emit ONLY valid JSON matching the PitcherProgram schema — "
-    "no markdown, no prose, no fences. The downstream guardrails enforce the "
-    "invariants; you focus on the program design."
+    "no markdown, no prose, no fences. Emit COMPACT JSON: no indentation, no "
+    "newlines between tokens. Keep drill/note strings terse. Your output budget "
+    "is 65,536 tokens — a complete 9-week program with full lifting detail on "
+    "every day fits comfortably, so write every single day as a complete Day "
+    "object. NEVER summarize, abbreviate, or skip days; NEVER emit placeholder "
+    "text, comments, or meta-commentary inside arrays — one non-object element "
+    "in `days` invalidates the entire program. The downstream guardrails "
+    "enforce the invariants; you focus on the program design."
 )
 
 
@@ -133,6 +140,147 @@ def _strip_json_fences(text: str) -> str:
     return text
 
 
+_EXERCISE_MENU_CACHE: Optional[str] = None
+
+
+def _exercise_menu() -> str:
+    """Compact `ex_NNN  Name` lines for the full canonical exercise library.
+
+    The prompt forbids invented IDs, so the model MUST be shown the real ones
+    (first live run fabricated ex_002-style IDs — unknowable without this).
+    Live `exercises` table preferred; snapshot fixture fallback keeps the
+    author functional offline. Cached per process (library changes are rare
+    and already require a redeploy for the pool cache anyway).
+    """
+    global _EXERCISE_MENU_CACHE
+    if _EXERCISE_MENU_CACHE is not None:
+        return _EXERCISE_MENU_CACHE
+    rows: list[dict] = []
+    try:
+        from bot.services.db import get_client
+
+        resp = get_client().table("exercises").select("id, name, tags, category").order("id").execute()
+        rows = resp.data or []
+    except Exception as e:  # offline / no creds — fall back to the snapshot
+        logger.warning("author: live exercise menu unavailable (%s); using snapshot", e)
+    if not rows:
+        snapshot = Path(__file__).resolve().parents[3] / "tests" / "fixtures" / "exercises_snapshot.json"
+        try:
+            rows = json.loads(snapshot.read_text())
+        except Exception:
+            rows = []
+    from bot.services.program_engine.structural_invariants import derive_structural_tags
+
+    def _line(r: dict) -> str:
+        tags = derive_structural_tags(r)
+        suffix = f"  [{','.join(sorted(tags))}]" if tags else ""
+        return f"{r['id']}  {r.get('name', '')}{suffix}"
+
+    _EXERCISE_MENU_CACHE = "\n".join(
+        _line(r) for r in rows if r.get("id")
+    ) or "(exercise menu unavailable)"
+    return _EXERCISE_MENU_CACHE
+
+
+
+
+def _normalize_authored_dict(data: dict) -> dict:
+    """Deterministic normalization of near-miss LLM output (repair plane).
+
+    Live run #5 attempt 3 parsed a full 63-day program cleanly and failed on
+    exactly three MECHANICAL classes — fix those, reject nothing the schema
+    can still catch afterward:
+      1. day_focus (and similar) strings over the 120-char cap → clipped.
+      2. lifting_blocks: null on non-lifting days → [].
+      3. citations shaped {doc_id, sections} → {doc_id, title, why} (title
+         derived from doc_id; why joined from sections; display re-resolves
+         real titles from frontmatter anyway).
+      4. superset_group "" → None (run #7 — the model uses the empty string
+         for ungrouped exercises; the schema pattern requires "A1"-style).
+      5. All length-capped prose fields clipped to their schema caps (run #8
+         attempt 1 died on ONE over-long intent_summary in an otherwise-valid
+         63-day program).
+      6. Days nested inside lifting_blocks lifted back to the days array
+         (runs #4/#8/#9 — the dominant failure class: one dropped `]}` makes
+         json_repair close lifting_blocks too late, so every subsequent day
+         nests recursively inside it; content is intact, only misplaced).
+    """
+    if not isinstance(data, dict):
+        return data
+
+    def _clip(obj: dict, key: str, cap: int) -> None:
+        v = obj.get(key)
+        if isinstance(v, str) and len(v) > cap:
+            obj[key] = v[: cap - 3] + "..."
+
+    def _is_migrant_day(b: Any) -> bool:
+        return isinstance(b, dict) and "day_index" in b and "block_name" not in b
+
+    days_in = data.get("days")
+    if isinstance(days_in, list):
+        out: list = []
+        queue = list(days_in)
+        while queue:
+            d = queue.pop(0)
+            if isinstance(d, dict) and isinstance(d.get("lifting_blocks"), list):
+                real_blocks: list = []
+                migrants: list = []
+                for b in d["lifting_blocks"]:
+                    (migrants if _is_migrant_day(b) else real_blocks).append(b)
+                if migrants:
+                    d["lifting_blocks"] = real_blocks
+                    queue = migrants + queue  # chronological order preserved
+                # Bracket slips also strand the day's own trailing fields
+                # (day_focus/cues) inside its last block — move them home.
+                for b in real_blocks:
+                    if isinstance(b, dict) and "block_name" in b:
+                        for stray in ("day_focus", "cues"):
+                            if stray in b:
+                                val = b.pop(stray)
+                                if not d.get(stray):
+                                    d[stray] = val
+            out.append(d)
+        data["days"] = out
+
+    for day in data.get("days") or []:
+        if not isinstance(day, dict):
+            continue
+        if day.get("lifting_blocks") is None:
+            day["lifting_blocks"] = []
+        _clip(day, "day_focus", 120)
+        _clip(day, "phase_name", 60)
+        for block in day.get("lifting_blocks") or []:
+            if not isinstance(block, dict):
+                continue
+            _clip(block, "block_name", 60)
+            for ex in block.get("exercises") or []:
+                # superset_group must be None or "A1"-style; the model emits
+                # "" for ungrouped exercises (live run #7).
+                if isinstance(ex, dict) and isinstance(ex.get("superset_group"), str) and not ex["superset_group"].strip():
+                    ex["superset_group"] = None
+    for phase in data.get("phases") or []:
+        if isinstance(phase, dict):
+            _clip(phase, "phase_id", 40)
+            _clip(phase, "name", 60)
+            _clip(phase, "intent_summary", 240)
+    rationale = data.get("rationale")
+    if isinstance(rationale, dict):
+        fixed = []
+        for c in rationale.get("citations") or []:
+            if not isinstance(c, dict):
+                continue
+            doc_id = c.get("doc_id") or ""
+            title = c.get("title") or doc_id.replace("_", " ").title()
+            why = c.get("why")
+            if not why:
+                sections = c.get("sections")
+                why = "; ".join(sections) if isinstance(sections, list) else "cited by author"
+            fixed.append({"doc_id": doc_id, "title": title, "why": str(why)[:240]})
+        if fixed:
+            rationale["citations"] = fixed
+    return data
+
+
 def _build_user_prompt(
     *,
     pitcher_profile: dict,
@@ -152,6 +300,7 @@ def _build_user_prompt(
     user = user.replace("{pitcher_context}", pitcher_context or "(no per-pitcher context)")
     user = user.replace("{goal_spec}", goal_json)
     user = user.replace("{previous_violations}", violations_text)
+    user = user.replace("{exercise_menu}", _exercise_menu())
     return user
 
 
@@ -203,7 +352,12 @@ async def author_program(
         raw = await call_llm_reasoning(
             system_prompt=_SYSTEM_PROMPT,
             user_message=user_prompt,
-            max_tokens=8000,  # PitcherProgram with 12 weeks is large
+            # A full multi-week PitcherProgram (60-90 day objects) is ~20k+
+            # output tokens and the reasoner's CoT shares the budget — 8k and
+            # 32k both truncated live. 65536 probed accepted 2026-07-13.
+            max_tokens=65536,
+            timeout=300,  # one-shot compile step; latency-tolerant by design
+            return_metadata=True,
         )
     except TimeoutError as e:
         logger.warning("author_program: LLM timeout (%s)", e)
@@ -212,18 +366,40 @@ async def author_program(
         logger.warning("author_program: LLM error (%s)", e)
         raise GenerationFailure("llm_error", detail=str(e)) from e
 
+    # return_metadata=True → (content, finish_reason). Truncation is a
+    # first-class failure: don't burn a parse attempt on a cut-off body.
+    if isinstance(raw, tuple):
+        raw, finish_reason = raw[0], (raw[1] or "stop")
+        if finish_reason == "length":
+            raise GenerationFailure(
+                "llm_truncated",
+                detail=f"finish_reason=length at max_tokens=65536; output chars={len(raw or '')}",
+            )
+
     if not isinstance(raw, str) or not raw.strip():
         raise GenerationFailure("llm_empty_response")
 
     text = _strip_json_fences(raw)
 
-    # Parse JSON
+    # Parse (with deterministic bracket repair) → normalize → validate.
+    # json_repair handles the one-bad-bracket-in-65KB class (live run #3);
+    # _normalize_authored_dict handles the mechanical near-misses (run #5);
+    # the full Pydantic schema still gates everything at the end.
     try:
-        # PitcherProgram.model_validate_json does both parse + validate in one
-        # step, but we strip fences first so error messages are cleaner.
-        program = PitcherProgram.model_validate_json(text)
+        data = json.loads(text)
+    except (json.JSONDecodeError, ValueError):
+        try:
+            import json_repair
+
+            data = json_repair.loads(text)
+            logger.warning("author_program: JSON repaired deterministically (json_repair)")
+        except Exception as e:
+            logger.warning("author_program: JSON unrecoverable (%s)", e)
+            raise GenerationFailure("json_parse_failed", detail=str(e)) from e
+    try:
+        program = PitcherProgram.model_validate(_normalize_authored_dict(data))
     except ValidationError as e:
-        logger.warning("author_program: schema validation failed (%s)", e)
+        logger.warning("author_program: schema validation failed post-normalize (%s)", e)
         raise GenerationFailure("schema_validation_failed", detail=str(e)) from e
     except (json.JSONDecodeError, ValueError) as e:
         logger.warning("author_program: JSON parse failed (%s)", e)

@@ -187,6 +187,32 @@ def _stub_resolve_program_gen(goal_spec: dict, profile: dict) -> dict:
 # ─────────────────────────────────────────────────────────────────────────────
 
 
+def _build_validation_ctx(profile: dict) -> dict:
+    """Real guardrail context from the canonical exercise library.
+
+    Live runs #6–#7 used a hand-seeded 7-id whitelist here, which false-flagged
+    every legitimate id the LLM picked from the injected menu (and starved the
+    pull:push / FPM invariants of tags). The git JSON library carries the same
+    159 rows the live table is seeded from, so it's the deterministic source.
+    """
+    from bot.services.program_engine.structural_invariants import derive_structural_tags
+
+    lib_path = _APP_ROOT / "data" / "knowledge" / "exercise_library.json"
+    lib = json.loads(lib_path.read_text())
+    rows = lib if isinstance(lib, list) else lib.get("exercises", lib)
+    tag_lookup = {}
+    for r in rows:
+        tags = derive_structural_tags(r)
+        if tags:
+            tag_lookup[r["id"]] = tags
+    return {
+        "exercises_rows": rows,
+        "available_equipment": (profile.get("current_training") or {}).get("equipment", []),
+        "active_modifications": ["elevated_fpm_volume"],  # from landon_brice context.md
+        "tag_lookup": tag_lookup,
+    }
+
+
 def _load_pitcher() -> tuple[dict, str]:
     profile_path = PITCHER_DATA_DIR / "profile.json"
     context_path = PITCHER_DATA_DIR / "context.md"
@@ -206,17 +232,7 @@ async def _run_generation(mode: dict, goal_spec: dict, profile: dict, context: s
     short-circuit to fallback (which proves the fallback floor is real)."""
     from bot.services.program_engine.fallback import build_fallback_program
 
-    used_ids_seed = {"ex_001", "ex_020", "ex_025", "ex_041", "ex_070", "ex_128", "ex_145"}
-    pitcher_validation_ctx = {
-        "exercises_rows": [{"id": x, "equipment": None, "contraindications": []} for x in used_ids_seed],
-        "available_equipment": (profile.get("current_training") or {}).get("equipment", []),
-        "active_modifications": ["elevated_fpm_volume"],  # from landon_brice context.md
-        "tag_lookup": {
-            "ex_001": {"pull"}, "ex_020": {"pull"}, "ex_128": {"pull"},
-            "ex_025": {"push"}, "ex_145": {"push"},
-            "ex_041": {"fpm"}, "ex_070": {"fpm"},
-        },
-    }
+    pitcher_validation_ctx = _build_validation_ctx(profile)
 
     if mode["llm_mode"] == "live":
         from bot.services.program_engine.orchestrator import author_validate_persist
@@ -228,7 +244,7 @@ async def _run_generation(mode: dict, goal_spec: dict, profile: dict, context: s
             pitcher_validation_ctx=pitcher_validation_ctx,
             block_library_row=template,
             target_date=goal_spec["target_date"],
-            max_reprompts=2,
+            max_reprompts=4,
         )
         return {
             "program": result.program,
@@ -512,7 +528,7 @@ async def _run_all(persist: bool) -> dict:
             "held_days_count": 0,
             "status": "draft",
             "created_by": program.pitcher_id,
-            "created_by_role": "demo_script",
+            "created_by_role": "pitcher",  # DB CHECK allows pitcher|coach; provenance marks the demo
             "knowledge_version": program.knowledge_version,
             "generation_provenance": program.generation_provenance,
             "engine_version": program.engine_version,

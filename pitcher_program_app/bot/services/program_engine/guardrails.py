@@ -254,10 +254,15 @@ def validate_program(
             # No repair strategy matched any violation — exit the loop
             break
 
-    # Out of budget or no progress
+    # Out of budget or no progress. Residual WARNINGS are tolerated — e.g.
+    # acwr_below_band fires on every deload week and post-rest ramp by
+    # construction, and rejecting on it would reject correctly-deloading
+    # programs. Only severity=error violations reject (mirrors the governor's
+    # non-fatal tolerance); warnings ride along in `violations` for logging.
     violations = _run_all_guardrails(working, pitcher_context)
+    errors = [v for v in violations if v.severity == "error"]
     return ValidationResult(
-        status="reject" if violations else ("repaired" if repair_log else "valid"),
+        status="reject" if errors else ("repaired" if repair_log else "valid"),
         program=working,
         violations=violations,
         repair_log=repair_log,

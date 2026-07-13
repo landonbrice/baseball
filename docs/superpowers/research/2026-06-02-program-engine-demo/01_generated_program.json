@@ -2,9 +2,9 @@
   "pitcher_id": "landon_brice",
   "goal": "return_to_play",
   "domain": "unified",
-  "knowledge_version": "818030d0d8ab91a0",
+  "knowledge_version": "9d185eb1dd6ea5aabc7508919c3ee936f7c81a21",
   "engine_version": "v1",
-  "generated_at": "2026-07-13T00:47:01",
+  "generated_at": "2026-07-13T02:40:05",
   "target_date": "2026-09-13",
   "total_weeks": 9,
   "status": "draft",
@@ -2607,6 +2607,8 @@
   },
   "generation_provenance": {
     "fallback_used": true,
-    "template_id": "return_to_mound_9wk_v1"
+    "template_id": "return_to_mound_9wk_v1",
+    "attempts": 5,
+    "reject_reason": "max_reprompts_exhausted"
   }
 }
