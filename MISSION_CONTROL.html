@@ -231,6 +231,21 @@
   ],
   "risks": [
     {
+      "level": "low",
+      "title": "RAILWAY_TOKEN now live — Guardian Phase 2 unblocked",
+      "detail": "Token present in env (verified 2026-07-13). Clears the last blocker on the Guardian Phase 2 Railway collector; ready to build when scheduled."
+    },
+    {
+      "level": "low",
+      "title": "banked_deviation bank not persisted",
+      "detail": "projection's banked_missed_g is never carried across days; governor signals are logged, not acted on (re-pacing v2)."
+    },
+    {
+      "level": "med",
+      "title": "Two-plane shape contract unenforced",
+      "detail": "Drive emits legacy plan_result shapes by convention only \u2014 volume_summary bug was this class. Needs a schema/validator at the seam."
+    },
+    {
       "sev": "high",
       "title": "Cloud env network policy blocks the live run",
       "detail": "Proxy answers 403 to CONNECT for api.deepseek.com and beyolhukpbvvoxvjnwtd.supabase.co. Keys are present and verified; the ONLY blocker for the engine live run, the RTP seed, and the saved_plans audit. Fix: allow-list both domains in environment network settings."
@@ -274,6 +289,21 @@
   "decisions": [
     {
       "date": "2026-07-13",
+      "title": "Drive contract",
+      "detail": "Propose-and-confirm on modulated days only; green ships silently; no response = conservative auto-accept. Zero LLM in the morning path; color arrives async."
+    },
+    {
+      "date": "2026-07-13",
+      "title": "Calendar belongs to determinism",
+      "detail": "LLM date strings are ignored; date_i = start_date + day_index rewritten in the repair plane. generated_at stamped by us."
+    },
+    {
+      "date": "2026-07-13",
+      "title": "Volume-first modulation",
+      "detail": "Trims cut sets/intensity, never exercises. Throwing recovery clamps stay hard. Proposals lead with WHY."
+    },
+    {
+      "date": "2026-07-13",
       "what": "BACKEND GRILL (Landon): (1) live-LLM run unblocked by adding DEEPSEEK_API_KEY + SUPABASE_URL + SUPABASE_SERVICE_KEY to the Claude cloud env \u2014 Claude runs it autonomously; (2) DeepSeek stays the author model until real output says otherwise; (3) Sprint B cleanup = FULL (dead tables drop after audit); (4) robustness aims at plan quality, check-in latency, and stored-state trust \u2014 not silent breakage."
     },
     {
@@ -314,6 +344,11 @@
     }
   ],
   "log": [
+    {
+      "date": "2026-07-13",
+      "agent": "Claude (Fable)",
+      "summary": "Session wrap: Sprints C+D shipped and merged (#39, #40). Drive live for landon_brice. Learnings + v2 backlog encoded; next sprint direction pending grill."
+    },
     {
       "date": "2026-07-13",
       "agent": "Claude (Fable)",
