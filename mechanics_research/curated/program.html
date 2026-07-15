@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Landon Brice — Throwing Mechanics Rebuild</title>
+<style>
+  :root{
+    --bone:#f7f1e3;
+    --bone-2:#fbf7ee;
+    --charcoal:#23211d;
+    --charcoal-soft:#4a463f;
+    --muted:#7c766b;
+    --maroon:#5c1020;
+    --maroon-ink:#430b17;
+    --line:#ddd3bf;
+    --line-soft:#e7dcc6;
+    --amber:#b07a1e;
+    --amber-bg:#f6ead0;
+    --amber-line:#e2c485;
+    --card:#fffdf8;
+    --shadow:0 1px 2px rgba(35,33,29,.05), 0 6px 18px rgba(35,33,29,.05);
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    background:var(--bone);
+    color:var(--charcoal);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji",sans-serif;
+    line-height:1.55;
+    font-size:17px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .serif{font-family:Georgia,"Times New Roman",Cambria,"Iowan Old Style",serif;}
+  .wrap{max-width:920px;margin:0 auto;padding:0 22px;}
+
+  /* ---------- STICKY NAV ---------- */
+  nav.topnav{
+    position:sticky;top:0;z-index:50;
+    background:rgba(92,16,32,.97);
+    border-bottom:1px solid var(--maroon-ink);
+    backdrop-filter:saturate(140%) blur(2px);
+  }
+  nav.topnav .inner{
+    max-width:920px;margin:0 auto;padding:9px 22px;
+    display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;
+  }
+  nav.topnav .brandmark{
+    color:#f3d9c9;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+    font-size:12.5px;margin-right:auto;
+  }
+  nav.topnav a{
+    color:#f7f1e3;text-decoration:none;font-size:13.5px;font-weight:600;
+    padding:4px 9px;border-radius:5px;white-space:nowrap;
+  }
+  nav.topnav a:hover{background:rgba(247,241,227,.16);}
+  nav.topnav a.warn{color:#f6d79b;}
+
+  /* ---------- HERO ---------- */
+  header.hero{padding:42px 0 30px;border-bottom:3px solid var(--maroon);}
+  .kicker{
+    text-transform:uppercase;letter-spacing:.16em;font-size:12px;font-weight:700;
+    color:var(--maroon);margin:0 0 12px;
+  }
+  h1{
+    font-family:Georgia,"Times New Roman",serif;
+    font-size:clamp(30px,6vw,46px);line-height:1.04;margin:0 0 16px;
+    letter-spacing:-.01em;font-weight:700;
+  }
+  .goal-line{
+    font-size:clamp(18px,3.2vw,21px);line-height:1.45;margin:0 0 20px;
+    color:var(--charcoal);max-width:42em;
+  }
+  .goal-line b{color:var(--maroon);}
+  .faultchain{
+    background:var(--card);border:1px solid var(--line);border-left:4px solid var(--maroon);
+    border-radius:8px;padding:14px 18px;font-size:15.5px;color:var(--charcoal-soft);
+    max-width:46em;box-shadow:var(--shadow);
+  }
+  .faultchain .lbl{
+    display:block;text-transform:uppercase;letter-spacing:.1em;font-size:10.5px;
+    color:var(--maroon);font-weight:700;margin-bottom:5px;
+  }
+  .faultchain .seq b{color:var(--charcoal);}
+  .arrow{color:var(--maroon);font-weight:700;padding:0 3px;}
+
+  /* ---------- PRIORITY STRIP ---------- */
+  .pstrip{
+    margin:26px 0 6px;background:var(--maroon);color:var(--bone);
+    border-radius:10px;padding:18px 20px;box-shadow:var(--shadow);
+  }
+  .pstrip h2{margin:0 0 6px;font-size:15px;text-transform:uppercase;letter-spacing:.12em;color:#f3d9c9;}
+  .pstrip p{margin:0;font-size:15.5px;line-height:1.5;color:#fbf2e7;}
+  .pstrip .score{
+    display:inline-block;background:rgba(247,241,227,.14);border:1px solid rgba(247,241,227,.3);
+    border-radius:5px;padding:1px 7px;margin:0 1px;font-weight:700;font-size:13.5px;white-space:nowrap;
+  }
+
+  section{padding:34px 0;border-bottom:1px solid var(--line-soft);}
+  .sec-head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:6px;}
+  h2.area-h{font-family:Georgia,serif;font-size:clamp(22px,4vw,30px);margin:0;line-height:1.1;font-weight:700;}
+  .pbadge{
+    display:inline-block;background:var(--maroon);color:var(--bone);font-size:12px;font-weight:700;
+    letter-spacing:.06em;padding:3px 9px;border-radius:999px;vertical-align:middle;white-space:nowrap;
+  }
+  .area-fault{color:var(--muted);font-size:15.5px;margin:2px 0 4px;font-style:italic;}
+  .model{
+    font-size:15px;color:var(--charcoal-soft);margin:6px 0 14px;
+    border-left:3px solid var(--line);padding-left:12px;max-width:48em;
+  }
+  .model b{color:var(--maroon);font-style:normal;}
+
+  /* ---------- CUE CHIPS ---------- */
+  .cues{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 22px;}
+  .chip{
+    display:inline-block;background:#fff;border:1.5px solid var(--maroon);color:var(--maroon);
+    border-radius:999px;padding:5px 13px;font-size:13.5px;font-weight:700;letter-spacing:.01em;
+  }
+  .chip::before{content:"\201C";}
+  .chip::after{content:"\201D";}
+
+  /* ---------- KEYSTONE ---------- */
+  .keystone{
+    background:var(--card);border:2px solid var(--maroon);border-radius:12px;
+    padding:20px 22px;margin:0 0 18px;box-shadow:0 2px 6px rgba(92,16,32,.10),0 10px 28px rgba(92,16,32,.07);
+    position:relative;
+  }
+  .keystone .ktag{
+    position:absolute;top:-12px;left:18px;background:var(--maroon);color:var(--bone);
+    font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+    padding:4px 11px;border-radius:5px;
+  }
+  .keystone h3{
+    font-family:Georgia,serif;font-size:clamp(19px,3.4vw,23px);margin:8px 0 8px;line-height:1.18;font-weight:700;
+  }
+  .why{font-size:15.5px;color:var(--charcoal-soft);margin:0 0 14px;max-width:50em;}
+  .why b{color:var(--maroon);}
+  .meta{
+    display:flex;flex-wrap:wrap;gap:8px 10px;margin:0 0 16px;
+  }
+  .meta .m{
+    background:var(--bone);border:1px solid var(--line);border-radius:7px;padding:6px 11px;
+    font-size:13px;line-height:1.3;
+  }
+  .meta .m .k{display:block;text-transform:uppercase;letter-spacing:.08em;font-size:9.5px;color:var(--muted);font-weight:700;margin-bottom:2px;}
+  .meta .m .v{font-weight:600;color:var(--charcoal);}
+  .meta .m.cue .v{color:var(--maroon);}
+  .watch{
+    display:inline-flex;align-items:center;gap:7px;background:var(--maroon);color:#fff !important;
+    text-decoration:none;font-weight:700;font-size:14.5px;padding:9px 18px;border-radius:7px;
+    border:1px solid var(--maroon-ink);
+  }
+  .watch:hover{background:var(--maroon-ink);}
+  .watch .play{font-size:13px;}
+
+  /* ---------- SUPPORT ROWS ---------- */
+  .support-lbl,.law-lbl{
+    text-transform:uppercase;letter-spacing:.1em;font-size:11px;font-weight:700;color:var(--maroon);
+    margin:18px 0 9px;
+  }
+  .srow{
+    display:flex;flex-wrap:wrap;align-items:flex-start;gap:8px 14px;
+    background:var(--bone-2);border:1px solid var(--line-soft);border-radius:9px;
+    padding:12px 15px;margin:0 0 10px;
+  }
+  .srow .sbody{flex:1 1 340px;min-width:240px;}
+  .srow .sname{font-weight:700;font-size:15.5px;color:var(--charcoal);}
+  .srow .swhy{font-size:14px;color:var(--charcoal-soft);margin-top:3px;}
+  .srow .smeta{font-size:12.5px;color:var(--muted);margin-top:5px;}
+  .srow .smeta .scue{color:var(--maroon);font-weight:700;}
+  .watch-sm{
+    display:inline-flex;align-items:center;gap:6px;align-self:center;
+    border:1.5px solid var(--maroon);color:var(--maroon) !important;text-decoration:none;
+    font-weight:700;font-size:13px;padding:6px 13px;border-radius:6px;white-space:nowrap;background:#fff;
+  }
+  .watch-sm:hover{background:var(--maroon);color:#fff !important;}
+
+  /* ---------- PREREQ ---------- */
+  .prereq{
+    font-size:13.5px;color:var(--muted);margin:12px 0 6px;padding:10px 14px;
+    border:1px dashed var(--line);border-radius:8px;background:transparent;
+  }
+  .prereq .ptag{
+    text-transform:uppercase;letter-spacing:.08em;font-size:10px;font-weight:700;color:var(--amber);
+    display:block;margin-bottom:3px;
+  }
+  .prereq b{color:var(--charcoal-soft);}
+  .prereq a{color:var(--maroon);}
+
+  /* ---------- LAWS (details) ---------- */
+  details.laws{
+    margin:16px 0 6px;border:1px solid var(--line);border-radius:9px;background:#fff;overflow:hidden;
+  }
+  details.laws>summary{
+    cursor:pointer;list-style:none;padding:13px 16px;font-weight:700;font-size:14.5px;color:var(--maroon);
+    display:flex;align-items:center;gap:9px;user-select:none;
+  }
+  details.laws>summary::-webkit-details-marker{display:none;}
+  details.laws>summary .tw{
+    display:inline-block;transition:transform .15s ease;color:var(--maroon);font-size:13px;
+  }
+  details.laws[open]>summary .tw{transform:rotate(90deg);}
+  details.laws>summary:hover{background:var(--bone-2);}
+  .laws-body{padding:4px 16px 14px;border-top:1px solid var(--line-soft);}
+  ol.lawlist{margin:12px 0 6px;padding-left:20px;}
+  ol.lawlist li{margin:0 0 12px;font-size:15px;line-height:1.5;color:var(--charcoal-soft);}
+  ol.lawlist li b{color:var(--charcoal);}
+  ol.lawlist li a{color:var(--maroon);font-size:12.5px;font-weight:600;text-decoration:none;border-bottom:1px solid var(--line);}
+  ol.lawlist li a:hover{border-bottom-color:var(--maroon);}
+  .src{display:inline-block;margin-top:3px;}
+
+  /* ---------- DON'T OVERCORRECT ---------- */
+  .nocorrect{
+    background:var(--amber-bg);border:1px solid var(--amber-line);border-left:4px solid var(--amber);
+    border-radius:8px;padding:12px 15px;margin:14px 0 4px;font-size:14.5px;color:#5b4413;
+  }
+  .nocorrect .nh{font-weight:700;color:var(--amber);display:block;margin-bottom:4px;letter-spacing:.02em;}
+  .nocorrect a{color:var(--maroon);}
+
+  /* ---------- GUARDRAILS ---------- */
+  #guardrails{background:var(--amber-bg);border-top:3px solid var(--amber);border-bottom:3px solid var(--amber);}
+  #guardrails h2.area-h{color:#6b4f12;}
+  .grl-intro{color:#5b4413;font-size:16px;max-width:46em;margin:2px 0 18px;}
+  .grl-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:22px;}
+  .grl{
+    background:#fff;border:1px solid var(--amber-line);border-radius:9px;padding:13px 16px;
+  }
+  .grl .gt{font-weight:700;color:#6b4f12;font-size:14.5px;margin-bottom:4px;}
+  .grl p{margin:0;font-size:14px;color:var(--charcoal-soft);line-height:1.45;}
+  .grl a{color:var(--maroon);}
+  .grl.stop{border:2px solid var(--maroon);background:#fff;}
+  .grl.stop .gt{color:var(--maroon);}
+  .grl.stop .gt::before{content:"\26D4  ";}
+  .mistakes{background:#fff;border:1px solid var(--amber-line);border-radius:9px;padding:16px 18px 16px;}
+  .mistakes h3{margin:0 0 10px;font-size:14px;text-transform:uppercase;letter-spacing:.08em;color:#6b4f12;}
+  .mistakes ul{margin:0;padding-left:20px;}
+  .mistakes li{font-size:14.5px;color:var(--charcoal-soft);margin:0 0 9px;line-height:1.45;}
+  .mistakes li b{color:var(--maroon);}
+
+  /* ---------- WEEK / PHASE PLAN ---------- */
+  .phase{
+    position:relative;padding:0 0 0 0;margin:0 0 14px;
+    background:var(--card);border:1px solid var(--line);border-radius:11px;box-shadow:var(--shadow);
+    overflow:hidden;
+  }
+  .phase .ph-head{
+    display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;
+    padding:13px 18px;border-bottom:1px solid var(--line-soft);background:var(--bone-2);
+  }
+  .phase .ph-num{
+    background:var(--maroon);color:var(--bone);font-weight:700;font-size:13px;
+    border-radius:6px;padding:3px 10px;letter-spacing:.04em;
+  }
+  .phase .ph-name{font-weight:700;font-size:16px;color:var(--charcoal);}
+  .phase .ph-gate{font-size:13px;color:var(--muted);margin-left:auto;font-style:italic;}
+  .phase .ph-body{padding:13px 18px 15px;}
+  .phase .ph-focus{font-size:14.5px;color:var(--charcoal-soft);margin:0 0 9px;}
+  .runs{display:flex;flex-wrap:wrap;gap:7px;}
+  .runs .runtag{
+    font-size:12.5px;font-weight:600;border-radius:6px;padding:4px 10px;
+    background:var(--bone);border:1px solid var(--line);color:var(--charcoal-soft);
+  }
+  .runs .runtag.key{background:var(--maroon);color:var(--bone);border-color:var(--maroon-ink);}
+  .runs .runtag.key::before{content:"\2605 ";}
+  .legend{font-size:13px;color:var(--muted);margin:4px 0 18px;}
+  .legend .runtag.key{font-size:12px;}
+
+  /* ---------- FOOTER ---------- */
+  footer{padding:26px 0 40px;color:var(--muted);font-size:13.5px;text-align:center;}
+  footer .verline{color:var(--charcoal-soft);}
+
+  @media (max-width:640px){
+    body{font-size:16px;}
+    .grl-grid{grid-template-columns:1fr;}
+    .meta .m{flex:1 1 auto;}
+    nav.topnav .brandmark{flex:1 1 100%;margin:0 0 2px;}
+  }
+
+  /* ---------- PRINT ---------- */
+  @media print{
+    nav.topnav{display:none;}
+    body{background:#fff;color:#000;font-size:11.5pt;}
+    .wrap{max-width:none;}
+    section{padding:14px 0;border-bottom:1px solid #bbb;break-inside:avoid;}
+    .keystone,.phase,.srow,.grl,.mistakes,.faultchain,.pstrip{box-shadow:none;}
+    .pstrip{background:#fff;color:#000;border:1.5px solid #5c1020;}
+    .pstrip h2,.pstrip p,.pstrip .score{color:#000;}
+    .keystone{border:1.5px solid #5c1020;break-inside:avoid;}
+    .watch,.watch-sm{background:#fff !important;color:#5c1020 !important;border:1px solid #5c1020;}
+    details.laws{border:1px solid #999;}
+    details.laws[open]{break-inside:avoid;}
+    details.laws>summary{color:#000;}
+    a{color:#000;}
+    .chip{border-color:#5c1020;color:#5c1020;}
+    #guardrails{background:#fff;}
+    .nocorrect,.grl{background:#fff;}
+    .phase{break-inside:avoid;}
+    a[href]::after{content:" [" attr(href) "]";font-size:8pt;color:#555;word-break:break-all;}
+    .watch[href]::after,.watch-sm[href]::after{content:"";}
+  }
+  details.laws{break-inside:avoid;}
+</style>
+</head>
+<body>
+
+<!-- ============ STICKY NAV ============ -->
+<nav class="topnav" aria-label="Section navigation">
+  <div class="inner">
+    <span class="brandmark">L. Brice · Mechanics Rebuild</span>
+    <a href="#p1">1 · Staying Closed</a>
+    <a href="#p2">2 · Hip Rotation</a>
+    <a href="#p3">3 · Arm Path</a>
+    <a href="#guardrails" class="warn">⚠ Guardrails</a>
+    <a href="#weekplan">Week Plan</a>
+  </div>
+</nav>
+
+<!-- ============ HERO ============ -->
+<header class="hero">
+  <div class="wrap">
+    <p class="kicker">Throwing Mechanics Program</p>
+    <h1>Landon Brice — Throwing Mechanics Rebuild</h1>
+    <p class="goal-line">
+      Fix the mechanical inefficiencies so you throw <b>biomechanically correct and efficient</b> —
+      velocity is a <b>byproduct</b> of efficiency, and your flexor-pronator / medial-elbow history
+      stays protected every step of the way.
+    </p>
+    <div class="faultchain">
+      <span class="lbl">The fault chain, in one breath</span>
+      <span class="seq">
+        <b>Good drop</b><span class="arrow">→</span><b>no rotate</b><span class="arrow">→</span>back hip leaks<span class="arrow">→</span>front side flies open early<span class="arrow">→</span>no separation<span class="arrow">→</span>push arm action.
+      </span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ============ PRIORITY STRIP ============ -->
+  <div class="pstrip">
+    <h2>Why this order</h2>
+    <p>
+      The three areas are ranked by your <strong>worst diagnostic self-scores</strong>:
+      <span class="score">glove-side @ foot-strike = 1</span>
+      <span class="score">hip–shoulder separation = 2</span>
+      <span class="score">hip-explosion sequence = 2</span>.
+      So <strong>Staying Closed</strong> and <strong>Hip Rotation</strong> lead — they are the engine and the brace.
+      Arm Path is downstream and comes last; it largely fixes itself once the front side holds.
+    </p>
+  </div>
+
+  <!-- ============ AREA 1 — STAYING CLOSED [P1] ============ -->
+  <section id="p1">
+    <div class="sec-head">
+      <h2 class="area-h">Staying Closed</h2>
+      <span class="pbadge">PRIORITY 1</span>
+    </div>
+    <p class="area-fault">Fault: front hip swings open early, lead leg lands open, shoulders fly open — the separation window never opens.</p>
+    <p class="model"><b>Target model:</b> glove and lead leg travel together and rotate <b>late</b>; arrive closed and stacked at foot plant, then the lead leg posts to decelerate the pelvis so the trunk catches up.</p>
+    <div class="cues">
+      <span class="chip">Stay shut till you land</span>
+      <span class="chip">Chest to glove</span>
+      <span class="chip">Hip leads, trunk waits</span>
+    </div>
+
+    <!-- KEYSTONE -->
+    <div class="keystone">
+      <span class="ktag">★ Keystone Drill</span>
+      <h3>Throw Harder by Mastering the Lead Leg Block — Full Routine</h3>
+      <p class="why"><b>Why it fixes it:</b> the lead-leg block is <b>the</b> single most important feature for you — it sits at the seam of staying-closed and hip-rotation. This routine progresses a constraint pattern into loaded throws that post the front leg to decelerate the pelvis at max external rotation, turning hip drive into a closed, braced front side.</p>
+      <div class="meta">
+        <span class="m"><span class="k">Equipment</span><span class="v">Plyo balls, band, baseball</span></span>
+        <span class="m"><span class="k">Dose</span><span class="v">Follow routine</span></span>
+        <span class="m"><span class="k">Phase to start</span><span class="v">Phase 4</span></span>
+        <span class="m"><span class="k">Channel</span><span class="v">Tread Athletics</span></span>
+        <span class="m cue"><span class="k">Cue</span><span class="v">“Post and brace”</span></span>
+      </div>
+      <a class="watch" href="https://www.youtube.com/watch?v=wtjFwRegY_M" target="_blank" rel="noopener"><span class="play">▶</span> Watch the keystone</a>
+    </div>
+
+    <!-- SUPPORT -->
+    <p class="support-lbl">Support drills (2)</p>
+    <div class="srow">
+      <div class="sbody">
+        <div class="sname">Pivot Pickoff Throw — separation / coil</div>
+        <div class="swhy">Counter-rotate and hang the hand back, then let the pelvis lead while the trunk stays closed — builds the coil and the separation window you never open. Cross-source staple (Tread + Driveline + Bauer).</div>
+        <div class="smeta">8–10 throws · Phase 3 · cue <span class="scue">“Hips first, trunk waits”</span></div>
+      </div>
+      <a class="watch-sm" href="https://www.youtube.com/watch?v=F1hduSf5J_Y" target="_blank" rel="noopener">▶ Watch</a>
+    </div>
+    <div class="srow">
+      <div class="sbody">
+        <div class="sname">Gain Velocity by Fixing Your Glove Arm — 3 Glove Drills</div>
+        <div class="swhy">Your glove-side-at-foot-strike score is the worst diagnostic (1). Pulling the lead elbow down/in and holding the glove a beat longer attacks the shoulders-fly-open half the leg block doesn't cover.</div>
+        <div class="smeta">3 drills × 5 · Phase 3 · cue <span class="scue">“Glove stays home”</span></div>
+      </div>
+      <a class="watch-sm" href="https://www.youtube.com/watch?v=maBIuUqxnx0" target="_blank" rel="noopener">▶ Watch</a>
+    </div>
+
+    <!-- PREREQ -->
+    <div class="prereq">
+      <span class="ptag">Physical prerequisite — not a throwing drill</span>
+      <b>Seated Trunk Rotation Test + Side-Lying Windmill</b> (Cressey). If T-spine rotation is &lt; 45° you physically can't keep the trunk closed while the pelvis turns — gate-test, then mobilize.
+      <a href="https://ericcressey.com/thoracic-spine-mobility-drills-throwers/" target="_blank" rel="noopener">screen / mobilize →</a>
+    </div>
+
+    <!-- LAWS -->
+    <details class="laws">
+      <summary><span class="tw">▸</span> The laws behind Staying Closed</summary>
+      <div class="laws-body">
+        <ol class="lawlist">
+          <li><b>Delay hips &amp; shoulders opening while still moving toward home = stored torque = impulse at release.</b> Fire the back hip, keep the front side closed, and you get more torque → more impulse. Your front side flies open early, so the elastic band never stretches.
+            <a class="src" href="https://www.youtube.com/watch?v=l1dZ5z9dnXc" target="_blank" rel="noopener">Bauer · Tips with Trev Ep 22 →</a>
+            <a class="src" href="https://www.youtube.com/watch?v=KVno6crh5u8" target="_blank" rel="noopener">Bauer · Separation Ep 21 →</a></li>
+          <li><b>Separation peaks just after foot strike — decelerate the pelvis at foot plant so the torso catches up.</b> The window opens at foot contact (MLB ~40–60°). Arrive <b>closed</b> at foot plant — the exact opposite of your current open-at-landing pattern.
+            <a class="src" href="https://pmc.ncbi.nlm.nih.gov/articles/PMC7727427/" target="_blank" rel="noopener">IJSPT kinematics study →</a>
+            <a class="src" href="https://www.drivelinebaseball.com/2017/05/different-model-cueing-pitching-mechanics/" target="_blank" rel="noopener">Driveline · Cueing model →</a></li>
+          <li><b>Bring the chest to the glove — swivel it to face the chest and stabilize over the front foot. Don't pull it.</b> The glove is a fulcrum to rotate around, not a lever to pull open. Pulling the glove is the fastest way to throw the front side open early.
+            <a class="src" href="https://teammstrd.com/using-the-glove-swivel-and-stabilize-to-proper-position/" target="_blank" rel="noopener">Mustard · Swivel &amp; Stabilize →</a>
+            <a class="src" href="https://www.youtube.com/watch?v=maBIuUqxnx0" target="_blank" rel="noopener">Tread · Glove Arm →</a></li>
+          <li><b>Separation needs anti-rotation core + ≥45° T-spine rotation — you can't FEEL it without the canister.</b> Below 45° T-spine, the trunk fly-opens or steals motion from the low back. It's a physical prerequisite, not a willpower one.
+            <a class="src" href="https://ericcressey.com/thoracic-spine-mobility-drills-throwers/" target="_blank" rel="noopener">Cressey · T-spine mobility →</a>
+            <a class="src" href="https://www.drivelinebaseball.com/2017/05/stability-pitching-mechanics/" target="_blank" rel="noopener">Driveline · Stability &amp; mechanics →</a></li>
+        </ol>
+        <div class="nocorrect">
+          <span class="nh">⚠ Don't overcorrect</span>
+          Don't force the hips through, and <b>don't jam the glove</b>. A glove-blocking "firm front side" that stops deceleration short <em>kills</em> shoulder rotational velocity and adds shoulder/neck stress — the lead LEG blocks, the glove STABILIZES.
+          <a href="https://www.drivelinebaseball.com/2013/10/dont-teach-equal-opposite-firm-front-side/" target="_blank" rel="noopener">Driveline · Don't teach firm front side →</a>
+        </div>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ AREA 2 — HIP ROTATION [P2] ============ -->
+  <section id="p2">
+    <div class="sec-head">
+      <h2 class="area-h">Hip Rotation</h2>
+      <span class="pbadge">PRIORITY 2</span>
+    </div>
+    <p class="area-fault">Fault: good drop, no rotate — the back hip leaks and never clears; the lead leg doesn't post/block. He spins, he doesn't sequence.</p>
+    <p class="model"><b>Target model:</b> the back hip drives and clears <b>into a posted, blocked lead leg</b> — glute/ham pull (sprinter drive), pelvis leads, the front knee passively extends in response.</p>
+    <div class="cues">
+      <span class="chip">Rotate around the front hip</span>
+      <span class="chip">Pull the ground back</span>
+      <span class="chip">Hips lead, torso waits</span>
+    </div>
+
+    <!-- KEYSTONE -->
+    <div class="keystone">
+      <span class="ktag">★ Keystone Drill</span>
+      <h3>Fixing Your Lead Leg Block: Hip Rotation w/ Strap</h3>
+      <p class="why"><b>Why it fixes it:</b> the strap forces the back hip to rotate and clear <b>around a posted front leg</b> instead of drifting open — it trains the exact drop→rotate→block link you're missing, the seam of your two biggest faults, and physically removes the "leak" option.</p>
+      <div class="meta">
+        <span class="m"><span class="k">Equipment</span><span class="v">Resistance strap/band + anchor</span></span>
+        <span class="m"><span class="k">Dose</span><span class="v">3 × 5 each</span></span>
+        <span class="m"><span class="k">Phase to start</span><span class="v">Phase 3</span></span>
+        <span class="m"><span class="k">Channel</span><span class="v">Tread Athletics</span></span>
+        <span class="m cue"><span class="k">Cue</span><span class="v">“Clear around the post”</span></span>
+      </div>
+      <a class="watch" href="https://www.youtube.com/watch?v=o3SqB6symC0" target="_blank" rel="noopener"><span class="play">▶</span> Watch the keystone</a>
+    </div>
+
+    <!-- SUPPORT -->
+    <p class="support-lbl">Support drills (2)</p>
+    <div class="srow">
+      <div class="sbody">
+        <div class="sname">Posture Squat — Top 3 Drills for Perfect Mechanics</div>
+        <div class="swhy">Loads BOTH hips low then kicks the lead leg and rotates — Bauer's own drill that chains a good drop directly into a rotate, the transition you stall on.</div>
+        <div class="smeta">3 × 5 · Phase 3 · cue <span class="scue">“Drop then turn”</span></div>
+      </div>
+      <a class="watch-sm" href="https://www.facebook.com/TrevorBauerOfficial/videos/3-drills-for-perfect-mechanics/668322439484135/" target="_blank" rel="noopener">▶ Watch</a>
+    </div>
+    <div class="srow">
+      <div class="sbody">
+        <div class="sname">Drive Leg Mechanics — Increase Velocity &amp; Reduce Arm Stress</div>
+        <div class="swhy">Teaches rear-glute/ham drive (pull the ground back like a sprinter) vs. quad push — stops the back-hip leak at the source and lowers arm stress, which matters for your flexor-pronator history.</div>
+        <div class="smeta">Review + 3 × 5 · Phase 3 · cue <span class="scue">“Pull the ground back”</span></div>
+      </div>
+      <a class="watch-sm" href="https://www.youtube.com/watch?v=1V5CmleRaoI" target="_blank" rel="noopener">▶ Watch</a>
+    </div>
+
+    <!-- PREREQ -->
+    <div class="prereq">
+      <span class="ptag">Physical prerequisite — not a throwing drill</span>
+      <b>Lying Knee-to-Knee / Hip IR Mobilization</b> (Cressey). Opens lead-leg hip internal rotation so the front hip can <em>post</em> rather than swing open.
+      <a href="https://ericcressey.com/newsletter152html/" target="_blank" rel="noopener">mobilize →</a>
+    </div>
+
+    <!-- LAWS -->
+    <details class="laws">
+      <summary><span class="tw">▸</span> The laws behind Hip Rotation</summary>
+      <div class="laws-body">
+        <ol class="lawlist">
+          <li><b>The FRONT-leg block — not the back-leg push — predicts velocity.</b> Peak stride-leg ground force during arm-cocking is the single best velocity predictor (r² ≈ 0.61); back-leg drive doesn't correlate. Re-aim all effort from "push the rubber" to "post the front leg."
+            <a class="src" href="https://www.drivelinebaseball.com/2016/08/analyzing-front-and-back-leg-ground-forces-in-pitchers-using-force-plates/" target="_blank" rel="noopener">Driveline · Front &amp; back leg force plates →</a></li>
+          <li><b>The lead leg straightens in RESPONSE to back-hip rotation — you don't actively push or jam it.</b> As the back hip rotates around the posted front hip, the front knee passively extends. Cue back-hip rotation into a planted front leg — never "straighten the front leg."
+            <a class="src" href="https://www.youtube.com/watch?v=J7SlDhs85n4" target="_blank" rel="noopener">Tread · Front leg mechanics →</a>
+            <a class="src" href="https://x.com/TreadHQ/status/1883960310689857815" target="_blank" rel="noopener">Tread · weight-room block list →</a></li>
+          <li><b>Drive the back hip with glute/ham (pull the ground back like a sprinter) — not a quad push.</b> Rotate, don't lunge. The pelvis drives the rotation into landing; reframing the unload as "pelvis drives, glute pulls" stops the leak AND lowers arm stress.
+            <a class="src" href="https://www.youtube.com/watch?v=1V5CmleRaoI" target="_blank" rel="noopener">Tread · Drive Leg Mechanics →</a>
+            <a class="src" href="https://www.tiktok.com/@tread_athletics/video/7429357491495963947" target="_blank" rel="noopener">Tread · Back hip into landing →</a></li>
+          <li><b>Keep the back knee rolling downward to keep the hips "in play" until footstrike, so the hips LEAD the torso.</b> If the back leg extends early, hips and torso rotate together and separation collapses. A concrete, filmable checkpoint on your 240fps camera — Bauer's own diagnostic of exactly your fault.
+            <a class="src" href="https://x.com/BauerOutage/status/1163669225061388289" target="_blank" rel="noopener">Bauer · film breakdown →</a></li>
+        </ol>
+        <div class="nocorrect">
+          <span class="nh">⚠ Don't overcorrect</span>
+          <b>Don't cue the back-leg push.</b> The force-plate data is explicit — back-leg drive doesn't predict velocity, and cueing "push the rubber" re-creates the leak. Cue <em>rotate around the front hip</em>, not <em>push off the back</em>.
+        </div>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ AREA 3 — ARM PATH / SPIRAL [P3] ============ -->
+  <section id="p3">
+    <div class="sec-head">
+      <h2 class="area-h">Arm Path / Spiral</h2>
+      <span class="pbadge">PRIORITY 3</span>
+    </div>
+    <p class="area-fault">Fault: PUSH arm action — force never spirals up the chain into the arm; insufficient layback; the arm isn't pulled by the trunk.</p>
+    <p class="model"><b>Target model:</b> the trunk <b>whips</b> the arm off a braced front side — the arm lays back, stays in-plane, and spirals; it reacts, it never initiates.</p>
+    <div class="cues">
+      <span class="chip">Trunk whips the arm</span>
+      <span class="chip">Relax the hand, drive the armpit</span>
+      <span class="chip">Stay in plane / lay it back</span>
+    </div>
+
+    <!-- KEYSTONE -->
+    <div class="keystone">
+      <span class="ktag">★ Keystone Drill</span>
+      <h3>Early Trunk Rotation Limits Arm Speed (feat. Trevor Bauer)</h3>
+      <p class="why"><b>Why it fixes it:</b> it pinpoints your exact mechanism — the trunk opens early so the arm is left to <b>push</b> with no whip. It frame-counts the disconnect and prescribes letting the trunk <b>pull</b> a laid-back arm — Bauer-anchored, directly on your elbow-leads / short-extension faults, off the braced front side Areas 1 &amp; 2 build.</p>
+      <div class="meta">
+        <span class="m"><span class="k">Equipment</span><span class="v">Camera, mound</span></span>
+        <span class="m"><span class="k">Dose</span><span class="v">Review + cue work</span></span>
+        <span class="m"><span class="k">Phase to start</span><span class="v">Phase 4</span></span>
+        <span class="m"><span class="k">Channel</span><span class="v">Trevor Bauer / analysis</span></span>
+        <span class="m cue"><span class="k">Cue</span><span class="v">“Let the trunk pull the arm”</span></span>
+      </div>
+      <a class="watch" href="https://www.youtube.com/watch?v=q3JcGioZKR8" target="_blank" rel="noopener"><span class="play">▶</span> Watch the keystone</a>
+    </div>
+
+    <!-- SUPPORT -->
+    <p class="support-lbl">Support drills (2)</p>
+    <div class="srow">
+      <div class="sbody">
+        <div class="sname">How I Cue My Arm Action — “Spiral Staircase”</div>
+        <div class="swhy">The cleanest demonstration of the spiral (elbow climbs the staircase, then drive down through the ball) vs. the linear push — be patient with the torso so the arm spirals up before the shoulders fire.</div>
+        <div class="smeta">3 × 5 · Phase 4 · cue <span class="scue">“Climb, then drive through”</span></div>
+      </div>
+      <a class="watch-sm" href="https://www.youtube.com/watch?v=4GjWsy7y65I" target="_blank" rel="noopener">▶ Watch</a>
+    </div>
+    <div class="srow">
+      <div class="sbody">
+        <div class="sname">Reverse Throws (Plyo)</div>
+        <div class="swhy">Counter-rotate and drive the arm back through the slot — builds posterior-shoulder/scap durability and layback so the arm can whip instead of push. Underload-friendly and protective of the medial elbow.</div>
+        <div class="smeta">2 × 5 · plyo balls ≤450g/6oz · Phase 3 · cue <span class="scue">“Lay it back”</span></div>
+      </div>
+      <a class="watch-sm" href="https://www.drivelinebaseball.com/2017/12/plyo-velocity-weighted-balls-replication/" target="_blank" rel="noopener">▶ Watch</a>
+    </div>
+
+    <!-- PREREQ -->
+    <div class="prereq">
+      <span class="ptag">Physical prerequisite — not a throwing drill</span>
+      <b>Forearm/Serratus Wall Slide with Band</b> (Cressey). Scap upward-rotation capacity is the physical permission slip for clean layback — without it the hand never gets out front.
+      <a href="https://ericcressey.com/exercises-of-the-week-serratus-wall-slides/" target="_blank" rel="noopener">train concurrently →</a>
+    </div>
+
+    <p class="prereq" style="border-style:solid;">
+      <span class="ptag" style="color:var(--maroon);">Coach read — the written model</span>
+      <b>The Elbow Spiral: Key to an Efficient Arm Action</b> (Driveline) — the canonical written model for "spiral, not push."
+      <a href="https://www.drivelinebaseball.com/2015/05/explaining-the-elbow-spiral-in-the-pitching-delivery/" target="_blank" rel="noopener">read →</a>
+    </p>
+
+    <!-- LAWS -->
+    <details class="laws">
+      <summary><span class="tw">▸</span> The laws behind Arm Path / Spiral</summary>
+      <div class="laws-body">
+        <ol class="lawlist">
+          <li><b>The TRUNK pulls the arm into layback off a braced front side — the arm spirals, it doesn't push.</b> The trunk rotation pulls the arm from external into internal rotation; the arm is the end of the whip, never the initiator. Your push is downstream of Areas 1 &amp; 2 — fix the front side and the spiral largely appears.
+            <a class="src" href="https://www.youtube.com/watch?v=3KyaEXCR-vg" target="_blank" rel="noopener">Bauer + Yu Darvish · Arm Action →</a></li>
+          <li><b>The #1 fix for a pushing arm action is keeping the shoulders CLOSED at landing.</b> Lost hip-shoulder separation is central to pushing; so is injury-compensation (your elbow history is a cause — the brain won't whip into positions it doesn't trust). Keep balls light to remove that cause.
+            <a class="src" href="https://treadathletics.com/7-causes-of-pushing/" target="_blank" rel="noopener">Tread · 7 causes of pushing →</a></li>
+          <li><b>Think PROXIMAL, relax DISTAL — drive the trunk / "pull with the pec or armpit," let the hand stay loose.</b> A tense forearm is both a velocity leak AND a medial-elbow stressor. "Relax the hand, drive the armpit" is faster arm + safer elbow.
+            <a class="src" href="https://treadathletics.com/muscling-up/" target="_blank" rel="noopener">Tread · The 3 Types of Muscling Up →</a></li>
+          <li><b>Keep the arm IN the plane of shoulder rotation — don't finish straight down to "throw strikes."</b> Over-flexing the torso drops the arm out of plane so the trunk can't rotate it through. Staying in-plane lets the trunk spiral the arm rather than push it forward.
+            <a class="src" href="https://treadathletics.com/plane-of-rotation/" target="_blank" rel="noopener">Tread · Sync the arm into the plane →</a></li>
+        </ol>
+        <div class="nocorrect">
+          <span class="nh">⚠ Don't overcorrect</span>
+          <b>Don't cue or drill the arm directly first.</b> The push is a <em>symptom</em> of no separation + no brace. Fix Staying Closed and Hip Rotation first — muscling the arm path in isolation (or "fake layback" via elbow flexion / heavy balls) just adds elbow stress without fixing the cause.
+        </div>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ GLOBAL GUARDRAILS ============ -->
+  <section id="guardrails">
+    <div class="sec-head">
+      <h2 class="area-h">⚠ Global Guardrails</h2>
+    </div>
+    <p class="grl-intro">Year-1 conservative-load rules — <strong>non-negotiable</strong>. This is a healthy-build year: the flexor-pronator / medial-elbow history is protected, and velocity is the byproduct of efficiency, not the chase.</p>
+
+    <div class="grl-grid">
+      <div class="grl">
+        <div class="gt">≤ 6oz on everything</div>
+        <p>No 7oz+ overload balls this year. Underload <strong>3–4oz</strong> (never below 3oz) is the preferred arm-speed lane — moves the arm faster with <em>less</em> force than a 5oz ball.</p>
+      </div>
+      <div class="grl">
+        <div class="gt">No pulldowns / max-effort throws</div>
+        <p>No run-and-throw pulldowns. Deferred to <strong>Phase 6 minimum</strong>, gated on a clean elbow + a block that holds in a bullpen.</p>
+      </div>
+      <div class="grl">
+        <div class="gt">No max intent before the mound phase</div>
+        <p>Hybrid ~90% plyo days are Phase 6+. "Intent of <em>purpose</em>, not of <em>effort</em>" through Phase 5 — every catch-play throw is a mechanics rep.</p>
+      </div>
+      <div class="grl">
+        <div class="gt">Mechanics-efficiency BEFORE intent</div>
+        <p>Velocity is a byproduct. Fix the sequence first; chasing velo/spin before the front side holds just re-grooves the push.</p>
+      </div>
+      <div class="grl stop" style="grid-column:1 / -1;">
+        <div class="gt">FOREARM TIGHTNESS = STOP SIGN</div>
+        <p>Forearm tightness ends the session, <strong>every time</strong>. UCL-area sensation on elbow extension = back off. The pronator/FCU durability block runs year-round.
+          <a href="https://ericcressey.com/13-tips-for-mighty-elbows-and-wrists/" target="_blank" rel="noopener">Cressey · Mighty Elbows &amp; Wrists →</a>
+          <a href="https://ericcressey.com/everything-elbow/" target="_blank" rel="noopener">Cressey · Everything Elbow →</a></p>
+      </div>
+    </div>
+
+    <div class="mistakes">
+      <h3>Common mistakes that re-create his faults</h3>
+      <ul>
+        <li><b>Cueing "push off the back leg / drive the rubber."</b> Re-grooves the back-hip leak and early back-leg extension — the opposite of rotating around a posted front hip.</li>
+        <li><b>Pulling/yanking the glove to the hip to "open up."</b> Throws the front side open early and kills the separation window — the chest should travel to the glove; the glove stays stable over the front foot.</li>
+        <li><b>Letting the pelvis arrive OPEN at foot strike.</b> The separation window only exists at and just after landing — if he's already open, there's nothing to store.</li>
+        <li><b>Going to heavier balls / max intent to "feel more arm speed."</b> With his elbow history, heavy balls and a tense forearm are <em>causes</em> of the push and a medial-elbow stressor. Underload + sub-max is the lane.</li>
+        <li><b>Drilling the arm path in isolation before the front side is braced.</b> The whip has nothing to react against, so he muscles up the hand/forearm — re-creating the push and stressing the flexors.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ============ WEEK / PHASE PLAN ============ -->
+  <section id="weekplan" style="border-bottom:none;">
+    <div class="sec-head">
+      <h2 class="area-h">The Week / Phase Plan</h2>
+    </div>
+    <p class="model" style="border:none;padding:0;margin:0 0 6px;max-width:48em;">
+      A simplified linear sequence, front-loading <b>Staying Closed</b> + <b>Hip Rotation</b> and layering <b>Arm Path</b> last. Each phase gates the next — no ball before the pattern is clean, no intent before the mound.
+    </p>
+    <p class="legend"><span class="runs" style="display:inline-flex;vertical-align:middle;"><span class="runtag key">Keystone runs here</span></span> &nbsp;=&nbsp; the area's money drill enters at this phase.</p>
+
+    <div class="phase">
+      <div class="ph-head">
+        <span class="ph-num">Phase 3</span>
+        <span class="ph-name">Pattern / Constraint — no ball</span>
+        <span class="ph-gate">gate: clean dry pattern</span>
+      </div>
+      <div class="ph-body">
+        <p class="ph-focus">Build the rotate-around-the-post pattern and the closed front side with constraints only. Mobility prereqs (hip IR, T-spine, serratus) screened and trained concurrently.</p>
+        <div class="runs">
+          <span class="runtag key">Hip Rotation · Hip Rotation w/ Strap</span>
+          <span class="runtag">Pivot Pickoff (coil)</span>
+          <span class="runtag">Glove Arm drills</span>
+          <span class="runtag">Drive Leg Mechanics</span>
+          <span class="runtag">Reverse Throws (plyo)</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="ph-head">
+        <span class="ph-num">Phase 4</span>
+        <span class="ph-name">Drill before ITP — ≤6oz</span>
+        <span class="ph-gate">gate: block holds under light load</span>
+      </div>
+      <div class="ph-body">
+        <p class="ph-focus">Load the front-side block with light throws and start layering the arm-path spiral off the braced front side. Sub-max, ≤6oz, purpose over effort.</p>
+        <div class="runs">
+          <span class="runtag key">Staying Closed · Lead Leg Block Full Routine</span>
+          <span class="runtag key">Arm Path · Early Trunk Rotation (Bauer)</span>
+          <span class="runtag">Spiral Staircase arm cue</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="ph-head">
+        <span class="ph-num">Phase 5</span>
+        <span class="ph-name">Bullpen transfer ladder</span>
+        <span class="ph-gate">gate: pattern survives a bullpen</span>
+      </div>
+      <div class="ph-body">
+        <p class="ph-focus">Transfer the closed front side + spiral onto the mound. Every throw is still a mechanics rep — "intent of purpose, not of effort." No sustained max intent yet.</p>
+        <div class="runs">
+          <span class="runtag">Lead Leg Block routine → mound</span>
+          <span class="runtag">Spiral cue on flat &amp; mound</span>
+          <span class="runtag">Film checkpoints (240fps)</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="ph-head">
+        <span class="ph-num">Phase 6</span>
+        <span class="ph-name">Live BP / intent unlocks</span>
+        <span class="ph-gate">gate: clean elbow + block holds</span>
+      </div>
+      <div class="ph-body">
+        <p class="ph-focus">Intent unlocks. Hybrid ~90% plyo days and pulldowns are eligible here — only on a clean elbow with a block that holds. Forearm tightness still ends the day.</p>
+        <div class="runs">
+          <span class="runtag">Max-intent throws (gated)</span>
+          <span class="runtag">Hybrid plyo days</span>
+          <span class="runtag">Live BP transfer</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<!-- ============ FOOTER ============ -->
+<footer>
+  <div class="wrap">
+    <p class="verline">Curated down from a 119-drill library · all links verified real · generated 2026-06-13.</p>
+  </div>
+</footer>
+
+<script>
+/* Progressive enhancement only — the page is fully usable with JS disabled.
+   <details>/<summary> handle the collapsibles natively; smooth-scroll is CSS.
+   This just gives the sticky-nav links a small offset-aware nudge on click. */
+(function(){
+  "use strict";
+  var nav = document.querySelector("nav.topnav");
+  document.querySelectorAll('nav.topnav a[href^="#"]').forEach(function(a){
+    a.addEventListener("click", function(e){
+      var id = a.getAttribute("href").slice(1);
+      var target = document.getElementById(id);
+      if(!target) return;
+      e.preventDefault();
+      var offset = (nav ? nav.offsetHeight : 0) + 10;
+      var y = target.getBoundingClientRect().top + window.pageYOffset - offset;
+      window.scrollTo({ top: y, behavior: "smooth" });
+      history.replaceState(null, "", "#" + id);
+    });
+  });
+})();
+</script>
+
+</body>
+</html>
